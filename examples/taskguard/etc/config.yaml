@@ -1,0 +1,15 @@
+Name: taskguard
+Mode: pro
+Log:
+  Stat: true
+KubeConfig:
+  CheckStatusPeriod: 5m
+  ResyncPeriod: 30m
+  ConfigFile: /root/.kube/config
+FaultToleranceConfig:
+  EnableTaskGuardLabel: scitix.ai/taskguard
+  CheckStatusPeriod: 5m
+  MaxRetryCount: 3
+  SiChekNodeAnnotationKey: scitix.ai/sichek
+  LogCheckerRulesPath: /var/taskguard/log-checker-rules.yaml
+  LogCheckerLines: 1000

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskguard-service
+  labels:
+    app: taskguard-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskguard-service
+  template:
+    metadata:
+      labels:
+        app: taskguard-service
+    spec:
+      containers:
+      - name: taskguard-service
+        image: registry-ap-southeast.scitix.ai/hpc/sichek:test4
+        command: ["/bin/bash"]
+        args:
+          - "-c"
+          - |-
+            cd /usr/sbin
+            taskguard
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "1280Mi"
+            cpu: "2"

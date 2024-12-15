@@ -1,0 +1,12 @@
+name: disk
+query_interval: 10
+cache_size: 10
+checkers:
+  blk_update_request_IO_error:
+    name: "blk_update_request_IO_error"
+    description: "blk_update_request: I/O error detected"
+    log_file: "/var/log/syslog"
+    # example: 
+    # Nov 28 10:34:56 servername kernel: [12345.678901] blk_update_request: I/O error, dev sda, sector 12345678
+    regexp: "blk_update_request: I/O error"
+    level: warning

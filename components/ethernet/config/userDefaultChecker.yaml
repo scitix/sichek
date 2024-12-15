@@ -1,0 +1,5 @@
+name: "ethernet"
+query_interval: 1
+cache_size: 10
+checkers:
+ - "phy_state"

@@ -1,0 +1,86 @@
+apiVersion: kubeflow.org/v1
+kind: PyTorchJob
+metadata:
+  name: sichek-taskguard-test
+  namespace: default
+spec: 
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            scitix.ai/topo-aware-in-node: "true"
+        spec: &job-spec
+          containers:
+          - args:
+            - "export NODE_RANK=$RANK && unset RANK && \
+               git clone --recursive https://github.com/sallylxl/deep_learning_examples.git /workspace/deep_learning_examples && \
+               DEEP_LEARNING_EXAMPLES_DIR=/workspace/deep_learning_examples \
+               BASE_RESULTS_DIR=/workspace/deep_learning_examples/results \
+               RUN_ID=0923t2258 GBS=128 MBS=4 PP=1 TP=1 MAX_STEPS=128 \
+               ENABLE_CKPT=0 MOCK_DATA=true GPUS_PER_NODE=2 \
+               bash /workspace/deep_learning_examples/training/Megatron-LM/llm/gpt3/run_meg_lm_gpt3_5b_2k_bf16.sh"
+            command:
+            - /usr/bin/env
+            - bash
+            - -c
+            env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: CST-8
+            image: registry-ap-southeast.scitix.ai/hpc/nemo:24.07
+            imagePullPolicy: Always 
+            name: pytorch
+            resources:
+              limits:
+                cpu: "20"
+                memory: 200Gi
+                nvidia.com/gpu: "2"
+                rdma/hca_shared_devices_all: "1"
+              requests:
+                cpu: "20"
+                memory: 200Gi
+                nvidia.com/gpu: "2"
+                rdma/hca_shared_devices_all: "1"
+            securityContext:
+              capabilities:
+                add:
+                - IPC_LOCK
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: dev-shm
+          volumes:
+          - emptyDir:
+              medium: Memory
+            name: dev-shm
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: scitix.ai/gpu-type
+                        operator: In
+                        values:
+                          - h100nvlink80
+    Worker:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+          labels:
+            scitix.ai/topo-aware-in-node: "true"
+        spec:
+          <<: *job-spec

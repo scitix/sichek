@@ -1,0 +1,139 @@
+apiVersion: kubeflow.org/v1
+kind: PyTorchJob
+metadata:
+  name: pj-test-failed
+  namespace: zkjia
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: scitix.ai/gpu-type
+                    operator: In
+                    values:
+                    - h100nvlink80
+          containers:
+          - args:
+            - sleep 300 && export NODE_RANK=$RANK && unset RANK && git clone --recursive
+              https://github.com/sallylxl/deep_learning_examples.git /workspace/deep_learning_examples
+              && DEEP_LEARNING_EXAMPLES_DIR=/workspace/deep_learning_examples BASE_RESULTS_DIR=/workspace/deep_learning_examples/results     RUN_ID=1203t0554
+              GBS=128 MBS=4 TP=1 PP=1  MAX_STEPS=128     ENABLE_CKPT=0 UB_TP_COMM_OVERLAP=0
+              NFS=False     bash /workspace/deep_learning_examples/training/nemo/llm/gpt3_5b_2k_bf16/run_nemo_gpt3_5b_2k_bf16.sh
+            command:
+            - /usr/bin/env
+            - bash
+            - -c
+            env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: CST-8
+            image: registry-ap-southeast.scitix.ai/hpc/nemo:24.07-sicl
+            imagePullPolicy: Always
+            name: pytorch
+            resources:
+              limits:
+                nvidia.com/gpu: "4"
+              requests:
+                nvidia.com/gpu: "4"
+            securityContext:
+              capabilities:
+                add:
+                - IPC_LOCK
+              privileged: true
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: dev-shm
+            - mountPath: /dev/infiniband
+              name: ib
+          terminationGracePeriodSeconds: 1
+          volumes:
+          - emptyDir:
+              medium: Memory
+            name: dev-shm
+          - hostPath:
+              path: /dev/infiniband
+              type: ""
+            name: ib
+    Worker:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: scitix.ai/gpu-type
+                    operator: In
+                    values:
+                    - h100nvlink80
+          containers:
+          - args:
+            - sleep 30 && exit 1 && export NODE_RANK=$RANK && unset RANK && git clone --recursive
+              https://github.com/sallylxl/deep_learning_examples.git /workspace/deep_learning_examples
+              && DEEP_LEARNING_EXAMPLES_DIR=/workspace/deep_learning_examples BASE_RESULTS_DIR=/workspace/deep_learning_examples/results     RUN_ID=1203t0554
+              GBS=128 MBS=4 TP=1 PP=1  MAX_STEPS=128     ENABLE_CKPT=0 UB_TP_COMM_OVERLAP=0
+              NFS=False     bash /workspace/deep_learning_examples/training/nemo/llm/gpt3_5b_2k_bf16/run_nemo_gpt3_5b_2k_bf16.sh
+            command:
+            - /usr/bin/env
+            - bash
+            - -c
+            env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: CST-8
+            image: registry-ap-southeast.scitix.ai/hpc/nemo:24.07-sicl
+            imagePullPolicy: Always
+            name: pytorch
+            resources:
+              limits:
+                nvidia.com/gpu: "4"
+              requests:
+                nvidia.com/gpu: "4"
+            securityContext:
+              capabilities:
+                add:
+                - IPC_LOCK
+              privileged: true
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: dev-shm
+            - mountPath: /dev/infiniband
+              name: ib
+          terminationGracePeriodSeconds: 1
+          volumes:
+          - emptyDir:
+              medium: Memory
+            name: dev-shm
+          - hostPath:
+              path: /dev/infiniband
+              type: ""
+            name: ib

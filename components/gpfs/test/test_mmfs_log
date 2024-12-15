@@ -1,0 +1,38 @@
+2024-11-23_01:01:01.193+0800: [W] Time-of-day may have jumped back. Late by 7 seconds to wake certain threads.
+2024-11-23_01:01:06.208+0800: [W] Time-of-day may have jumped back. Late by 8 seconds to wake certain threads.
+2024-11-23_01:01:21.761+0800: [W] Time-of-day may have jumped back. Late by 7 seconds to wake certain threads.
+2024-11-23_01:01:36.496+0800: [W] Time-of-day may have jumped back. Late by 7 seconds to wake certain threads.
+2024-11-23_01:01:41.177+0800: [W] Time-of-day may have jumped back. Late by 8 seconds to wake certain threads.
+2024-11-23_01:01:47.815+0800: [E] VERBS RDMA error connecting to 10.191.1.1 (dss01 in gpfscluster.gpfs) on mlx5_0 port 1 ibv_create_qp err 12
+2024-11-23_01:01:47.816+0800: [E] VERBS RDMA disable for 10.191.1.1 (dss01 in gpfscluster.gpfs) due to too many errors.
+2024-11-23_01:02:48.156+0800: [I] VERBS RDMA connecting to 10.191.1.2 (dss02) on mlx5_0 port 1 fabnum 0 sl 0 index 387
+2024-11-23_01:02:48.160+0800: [I] VERBS RDMA connected to 10.191.1.2 (dss02) on mlx5_0 port 1 fabnum 0 sl 0 index 387
+2024-11-23_01:03:49.771+0800: [E] VERBS RDMA closed connection to 10.191.1.2 (dss02) on mlx5_0 port 1 fabnum 0 index 387 cookie 5280 RDMA send error IBV_WC_RETRY_EXC_ERR
+Nov 23 01:04:42 css2-g55-001 kernel: [22900.004864] watchdog: BUG: soft lockup - CPU#85 stuck for 159s! [swapper/85:0]
+Nov 23 01:04:42 css2-g55-001 kernel: [22900.004867] watchdog: BUG: soft lockup - CPU#87 stuck for 159s! [swapper/87:0]
+Nov 23 01:04:42 css2-g55-001 kernel: [22900.004869] watchdog: BUG: soft lockup - CPU#210 stuck for 159s! [swapper/210:0]
+Nov 23 01:04:42 css2-g55-001 kernel: [22900.004871] watchdog: BUG: soft lockup - CPU#80 stuck for 159s! [swapper/80:0]
+Nov 23 01:04:42 css2-g55-001 kernel: [22900.004873] watchdog: BUG: soft lockup - CPU#86 stuck for 159s! [swapper/86:0]
+Nov 23 01:08:09 css2-g55-001 kernel: [252820.789248] NMI watchdog: Watchdog detected hard LOCKUP on cpu 161
+Nov 23 01:08:09 css2-g55-001 kernel: [252820.789904] NMI watchdog: Watchdog detected hard LOCKUP on cpu 22
+Nov 23 01:08:09 css2-g55-001 kernel: [252820.790397] NMI watchdog: Watchdog detected hard LOCKUP on cpu 144
+Nov 23 01:08:09 css2-g55-001 kernel: [252820.791052] NMI watchdog: Watchdog detected hard LOCKUP on cpu 149
+Nov 23 01:08:09 css2-g55-001 kernel: [252820.791796] NMI watchdog: Watchdog detected hard LOCKUP on cpu 18
+Nov 23 01:08:09 css2-g55-001 kernel: [252820.792427] NMI watchdog: Watchdog detected hard LOCKUP on cpu 21
+2024-11-23_01:16:26.221+0800: [E] VERBS RDMA: fatal async event IBV_EVENT_DEVICE_FATAL on mlx5_0
+2024-11-23_01:16:26.221+0800: [E] VERBS RDMA: verbsAsyncThread_i: exit on fatal error for device mlx5_0
+2024-11-23_01:16:26.221+0800: [E] VERBS RDMA port state forced to IBV_PORT_DOWN for device mlx5_0 port 1.
+2024-11-23_01:16:26.221+0800: [E] RDMA fatal connection error: breaking connection index 0 cookie 1
+2024-11-23_01:18:31.152+0800: [E] Unable to contact any quorum nodes during cluster probe.
+2024-11-23_01:18:31.152+0800: [E] Lost membership in cluster DSS.dss01. Unmounting file systems.
+2024-11-23_01:27:05.769+0800: [E] Bad TCP state detected. Initiating proactive reconnect to node 10.210.1.1
+2024-11-23_01:27:05.769+0800: [E] Close connection to 10.210.1.1 <c1n198>:[0] (Connection reset by peer). Attempting reconnect.
+2024-11-23_02:25:38.418+0800: [X] Recovery Log I/O failed, unmounting file system gpfsdev
+2024-11-23_02:25:38.418+0800: Too many disks are unavailable
+2024-11-23_02:25:38.418+0800: [E] File System gpfsdev unmounted by the system with return code 218, reason code 0, at line 1247 in /project/log/writelog.C
+css2-g55-001: 2024-11-23_03:04:13.799+0800: [N] This node will be expelled from cluster gpfscluster.gpfs due to expel msg from 10.192.1.1
+css2-g55-001: 2024-11-23_03:04:14.148+0800: [E] This node is being expelled from the cluster.
+2024-11-23_03:10:55.619+0800: [E] Killing connection from 10.208.1.1 because cluster is not authorized, err 120
+2024-11-23_03:10:55.619+0800: [E] Killing connection from 10.208.1.2 because cluster is not authorized, err 120
+2024-11-23_03:10:55.619+0800: [E] Killing connection from 10.208.1.1 because cluster is not authorized, err 120
+2024-11-23_03:10:55.619+0800: [E] Killing connection from 10.208.1.2 because cluster is not authorized, err 120

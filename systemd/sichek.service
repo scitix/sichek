@@ -1,0 +1,32 @@
+[Unit]
+Description=sichek
+
+Wants=network-pre.target
+After=network-pre.target NetworkManager.service systemd-resolved.service
+
+[Service]
+Slice=runtime.slice
+
+EnvironmentFile=/etc/default/sichek
+ExecStart=/usr/sbin/sichek d run $FLAGS
+
+StandardOutput=append:/var/log/sichek.log
+StandardError=append:/var/log/sichek.log
+
+Type=notify
+
+Restart=on-failure
+RestartSec=5s
+
+# all remaining processes in the control group of this unit will be killed on unit stop
+KillMode=control-group
+
+TimeoutStartSec=300
+CPUAccounting=true
+MemoryAccounting=true
+User=root
+Group=root
+LimitNOFILE=40000
+
+[Install]
+WantedBy=multi-user.target

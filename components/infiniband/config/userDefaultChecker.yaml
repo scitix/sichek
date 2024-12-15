@@ -1,0 +1,22 @@
+name: "infiniband"
+query_interval: 1
+cache_size: 10
+checkers:
+  - "ofed"
+  - "ib_fw"
+  - "ib_state"
+  - "ib_phy_tate"
+  - "ib_port_speed"
+  - "pcie_acs"
+  - "pcie_mrr"
+  - "pcie_speed"
+  - "pcie_width"
+  - "pcie_tree_speed"
+  - "pcie_tree_width"
+  - "ib_kmod"
+  - "ib_devs"
+  # TBD
+  - "nic_num"
+  - "net_dev"
+  - "dmesg"
+
