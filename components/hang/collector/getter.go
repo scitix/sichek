@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
@@ -77,7 +78,8 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter 
 		}
 		threshold := getterConfig.HangThreshold
 		for _, value := range getterConfig.HangIndicates {
-			if value.Name != "pwr" &&
+			if value.Name != "pwr" && value.Name != "sm" &&
+				value.Name != "gclk" && value.Name != "smclk" &&
 				value.Name != "pviol" && value.Name != "rxpci" &&
 				value.Name != "txpci" && value.Name != "mem" {
 				logrus.WithField("collector", "hanggetter").
@@ -160,10 +162,12 @@ func (c *HangGetter) Collect() (common.Info, error) {
 				case "txpci":
 					infoValue = int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
 				case "smclk":
-					smClk, _ := strconv.Atoi(deviceInfo.Clock.CurSMClk)
+					smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
+					smClk, _ := strconv.Atoi(smClkInt)
 					infoValue = int64(smClk)
 				case "gclk":
-					gClk, _ := strconv.Atoi(deviceInfo.Clock.CurGraphicsClk)
+					gClkInt := strings.Split(deviceInfo.Clock.CurGraphicsClk, " ")[0]
+					gClk, _ := strconv.Atoi(gClkInt)
 					infoValue = int64(gClk)
 				default:
 					logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", c.items[j])
@@ -174,8 +178,8 @@ func (c *HangGetter) Collect() (common.Info, error) {
 				} else {
 					c.hangInfo.HangDuration[c.items[j]][deviceInfo.UUID] += duration
 				}
-				// fmt.Printf("Index=%d, item=%s, indicate=%d, threshold=%d, duration=%d, nowduration=%d\n",
-				// 	deviceInfo.Index, c.items[j], infoValue, c.indicates[c.items[j]], duration,
+				// logrus.WithField("collector", "hanggetter").Warnf("Index=%d, GPU=%d, item=%s, indicate=%d, threshold=%d, duration=%d, nowduration=%d\n",
+				// 	deviceInfo.Index, i, c.items[j], infoValue, c.indicates[c.items[j]], duration,
 				// 	c.hangInfo.HangDuration[c.items[j]][strconv.Itoa(deviceInfo.Index)])
 			}
 		}

@@ -108,7 +108,6 @@ func checkCPUPerformance() (bool, error) {
 	}
 
 	// Check each CPU's governor
-	var ret error
 	var err_cpus []string
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -134,8 +133,8 @@ func checkCPUPerformance() (bool, error) {
 			// logrus.WithField("component", "Nvidia").Errorf("CPU %s is in %s mode", file, cpu_mode)
 		}
 	}
-	ret = fmt.Errorf("the following CPUs is not in performance mode: %v", err_cpus)
-	return cpu_performance_enable, ret
+	// ret := fmt.Errorf("the following CPUs is not in performance mode: %v", err_cpus)
+	return cpu_performance_enable, nil
 }
 
 func setCPUMode(mode string) error {

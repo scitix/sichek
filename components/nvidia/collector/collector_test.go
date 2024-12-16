@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -222,21 +222,23 @@ func TestClockInfo_Get(t *testing.T) {
 	if deviceCount == 0 {
 		t.Skip("No GPUs found")
 	}
-	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
-		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
+	for i := 0; i < deviceCount; i++ {
+		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
+		}
+
+		// Create a ClockEvents instance
+		clockInfo := &ClockInfo{}
+
+		// Call the Get method
+		err := clockInfo.Get(device, "mock-uuid")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		t.Logf("clockInfo for gpu %d: %+v", i, clockInfo.ToString())
 	}
-
-	// Create a ClockEvents instance
-	clockInfo := &ClockInfo{}
-
-	// Call the Get method
-	err := clockInfo.Get(device, "mock-uuid")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	t.Logf("clockInfo: %+v", clockInfo.ToString())
 }
 
 func TestClockEvents_Get(t *testing.T) {
@@ -264,6 +266,93 @@ func TestClockEvents_Get(t *testing.T) {
 	}
 
 	t.Logf("ClockEvents: %+v", clockEvents.ToString())
+}
+
+func TestPowerInfo_Get(t *testing.T) {
+	// Get the number of GPUs
+	deviceCount, ret := nvmlInst.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
+	}
+
+	if deviceCount == 0 {
+		t.Skip("No GPUs found")
+	}
+	for i := 0; i < deviceCount; i++ {
+		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			t.Errorf("Failed to get device handle for index %d: %v", i, nvml.ErrorString(ret))
+		}
+
+		// Create a ClockEvents instance
+		powerInfo := &PowerInfo{}
+
+		// Call the Get method
+		err := powerInfo.Get(device, "mock-uuid")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		t.Logf("powerInfo for gpu %d: %+v", i, powerInfo.ToString())
+	}
+}
+
+func TestTemperatureInfo_Get(t *testing.T) {
+	// Get the number of GPUs
+	deviceCount, ret := nvmlInst.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
+	}
+
+	if deviceCount == 0 {
+		t.Skip("No GPUs found")
+	}
+	for i := 0; i < deviceCount; i++ {
+		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			t.Errorf("Failed to get device handle for index %d: %v", i, nvml.ErrorString(ret))
+		}
+
+		// Create a ClockEvents instance
+		tempInfo := &TemperatureInfo{}
+
+		// Call the Get method
+		err := tempInfo.Get(device, "mock-uuid")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		t.Logf("TemperatureInfo for gpu %d: %+v", i, tempInfo.ToString())
+	}
+}
+
+func TestUtilizationInfo_Get(t *testing.T) {
+	// Get the number of GPUs
+	deviceCount, ret := nvmlInst.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
+	}
+
+	if deviceCount == 0 {
+		t.Skip("No GPUs found")
+	}
+	for i := 0; i < deviceCount; i++ {
+		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			t.Errorf("Failed to get device handle for index %d: %v", i, nvml.ErrorString(ret))
+		}
+
+		// Create a ClockEvents instance
+		utilInfo := &UtilizationInfo{}
+
+		// Call the Get method
+		err := utilInfo.Get(device, "mock-uuid")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		t.Logf("UtilizationInfo for gpu %d: %+v", i, utilInfo.ToString())
+	}
 }
 
 func TestDeviceInfo_Get(t *testing.T) {

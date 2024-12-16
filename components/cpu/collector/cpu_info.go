@@ -135,15 +135,6 @@ func (cpuArchInfo *CPUArchInfo) getCPUArchInfo(ctx context.Context) error {
 			seenSockets[detail.PhysicalID] = true
 			cpuArchInfo.Sockets++
 		}
-		// d := &Detail{
-		// 	CPUID:      detail.CPU,
-		// 	PhysicalID: detail.PhysicalID,
-		// 	CoreID:     detail.CoreID,
-		// 	Mhz:        detail.Mhz,
-		// 	CacheSize:  detail.CacheSize,
-		// 	Microcode:  detail.Microcode,
-		// }
-		// cpuInfo.Details = append(cpuInfo.Details, d)
 	}
 	logical_cores, err := cpu.CountsWithContext(ctx, true)
 	if err == nil && cpuArchInfo.Sockets > 0 && cpuArchInfo.CoresPerSocket > 0 {
@@ -265,7 +256,6 @@ func (usage *Usage) getLoadAvg() error {
 // Read /proc/stat for usage statistics
 func (usage *Usage) getProcStats() error {
 	return usage.getProcStats_("/proc/stat")
-
 }
 
 func (usage *Usage) getProcStats_(filename string) error {
@@ -356,7 +346,7 @@ func GetTotalThreads() (int, error) {
 
 	for _, entry := range dirEntries {
 		// Only look at numeric directories (which correspond to process IDs)
-		if isNumeric(entry.Name()) {
+		if isNumeric(entry.Name()) && entry.IsDir() {
 			taskDir := filepath.Join(procDir, entry.Name(), "task")
 			taskEntries, err := os.ReadDir(taskDir)
 			if err == nil {
@@ -371,6 +361,9 @@ func GetTotalThreads() (int, error) {
 
 // Helper function to check if a string is numeric
 func isNumeric(s string) bool {
+	if len(s) > 0 && s[0] == '-' {
+		s = s[1:]
+	}
 	_, err := strconv.Atoi(s)
 	return err == nil
 }

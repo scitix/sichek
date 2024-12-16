@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
@@ -127,4 +129,27 @@ func (c *collector) Collect() (common.Info, error) {
 	cpuOutput.EventResults = filterResMap
 
 	return cpuOutput, nil
+}
+
+// GetUptime returns the system uptime as a formatted string.
+func GetUptime() (string, error) {
+	// Get uptime (Linux-specific example)
+	uptimeBytes, err := os.ReadFile("/proc/uptime")
+	if err != nil {
+		return "", fmt.Errorf("failed to ReadFile /proc/uptime: %w", err)
+	}
+	uptimeFields := strings.Fields(string(uptimeBytes))
+	uptimeSeconds, err := strconv.ParseFloat(uptimeFields[0], 64)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse uptime: %w", err)
+	}
+	uptimeDuration := time.Duration(uptimeSeconds) * time.Second
+	days := uptimeDuration / (24 * time.Hour)
+	uptimeDuration -= days * 24 * time.Hour
+	hours := uptimeDuration / time.Hour
+	uptimeDuration -= hours * time.Hour
+	minutes := uptimeDuration / time.Minute
+	uptimeDuration -= minutes * time.Minute
+	seconds := uptimeDuration / time.Second
+	return fmt.Sprintf("%dd, %02d:%02d:%02d", days, hours, minutes, seconds), nil
 }

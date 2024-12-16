@@ -39,8 +39,7 @@ type HangCollector struct {
 	indicates     map[string]int64
 	indicatesComp map[string]string
 	prevTS        time.Time
-
-	hangInfo checker.HangInfo
+	hangInfo      checker.HangInfo
 }
 
 func NewHangCollector(ctx context.Context, cfg common.ComponentConfig) (*HangCollector, error) {
@@ -64,6 +63,7 @@ func NewHangCollector(ctx context.Context, cfg common.ComponentConfig) (*HangCol
 		threshold := collectorConfig.HangThreshold
 		for _, value := range collectorConfig.HangIndicates {
 			if value.Name != "pwr" && value.Name != "sm" &&
+				value.Name != "gclk" && value.Name != "smclk" &&
 				value.Name != "pviol" && value.Name != "rxpci" &&
 				value.Name != "txpci" && value.Name != "mem" {
 				logrus.WithField("collector", "hanggetter").

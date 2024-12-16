@@ -272,6 +272,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheMtx.Lock()
 	c.cacheBuffer[c.currIndex] = res_result
 	c.cacheInfo[c.currIndex] = nvidiaInfo
+	// for index, devInfo := range nvidiaInfo.DevicesInfo {
+	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, Power: %v", c.currIndex, index, common.ToString(devInfo.Power))
+	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, Utilization: %v", c.currIndex, index, common.ToString(devInfo.Utilization))
+	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, PCIeInfo: %v", c.currIndex, index, common.ToString(devInfo.PCIeInfo))
+	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, Clock: %v", c.currIndex, index, common.ToString(devInfo.Clock))
+	// }
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
 	if res_result.Status == commonCfg.StatusAbnormal {

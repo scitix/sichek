@@ -8,7 +8,7 @@ namespace: default
 image:
   repository: registry-ap-southeast.scitix.ai/hpc/sichek
   pullPolicy: IfNotPresent
-  tag: "test4"
+  tag: "test-xlliu4"
 
 mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
 nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified

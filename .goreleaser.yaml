@@ -60,8 +60,8 @@ nfpms:
       dst: /var/sichek/cpu/
     # - src: ./components/cpu/config/intel_8468_spec.yaml
     #   dst: /var/sichek/cpu/intel_8468_spec.yaml
-    - src: ./components/disk/config/*.yaml
-      dst: /var/sichek/disk/
+    # - src: ./components/disk/config/*.yaml
+    #   dst: /var/sichek/disk/
     - src: ./components/dmesg/config/*.yaml
       dst: /var/sichek/dmesg/
     - src: ./components/gpfs/config/*.yaml

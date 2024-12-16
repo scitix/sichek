@@ -19,9 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/scitix/sichek/components/common"
 )
@@ -30,18 +28,19 @@ type HostInfo struct {
 	Hostname      string `json:"hostname"`
 	OSVersion     string `json:"os_version"`
 	KernelVersion string `json:"kernel_version"`
-	// HostUptime    string `json:"host_uptime"`
 }
 
+// JSON converts the HostInfo struct to a JSON byte slice.
 func (hostInfo *HostInfo) JSON() ([]byte, error) {
 	return common.JSON(hostInfo)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString converts the HostInfo struct to a pretty-printed JSON string.
 func (hostInfo *HostInfo) ToString() string {
 	return common.ToString(hostInfo)
 }
 
+// Get retrieves the hostname, OS version, and kernel version of the host.
 func (hostInfo *HostInfo) Get() error {
 	// Get hostname
 	hostname, err := os.Hostname()
@@ -70,34 +69,5 @@ func (hostInfo *HostInfo) Get() error {
 	}
 	hostInfo.KernelVersion = strings.TrimSpace(string(kernelVersion))
 
-	// // Get uptime (Linux-specific example)
-	// uptime, err := GetUptime()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get uptime: %w", err)
-	// }
-	// hostInfo.HostUptime = uptime
-
 	return nil
-}
-
-func GetUptime() (string, error) {
-	// Get uptime (Linux-specific example)
-	uptimeBytes, err := os.ReadFile("/proc/uptime")
-	if err != nil {
-		return "", fmt.Errorf("failed to ReadFile /proc/uptime: %w", err)
-	}
-	uptimeFields := strings.Fields(string(uptimeBytes))
-	uptimeSeconds, err := strconv.ParseFloat(uptimeFields[0], 64)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse uptime: %w", err)
-	}
-	uptimeDuration := time.Duration(uptimeSeconds) * time.Second
-	days := uptimeDuration / (24 * time.Hour)
-	uptimeDuration -= days * 24 * time.Hour
-	hours := uptimeDuration / time.Hour
-	uptimeDuration -= hours * time.Hour
-	minutes := uptimeDuration / time.Minute
-	uptimeDuration -= minutes * time.Minute
-	seconds := uptimeDuration / time.Second
-	return fmt.Sprintf("%dd, %d:%d:%d", days, hours, minutes, seconds), nil
 }

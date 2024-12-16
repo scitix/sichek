@@ -13,11 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nvidia
+package ethernet
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -27,40 +26,18 @@ import (
 func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	component, err := NewComponent("", nil)
+	component, err := NewEthernetComponent("")
 	if err != nil {
-		t.Fatalf("failed to create component: %v", err)
+		t.Fatalf("failed to create Ethernet component: %v", err)
 	}
 	if err != nil {
-		t.Fatalf("failed to create Nvidia component: %v", err)
+		t.Fatalf("failed to create Ethernet component: %v", err)
 	}
 	result, err := component.HealthCheck(ctx)
 	if err != nil {
-		t.Fatalf("failed to Nvidia HealthCheck: %v", err)
+		t.Fatalf("failed to Ethernet HealthCheck: %v", err)
+		return
 	}
 	output := common.ToString(result)
-	t.Logf("Nvidia Analysis Result: \n%s", output)
-}
-
-func TestSplit(t *testing.T) {
-	input := ":gpu"
-	result := strings.Split(input, ":")
-	if len(result) != 2 {
-		t.Fatalf("failed to split string")
-	}
-	t.Logf("the first: %s, the second: %s", result[0], result[1])
-
-	input = "device:"
-	result = strings.Split(input, ":")
-	if len(result) != 2 {
-		t.Fatalf("failed to split string")
-	}
-	t.Logf("the first: %s, the second: %s", result[0], result[1])
-
-	input = "device:gpu"
-	result = strings.Split(input, ":")
-	if len(result) != 2 {
-		t.Fatalf("failed to split string")
-	}
-	t.Logf("the first: %s, the second: %s", result[0], result[1])
+	t.Logf("Ethernet Analysis Result: \n%s", output)
 }

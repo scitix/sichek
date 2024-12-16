@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -14,13 +15,18 @@ type PCIeACS struct {
 }
 
 func GetAllPCIeBDF(ctx context.Context) ([]string, error) {
-	devices, err := ExecCommand(ctx, "ls", "/sys/bus/pci/devices")
+	devices, err := os.ReadDir("/sys/bus/pci/devices")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list PCI devices: %w", err)
 	}
-	BDFs := make([]string, 0, len(string(devices)))
-	BDFs = append(BDFs, strings.Split(string(devices), "\n")...)
-	return BDFs, nil
+
+	deviceBDFs := make([]string, 0, len(devices))
+	for _, device := range devices {
+		deviceBDF := device.Name()
+		deviceBDFs = append(deviceBDFs, deviceBDF)
+	}
+
+	return deviceBDFs, nil
 }
 
 func GetACSStatus(ctx context.Context, BDF string) (string, error) {

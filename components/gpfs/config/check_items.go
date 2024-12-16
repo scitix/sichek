@@ -95,7 +95,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Status:      "",
 		Level:       commonCfg.LevelCritical,
 		Detail:      "",
-		ErrorName:   "FilesystemUnmount",
+		ErrorName:   "GPFSUnmount",
 		Suggestion:  "Check GPFS status",
 	},
 	ExpelledFromClusterCheckerName: {
@@ -106,7 +106,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Status:      "",
 		Level:       commonCfg.LevelCritical,
 		Detail:      "",
-		ErrorName:   "ExpelledFromCluster",
+		ErrorName:   "ExpelledFromGPFSCluster",
 		Suggestion:  "Check GPFS daemon network and status",
 	},
 	UnauthorizedCheckerName: {
@@ -117,7 +117,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Status:      "",
 		Level:       commonCfg.LevelWarning,
 		Detail:      "",
-		ErrorName:   "Unauthorized",
+		ErrorName:   "GPFSUnauthorized",
 		Suggestion:  "Check GPFS authorization status",
 	},
 }
