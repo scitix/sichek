@@ -1,0 +1,63 @@
+{{- if eq .Values.mode "diagnostic" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sicheck-{{ .Values.parallelism }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - {{ .Values.name }}
+            topologyKey: "kubernetes.io/hostname"
+      hostPID: true
+      hostNetwork: true
+      {{- if .Values.nodeName }}
+      nodeName: {{ .Values.nodeName }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            privileged: true
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash"]
+          args:
+            - "-c"
+            - |-
+              output=$(sichek all -e)
+              ret=$?
+              if [[  $ret -ne 0 ]]; then
+                 sichek all -e
+              fi
+              exit ret
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+  parallelism: {{ .Values.parallelism }}
+  completions: {{ .Values.parallelism }}
+{{- end }}

@@ -1,0 +1,5 @@
+name: nvidia
+query_interval: 10
+cache_size: 10
+ignored_checkers:
+  - cpu_performance
