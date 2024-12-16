@@ -119,7 +119,7 @@ func (i *EthernetInfo) GetEthDevs() []string {
 	return mgtIface
 }
 
-func (i *EthernetInfo) GetIBInfo() *EthernetInfo {
+func (i *EthernetInfo) GetEthInfo() *EthernetInfo {
 	var ethInfo EthernetInfo
 	ethInfo.EthDevs = ethInfo.GetEthDevs()
 
@@ -129,7 +129,6 @@ func (i *EthernetInfo) GetIBInfo() *EthernetInfo {
 		perEthHWInfo.EthDev = EthDev
 		perEthHWInfo.PhyStat = i.GetPhyState(EthDev)[0]
 		perEthHWInfo.EthDev = EthDev
-		ethInfo.EthDevs = append(ethInfo.EthDevs, EthDev)
 		allEthHWInfo = append(allEthHWInfo, perEthHWInfo)
 	}
 
