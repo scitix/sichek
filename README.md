@@ -8,8 +8,8 @@
 ## Table of Contents
 - [Overview](#overview)
 - [Features](#features)
-- [How to Use](#how-to-use)
-- [Integration](#integration)
+- [Getting Started](#getting-started)
+- [Examples](#examples)
 - [Health Check Errors](#health-check-errors)
 - [Documentation](#documentation)
 
@@ -20,7 +20,7 @@
 AI training at scale is highly susceptible to interruptions caused by Hardware failures, System errors, or Software-related issues like NCCL errors or hanging processes occupying GPU resources.
 These interruptions lead to Wasted computational resources,Extended training times and increased costs.
 
-**Sichek** provides a comprehensive health monitoring and diagnostic solution to create a resilient AI training environment. It detects, categorizes, and reports system-level issues, ensuring minimal disruption to GPU-intensive workloads.  
+**Sichek** provides a comprehensive health monitoring and diagnostic solution to create a resilient AI training environment. It detects, categorizes, and reports node-level issues, ensuring minimal disruption to GPU-intensive workloads.  
 
 By defining a series of health and performance detection rules, Sichek proactively identifies hardware, kernel, and software issues, monitors critical components, and makes these issues visible to upstream management platforms by adding a sichek annotation to k8s node annotatons, once node issues are detect.
 
@@ -50,7 +50,7 @@ By defining a series of health and performance detection rules, Sichek proactive
 
 ---
 
-## How to Use
+## Getting Started
 
 ### Running in Kubernetes
 The easiest way to install sichek into your cluster is to use the Helm chart.
@@ -60,7 +60,8 @@ See [Sichek helm chart](./k8s/sichek) to deploy Sichek in your Kubernetes cluste
 ```bash
 helm install sichek ./k8s/sichek --set  mode=diag
 ```
-The failed job indicates that the node's health check has failed, while the successful job indicates the node passed the check.
+  - **failed job** indicates failed node health check
+  - **successed job** indicates passed node health check.
 
 - *For cluster monitoring**, run Sichek using Kubernetes DaemonSet to start the Sichek service to monitor all nodes:
 
@@ -112,12 +113,32 @@ To start Sichek as a daemon service by running the following command:
 sichek daemon start
 ```
 
-## Integration
+## Examples
 ### Integration with Task Manager platform
-A Kubernetes task management platform can implement a TaskGuard to handle task-level anomaly detection and rescheduling. The project provides a **TaskGuard Demo** for reference, which includes the following features:
-- Listen for **sichek annotations** on Kubernetes nodes.
-- When a fatal anomaly such as GPU failure, NCCL timeout, or GPU hang is detected, it check the status of the task associated with the indicated pod. If the task is in a failed state, attempt to reschedule it. If the task is running, fail the task first, then attempt to reschedule it to resume the training process.
+A Kubernetes task management platform can implement a TaskGuard to handle task-level anomaly detection and automated rescheduling. The project provides a **TaskGuard Demo** for reference, which showcases the following capabilities:
+- Listen for **scitix.ai/sichek annotation** on Kubernetes nodes.
+- Handles anomalies like GPU failures or hangs or NCCL Errors:
+  - If the associated task is already in a failed state, TaskGuard reschedules it.
+  - If the task is still running, TaskGuard marks it as failed first, then attempts rescheduling to restore the training process. 
 
+#### Running the TaskGuard Demo
+Follow these steps to run the demo:
+
+```bash
+cd test/e2e
+bash sichek-taskguard.sh
+```
+
+This demo simulates a complete integration workflow:
+  - **Setup**: Starts the Sichek DaemonSet and the TaskGuard service.
+  - **Workload Initialization**: Launches a pytorchjob with one master and one worker process.
+  - **Simulating GPU Hang**: Sends a SIGINT signal to the main process of the pytorchjob worker, causing it to fail while the job remains in a running state.
+**Expected Behavior**:
+
+  - **Sichek Detection**: Sichek identifies the GPU hang and updates the Kubernetes node annotation `scitix.ai/sichek` with the status `GPUHang`.
+  - **TaskGuard Response**: TaskGuard detects the anomaly, fails the `pytorchjob`, and reschedules it, ensuring the training process resumes without manual intervention.
+
+This demonstration highlights how Sichek and TaskGuard together enable automated detection, failure handling, and recovery for GPU-intensive workloads.
 
 ### Intergration with Grafana
 

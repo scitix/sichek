@@ -101,8 +101,8 @@ func PrintDmesgInfo(info common.Info, result *common.Result, summaryPrint bool) 
 		fmt.Printf("%sNo Dmesg event detected%s\n", Green, Reset)
 		return checkAllPassed
 	}
-	for _, v := range dmesgEvent {
-		fmt.Printf("\t%s\n", v)
+	for n, _ := range dmesgEvent {
+		fmt.Printf("\tDetected %s Event\n", n)
 	}
 	return checkAllPassed
 }
