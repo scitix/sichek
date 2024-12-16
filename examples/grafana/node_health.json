@@ -1,0 +1,903 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "description": "",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 342,
+    "links": [],
+    "panels": [
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "itKlA-MVz"
+        },
+        "description": "",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              },
+              "inspect": false
+            },
+            "mappings": [],
+            "noValue": "0",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "#EAB839",
+                  "value": 50
+                },
+                {
+                  "color": "green",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "GPU Used Count"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.width",
+                  "value": 138
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Health"
+              },
+              "properties": [
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "custom.width",
+                  "value": 100
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "GPU Average Util"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "lcd",
+                    "type": "gauge",
+                    "valueDisplayMode": "color"
+                  }
+                },
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 306
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "CPU Usage"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "lcd",
+                    "type": "gauge",
+                    "valueDisplayMode": "color"
+                  }
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 80
+                      },
+                      {
+                        "color": "red",
+                        "value": 90
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.width",
+                  "value": 332
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Memory Usage"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "mode": "lcd",
+                    "type": "gauge",
+                    "valueDisplayMode": "color"
+                  }
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 70
+                      },
+                      {
+                        "color": "red",
+                        "value": 85
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.width",
+                  "value": 312
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "NCCL Health"
+              },
+              "properties": [
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "custom.width",
+                  "value": 105
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Infiniband Health"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.width",
+                  "value": 133
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Ethernet Health"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Heanlthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.width",
+                  "value": 124
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "GPFS Health"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.width",
+                  "value": 101
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "GPU Health"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.width",
+                  "value": 109
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Hang Health"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "options": {
+                        "0": {
+                          "color": "red",
+                          "index": 1,
+                          "text": "Unhealthy"
+                        },
+                        "1": {
+                          "color": "green",
+                          "index": 0,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "value"
+                    },
+                    {
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "color": "green",
+                          "index": 2,
+                          "text": "Healthy"
+                        }
+                      },
+                      "type": "special"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "GPU Total Count"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 139
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Node"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 161
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 20,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "id": 1,
+        "options": {
+          "cellHeight": "sm",
+          "footer": {
+            "countRows": false,
+            "fields": "",
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": []
+        },
+        "pluginVersion": "10.4.1",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "count by (Hostname) (DCGM_FI_DEV_GPU_UTIL{product=\"cks\", region=\"$region\", cluster=\"$cluster\"})",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n  count by (Hostname, gpu) (\r\n    DCGM_FI_DEV_GPU_UTIL{product=\"cks\", region=\"$region\", cluster=\"$cluster\", pod!=\"\"}\r\n  )\r\n) or sum by (Hostname) (\r\n  count by (Hostname, gpu) (\r\n    DCGM_FI_DEV_GPU_UTIL{product=\"cks\", region=\"$region\", cluster=\"$cluster\"}\r\n  ) * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "B"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(critical|fatal).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(critical|fatal).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "C"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "avg by (Hostname) (DCGM_FI_DEV_GPU_UTIL{product=\"cks\", region=\"$region\", cluster=\"$cluster\"})",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "D"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "(sum by (Hostname) (\r\n    count without (cpu, mode) (\r\n        label_replace(node_cpu_seconds_total{mode=\"idle\", region=~\"$region\", cluster=~\"$cluster\"}, \"Hostname\", \"$1\", \"instance\", \"(.*)\")\r\n    )\r\n) - sum by (Hostname) (\r\n        label_replace(rate(node_cpu_seconds_total{mode=~\"idle|iowait|steal\", region=~\"$region\", cluster=~\"$cluster\"}[$__rate_interval]), \"Hostname\", \"$1\", \"instance\", \"(.*)\")\r\n    )\r\n) / sum by (Hostname) (\r\n    count without (cpu, mode) (\r\n        label_replace(node_cpu_seconds_total{mode=\"idle\", region=~\"$region\", cluster=~\"$cluster\"}, \"Hostname\", \"$1\", \"instance\", \"(.*)\")\r\n    )\r\n) * 100",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "E"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by(Hostname) (label_replace(\r\n(\r\n  node_memory_MemTotal_bytes{region=~\"$region\", cluster=~\"$cluster\"}\r\n-\r\n  node_memory_MemFree_bytes{region=~\"$region\", cluster=~\"$cluster\"}\r\n-\r\n  node_memory_Buffers_bytes{region=~\"$region\", cluster=~\"$cluster\"}\r\n-\r\n  node_memory_Cached_bytes{region=~\"$region\", cluster=~\"$cluster\"}\r\n) / node_memory_MemTotal_bytes{region=~\"$region\", cluster=~\"$cluster\"}\r\n, \"Hostname\", \"$1\", \"instance\", \"(.*)\")\r\n) * 100",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "F"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(\\\"nccl\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(\\\"nccl\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "G"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(\\\"infiniband\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(\\\"infiniband\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "H"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(\\\"ethernet\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(\\\"ethernet\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "I"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(\\\"gpfs\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(\\\"gpfs\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "J"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(\\\"nvidia\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(\\\"nvidia\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "K"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "itKlA-MVz"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek!~\".*(\\\"hang\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\")\r\n) or sum by (Hostname) (\r\n    label_replace(kube_node_annotations{product=\"cks\", region=\"$region\", cluster=\"$cluster\", annotation_scitix_ai_sichek=~\".*(\\\"hang\\\":\\\\{.*(critical|fatal).*\\\\}).*\"}, \"Hostname\", \"$1\", \"node\", \"(.*)\") * 0\r\n)",
+            "format": "table",
+            "hide": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "L"
+          }
+        ],
+        "title": "Node Health",
+        "transformations": [
+          {
+            "id": "merge",
+            "options": {}
+          },
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true
+              },
+              "includeByName": {},
+              "indexByName": {
+                "Hostname": 1,
+                "Time": 0,
+                "Value #A": 3,
+                "Value #B": 4,
+                "Value #C": 2,
+                "Value #D": 5,
+                "Value #E": 6,
+                "Value #F": 7,
+                "Value #G": 9,
+                "Value #H": 10,
+                "Value #I": 11,
+                "Value #J": 12,
+                "Value #K": 8,
+                "Value #L": 13
+              },
+              "renameByName": {
+                "Hostname": "Node",
+                "Value #A": "GPU Total Count",
+                "Value #B": "GPU Used Count",
+                "Value #C": "Health",
+                "Value #D": "GPU Average Util",
+                "Value #E": "CPU Usage",
+                "Value #F": "Memory Usage",
+                "Value #G": "NCCL Health",
+                "Value #H": "Infiniband Health",
+                "Value #I": "Ethernet Health",
+                "Value #J": "GPFS Health",
+                "Value #K": "GPU Health",
+                "Value #L": "Hang Health",
+                "node": "Node"
+              }
+            }
+          },
+          {
+            "id": "filterByValue",
+            "options": {
+              "filters": [],
+              "match": "any",
+              "type": "exclude"
+            }
+          }
+        ],
+        "type": "table"
+      }
+    ],
+    "schemaVersion": 39,
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": false,
+            "text": "ap-southeast",
+            "value": "ap-southeast"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "itKlA-MVz"
+          },
+          "definition": "label_values(DCGM_FI_DEV_GPU_UTIL,region)",
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "name": "region",
+          "options": [],
+          "query": {
+            "qryType": 1,
+            "query": "label_values(DCGM_FI_DEV_GPU_UTIL,region)",
+            "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": true,
+            "text": "c92zj2qv5qco7yp7",
+            "value": "c92zj2qv5qco7yp7"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "itKlA-MVz"
+          },
+          "definition": "label_values(DCGM_FI_DEV_GPU_UTIL{region=\"$region\"},cluster)",
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "name": "cluster",
+          "options": [],
+          "query": {
+            "qryType": 1,
+            "query": "label_values(DCGM_FI_DEV_GPU_UTIL{region=\"$region\"},cluster)",
+            "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Node Health",
+    "uid": "fe5zleoiad8u8e",
+    "version": 8,
+    "weekStart": ""
+  }
+  

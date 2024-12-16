@@ -1,0 +1,76 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package collector
+
+import (
+	// "context"
+
+	"context"
+	"fmt"
+	"regexp"
+	"time"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/utils"
+)
+
+type SoftwareInfo struct {
+	DriverVersion string `json:"driver_version"`
+	CUDAVersion   string `json:"cuda_version,omitempty"`
+}
+
+func (s *SoftwareInfo) JSON() ([]byte, error) {
+	return common.JSON(s)
+}
+
+// Convert struct to JSON (pretty-printed)
+func (s *SoftwareInfo) ToString() string {
+	return common.ToString(s)
+}
+
+func (s *SoftwareInfo) Get() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// Run the nvidia-smi command
+	// cmd := exec.Command("nvidia-smi", "-q", "-i", "0")
+	// var out bytes.Buffer
+	// cmd.Stdout = &out
+
+	out, err := utils.ExecCommand(ctx, "nvidia-smi", "-q", "-i", "0")
+	if err != nil {
+		return fmt.Errorf("failed to run nvidia-smi: %v", err)
+	}
+
+	output := string(out)
+
+	// Extract Driver Version
+	driverRe := regexp.MustCompile(`Driver Version\s*:\s*(\S+)`)
+	driverMatches := driverRe.FindStringSubmatch(output)
+	if len(driverMatches) < 2 {
+		return fmt.Errorf("driver version not found in nvidia-smi output")
+	}
+	s.DriverVersion = driverMatches[1]
+
+	// Extract CUDA Version
+	cudaRe := regexp.MustCompile(`CUDA Version\s*:\s*(\S+)`)
+	cudaMatches := cudaRe.FindStringSubmatch(output)
+	if len(cudaMatches) < 2 {
+		return fmt.Errorf("CUDA version not found in nvidia-smi output")
+	}
+	s.CUDAVersion = cudaMatches[1]
+
+	return nil
+}
