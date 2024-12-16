@@ -6,9 +6,9 @@ name: sichek
 namespace: default
 
 image:
-  repository: registry-ap-southeast.scitix.ai/hpc/sichek
+  repository: registry-ap-southeast.scitix.ai/hisys/sichek
   pullPolicy: IfNotPresent
-  tag: "test-xlliu4"
+  tag: "v0.1"
 
 mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
 nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified

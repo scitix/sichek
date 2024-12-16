@@ -103,7 +103,7 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 
 	checkerResults := result.Checkers
 	ibControllersPrintColor := Green
-	PerformancePrint := "Performance: "
+	// PerformancePrint := "Performance: "
 
 	var (
 		ibKmodPrint      string
@@ -191,9 +191,9 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 			printInterval = len(ofedVersionPrint) + 2
 		}
 		fmt.Printf("%-*s\n", printInterval, ibControllersPrint)
-		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, PerformancePrint)
-		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "Throughput: TBD")
-		fmt.Printf("%-*s%-*s%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "Latency: TBD")
+		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "") //, PerformancePrint)
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "") //, "Throughput: TBD")
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "") //, "Latency: TBD")
 		fmt.Printf("%-*s%-*s\n", printInterval, Green+""+Reset, printInterval, pcieLinkPrint)
 	}
 
