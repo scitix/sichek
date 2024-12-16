@@ -75,7 +75,7 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	)
 
 	status := commonCfg.StatusNormal
-	suggestions := "everything is OK"
+	suggestions := " "
 
 	curr := make([]string, 0, len(ethernetInfo.EthHardWareInfo))
 	for _, stat := range ethernetInfo.EthHardWareInfo {
