@@ -1,0 +1,77 @@
+software_dependencies:
+  ofed:
+    - node_name: "css2"
+      ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
+    - node_name: "hpe-node"
+      ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
+  kernel_module:
+    - "rdma_ucm"
+    - "rdma_cm"
+    - "ib_ipoib"
+    - "mlx5_core"
+    - "mlx5_ib"
+    - "ib_uverbs"
+    - "ib_umad"
+    - "ib_cm"
+    - "ib_core"
+    - "mlxfw"
+    - "nvidia_peermem"
+  libraries:
+    - "libibverbs.so.1"
+  tools:
+    - "ibdev2netdev"
+  pcie_acs: "0000"
+ib_devs:
+  - mlx5_0
+  - mlx5_1
+  - mlx5_2
+  - mlx5_3
+hw_spec:
+  - model: "Connectx_7"
+    type: "MT4129"
+    specifications:
+      mode:
+        - "infiniband"
+      port_state: "ACTIVE"
+      port_speed:
+        - node_name: "hpe-node"
+          speed: "400 Gb/sec (4X NDR)"
+      phy_state: "LinkUp"
+      pcie_speed:
+        - node_name: "hpe-node"
+          pcie_speed: "32.0 GT/s PCIe"
+      pcie_width:
+        - node_name: "hpe-node"
+          pcie_width: "16"
+      pcie_tree_speed:
+        - node_name: "hpe-node"
+          pcie_speed: "32.0 GT/s PCIe"
+      pcie_tree_width:
+        - node_name: "hpe-node"
+          pcie_width: "16"
+      pcie_mrr: "4096"
+      fwVersion: "28.39.2048,28.39.2050"
+  - model: "Connectx_6"
+    type: "MT4123"
+    specifications:
+      mode:
+        - "infiniband"
+    port_state: "ACTIVE"
+    phy_state: "LinkUp"
+    port_speed:
+      - node_name: "pegasus"
+        speed: "200 Gb/sec (4X HDR)"
+    pcie_speed:
+      - node_name: "pegasus"
+        pcie speed: "16.0 GT/s PCIe"
+    pcie_width:
+      - node_name: "pegasus"
+        pcie_width: "16"
+    pcie_tree_speed:
+      - node_name: "pegasus"
+        pcie_speed: "16.0 GT/s PCIe"
+    pcie_tree_width:
+      - node_name: "pegasus"
+        pcie_width: "16"
+    pcie_mrr: "4096"
+    fwVersion: "20.39.2048"

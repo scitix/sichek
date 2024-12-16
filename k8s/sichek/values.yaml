@@ -1,0 +1,86 @@
+# Default values for sichek.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+name: sichek
+namespace: default
+
+image:
+  repository: registry-ap-southeast.scitix.ai/hpc/sichek
+  pullPolicy: IfNotPresent
+  tag: "test4"
+
+mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
+nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified
+parallelism: 1     # Define the number of parallel pods for the diagnostic Job
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "sa-sichek"
+
+clusterRole:
+  name: "cluster-role-sichek"
+
+clusterRoleBinding:
+  name: "cluster-role-binding-sichek"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  privileged: true
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 2
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 2Mi
+
+# Additional volumes on the output Deployment definition.
+volumes:
+  - name: host-dev
+    hostPath:
+      path: /dev
+  - name: host-sys
+    hostPath:
+      path: /sys
+  - name: host-log
+    hostPath:
+      path: /var/log
+  - name: host-adm
+    hostPath:
+      path: /var/adm
+  - name: host-var-lib-kubelet
+    hostPath:
+      path: /var/lib/kubelet
+
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts:
+  - name: host-dev
+    mountPath: /dev
+  - name: host-sys
+    mountPath: /sys
+  - name: host-log
+    mountPath: /var/log
+  - name: host-adm
+    mountPath: /var/adm
+  - name: host-var-lib-kubelet
+    mountPath: /var/lib/kubelet
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

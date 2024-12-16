@@ -1,0 +1,3 @@
+# NCCL Timeout
+
+In our experience of training large models, we encountered following problem: **NCCL(Nvidia Collection Communication Library) timed out**, but corresponding process did not exit in time. This caused k8s torchjob communication time out and became hang, but no abnormal status was reported. Especially in large-scale training tasks, there are so many nodes, and it is difficult to track all pods all the time. Therefore, we analyzed NCCL and Pytorch code, designed SiChek NCCL Timeout component. It will check all pod logs and detect in real time whether some pods has got in NCCL Timeout, and report the Fatal after locating the specific pod.
