@@ -34,7 +34,6 @@ type CPUConfig struct {
 	QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
 	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
-	InfoChecker   []string                   `json:"info_checker" yaml:"info_checker"`
 }
 
 func (c *CPUConfig) GetCheckerSpec() map[string]common.CheckerSpec {
@@ -130,53 +129,4 @@ func DefaultConfig(ctx context.Context) (*CPUConfig, error) {
 
 	err = config.LoadFromYaml(defaultCfgPath)
 	return &config, err
-}
-
-type InfoSpec struct {
-	ModelName string `json:"model_name" yaml:"model_name"`
-	PowerMode string `json:"power_mode" yaml:"power_mode"`
-}
-
-func (c *InfoSpec) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *InfoSpec) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *InfoSpec) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *InfoSpec) Default(file string) error {
-	defaultCfgPath := "/" + file
-	_, err := os.Stat("/var/sichek/cpu" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/cpu/config.yaml
-		defaultCfgPath = "/var/sichek/cpu" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = c.LoadFromYaml(defaultCfgPath)
-	return err
 }

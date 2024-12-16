@@ -1,7 +1,7 @@
 name: Hang
 query_interval: 10
 cache_size: 10
-nvsmi: true
+nvsmi: false
 mock: false
 checkers:
   GPU:

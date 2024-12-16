@@ -20,11 +20,11 @@ import (
 	"testing"
 	"time"
 
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config"
 )
 
 func TestCPUPerfChecker_Check(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// disable perfomance mode for testing
 	// echo performance > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
@@ -37,14 +37,17 @@ func TestCPUPerfChecker_Check(t *testing.T) {
 		t.Fatalf("unexpected cpu_performance_enable")
 	}
 
-	// Create a new CPUPerfChecker
-	checker, err := NewCPUPerfChecker()
+	cpuPerfChecker, err := NewCPUPerfChecker()
 	if err != nil {
 		t.Fatalf("failed to create CPUPerfChecker: %v", err)
 	}
 
-	result, _ := checker.Check(ctx, nil)
-	if result.Status != commonCfg.StatusNormal {
-		t.Errorf("expected status 'normal', got %v", result.Status)
+	result, err := cpuPerfChecker.Check(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("failed to check cpu performance: %v", err)
 	}
+	if result.Status != config.StatusNormal {
+		t.Fatalf("unexpected result status: %v, expected: %v\n", result.Status, config.StatusNormal)
+	}
+	t.Logf("result: %+v", result)
 }

@@ -116,6 +116,11 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int) error {
 		return fmt.Errorf("failed to get temperature events for device %v: %v", uuid, err2)
 	}
 
+	err2 = deviceInfo.Utilization.Get(device, uuid)
+	if err2 != nil {
+		return fmt.Errorf("failed to get Utilization for device %v: %v", uuid, err2)
+	}
+
 	err2 = deviceInfo.MemoryErrors.Get(device, uuid)
 	if err2 != nil {
 		return fmt.Errorf("failed to get sensor info for device %v: %v", uuid, err2)

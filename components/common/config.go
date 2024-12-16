@@ -19,31 +19,6 @@ import (
 	"time"
 )
 
-// spec
-// config items
-// type Config struct {
-// 	Version    string                     `json:"version" yaml:"version"`
-// 	Components map[string]ComponentConfig `json:"components,omitempty" yaml:"components,omitempty"`
-// 	NodeInfo   map[string]string          `json:"node_info,omitempty" yaml:"node_info,omitempty"`
-// }
-
-// func (config *Config) Yaml() ([]byte, error) {
-// 	return yaml.Marshal(config)
-// }
-
-// func LoadConfigFromYaml(file string) (*Config, error) {
-// 	data, err := os.ReadFile(file)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	config := new(Config)
-// 	err = yaml.Unmarshal(data, config)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return config, nil
-// }
-
 type ComponentConfig interface {
 	GetCheckerSpec() map[string]CheckerSpec
 	GetQueryInterval() time.Duration

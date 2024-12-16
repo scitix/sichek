@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"github.com/sirupsen/logrus"
 )
 
 func TestHealthCheck(t *testing.T) {
@@ -34,15 +32,14 @@ func TestHealthCheck(t *testing.T) {
 		t.Fatalf("failed to create component: %v", err)
 	}
 	if err != nil {
-		logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
+		t.Fatalf("failed to create Nvidia component: %v", err)
 	}
 	result, err := component.HealthCheck(ctx)
 	if err != nil {
-		logrus.WithField("component", component.Name()).Error(err)
-		return
+		t.Fatalf("failed to Nvidia HealthCheck: %v", err)
 	}
 	output := common.ToString(result)
-	logrus.WithField("component", component.Name()).Infof("Analysis Result: \n%s", output)
+	t.Logf("Nvidia Analysis Result: \n%s", output)
 }
 
 func TestSplit(t *testing.T) {

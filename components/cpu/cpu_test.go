@@ -41,9 +41,5 @@ func TestHealthCheck(t *testing.T) {
 		return
 	}
 
-	info, err := result.JSON()
-	if err != nil {
-		logrus.WithField("component", "cpu").Errorf("result Marshal failed: %v", err)
-	}
-	logrus.WithField("component", "cpu").Infof("cpu analysis result: \n%s", common.ToString(info))
+	logrus.WithField("component", "cpu").Infof("cpu analysis result: \n%s", common.ToString(result))
 }
