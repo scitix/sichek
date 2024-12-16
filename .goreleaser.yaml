@@ -1,0 +1,97 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+project_name: sichek
+
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    - go mod vendor
+
+builds:
+  - id: "sichek"
+    main: ./cmd/main.go
+    binary: sichek
+    goos:
+      - linux
+    goarch:
+      - amd64
+    flags:
+      - -mod=vendor
+
+# archives:
+#   - format: tar.gz
+#     # this name template makes the OS and Arch compatible with the results of `uname`.
+#     name_template: >-
+#       {{ .ProjectName }}_
+#       {{- title .Os }}_
+#       {{- if eq .Arch "amd64" }}x86_64
+#       {{- else if eq .Arch "386" }}i386
+#       {{- else }}{{ .Arch }}{{ end }}
+#       {{- if .Arm }}v{{ .Arm }}{{ end }}
+#     # use zip for windows archives
+#     format_overrides:
+#       - goos: windows
+#         format: zip
+
+nfpms:
+  - id: sichek
+    formats:
+      - deb
+      - rpm
+    package_name: sichek
+    file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - sichek
+    maintainer: hhu
+    description: "Sichek: check node components, e.g. CPU, GPU, IB etc"
+    license: Apache 2.0
+    bindir: /usr/sbin
+    contents:
+    - src: ./components/cpu/config/*.yaml
+      dst: /var/sichek/cpu/
+    # - src: ./components/cpu/config/intel_8468_spec.yaml
+    #   dst: /var/sichek/cpu/intel_8468_spec.yaml
+    - src: ./components/disk/config/*.yaml
+      dst: /var/sichek/disk/
+    - src: ./components/dmesg/config/*.yaml
+      dst: /var/sichek/dmesg/
+    - src: ./components/gpfs/config/*.yaml
+      dst: /var/sichek/gpfs/
+    - src: ./components/hang/config/*.yaml
+      dst: /var/sichek/hang/
+    - src: ./components/infiniband/config/*.yaml
+      dst: /var/sichek/infiniband/
+    # - src: ./components/infiniband/config/userDefaultChecker.yaml
+    #   dst: /var/sichek/infiniband/userDefaultChecker.yaml
+    - src: ./components/memory/config/*.yaml
+      dst: /var/sichek/memory/
+    - src: ./components/nccl/config/*.yaml
+      dst: /var/sichek/nccl/
+    - src: ./components/nvidia/config/*.yaml
+      dst: /var/sichek/nvidia/
+    # - src: ./components/nvidia/config/default_a800_spec.yaml
+    #   dst: /var/sichek/nvidia/default_a800_spec.yaml
+    # - src: ./components/nvidia/config/default_h100_spec.yaml
+    #   dst: /var/sichek/nvidia/default_h100_spec.yaml
+    # - src: ./components/nvidia/config/default_l40_spec.yaml
+    #   dst: /var/sichek/nvidia/default_l40_spec.yaml
+    # - src: ./components/nvidia/config/default_v100s_spec.yaml
+    #   dst: /var/sichek/nvidia/default_v100s_spec.yaml
+    # - src: ./components/nvidia/config/default_user_config.yaml
+    #   dst: /var/sichek/nvidia/default_user_config.yaml
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
