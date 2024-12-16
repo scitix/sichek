@@ -123,7 +123,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		ctx:         ctx,
 		cancel:      cancel,
 		spec:        ethSpec,
-		info:        info.GetIBInfo(),
+		info:        info.GetEthInfo(),
 		checkers:    checkers,
 		cfg:         cfg,
 		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
