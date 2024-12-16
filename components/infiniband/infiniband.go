@@ -166,15 +166,17 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
+
 	status := commonCfg.StatusNormal
+	level := commonCfg.LevelInfo
 
 	checkerResults := make([]*common.CheckerResult, 0)
-	var level string = commonCfg.LevelInfo
-	var err error
 
-	for _, cherker := range c.checkers {
-		logrus.WithField("component", "infiniband").Debugf("do the check: %s", cherker.Name())
-		result, err := cherker.Check(cctx, InfinibandInfo)
+	// var err error
+
+	for _, checker := range c.checkers {
+		logrus.WithField("component", "infiniband").Debugf("do the check: %s", checker.Name())
+		result, err := checker.Check(cctx, InfinibandInfo)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Errorf("failed to check: %v", err)
 			continue
