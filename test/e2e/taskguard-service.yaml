@@ -32,7 +32,7 @@ spec:
             memory: "64Mi"
             cpu: "250m"
           limits:
-            memory: "1280Mi"
+            memory: "512Mi"
             cpu: "2"
 ---
 apiVersion: v1
