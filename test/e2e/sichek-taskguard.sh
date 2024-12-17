@@ -37,7 +37,7 @@ echo_info "E2EDIR: $E2EDIR"
 echo_info "K8S_DIR: $K8S_DIR"
 echo_back "helm uninstall sichek"
 echo_back "helm install sichek $K8S_DIR/sichek"
-echo_info "`kubectl get pod |grep sichek`"
+echo_info "$(kubectl get pod |grep sichek)"
 echo ""
 
 echo "========================================================================="
@@ -45,7 +45,9 @@ echo_info "start TaskGuard Service"
 echo "========================================================================="
 TASKGUARD="taskguard-service"
 checktaskguard=$(kubectl get deployment $TASKGUARD)
-if [[ "$checktaskguard" != *"NotFound"* ]]; then
+if [[ "$checktaskguard" == *"NotFound"* ]]; then
+    pass
+else
     echo_warn "$TASKGUARD already exists. Delete it first."
     echo_back "kubectl delete -f $WORKSPACE_DIR/test/e2e/taskguard-service.yaml"
 fi
@@ -61,7 +63,9 @@ PYTORCHJOB="sichek-taskguard-test"
 echo_info "start pytorchjob $PYTORCHJOB"
 echo "========================================================================="
 checkjob=$(kubectl get pytorchjob $PYTORCHJOB)
-if [[ "$checkjob" != *"NotFound"* ]]; then
+if [[ "$checkjob" == *"NotFound"* ]]; then
+    pass
+else
     echo_warn "Pytorchjob $PYTORCHJOB already exists. Delete it first."
     echo_back "kubectl delete -f pytorchjob.yaml"
     echo_back "sleep 5"
@@ -69,16 +73,24 @@ fi
 echo_back "kubectl apply -f pytorchjob.yaml"
 
 echo_info "Waiting for pytorchjob $PYTORCHJOB to Running state."
-while true; do
+timeout=300
+interval=5
+elapsed=0
+while (( elapsed < timeout )); do
     status=$(kubectl get pytorchjob "$PYTORCHJOB" | grep -v NAME |awk '{print $2}')
     if [[ "$status" == "Running" ]]; then
         echo_info "Pytorchjob $PYTORCHJOB are in Running state."
         break
     else
         echo_info "Pytorchjob $PYTORCHJOB is not in Running state yet. Retrying..."
-        echo_back "sleep 5"
+        echo_back "sleep $interval"
+        (( elapsed += interval ))
     fi
 done
+
+if (( elapsed >= timeout )); then
+    echo_warn "Timeout reached while waiting for pytorchjob $PYTORCHJOB to reach Running state."
+fi
 
 echo ""
 echo "========================================================================="
@@ -98,8 +110,9 @@ while true; do
     ppid=${ppid// /}
     # contains only numbers (digits)
     if [[ "$ppid" =~ ^[0-9]+$ ]]; then
-        echo_info "The training processes are started. sleep more 20s ..."
-        echo_back "sleep 20"
+        echo_info "The training processes are started. sleep more 30s ..."
+        echo_back "sleep 30"
+        echo_back "kubectl logs sichek-taskguard-test-worker-0 |tail"
         break
     else
         echo_info "The training processes are not started yet. Retrying..."
@@ -124,14 +137,18 @@ echo "========================================================================="
 sleep 5
 echo_warn "The logs of sichek-taskguard-test-worker-0 show the failed status, while the pytorchjob are still running."
 echo_back "kubectl logs sichek-taskguard-test-worker-0 |tail"
-echo_warn "The pytorchjob will Hang for 10 minites and then exit."
+echo_warn "The pytorchjob will Hang for 10 minutes and then exit."
 echo "========================================================================="
 
 echo ""
 echo "========================================================================="
 echo_info "Sichek should detect the Hang case and update the status of scitix.ai/sichek annotation with 'GPUHang'."
 echo_warn "Waiting for Sichek detect the Hang case after 60s."
-while true; do
+timeout=300
+elapsed=0
+interval=5
+
+while (( elapsed < timeout )); do
     sichek_annotation=$(kubectl get node $pytorchjob_worker_0_node -oyaml |grep scitix.ai/sichek)
     all_running=true
     if [[ "$sichek_annotation" == *"GPUHang"* ]]; then
@@ -140,28 +157,41 @@ while true; do
         break
     else
         echo_info "Waiting for Sichek detect the Hang case. Retrying..."
-        echo_back "sleep 5"
+        echo_back "sleep $interval"
+        (( elapsed += interval ))
     fi
 done
+
+if (( elapsed >= timeout )); then
+    echo_warn "Timeout reached while waiting for Sichek to detect the Hang case."
+fi
 echo "========================================================================="
 
 echo ""
 echo "========================================================================="
 echo_info "Check the logs of TaskGuard. It is expected to resubmit the pytorchjob."
 taskguardpod=$(kubectl get pod |grep $TASKGUARD |awk '{print $1}')
-while true; do
+timeout=300
+elapsed=0
+interval=5
+
+while (( elapsed < timeout )); do
     taskguard_resubmit_succeed=$(kubectl logs $taskguardpod |grep "resubmit succeed")
     if [[ -n "$taskguard_resubmit_succeed" ]]; then
-        echo_warn "taskguard resubmit the pytorchjob succeed."
+        echo_warn "The pytorchjob $PYTORCHJOB is resubmitted and running again."
         echo_back "kubectl get pytorchjob |grep $PYTORCHJOB"
         break
     else
         echo_info "Waiting for taskguard resubmit the pytorchjob $PYTORCHJOB..."
-        echo_back "sleep 5"
+        echo_back "sleep $interval"
+        (( elapsed += interval ))
     fi
 done
+if (( elapsed >= timeout )); then
+    echo_warn "Timeout reached while waiting for TaskGuard to resubmit the pytorchjob."
+fi
 
-echo_back "slepp 30"
-echo_back "kubectl delete pytorchjob $PYTORCHJOB"
+echo_back "sleep 30"
+echo_back "kubectl logs sichek-taskguard-test-1-worker-0 |tail"
+echo_back "kubectl get pytorchjob |grep $PYTORCHJOB |awk 'system(\"kubectl delete pytorchjob \" \$1)'"
 echo "========================================================================="
-
