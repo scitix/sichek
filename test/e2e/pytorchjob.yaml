@@ -3,6 +3,8 @@ kind: PyTorchJob
 metadata:
   name: sichek-taskguard-test
   namespace: default
+  labels:
+    scitix.ai/taskguard: "true"
 spec: 
   pytorchReplicaSpecs:
     Master:
@@ -14,7 +16,6 @@ spec:
             sidecar.istio.io/inject: "false"
           labels:
             scitix.ai/topo-aware-in-node: "true"
-            scitix.ai/taskguard: "true"
         spec: &job-spec
           containers:
           - args:
@@ -83,6 +84,5 @@ spec:
             sidecar.istio.io/inject: "false"
           labels:
             scitix.ai/topo-aware-in-node: "true"
-            scitix.ai/taskguard: "true"
         spec:
           <<: *job-spec

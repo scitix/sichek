@@ -180,7 +180,7 @@ func (c *HangGetter) Collect() (common.Info, error) {
 				}
 				// logrus.WithField("collector", "hanggetter").Warnf("Index=%d, GPU=%d, item=%s, indicate=%d, threshold=%d, duration=%d, nowduration=%d\n",
 				// 	deviceInfo.Index, i, c.items[j], infoValue, c.indicates[c.items[j]], duration,
-				// 	c.hangInfo.HangDuration[c.items[j]][strconv.Itoa(deviceInfo.Index)])
+				// 	c.hangInfo.HangDuration[c.items[j]][deviceInfo.UUID])
 			}
 		}
 		c.prevTS = info.Time
