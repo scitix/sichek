@@ -9,6 +9,8 @@
 - [Overview](#overview)
 - [Features](#features)
 - [Getting Started](#getting-started)
+  - [Running in Kubernetes](#running-in-kubernetes)
+  - [Running in Standalone Mode](#running-in-standalone)
 - [Examples](#examples)
 - [Health Check Errors](#health-check-errors)
 - [Documentation](#documentation)
@@ -58,7 +60,7 @@ See [Sichek helm chart](./k8s/sichek) to deploy Sichek in your Kubernetes cluste
 
 - **For cluster diagnostics**, run Sichek using Kubernetes Job mode to start a batch of Sichek pods to diagnose multiple node health:
   ```bash
-  helm install sichek ./k8s/sichek --set  mode=diag
+  helm install sichek-diag ./k8s/sichek --set  mode=diag --set parallelism=2
   ```
     - **failed job** indicates failed node health check
     - **successful job** indicates passed node health check.
@@ -66,7 +68,7 @@ See [Sichek helm chart](./k8s/sichek) to deploy Sichek in your Kubernetes cluste
 - *For cluster monitoring**, run Sichek using Kubernetes DaemonSet to start the Sichek service to monitor all nodes:
 
   ```bash
-  helm install sichek ./k8s/sichek --set  mode=daemonset
+  helm install sichek ./k8s/sichek  # --set  mode=daemonset, default is daemonset
   ```
 The daemon service will continuously monitor critical hardware components and write the results to the node's Kubernetes annotations when abnormalities are detected, as shown below:
 
@@ -160,7 +162,9 @@ For more information, refer to [Sichek Errors Categorization](./docs/errors-cate
 For more information, please refer to the following documentation:
 
 - [Sichek Architecture](./docs/architecture.md)
-- [Sichek NVidia](./docs/nvidia.md)
+- [Sichek Nvidia](./docs/nvidia.md)
 - [Sichek Infiniband](./docs/infiniband.md)
+- [Sichek GPFS](./docs/gpfs.md)
+- [Sichek Hang](./docs/hang.md)
 - [Sichek Errors Categorization](./docs/errors-categorization.md)
 - [Sichek Integration](./docs/integration.md)
