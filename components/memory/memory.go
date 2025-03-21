@@ -125,7 +125,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("failed to collect memory info: %v", err)
 		return nil, err
@@ -146,13 +146,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 		checker_results = append(checker_results, check_result)
 
-		checker_cfg := c.cfg.Checkers[checker.Name()]
+		checker_cfg := c.cfg.Memory.Checkers[checker.Name()]
 		if checker_cfg.Level == commonCfg.LevelCritical && check_result.Status == commonCfg.StatusAbnormal {
 			status = commonCfg.StatusAbnormal
 		}
 	}
 
-	res_result := &common.Result{
+	resResult := &common.Result{
 		Item:     commonCfg.ComponentNameMemory,
 		Status:   status,
 		Level:    commonCfg.LevelCritical,
@@ -162,11 +162,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
-	c.cacheBuffer[c.currIndex] = res_result
+	c.cacheBuffer[c.currIndex] = resResult
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "memory").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "memory").Infof("Health Check PASSED")
+	}
 
-	return res_result, nil
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {

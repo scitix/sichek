@@ -55,7 +55,7 @@ func NewGPFSCollector(ctx context.Context, cfg common.ComponentConfig) (*GPFSCol
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.EventCheckers {
+	for _, checker_cfg := range config.Gpfs.EventCheckers {
 		_, err := os.Stat(checker_cfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "GPFS").Errorf("log file %s not exist for GPFS collector", checker_cfg.LogFile)
@@ -89,7 +89,7 @@ func (c *GPFSCollector) GetCfg() common.ComponentConfig {
 	return c.cfg
 }
 
-func (c *GPFSCollector) Collect() (common.Info, error) {
+func (c *GPFSCollector) Collect(ctx context.Context) (common.Info, error) {
 	filterRes := c.filter.Check()
 	filterResMap := make(map[string][]*filter.FilterResult)
 	for _, res := range filterRes {

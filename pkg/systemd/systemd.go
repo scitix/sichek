@@ -117,10 +117,10 @@ func RestartSystemdService(service string) error {
 	}
 
 	if out, err := utils.ExecCommand(ctx, "systemctl", "daemon-reload"); err != nil {
-		return fmt.Errorf("systemctl daemon-reload failed: %w output: %s", err, out)
+		return fmt.Errorf("systemctl daemon-reload failed: %w output: %s", err, string(out))
 	}
 	if out, err := utils.ExecCommand(ctx, "systemctl", "restart", service); err != nil {
-		return fmt.Errorf("systemctl restart failed: %w output: %s", err, out)
+		return fmt.Errorf("systemctl restart failed: %w output: %s", err, string(out))
 	}
 	return nil
 }

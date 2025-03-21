@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/collector"
 
 	"sigs.k8s.io/yaml"
 )
@@ -44,126 +43,21 @@ func (c *NvidiaConfig) Yaml() (string, error) {
 	return string(data), err
 }
 
-func (c *NvidiaConfig) LoadFromYaml(userConfig string, specConfig string) error {
-	spec, err := LoadSpecConfig(specConfig)
+func (c *NvidiaConfig) LoadFromYaml(userConfig string, specFile string) {
+	c.Spec = GetSpec(specFile)
+	err := c.ComponentConfig.LoadFromYaml(userConfig)
 	if err != nil {
-		return err
+		c.ComponentConfig.SetDefault()
 	}
-	c.Spec = *spec
-	err = c.ComponentConfig.LoadFromYaml(userConfig)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func NewNvidiaConfig(userConfig string, specFile string) (*NvidiaConfig, error) {
-	spec, err := LoadSpecConfig(specFile)
-	if err != nil {
-		return nil, err
-	}
-
-	componentConfig := &ComponentConfig{}
-	err = componentConfig.LoadFromYaml(userConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return &NvidiaConfig{
-		Spec:            *spec,
-		ComponentConfig: *componentConfig,
-	}, nil
-}
-
-type NvidiaSpec struct {
-	Name                 string                 `json:"name"`
-	GpuNums              int                    `json:"gpu_nums"`
-	GpuMemory            int                    `json:"gpu_memory"`
-	GpuMemoryBandwidth   int                    `json:"gpu_memory_bandwidth,omitempty"`
-	PCIe                 collector.PCIeInfo     `json:"pcie,omitempty"`
-	Dependence           Dependence             `json:"dependence"`
-	Software             collector.SoftwareInfo `json:"software"`
-	Nvlink               collector.NVLinkStates `json:"nvlink"`
-	State                collector.StatesInfo   `json:"state"`
-	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold"`
-	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold"`
-	CriticalXidEvents    map[int]string         `json:"critical_xid_events"`
-}
-
-func (s NvidiaSpec) JSON() (string, error) {
-	data, err := json.Marshal(s)
-	return string(data), err
-}
-
-func (s NvidiaSpec) Yaml() (string, error) {
-	data, err := yaml.Marshal(s)
-	return string(data), err
-}
-
-func (s NvidiaSpec) LoadFromYaml(file string) error {
-	_, err := LoadSpecConfig("")
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-type Dependence struct {
-	PcieAcs        string `json:"pcie-acs"`
-	Iommu          string `json:"iommu"`
-	NvidiaPeermem  string `json:"nv-peermem"`
-	FabricManager  string `json:"nv_fabricmanager"`
-	CpuPerformance string `json:"cpu_performance"`
-}
-
-type MemoryErrorThreshold struct {
-	RemappedUncorrectableErrors      uint64 `json:"remapped_uncorrectable_errors"`
-	SRAMVolatileUncorrectableErrors  uint64 `json:"sram_volatile_uncorrectable_errors"`
-	SRAMAggregateUncorrectableErrors uint64 `json:"sram_aggregate_uncorrectable_errors"`
-	SRAMVolatileCorrectableErrors    uint64 `json:"sram_volatile_correctable_errors"`
-	SRAMAggregateCorrectableErrors   uint64 `json:"sram_aggregate_correctable_errors"`
-}
-
-type TemperatureThreshold struct {
-	Gpu    int `json:"gpu"`
-	Memory int `json:"memory"`
-}
-
-func LoadSpecConfig(specFile string) (*NvidiaSpec, error) {
-	if specFile == "" {
-		_, err := os.Stat("/var/sichek/nvidia/default_spec.yaml")
-		if err == nil {
-			// run in pod use /var/sichek/nvidia/default_spec.yaml
-			specFile = "/var/sichek/nvidia/default_spec.yaml"
-		} else {
-			// run on host use local config
-			_, curFile, _, ok := runtime.Caller(0)
-			if !ok {
-				return nil, fmt.Errorf("get curr file path failed")
-			}
-
-			specFile = filepath.Dir(curFile) + "/default_spec.yaml"
-		}
-	}
-	data, err := os.ReadFile(specFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	var config NvidiaSpec
-	err = yaml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-
-	return &config, nil
 }
 
 type ComponentConfig struct {
-	Name            string        `json:"name"`
-	QueryInterval   time.Duration `json:"query_interval"`
-	CacheSize       int64         `json:"cache_size"`
-	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
+	Nvidia struct {
+		Name            string        `json:"name"`
+		QueryInterval   time.Duration `json:"query_interval"`
+		CacheSize       int64         `json:"cache_size"`
+		IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
+	} `json:"nvidia"`
 }
 
 func (c *ComponentConfig) GetCheckerSpec() map[string]common.CheckerSpec {
@@ -175,7 +69,7 @@ func (c *ComponentConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 }
 
 func (c *ComponentConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Nvidia.QueryInterval
 }
 
 func (c *ComponentConfig) JSON() (string, error) {
@@ -208,64 +102,16 @@ func (c *ComponentConfig) LoadFromYaml(filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
-
 	err = yaml.Unmarshal(data, c)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
-
 	return nil
 }
 
-// Map of NVIDIA Device IDs to Product Names
-var NvidiaDeviceNames = map[string]string{
-	"0x233010de": "NVIDIA H100 80GB HBM3",
-	"0x20b510de": "NVIDIA A100 80GB PCIe",
-	"0x20f310de": "NVIDIA A800-SXM4-80GB",
-	"0x26b510de": "NVIDIA L40",
-	"0x1df610de": "Tesla V100S-PCIE-32GB",
-}
-
-// Map of NVIDIA Device IDs to Product Names
-var SupportedNvidiaDeviceSpecYaml = map[string]string{
-	"0x233010de": "default_h100_spec.yaml",
-	"0x20b510de": "default_a100_spec.yaml",
-	"0x20f310de": "default_a800_spec.yaml",
-	"0x26b510de": "default_l40_spec.yaml",
-	"0x1df610de": "default_v100s_spec.yaml",
-}
-
-func GetSpec(deviceID string) (string, error) {
-	specName := ""
-	specFile := ""
-	for device, spec := range SupportedNvidiaDeviceSpecYaml {
-		if deviceID == device {
-			specName = spec
-			break
-		}
-	}
-	if specName == "" {
-		panic(fmt.Sprintf("unsupported NVIDIA product name, right now only support %v\n", SupportedNvidiaDeviceSpecYaml))
-	}
-
-	specFile = "/var/sichek/nvidia/" + specName
-	_, err := os.Stat(specFile)
-	if err == nil {
-		// run in pod use /var/sichek/nvidia/${specName}
-		return specFile, nil
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return "", fmt.Errorf("get curr file path failed")
-		}
-		specFile = filepath.Dir(curFile) + "/config/" + specName
-		_, err := os.Stat(specFile)
-		if err != nil {
-			return "", fmt.Errorf("failed to read file: %w", err)
-		}
-
-	}
-
-	return specFile, nil
+func (c *ComponentConfig) SetDefault() {
+	c.Nvidia.Name = "nvidia"
+	c.Nvidia.QueryInterval = 10 * time.Second
+	c.Nvidia.CacheSize = 10
+	c.Nvidia.IgnoredCheckers = []string{}
 }

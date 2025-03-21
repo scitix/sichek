@@ -75,7 +75,8 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
 		result.Status = commonCfg.StatusNormal
-
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

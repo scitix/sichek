@@ -23,6 +23,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang"
+	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -58,6 +59,19 @@ func NewHangCommand() *cobra.Command {
 				logrus.WithField("component", "Hang").Infof("load cfg file:%s", cfgFile)
 			}
 
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("component", "Hang").Error(err)
+				return
+			} else {
+				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
+			}
+
+			_, err = nvidia.NewComponent("", specFile, nil)
+			if err != nil {
+				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
+				return
+			}
 			component, err := hang.NewComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "Hang").Errorf("create hang component failed: %v", err)
@@ -70,6 +84,11 @@ func NewHangCommand() *cobra.Command {
 			var wg sync.WaitGroup
 			wg.Add(1)
 			go func(ctx context.Context) {
+				defer func() {
+					if err := recover(); err != nil {
+						logrus.WithField("component", "Hang").Errorf("recover panic err: %v", err)
+					}
+				}()
 				defer wg.Done()
 				select {
 				case <-ctx.Done():
@@ -110,6 +129,7 @@ func NewHangCommand() *cobra.Command {
 	}
 
 	hangCmd.Flags().StringP("cfg", "c", "", "Path to the Hang Cfg file")
+	hangCmd.Flags().StringP("spec", "s", "", "Path to the GPU spec file")
 	hangCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return hangCmd

@@ -28,11 +28,11 @@ import (
 
 type IBDevsChecker struct {
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBDevsChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBDevsChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBDevsChecker{
 		name: config.CheckIBDevs,
 		spec: specCfg,
@@ -59,7 +59,8 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	failed_hcas := make([]string, 0)
+
+	failedHcas := make([]string, 0)
 	IBDevSet := make(map[string]struct{})
 	for _, hca := range c.spec.IBDevs {
 		IBDevSet[hca] = struct{}{}
@@ -67,13 +68,13 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	for _, hca := range infinibandInfo.IBDevs {
 		if _, found := IBDevSet[hca]; !found {
-			failed_hcas = append(failed_hcas, hca)
+			failedHcas = append(failedHcas, hca)
 		}
 	}
 
-	if len(failed_hcas) > 0 {
+	if len(failedHcas) > 0 {
 		result.Status = commonCfg.StatusAbnormal
-		result.Device = strings.Join(failed_hcas, ",")
+		result.Device = strings.Join(failedHcas, ",")
 		result.Detail = fmt.Sprintf("Unexpected IB devices %v, expected IB devices : %v", infinibandInfo.IBDevs, c.spec.IBDevs)
 	} else {
 		result.Status = commonCfg.StatusNormal

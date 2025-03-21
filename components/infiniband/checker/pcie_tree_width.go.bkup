@@ -31,11 +31,11 @@ import (
 type IBPCIETreeWidthChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPCIETreeWidthChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBPCIETreeWidthChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPCIETreeWidthChecker{
 		id:          commonCfg.CheckerIDInfinibandFW,
 		name:        config.CheckPCIETreeWidth,
@@ -83,7 +83,7 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 		return nil, fmt.Errorf("failed to get hostname: %w", err)
 	}
 
-	for _, hwSpec := range c.spec.HWSpec {
+	for _, hwSpec := range c.spec.HCAs {
 		for _, pcieTree := range hwSpec.Specifications.PcieTreeWidth {
 			if strings.Contains(hostname, pcieTree.NodeName) {
 				spec = pcieTree.PCIEWidth

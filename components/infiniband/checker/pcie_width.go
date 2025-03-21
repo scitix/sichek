@@ -18,7 +18,6 @@ package checker
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -30,11 +29,11 @@ import (
 type IBPCIEWidthChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPCIEWidthChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBPCIEWidthChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPCIEWidthChecker{
 		id:   commonCfg.CheckerIDInfinibandFW,
 		name: config.CheckPCIEWidth,
@@ -60,59 +59,40 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	var (
-		errDevice         []string
-		spec, suggestions string
-		level             string = commonCfg.LevelInfo
-		detail            string = config.InfinibandCheckItems[c.name].Detail
-	)
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-
-	status := commonCfg.StatusNormal
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
+		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hostname: %w", err)
-	}
-
-	for _, hwSpec := range c.spec.HWSpec {
-		for _, width := range hwSpec.Specifications.PcieWidth {
-			if strings.Contains(hostname, width.NodeName) {
-				spec = width.PCIEWidth
-				break
-			}
-		}
-	}
-
+	failedHcas := make([]string, 0)
+	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	var faiedHcasSpec []string
+	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
+		spec = append(spec, hcaSpec.PCIEWidth)
 		curr = append(curr, hwInfo.PCIEWidth)
-		if !strings.Contains(hwInfo.PCIEWidth, spec) {
-			errDevice = append(errDevice, hwInfo.IBDev)
+		if hwInfo.PCIEWidth != hcaSpec.PCIEWidth {
+			result.Status = commonCfg.StatusAbnormal
+			failedHcas = append(failedHcas, hwInfo.IBDev)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIEWidth)
+			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEWidth)
 		}
 	}
 
-	if len(errDevice) != 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("%s is not right pcie width,curr:%s, spec:%s", strings.Join(errDevice, ","), strings.Join(curr, ","), spec)
-		suggestions = fmt.Sprintf("set the %s to right pcie width", strings.Join(errDevice, ","))
-	}
-
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
-	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Detail = detail
-	result.Suggestion = suggestions
+	result.Spec = strings.Join(spec, ",")
+	result.Device = strings.Join(failedHcas, ",")
+	if len(failedHcas) != 0 {
+		result.Detail = fmt.Sprintf("PCIEWidth check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), faiedHcasSpec, faiedHcasCurr)
+		result.Suggestion = fmt.Sprintf("Set %s with %s", strings.Join(failedHcas, ","), strings.Join(faiedHcasSpec, ","))
+	}
 
 	return &result, nil
 }

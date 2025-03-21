@@ -30,11 +30,11 @@ import (
 type PCIEACSChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewPCIEACSChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewPCIEACSChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &PCIEACSChecker{
 		id:   commonCfg.CheckerIDInfinibandFW,
 		name: config.CheckPCIEACS,
@@ -66,7 +66,7 @@ func (c *PCIEACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	result.Spec = c.spec.SoftwareDependencies.PcieACS
+	result.Spec = c.spec.PCIeACS
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
 		result.Status = commonCfg.StatusAbnormal
@@ -75,21 +75,21 @@ func (c *PCIEACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	notDisabledACS, err := utils.IsAllACSDisabled(ctx)
+	notDisabledACS, err := utils.GetACSEnabledDevices(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run IsAllACSDisabled, err: %v", err)
+		return nil, fmt.Errorf("failed to run GetACSEnabledDevices, err: %v", err)
 	}
 
 	if len(notDisabledACS) > 0 {
-		disabledACSFail, err := utils.DisableAllACS(ctx)
-		if err != nil {
+		failedDevices, err := utils.BatchDisableACS(ctx, notDisabledACS)
+		if err == nil && len(failedDevices) == 0{
 			result.Status = commonCfg.StatusAbnormal
 			result.Curr = "NotDisabled"
 			result.Level = config.InfinibandCheckItems[c.name].Level
 			result.Detail = fmt.Sprintf("Not All PCIe ACS are disabled: %v", err)
 			result.Suggestion = `use shell cmd "for i in $(lspci | cut -f 1 -d ' '); do setpci -v -s $i ecap_acs+6.w=0; done" disable acs`
 		} else {
-			for _, setFail := range disabledACSFail {
+			for _, setFail := range failedDevices {
 				errBDFs[setFail.BDF] = setFail.ACSStatus
 				failBDFs = append(failBDFs, setFail.BDF)
 			}
@@ -98,7 +98,7 @@ func (c *PCIEACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			result.Level = commonCfg.LevelInfo
 			result.Device = strings.Join(failBDFs, ",")
 			result.Suggestion = ""
-			result.Detail = fmt.Sprintf("need to disable acs, curr:%s", errBDFs)
+			result.Detail = fmt.Sprintf("Not All PCIe ACS are disabled. They been disabled online successfully")
 		}
 
 	} else {

@@ -83,7 +83,8 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
 		result.Status = commonCfg.StatusNormal
-
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -38,7 +39,9 @@ type NvidiaCollector struct {
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewNvidiaCollector(nvmlInst nvml.Interface, expectedDeviceCount int) (*NvidiaCollector, error) {
+func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDeviceCount int) (*NvidiaCollector, error) {
+	ctx_, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 	podResourceMapper := k8s.NewPodResourceMapper()
 	if podResourceMapper == nil {
 		err := fmt.Errorf("failed to create PodResourceMapper")
@@ -46,13 +49,37 @@ func NewNvidiaCollector(nvmlInst nvml.Interface, expectedDeviceCount int) (*Nvid
 		return nil, err
 	}
 	collector := &NvidiaCollector{nvmlInst: nvmlInst, podResourceMapper: podResourceMapper}
-	err := collector.softwareInfo.Get()
-	if err != nil {
-		logrus.WithField("component", "NVIDIA-Collector").Errorf("%v", err)
+	var err error
+	done := make(chan struct{})
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[NewNvidiaCollector] panic err is %s\n", err)
+			}
+			close(done)
+		}()
+		for i := 0; i < expectedDeviceCount; i++ {
+			err = collector.softwareInfo.Get(i)
+			if err != nil {
+				logrus.WithField("component", "NVIDIA-Collector-getSWInfo").Errorf("%v", err)
+			} else {
+				break
+			}
+		}
+		if err == nil {
+			collector.ExpectedDeviceCount = expectedDeviceCount
+			collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
+			collector.getUUID()
+		}
+	}()
+	select {
+	case <-ctx_.Done():
+		return nil, fmt.Errorf("failed to NewNvidiaCollector: TIMEOUT")
+	case <-done:
+		if err != nil {
+			return nil, fmt.Errorf("failed to NewNvidiaCollector: %v", err)
+		}
 	}
-	collector.ExpectedDeviceCount = expectedDeviceCount
-	collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
-	collector.getUUID()
 	return collector, nil
 }
 
@@ -84,7 +111,7 @@ func (collector *NvidiaCollector) GetCfg() common.ComponentConfig {
 	return nil
 }
 
-func (collector *NvidiaCollector) Collect() (*NvidiaInfo, error) {
+func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, error) {
 	if !collector.UUIDAllValidFlag {
 		collector.getUUID()
 	}
@@ -112,7 +139,7 @@ func (collector *NvidiaCollector) Collect() (*NvidiaInfo, error) {
 			continue
 			// return nil, fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)
 		}
-		err2 := nvidia.DevicesInfo[i].Get(device, i)
+		err2 := nvidia.DevicesInfo[i].Get(device, i, collector.softwareInfo.DriverVersion)
 		if err2 != nil {
 			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
 			continue

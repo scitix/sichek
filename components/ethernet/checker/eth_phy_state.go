@@ -79,11 +79,11 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 
 	curr := make([]string, 0, len(ethernetInfo.EthHardWareInfo))
 	for _, stat := range ethernetInfo.EthHardWareInfo {
-		curr = append(curr, stat.PhyStat)
+		curr = append(curr, stat.PhyState)
 	}
 
 	for _, hwInfo := range ethernetInfo.EthHardWareInfo {
-		state := hwInfo.PhyStat
+		state := hwInfo.PhyState
 		curr = append(curr, state)
 		for _, hwSpec := range c.spec.HWSpec {
 			spec = hwSpec.Specifications.PhyState

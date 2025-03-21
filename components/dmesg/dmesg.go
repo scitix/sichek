@@ -25,7 +25,7 @@ import (
 	DmesgChek "github.com/scitix/sichek/components/dmesg/checker"
 	DmesgColl "github.com/scitix/sichek/components/dmesg/collector"
 	DmesgCfg "github.com/scitix/sichek/components/dmesg/config"
-	common_config "github.com/scitix/sichek/config"
+	commonCfg "github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -103,23 +103,23 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		collector: collector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, cfg.Dmesg.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, cfg.Dmesg.CacheSize),
 		currIndex:         0,
-		cacheSize:         cfg.CacheSize,
+		cacheSize:         cfg.Dmesg.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return common_config.ComponentNameDmesg
+	return commonCfg.ComponentNameDmesg
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	_, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect()")
 		return &common.Result{}, err
@@ -132,10 +132,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:       common_config.ComponentNameDmesg,
+		Item:       commonCfg.ComponentNameDmesg,
 		Node:       "dmesg",
 		Status:     checkRes.Status,
-		Level:      common_config.LevelCritical,
+		Level:      commonCfg.LevelCritical,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),
@@ -146,6 +146,11 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
 	c.currIndex++
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "dmesg").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "dmesg").Infof("Health Check PASSED")
+	}
 
 	return resResult, nil
 }

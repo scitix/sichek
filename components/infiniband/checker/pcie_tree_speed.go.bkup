@@ -31,11 +31,11 @@ import (
 type IBPCIETreeSpeedChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewBPCIETreeSpeedChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewBPCIETreeSpeedChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPCIETreeSpeedChecker{
 		id:          commonCfg.CheckerIDInfinibandFW,
 		name:        config.CheckPCIETreeSpeed,
@@ -85,7 +85,7 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		return nil, fmt.Errorf("failed to get hostname: %w", err)
 	}
 
-	for _, hwSpec := range c.spec.HWSpec {
+	for _, hwSpec := range c.spec.HCAs {
 		for _, pcieTree := range hwSpec.Specifications.PcieTreeSpeed {
 			if strings.Contains(hostname, pcieTree.NodeName) {
 				spec = pcieTree.PCIESpeed

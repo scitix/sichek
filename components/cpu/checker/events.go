@@ -34,7 +34,7 @@ type EventChecker struct {
 	cfg  *config.CPUEventConfig
 }
 
-func NewEventChecker(ctx context.Context, cfg common.CheckerSpec) (common.Checker, error) {
+func NewEventChecker(cfg common.CheckerSpec) (common.Checker, error) {
 	cpuEventCfg, ok := cfg.(*config.CPUEventConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid CPU event checker config type")

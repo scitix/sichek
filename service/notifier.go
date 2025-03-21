@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/config"
@@ -37,12 +38,13 @@ type notifier struct {
 	client     *http.Client
 	k8s_client *k8s.K8sClient
 
-	endpoint string
-	port     int
-	annoKey  string
+	endpoint        string
+	port            int
+	annoKey         string
+	AnnotationMutex sync.Mutex
 }
 
-func NewNotifier(ctx context.Context, annoKey string) (Notifier, error) {
+func NewNotifier(annoKey string) (Notifier, error) {
 	k8s_client, err := k8s.NewClient()
 	if err != nil {
 		return nil, err
@@ -87,6 +89,8 @@ func (n *notifier) SendAlert(ctx context.Context, data interface{}) (*http.Respo
 }
 
 func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) error {
+	n.AnnotationMutex.Lock()
+	defer n.AnnotationMutex.Unlock()
 	node, err := n.k8s_client.GetCurrNode(ctx)
 	if err != nil {
 		logrus.Errorf("get current node failed: %v", err)

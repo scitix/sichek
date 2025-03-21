@@ -29,11 +29,11 @@ import (
 type IBPhyStateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPhyStateChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBPhyStateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPhyStateChecker{
 		id:   commonCfg.CheckerIDInfinibandFW,
 		name: config.ChekIBPhyState,
@@ -60,60 +60,37 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	var (
-		spec, suggestions string
-		errDevice         []string
-		level             string = commonCfg.LevelInfo
-		detail            string = config.InfinibandCheckItems[c.name].Detail
-	)
-
-	status := commonCfg.StatusNormal
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
+	failedHcas := make([]string, 0)
+	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
-		hcaType := hwInfo.HCAType
-		state := hwInfo.PhyStat
-		curr = append(curr, state)
-		found := false
-		for _, hwSpec := range c.spec.HWSpec {
-			if hcaType != hwSpec.Type {
-				continue
-			}
-			spec = hwSpec.Specifications.PhyState
-			if strings.Contains(state, spec) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			errDevice = append(errDevice, hwInfo.IBDev)
+		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
+		spec = append(spec, hcaSpec.PhyState)
+		curr = append(curr, hwInfo.PhyState)
+		if !strings.Contains(hwInfo.PhyState, hcaSpec.PhyState) {
+			result.Status = commonCfg.StatusAbnormal
+			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
 	}
 
-	if len(errDevice) != 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("%s status is not LinkUp, curr:%s", strings.Join(errDevice, ","), strings.Join(curr, ","))
-		suggestions = fmt.Sprintf("check nic to up %s link status", strings.Join(errDevice, ","))
-	}
-
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
-	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Device = strings.Join(errDevice, ",")
-	result.Detail = detail
-	result.Suggestion = suggestions
+	result.Spec = strings.Join(spec, ",")
+	result.Device = strings.Join(failedHcas, ",")
+
+	if len(failedHcas) != 0 {
+		result.Detail = fmt.Sprintf("PhyState check fail: %s NOT LinkUp",strings.Join(failedHcas, ";"))
+		result.Suggestion = fmt.Sprintf("Check and Up %s pyhical state", strings.Join(failedHcas, ";"))
+	}
 
 	return &result, nil
 }

@@ -59,6 +59,9 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 	var dev_clock_events map[int]string
 	var falied_gpuid_podnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
+		if !device.ClockEvents.IsSupported {
+			return nil, nil
+		}
 		if len(device.ClockEvents.CriticalClockEvents) > 0 {
 			if dev_clock_events == nil {
 				dev_clock_events = make(map[int]string)
@@ -79,7 +82,8 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
 		result.Status = commonCfg.StatusNormal
-
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

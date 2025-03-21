@@ -107,11 +107,7 @@ func newMockNvidia(cfgFile string, ignored_checkers []string) (comp *component, 
 	}()
 
 	cfg := &nvidiaCfg.NvidiaConfig{}
-	err = cfg.LoadFromYaml("", "")
-	if err != nil {
-		logrus.WithField("component", "nvidia").Errorf("NewMockNvidia load config yaml %s failed: %v", cfgFile, err)
-		return nil, err
-	}
+	cfg.LoadFromYaml("", "")
 
 	component := &component{
 		name:        "nvidia",
@@ -121,10 +117,10 @@ func newMockNvidia(cfgFile string, ignored_checkers []string) (comp *component, 
 		nvmlInst:    nil,
 		checkers:    nil,
 		cacheMtx:    sync.RWMutex{},
-		cacheBuffer: make([]*common.Result, cfg.ComponentConfig.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.ComponentConfig.CacheSize),
+		cacheBuffer: make([]*common.Result, cfg.ComponentConfig.Nvidia.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.ComponentConfig.Nvidia.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.ComponentConfig.CacheSize,
+		cacheSize:   cfg.ComponentConfig.Nvidia.CacheSize,
 		running:     false,
 	}
 	return component, nil

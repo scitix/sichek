@@ -25,7 +25,7 @@ import (
 	NCCLChek "github.com/scitix/sichek/components/nccl/checker"
 	NCCLColl "github.com/scitix/sichek/components/nccl/collector"
 	NCCLCfg "github.com/scitix/sichek/components/nccl/config"
-	common_config "github.com/scitix/sichek/config"
+	commonCfg "github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -102,21 +102,21 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		collector: collector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, cfg.NCCL.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, cfg.NCCL.CacheSize),
 		currIndex:         0,
-		cacheSize:         cfg.CacheSize,
+		cacheSize:         cfg.NCCL.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return common_config.ComponentNameNCCL
+	return commonCfg.ComponentNameNCCL
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to Collect()")
 		return &common.Result{}, err
@@ -129,10 +129,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:       common_config.ComponentNameNCCL,
+		Item:       commonCfg.ComponentNameNCCL,
 		Node:       "NCCLLog",
 		Status:     checkRes.Status,
-		Level:      common_config.LevelCritical,
+		Level:      commonCfg.LevelCritical,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),
@@ -143,6 +143,11 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
 	c.currIndex++
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "nccl").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "nccl").Infof("Health Check PASSED")
+	}
 
 	return resResult, nil
 }
