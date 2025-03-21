@@ -16,17 +16,10 @@ limitations under the License.
 package config
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	commonCfg "github.com/scitix/sichek/config"
 )
 
 type MemoryConfig struct {
@@ -48,34 +41,6 @@ func (c *MemoryConfig) GetQueryInterval() time.Duration {
 	return c.QueryInterval
 }
 
-func (c *MemoryConfig) GetCacheSize() int64 {
-	return c.CacheSize
-}
-
-func (c *MemoryConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type MemoryEventConfig struct {
 	Name        string `json:"name" yaml:"name"`
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
@@ -84,46 +49,7 @@ type MemoryEventConfig struct {
 	Level       string `json:"level" yaml:"level"`
 }
 
-func (c *MemoryEventConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryEventConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
 func (c *MemoryEventConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DefaultConfig(ctx context.Context) (*MemoryConfig, error) {
-	var MemoryConfig MemoryConfig
-	defaultCfgPath := "/memory_events.yaml"
-	_, err := os.Stat("/var/sichek/memory" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/memory/memory_events.yaml
-		defaultCfgPath = "/var/sichek/memory" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = MemoryConfig.LoadFromYaml(defaultCfgPath)
-	return &MemoryConfig, err
+	err := commonCfg.LoadFromYaml(file, c)
+	return err
 }

@@ -25,7 +25,7 @@ import (
 	NCCLChek "github.com/scitix/sichek/components/nccl/checker"
 	NCCLColl "github.com/scitix/sichek/components/nccl/collector"
 	NCCLCfg "github.com/scitix/sichek/components/nccl/config"
-	common_config "github.com/scitix/sichek/config"
+	commonCfg "github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -73,13 +73,13 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	}()
 	cfg := &NCCLCfg.NCCLConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = NCCLCfg.DefaultConfig(ctx)
+		err := commonCfg.DefaultConfig(commonCfg.ComponentNameNCCL, cfg)
 		if err != nil {
 			logrus.WithField("component", "nccl").WithError(err).Errorf("NewComponent get default config failed")
 			return nil, err
 		}
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = commonCfg.LoadFromYaml(cfgFile, cfg)
 		if err != nil {
 			logrus.WithField("component", "nccl").WithError(err).Errorf("NewComponent load config yaml %s failed", cfgFile)
 			return nil, err
@@ -112,7 +112,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 }
 
 func (c *component) Name() string {
-	return common_config.ComponentNameNCCL
+	return commonCfg.ComponentNameNCCL
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -129,10 +129,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:       common_config.ComponentNameNCCL,
+		Item:       commonCfg.ComponentNameNCCL,
 		Node:       "NCCLLog",
 		Status:     checkRes.Status,
-		Level:      common_config.LevelCritical,
+		Level:      commonCfg.LevelCritical,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),

@@ -26,22 +26,20 @@ import (
 
 func TestIBPhyStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
-	spec := &config.InfinibandHCASpec{
-		HWSpec: []config.HWSpec{
-			{
-				Type: "mlx5",
-				Specifications: config.Specifications{
-					PhyState: "LinkUp",
-				},
+	// 模拟 Spec 配置
+	spec := &config.InfinibandSpec{
+		HCAs: map[string]collector.IBHardWareInfo{
+			"ib0": {
+				IBDev:     "ib0",
+				PhyState: "LinkUp",
 			},
-			{
-				Type: "cx5",
-				Specifications: config.Specifications{
-					PhyState: "LinkUp",
-				},
+			"ib1": {
+				IBDev:     "ib1",
+				PhyState: "LinkUp",
 			},
 		},
 	}
+
 
 	// 创建 Checker 实例
 	checker, err := NewIBPhyStateChecker(spec)
@@ -65,8 +63,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 			name: "All devices are LinkUp",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PhyStat: "LinkUp"},
-					{HCAType: "cx5", IBDev: "ib1", PhyStat: "LinkUp"},
+					{HCAType: "mlx5", IBDev: "ib0", PhyState: "LinkUp"},
+					{HCAType: "cx5", IBDev: "ib1", PhyState: "LinkUp"},
 				},
 			},
 			expectedStatus:     commonCfg.StatusNormal,
@@ -90,8 +88,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 			name: "One device is not LinkUp",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PhyStat: "Down"},
-					{HCAType: "cx5", IBDev: "ib1", PhyStat: "LinkUp"},
+					{HCAType: "mlx5", IBDev: "ib0", PhyState: "Down"},
+					{HCAType: "cx5", IBDev: "ib1", PhyState: "LinkUp"},
 				},
 			},
 			expectedStatus:     commonCfg.StatusAbnormal,
@@ -104,8 +102,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 			name: "Multiple devices are not LinkUp",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PhyStat: "Down"},
-					{HCAType: "cx5", IBDev: "ib1", PhyStat: "Init"},
+					{HCAType: "mlx5", IBDev: "ib0", PhyState: "Down"},
+					{HCAType: "cx5", IBDev: "ib1", PhyState: "Init"},
 				},
 			},
 			expectedStatus:     commonCfg.StatusAbnormal,

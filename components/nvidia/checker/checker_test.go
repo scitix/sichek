@@ -36,6 +36,8 @@ var cfg config.NvidiaConfig
 
 // setup function to initialize shared resources
 func setup() error {
+	cfg = config.NvidiaConfig{}
+	cfg.LoadFromYaml("", "")
 	// Initialize NVML
 	nvmlInst = nvml.New()
 	ret := nvmlInst.Init()
@@ -51,20 +53,6 @@ func setup() error {
 	if err != nil {
 		return fmt.Errorf("unexpected error: %v", err)
 	}
-
-	cfg = config.NvidiaConfig{}
-	deviceId := nvidiaInfo.DevicesInfo[0].PCIeInfo.DEVID
-	deviceID := fmt.Sprintf("0x%x", deviceId)
-	specFile, err := config.GetSpec(deviceID)
-	if err != nil {
-		panic("failed to get spec file for NVIDIA GPU")
-	}
-	err = cfg.LoadFromYaml("", specFile)
-	if err != nil {
-		fmt.Printf("NewNvidia load config yaml %s failed: %v", specFile, err)
-		return err
-	}
-
 	return nil
 }
 
@@ -95,7 +83,7 @@ func TestMain(m *testing.M) {
 
 func TestAppClocksChecker_Check(t *testing.T) {
 	// Create a new AppClocksChecker
-	checker, err := NewAppClocksChecker(&cfg.Spec)
+	checker, err := NewAppClocksChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create AppClocksChecker: %v", err)
 	}
@@ -112,7 +100,7 @@ func TestAppClocksChecker_Check(t *testing.T) {
 
 func TestClockEventsChecker_Check(t *testing.T) {
 	// Create a new ClockEventsChecker
-	checker, err := NewClockEventsChecker(&cfg.Spec)
+	checker, err := NewClockEventsChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create ClockEventsChecker: %v", err)
 	}
@@ -129,7 +117,7 @@ func TestClockEventsChecker_Check(t *testing.T) {
 
 func TestNvlinkChecker_Check(t *testing.T) {
 	// Create a new NvlinkChecker
-	checker, err := NewNvlinkChecker(&cfg.Spec)
+	checker, err := NewNvlinkChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create NvlinkChecker: %v", err)
 	}
@@ -146,7 +134,7 @@ func TestNvlinkChecker_Check(t *testing.T) {
 
 func TestGpuPersistenceChecker_Check(t *testing.T) {
 	// Create a new GpuPersistenceChecker
-	checker, err := NewGpuPersistenceChecker(&cfg.Spec)
+	checker, err := NewGpuPersistenceChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create GpuPersistenceChecker: %v", err)
 	}
@@ -163,7 +151,7 @@ func TestGpuPersistenceChecker_Check(t *testing.T) {
 
 func TestGpuPStateChecker_Check(t *testing.T) {
 	// Create a new GpuPStateChecker
-	checker, err := NewGpuPStateChecker(&cfg.Spec)
+	checker, err := NewGpuPStateChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create GpuPStateChecker: %v", err)
 	}
@@ -180,7 +168,7 @@ func TestGpuPStateChecker_Check(t *testing.T) {
 
 func TestHardwareChecker_Check(t *testing.T) {
 	// Create a new HardwareChecker
-	checker, err := NewHardwareChecker(&cfg.Spec, nvmlInst)
+	checker, err := NewHardwareChecker(cfg.Spec, nvmlInst)
 	if err != nil {
 		t.Fatalf("failed to create HardwareChecker: %v", err)
 	}
@@ -197,7 +185,7 @@ func TestHardwareChecker_Check(t *testing.T) {
 
 func TestRemmapedRowsFailureChecker_Check(t *testing.T) {
 	// Create a new RemmapedRowsFailureChecker
-	checker, err := remap.NewRemmapedRowsFailureChecker(&cfg.Spec)
+	checker, err := remap.NewRemmapedRowsFailureChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create RemmapedRowsFailureChecker: %v", err)
 	}
@@ -214,7 +202,7 @@ func TestRemmapedRowsFailureChecker_Check(t *testing.T) {
 
 func TestRemmapedRowsPendingChecker_Check(t *testing.T) {
 	// Create a new RemmapedRowsPendingChecker
-	checker, err := remap.NewRemmapedRowsPendingChecker(&cfg.Spec)
+	checker, err := remap.NewRemmapedRowsPendingChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create RemmapedRowsPendingChecker: %v", err)
 	}
@@ -231,7 +219,7 @@ func TestRemmapedRowsPendingChecker_Check(t *testing.T) {
 
 func TestRemmapedRowsUncorrectableChecker_Check(t *testing.T) {
 	// Create a new RemmapedRowsUncorrectableChecker
-	checker, err := remap.NewRemmapedRowsUncorrectableChecker(&cfg.Spec)
+	checker, err := remap.NewRemmapedRowsUncorrectableChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create RemmapedRowsUncorrectableChecker: %v", err)
 	}
@@ -248,7 +236,7 @@ func TestRemmapedRowsUncorrectableChecker_Check(t *testing.T) {
 
 func TestSRAMAggUncorrectableChecker_Check(t *testing.T) {
 	// Create a new SRAMAggUncorrectableChecker
-	checker, err := sram.NewSRAMAggUncorrectableChecker(&cfg.Spec)
+	checker, err := sram.NewSRAMAggUncorrectableChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create SRAMAggUncorrectableChecker: %v", err)
 	}
@@ -265,7 +253,7 @@ func TestSRAMAggUncorrectableChecker_Check(t *testing.T) {
 
 func TestSRAMHighcorrectableChecker_Check(t *testing.T) {
 	// Create a new SRAMHighcorrectableChecker
-	checker, err := sram.NewSRAMHighcorrectableChecker(&cfg.Spec)
+	checker, err := sram.NewSRAMHighcorrectableChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create SRAMHighcorrectableChecker: %v", err)
 	}
@@ -282,7 +270,7 @@ func TestSRAMHighcorrectableChecker_Check(t *testing.T) {
 
 func TestSRAMVolatileUncorrectableChecker_Check(t *testing.T) {
 	// Create a new SRAMVolatileUncorrectableChecker
-	checker, err := sram.NewSRAMVolatileUncorrectableChecker(&cfg.Spec)
+	checker, err := sram.NewSRAMVolatileUncorrectableChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create SRAMVolatileUncorrectableChecker: %v", err)
 	}
@@ -299,7 +287,7 @@ func TestSRAMVolatileUncorrectableChecker_Check(t *testing.T) {
 
 func TestPCIeChecker_Check(t *testing.T) {
 	// Create a new PCIeChecker
-	checker, err := NewPCIeChecker(&cfg.Spec)
+	checker, err := NewPCIeChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create PCIeChecker: %v", err)
 	}
@@ -316,7 +304,7 @@ func TestPCIeChecker_Check(t *testing.T) {
 
 func TestSoftwareChecker_Check(t *testing.T) {
 	// Create a new SoftwareChecker
-	checker, err := NewSoftwareChecker(&cfg.Spec)
+	checker, err := NewSoftwareChecker(cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create SoftwareChecker: %v", err)
 	}

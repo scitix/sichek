@@ -45,10 +45,6 @@ func (s *SoftwareInfo) Get() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// Run the nvidia-smi command
-	// cmd := exec.Command("nvidia-smi", "-q", "-i", "0")
-	// var out bytes.Buffer
-	// cmd.Stdout = &out
-
 	out, err := utils.ExecCommand(ctx, "nvidia-smi", "-q", "-i", "0")
 	if err != nil {
 		return fmt.Errorf("failed to run nvidia-smi: %v", err)

@@ -74,13 +74,13 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 
 	cfg := &config.MemoryConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig(ctx)
+		err := commonCfg.DefaultConfig(commonCfg.ComponentNameMemory, cfg)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent get default config failed: %v", err)
 			return nil, err
 		}
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = commonCfg.LoadFromYaml(cfgFile, cfg)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent load config yaml %s failed: %v", cfgFile, err)
 			return nil, err
@@ -108,9 +108,9 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		collector:   collector,
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
-		cacheSize:   cfg.GetCacheSize(),
+		cacheBuffer: make([]*common.Result, cfg.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.CacheSize),
+		cacheSize:   cfg.CacheSize,
 	}
 	service := common.NewCommonService(ctx, cfg, component.HealthCheck)
 	component.service = service

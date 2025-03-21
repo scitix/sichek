@@ -39,7 +39,7 @@ var (
 type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	spec   *config.InfinibandHCASpec
+	spec   *config.InfinibandSpec
 	info   common.Info
 
 	cfg      *config.InfinibandConfig
@@ -57,9 +57,9 @@ type component struct {
 	service *common.CommonService
 }
 
-func NewInfinibandComponent(cfgFile string) (comp common.Component, err error) {
+func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	infinibandComponentOnce.Do(func() {
-		infinibandComponent, err = newInfinibandComponent(cfgFile)
+		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +67,7 @@ func NewInfinibandComponent(cfgFile string) (comp common.Component, err error) {
 	return infinibandComponent, nil
 }
 
-func newInfinibandComponent(cfgFile string) (comp *component, err error) {
+func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -75,82 +75,49 @@ func newInfinibandComponent(cfgFile string) (comp *component, err error) {
 		}
 	}()
 
+	// step1: load user define check item
 	cfg := &config.InfinibandConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig()
+		err := commonCfg.DefaultConfig(commonCfg.ComponentNameInfiniband, cfg)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Error("Infiniband use default config failed ", err)
 			return nil, err
 		}
+		cfg.IgnoredCheckers = ignoredCheckers
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = commonCfg.LoadFromYaml(cfgFile, cfg)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Error(err)
 		}
 	}
-	logrus.WithField("component", "infiniband").Infof("checker items:%v", cfg.Checkers)
+	logrus.WithField("component", "infiniband").Infof("checker items:%v", cfg.IgnoredCheckers)
 
-	var IBSpecCfg config.InfinibandHCASpec
-	specCfg, err := IBSpecCfg.GetHCASpec()
+	// step2: load ib spec
+	ibSpec := config.GetClusterInfinibandSpec(specFile)
+	checkers, err := checker.NewCheckers(cfg, &ibSpec)
 	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("fail to get the ib spec cfg, err:%v", err)
-	}
-
-	checkerConstructors := map[string]func(*config.InfinibandHCASpec) (common.Checker, error){
-		config.ChekIBOFED:         checker.NewIBOFEDChecker,
-		config.ChekIBFW:           checker.NewFirmwareChecker,
-		config.ChekIBState:        checker.NewIBStateChecker,
-		config.ChekIBPhyState:     checker.NewIBPhyStateChecker,
-		config.CheckPCIEACS:       checker.NewPCIEACSChecker,
-		config.CheckPCIEMRR:       checker.NewPCIEMRRChecker,
-		config.CheckPCIESpeed:     checker.NewIBPCIESpeedChecker,
-		config.CheckPCIEWidth:     checker.NewIBPCIEWidthChecker,
-		config.CheckPCIETreeSpeed: checker.NewBPCIETreeSpeedChecker,
-		config.CheckPCIETreeWidth: checker.NewIBPCIETreeWidthChecker,
-		config.CheckIBKmod:        checker.NewIBKmodChecker,
-		config.ChekIBPortSpeed:    checker.NewIBPortSpeedChecker,
-		config.CheckIBDevs:        checker.NewIBDevsChecker,
-	}
-
-	checkers := make([]common.Checker, 0)
-	checkerIndex := 0
-	ignoreChecker := 0
-	for _, checkItem := range cfg.Checkers {
-		if constructor, exists := checkerConstructors[checkItem]; exists {
-			chk, err := constructor(specCfg)
-			if err != nil {
-				logrus.WithField("component", "infiniband").Errorf("fail create the checker:%s error:%v", checkItem, err)
-				continue
-			}
-			checkers = append(checkers, chk)
-			checkerIndex += 1
-			logrus.WithField("component", "infiniband").Infof("create checker:%2d :%s", checkerIndex, checkItem)
-		} else {
-			ignoreChecker += 1
-			logrus.WithField("component", "infiniband").Warnf("ignore chcker:%d : %s", ignoreChecker, checkItem)
-		}
+		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
+		return nil, err
 	}
 
 	var info collector.InfinibandInfo
-	var spec config.InfinibandHCASpec
-	ibSpec, err := spec.GetHCASpec()
-	if err != nil {
-		logrus.WithField("component", "infiniband").Infof("fail to get the ib spec err %v", err)
-	}
 
 	component := &component{
 		ctx:         ctx,
 		cancel:      cancel,
-		spec:        ibSpec,
+		spec:        &ibSpec,
 		info:        info.GetIBInfo(),
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
+		cacheBuffer: make([]*common.Result, cfg.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.GetCacheSize(),
+		cacheSize:   cfg.CacheSize,
 	}
+	// step4: start the service
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
+
+	// step5: return the component
 	return component, nil
 }
 
@@ -183,14 +150,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "infiniband").Infof("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
+		logrus.WithField("component", "infiniband").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 	}
 
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == commonCfg.StatusAbnormal {
 			status = commonCfg.StatusAbnormal
 			level = config.InfinibandCheckItems[checkItem.Name].Level
-			logrus.WithField("component", "infiniband").Errorf("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
+			logrus.WithField("component", "infiniband").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
 		}
 	}
@@ -218,7 +185,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = InfinibandInfo
 	c.cacheBuffer[c.currIndex] = finalResult
-	c.currIndex = (c.currIndex + 1) % c.cfg.GetCacheSize()
+	c.currIndex = (c.currIndex + 1) % c.cfg.CacheSize
 	c.cacheMtx.Unlock()
 
 	return finalResult, nil

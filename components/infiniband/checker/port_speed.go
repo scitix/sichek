@@ -18,7 +18,6 @@ package checker
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -30,11 +29,11 @@ import (
 type IBPortSpeedChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPortSpeedChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBPortSpeedChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPortSpeedChecker{
 		id:   commonCfg.CheckerIDInfinibandPortSpeed,
 		name: config.ChekIBPortSpeed,
@@ -60,59 +59,40 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	var (
-		spec, suggestions string
-		errDevice         []string
-		level             string = commonCfg.LevelInfo
-		detail            string = config.InfinibandCheckItems[c.name].Detail
-	)
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-
-	status := commonCfg.StatusNormal
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
+		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hostname: %w", err)
-	}
-
-	for _, hwSpec := range c.spec.HWSpec {
-		for _, portSpeed := range hwSpec.Specifications.PortSpeed {
-			if strings.Contains(hostname, portSpeed.NodeName) {
-				spec = portSpeed.Speed
-				break
-			}
-		}
-	}
-
+	failedHcas := make([]string, 0)
+	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	var faiedHcasSpec []string
+	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
+		spec = append(spec, hcaSpec.PortSpeed)
 		curr = append(curr, hwInfo.PortSpeed)
-		if !strings.Contains(hwInfo.PortSpeed, spec) {
-			errDevice = append(errDevice, hwInfo.IBDev)
+		if hwInfo.PortSpeed != hcaSpec.PortSpeed {
+			result.Status = commonCfg.StatusAbnormal
+			failedHcas = append(failedHcas, hwInfo.IBDev)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PortSpeed)
+			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PortSpeed)
 		}
 	}
 
-	if len(errDevice) != 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("%s port speed is not right, curr:%s, spec:%s", strings.Join(errDevice, ","), strings.Join(curr, ","), spec)
-		suggestions = "check the card is right"
-	}
-
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
-	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Detail = detail
-	result.Suggestion = suggestions
+	result.Spec = strings.Join(spec, ",")
+	result.Device = strings.Join(failedHcas, ",")
+	if len(failedHcas) != 0 {
+		result.Detail = fmt.Sprintf("PortSpeed check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), faiedHcasSpec, faiedHcasCurr)
+		result.Suggestion = fmt.Sprintf("Set %s with %s", strings.Join(failedHcas, ","), strings.Join(faiedHcasSpec, ","))
+	}
 
 	return &result, nil
 }

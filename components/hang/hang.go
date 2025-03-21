@@ -74,13 +74,13 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 	cfg := &HangCfg.HangConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = HangCfg.DefaultConfig(ctx)
+		err:= common_config.DefaultConfig(common_config.ComponentNameHang,cfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Errorf("NewComponent get default config failed")
 			return nil, err
 		}
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = common_config.LoadFromYaml(cfgFile,cfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Errorf("NewComponent load config yaml %s failed", cfgFile)
 			return nil, err

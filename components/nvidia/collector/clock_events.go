@@ -79,6 +79,7 @@ var CriticalClockEvents = map[uint64]ClockEvent{
 var gpuIdleId uint64 = 0x0000000000000001
 
 type ClockEvents struct {
+	IsSupported 		bool 		 `json:"is_supported"`
 	GpuIdle             bool         `json:"gpu_idle"`
 	CriticalClockEvents []ClockEvent `json:"critical_clock_events"`
 	WarningClockEvents  []ClockEvent `json:"warning_clock_events"`
@@ -95,7 +96,14 @@ func (clk *ClockEvents) ToString() string {
 
 // https://docs.nvidia.com/deploy/nvml-api/group__nvmlClocksEventReasons.html#group__nvmlClocksEventReasons
 func (clk *ClockEvents) Get(device nvml.Device, uuid string) error {
+	// clock events are supported in version 535 and above
+	// otherwise, the function GetCurrentClocksEventReasons() will exits with undefined symbol: nvmlGetCurrentClocksEventReasons
 	reasons, ret := device.GetCurrentClocksEventReasons()
+	if ret == nvml.ERROR_NOT_SUPPORTED {
+		clk.IsSupported = false
+		return nil
+	}
+	clk.IsSupported = true
 	if ret != nvml.SUCCESS {
 		return fmt.Errorf("failed to get device clock event reasons: %v", nvml.ErrorString(ret))
 	}

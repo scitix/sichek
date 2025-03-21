@@ -27,7 +27,7 @@ import (
 func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	component, err := NewComponent("", nil)
+	component, err := NewComponent("", "", nil)
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}

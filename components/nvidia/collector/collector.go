@@ -112,7 +112,7 @@ func (collector *NvidiaCollector) Collect() (*NvidiaInfo, error) {
 			continue
 			// return nil, fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)
 		}
-		err2 := nvidia.DevicesInfo[i].Get(device, i)
+		err2 := nvidia.DevicesInfo[i].Get(device, i, collector.softwareInfo.DriverVersion)
 		if err2 != nil {
 			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
 			continue

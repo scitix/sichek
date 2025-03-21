@@ -1,0 +1,37 @@
+name: GPFS
+query_interval: 10
+cache_size: 10
+event_checkers:
+  time_clock:
+    name: "time_clock"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "Time-of-day may have jumped back"
+  OS_lockup:
+    name: "OS_lockup"
+    log_file: "/var/log/syslog"
+    regexp: "(soft lockup)|(hard LOCKUP)"
+  RDMA:
+    name: "RDMA"
+    description: "node VERBS RDMA error"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)"
+  quorum_connection:
+    name: "quorum_connection"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "Unable to contact any quorum"
+  tcp_state:
+    name: "tcp_state"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "Bad TCP state detected"
+  filesystem_unmount:
+    name: "filesystem_unmount"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "unmounting file system"
+  expelled_from_cluster:
+    name: "expelled_from_cluster"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "This node is being expelled from the cluster"
+  unauthorized:
+    name: "unauthorized"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "cluster is not authorized"

@@ -24,16 +24,17 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
 type IBKmodChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBKmodChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBKmodChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBKmodChecker{
 		id:   commonCfg.CheckerIDInfinibandFW,
 		name: config.CheckIBKmod,
@@ -62,25 +63,25 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	var (
 		spec, curr, suggestions string
 		notInstalled            []string
-		level                   string = commonCfg.LevelInfo
 		detail                  string = config.InfinibandCheckItems[c.name].Detail
 	)
 
-	status := commonCfg.StatusNormal
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
 		result.Detail = config.NOIBFOUND
-		result.Suggestion = config.InfinibandCheckItems[c.name].Suggestion
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	spec = strings.Join(c.spec.SoftwareDependencies.KernelModule, ",")
+	spec = strings.Join(c.spec.IBSoftWareInfo.KernelModule, ",")
+	if utils.IsNvidiaGPUExist() {
+		spec += "nvidia_peermem"
+	}
 	curr = strings.Join(infinibandInfo.IBSoftWareInfo.KernelModule, ",")
 
-	for _, dependency := range c.spec.SoftwareDependencies.KernelModule {
+	for _, dependency := range c.spec.IBSoftWareInfo.KernelModule {
 		found := false
 		for _, module := range infinibandInfo.IBSoftWareInfo.KernelModule {
 			if strings.Contains(dependency, module) {
@@ -94,17 +95,13 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	if len(notInstalled) != 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
+		result.Status = commonCfg.StatusAbnormal
 		detail = fmt.Sprintf("need to install kmod:%s", strings.Join(notInstalled, ","))
 		suggestions = fmt.Sprintf("use modprobe to install kmod:%s", strings.Join(notInstalled, ","))
 	}
 
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = curr
 	result.Spec = spec
-	result.Status = status
-	result.Level = level
 	result.Detail = detail
 	result.Suggestion = suggestions
 

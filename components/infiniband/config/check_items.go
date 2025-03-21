@@ -23,10 +23,12 @@ import (
 var (
 	NOIBFOUND          = "No IB device found"
 	ChekIBOFED         = "ofed"
+	ChekIBNUM          = "ib_num"
 	ChekIBFW           = "ib_fw"
 	ChekIBState        = "ib_state"
-	ChekIBPhyState     = "ib_phy_tate"
+	ChekIBPhyState     = "ib_phy_state"
 	ChekIBPortSpeed    = "ib_port_speed"
+	ChekNetOperstate   = "net_operstate"
 	CheckPCIEACS       = "pcie_acs"
 	CheckPCIEMRR       = "pcie_mrr"
 	CheckPCIESpeed     = "pcie_speed"
@@ -37,9 +39,11 @@ var (
 	CheckIBDevs        = "ib_devs"
 	checkDes           = map[string]string{
 		ChekIBOFED:         "check the ofed is in spec",
+		ChekIBNUM:          "check the ib num is equal to pci detected",
 		ChekIBFW:           "check the fw is same ver in spec",
 		ChekIBState:        "check the ib state",
-		ChekIBPhyState:     "check the ib phy statue",
+		ChekIBPhyState:     "check the ib phy state",
+		ChekNetOperstate:   "check the net operstate state",
 		ChekIBPortSpeed:    "check the ib port speed",
 		CheckPCIEACS:       "check the pcie acs is disabled",
 		CheckPCIEMRR:       "check the pcie mrr is right setting",
@@ -52,9 +56,11 @@ var (
 	}
 	checkLevel = map[string]string{
 		ChekIBOFED:         commonCfg.LevelWarning,
+		ChekIBNUM:          commonCfg.LevelCritical,
 		ChekIBFW:           commonCfg.LevelWarning,
 		ChekIBState:        commonCfg.LevelCritical,
 		ChekIBPhyState:     commonCfg.LevelCritical,
+		ChekNetOperstate:   commonCfg.LevelCritical,
 		ChekIBPortSpeed:    commonCfg.LevelCritical,
 		CheckPCIEACS:       commonCfg.LevelCritical,
 		CheckPCIEMRR:       commonCfg.LevelCritical,
@@ -67,9 +73,11 @@ var (
 	}
 	errName = map[string]string{
 		ChekIBOFED:         "the ofed is not in spec",
+		ChekIBNUM:          "the active nic is not equal lspci",
 		ChekIBFW:           "ib fw version is not same",
 		ChekIBState:        "ib status is down",
 		ChekIBPhyState:     "ib phy link is down",
+		ChekNetOperstate:   "ib net operstate is not correct",
 		ChekIBPortSpeed:    "ib port speed is not in spec",
 		CheckPCIEACS:       "node pcie acs is not disable",
 		CheckPCIEMRR:       "pcie mrr is not set to 4096",
@@ -81,9 +89,11 @@ var (
 	}
 	checkAction = map[string]string{
 		ChekIBOFED:         "update the ofed",
+		ChekIBNUM:          "check the nic status",
 		ChekIBFW:           "update the fw version",
 		ChekIBState:        "ib state is not active, check opensm status",
 		ChekIBPhyState:     "ib link is not link up, check link status",
+		ChekNetOperstate:   "ib net operstate is not correct, check net operstate status",
 		ChekIBPortSpeed:    "ib port speed is not set max",
 		CheckPCIEACS:       "pcie acs is not disable, need to disable",
 		CheckPCIEMRR:       "pcie mrr is not set right, set mrr to 4096",
@@ -96,9 +106,11 @@ var (
 	}
 	checkDetail = map[string]string{
 		ChekIBOFED:         "the ofed is right version",
+		ChekIBNUM:          "all nic is active",
 		ChekIBFW:           "all ib use the same fw version include in spec",
 		ChekIBState:        "all ib state is active",
 		ChekIBPhyState:     "all ib phy link status is up",
+		ChekNetOperstate:   "all net operstate status is correct",
 		ChekIBPortSpeed:    "all ib port speed is right in spec",
 		CheckPCIEACS:       "system all pcie acs is disabled",
 		CheckPCIEMRR:       "ib mrr is set right(4096)",
@@ -119,6 +131,15 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Detail:      checkDetail[ChekIBOFED],
 		ErrorName:   errName[ChekIBOFED],
 		Suggestion:  checkAction[ChekIBOFED],
+	},
+	ChekIBNUM: {
+		Name:        ChekIBNUM,
+		Description: checkDes[ChekIBNUM],
+		Status:      "",
+		Level:       checkLevel[ChekIBNUM],
+		Detail:      checkDetail[ChekIBNUM],
+		ErrorName:   errName[ChekIBNUM],
+		Suggestion:  checkAction[ChekIBNUM],
 	},
 	ChekIBFW: {
 		Name:        ChekIBFW,
@@ -146,6 +167,15 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Detail:      checkDetail[ChekIBPhyState],
 		ErrorName:   errName[ChekIBPhyState],
 		Suggestion:  checkAction[ChekIBPhyState],
+	},
+	ChekNetOperstate: {
+		Name:        ChekNetOperstate,
+		Description: checkDes[ChekNetOperstate],
+		Status:      "",
+		Level:       checkLevel[ChekNetOperstate],
+		Detail:      checkDetail[ChekNetOperstate],
+		ErrorName:   errName[ChekNetOperstate],
+		Suggestion:  checkAction[ChekNetOperstate],
 	},
 	ChekIBPortSpeed: {
 		Name:        ChekIBPortSpeed,

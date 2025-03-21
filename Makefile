@@ -5,6 +5,10 @@ INSTALL_DIR := /usr/sbin
 all:
 	mkdir -p build/bin/
 	GOOS=linux GOARCH=amd64 $(GO) build -o build/bin/$(PROJECT_NAME) cmd/main.go
+	
+t:
+	mkdir -p build/bin/
+	GOOS=linux GOARCH=amd64 $(GO) build -o build/bin/$(PROJECT_NAME) cmd/main.go
 
 clean:
 	rm -f build/bin/*

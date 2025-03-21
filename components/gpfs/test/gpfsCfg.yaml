@@ -1,5 +1,5 @@
 name: GPFS
-query_interval: 1
+query_interval: 10
 cache_size: 10
 event_checkers:
   time_clock:

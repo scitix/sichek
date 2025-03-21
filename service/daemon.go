@@ -30,6 +30,7 @@ import (
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -57,7 +58,7 @@ type DaemonService struct {
 	notifier Notifier
 }
 
-func NewService(ctx context.Context, cfg *config.Config, annoKey string) (s Service, err error) {
+func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKey string) (s Service, err error) {
 	cctx, ccancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -81,8 +82,19 @@ func NewService(ctx context.Context, cfg *config.Config, annoKey string) (s Serv
 		notifier:         notifier,
 	}
 
+	// init components
+	if enable, exists := cfg.Components[config.ComponentNameNvidia]; exists && enable {
+		if !utils.IsNvidiaGPUExist() {
+			logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
+		}
+		component, err := nvidia.NewComponent("", specFile, nil)
+		daemon_service.components[config.ComponentNameNvidia] = component
+		if err != nil {
+			return nil, err
+		}
+	}
 	for component_name, enabled := range cfg.Components {
-		if !enabled {
+		if !enabled || component_name == config.ComponentNameNvidia {
 			continue
 		}
 
@@ -94,13 +106,17 @@ func NewService(ctx context.Context, cfg *config.Config, annoKey string) (s Serv
 		case config.ComponentNameCPU:
 			component, err = cpu.NewComponent("")
 		case config.ComponentNameInfiniband:
-			component, err = infiniband.NewInfinibandComponent("")
+			component, err = infiniband.NewInfinibandComponent("", specFile, nil)
 		case config.ComponentNameDmesg:
 			component, err = dmesg.NewComponent("")
 		case config.ComponentNameHang:
 			component, err = hang.NewComponent("")
 		case config.ComponentNameNvidia:
-			component, err = nvidia.NewComponent("", []string{})
+			if !utils.IsNvidiaGPUExist() {
+				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
+				continue
+			}
+			component, err = nvidia.NewComponent("", specFile, nil)
 		case config.ComponentNameNCCL:
 			component, err = nccl.NewComponent("")
 		default:

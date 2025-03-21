@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/components/cpu/config"
+	"github.com/scitix/sichek/config/cpu_config"
 )
 
 func TestCollector_Collect(t *testing.T) {
@@ -30,8 +30,8 @@ func TestCollector_Collect(t *testing.T) {
 	defer cancel()
 
 	// Mock configuration
-	cfg := &config.CPUConfig{
-		EventCheckers: map[string]*config.CPUEventConfig{
+	cfg := &cpu_config.CPUConfig{
+		EventCheckers: map[string]*cpu_config.CPUEventConfig{
 			"testChecker": {
 				Name:        "testChecker",
 				Description: "Test checker",
@@ -149,5 +149,3 @@ func TestGetUptime(t *testing.T) {
 	}
 	t.Logf("Uptime: %s", uptime)
 }
-
-

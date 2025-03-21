@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,12 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"gopkg.in/yaml.v2"
+	commonCfg "github.com/scitix/sichek/config"
 )
 
 type EthernetSpec struct {
@@ -41,27 +40,9 @@ type Specifications struct {
 	PortSpeed string `yaml:"port_speed" json:"port_speed"`
 }
 
-func (c *EthernetSpec) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *EthernetSpec) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
 func (c *EthernetSpec) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-	return nil
+	err := commonCfg.LoadFromYaml(file, c)
+	return err
 }
 
 func (c *EthernetSpec) GetEthSpec() (*EthernetSpec, error) {

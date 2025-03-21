@@ -16,27 +16,17 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
 )
 
 // 实现ComponentsConfig 接口
 type InfinibandConfig struct {
-	Name          string        `json:"name" yaml:"name"`
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	Checkers      []string      `json:"checkers" yaml:"checkers"`
-}
-
-func (c *InfinibandConfig) ComponentName() string {
-	return c.Name
+	Name            string        `json:"name" yaml:"name"`
+	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
+	IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
 func (c *InfinibandConfig) GetCheckerSpec() map[string]common.CheckerSpec {
@@ -45,48 +35,4 @@ func (c *InfinibandConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 
 func (c *InfinibandConfig) GetQueryInterval() time.Duration {
 	return c.QueryInterval
-}
-
-func (c *InfinibandConfig) GetCacheSize() int64 {
-	return c.CacheSize
-}
-
-func (c *InfinibandConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *InfinibandConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DefaultConfig() (*InfinibandConfig, error) {
-	var InfinbandConfig InfinibandConfig
-	defaultCfgPath := "/userDefaultChecker.yaml"
-	_, err := os.Stat("/var/sichek/infiniband" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/infiniband/userDefaultChecker1.yaml
-		defaultCfgPath = "/var/sichek/infiniband" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = InfinbandConfig.LoadFromYaml(defaultCfgPath)
-	return &InfinbandConfig, err
 }

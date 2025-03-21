@@ -16,17 +16,10 @@ limitations under the License.
 package config
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	commonCfg "github.com/scitix/sichek/config"
 )
 
 type CPUConfig struct {
@@ -44,37 +37,8 @@ func (c *CPUConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	}
 	return commonCfgMap
 }
-
 func (c *CPUConfig) GetQueryInterval() time.Duration {
 	return c.QueryInterval
-}
-
-func (c *CPUConfig) GetCacheSize() int64 {
-	return c.CacheSize
-}
-
-func (c *CPUConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *CPUConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *CPUConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type CPUEventConfig struct {
@@ -86,47 +50,7 @@ type CPUEventConfig struct {
 	Suggestion  string `json:"suggestion" yaml:"suggestion"`
 }
 
-func (c *CPUEventConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *CPUEventConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
 func (c *CPUEventConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DefaultConfig(ctx context.Context) (*CPUConfig, error) {
-	var config CPUConfig
-	defaultCfgPath := "/config.yaml"
-	_, err := os.Stat("/var/sichek/cpu" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/cpu/config.yaml
-		defaultCfgPath = "/var/sichek/cpu" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + "/config.yaml"
-	}
-
-	err = config.LoadFromYaml(defaultCfgPath)
-	return &config, err
+	err := commonCfg.LoadFromYaml(file, c)
+	return err
 }

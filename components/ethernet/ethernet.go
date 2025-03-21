@@ -78,13 +78,13 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 
 	cfg := &config.EthernetConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig()
+		err := commonCfg.DefaultConfig(commonCfg.ComponentNameEthernet, cfg)
 		if err != nil {
 			logrus.WithField("component", "ethernet").Error("ethernet use default config failed ", err)
 			return nil, err
 		}
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = commonCfg.LoadFromYaml(cfgFile, cfg)
 		if err != nil {
 			logrus.WithField("component", "ethernet").Error(err)
 		}
@@ -126,10 +126,10 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		info:        info.GetEthInfo(),
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
+		cacheBuffer: make([]*common.Result, cfg.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.GetCacheSize(),
+		cacheSize:   cfg.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
@@ -164,14 +164,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
+		logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 	}
 
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == commonCfg.StatusAbnormal {
 			status = commonCfg.StatusAbnormal
 			level = config.EthCheckItems[checkItem.Name].Level
-			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
+			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
 		}
 	}
@@ -193,7 +193,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = ethernetInfo
 	c.cacheBuffer[c.currIndex] = finalResult
-	c.currIndex = (c.currIndex + 1) % c.cfg.GetCacheSize()
+	c.currIndex = (c.currIndex + 1) % c.cfg.CacheSize
 	c.cacheMtx.Unlock()
 
 	return finalResult, nil

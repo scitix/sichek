@@ -6,12 +6,13 @@ name: sichek
 namespace: default
 
 image:
-  repository: registry-ap-southeast.scitix.ai/hisys/sichek
+  repository: registry-ap-southeast.scitix.ai/hisys/sichek 
   pullPolicy: IfNotPresent
   tag: "v0.1"
 
 mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
 nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified
+gpu: true       # Define the gpu node name to diagnostic; set it false if cpu node to diagnostic
 parallelism: 1     # Define the number of parallel pods for the diagnostic Job
 
 serviceAccount:
@@ -79,7 +80,7 @@ volumeMounts:
   - name: host-var-lib-kubelet
     mountPath: /var/lib/kubelet
 
-nodeSelector: {}
+nodeSelector: {} 
 
 tolerations: []
 

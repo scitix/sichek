@@ -35,10 +35,10 @@ type XidEventPoller struct {
 	Cancel         context.CancelFunc
 	NvmlInst       nvml.Interface
 	EventChan      chan *common.Result
-	Cfg            config.ComponentConfig
+	Cfg            *config.ComponentConfig
 }
 
-func NewXidEventPoller(ctx context.Context, cfg config.ComponentConfig, nvmlInst nvml.Interface, eventChan chan *common.Result) (*XidEventPoller, error) {
+func NewXidEventPoller(ctx context.Context, cfg *config.ComponentConfig, nvmlInst nvml.Interface, eventChan chan *common.Result) (*XidEventPoller, error) {
 	// it is ok to create and register the same/shared event set across multiple devices
 	xidEventSet, err := nvml.EventSetCreate()
 	if err != nvml.SUCCESS {

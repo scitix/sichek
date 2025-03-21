@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/cpu/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/cpu_config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -53,33 +53,33 @@ func (c *CPUPerfChecker) GetSpec() common.CheckerSpec {
 func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	cpu_performance_enable, err := checkCPUPerformance()
 	if err != nil {
-		return nil, fmt.Errorf("fail to check cpu performance")
+		return nil, fmt.Errorf("fail to check cpu performance: %v", err)
 	}
 
-	result := config.CPUCheckItems[CPUPerfCheckerName]
+	result := cpu_config.CPUCheckItems[CPUPerfCheckerName]
 
 	if !cpu_performance_enable {
 		err := setCPUMode("performance")
 		if err == nil {
 			cpu_performance_enable, err := checkCPUPerformance()
 			if err != nil {
-				return nil, fmt.Errorf("fail to check cpu performance")
+				return nil, fmt.Errorf("fail to check cpu performance2: %v", err)
 			}
 			if cpu_performance_enable {
-				result.Status = commonCfg.StatusNormal
+				result.Status = consts.StatusNormal
 				result.Detail = "Not all CPUs are in \"performance\" mode. Already set all CPUs to \"performance\" mode successfully"
 				result.Suggestion = ""
 			} else {
-				result.Status = commonCfg.StatusAbnormal
+				result.Status = consts.StatusAbnormal
 				result.Detail = "Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode"
 			}
 		} else {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "NotAllEnabled"
 			result.Detail = fmt.Sprintf("Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode: %v", err)
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Enabled"
 		result.Detail = "All CPUs are in \"performance\" mode"
 		result.Suggestion = ""

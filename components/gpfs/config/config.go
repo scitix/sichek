@@ -16,17 +16,10 @@ limitations under the License.
 package config
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	commonCfg "github.com/scitix/sichek/config"
 )
 
 type GpfsConfig struct {
@@ -48,80 +41,13 @@ func (c *GpfsConfig) GetQueryInterval() time.Duration {
 	return c.QueryInterval
 }
 
-func (c *GpfsConfig) GetCacheSize() int64 {
-	return c.CacheSize
-}
-
-func (c *GpfsConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *GpfsConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *GpfsConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type GPFSEventConfig struct {
 	Name    string `json:"name" yaml:"name"`
 	LogFile string `json:"log_file" yaml:"log_file"`
 	Regexp  string `json:"regexp" yaml:"regexp"`
 }
 
-func (c *GPFSEventConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *GPFSEventConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
 func (c *GPFSEventConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DefaultConfig(ctx context.Context) (*GpfsConfig, error) {
-	var gpfsConfig GpfsConfig
-	defaultCfgPath := "/gpfsCfg.yaml"
-	_, err := os.Stat("/var/sichek/gpfs" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/gpfs/config.yaml
-		defaultCfgPath = "/var/sichek/gpfs" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = gpfsConfig.LoadFromYaml(defaultCfgPath)
-	return &gpfsConfig, err
+	err := commonCfg.LoadFromYaml(file, c)
+	return err
 }

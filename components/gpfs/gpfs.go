@@ -74,13 +74,13 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 
 	cfg := &config.GpfsConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig(ctx)
+		err := commonCfg.DefaultConfig(commonCfg.ComponentNameGpfs, cfg)
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent get default config failed: %v", err)
 			return nil, err
 		}
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = commonCfg.LoadFromYaml(cfgFile,cfg)
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent load config yaml %s failed: %v", cfgFile, err)
 			return nil, err
@@ -104,9 +104,9 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		collector:   collector,
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
-		cacheSize:   cfg.GetCacheSize(),
+		cacheBuffer: make([]*common.Result, cfg.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.CacheSize),
+		cacheSize:   cfg.CacheSize,
 	}
 	service := common.NewCommonService(ctx, cfg, component.HealthCheck)
 	component.service = service

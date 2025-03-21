@@ -74,13 +74,13 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 	cfg := &DmesgCfg.DmesgConfig{}
 	if len(cfgFile) == 0 {
-		cfg, err = DmesgCfg.DefaultConfig(ctx)
+		err := common_config.DefaultConfig(common_config.ComponentNameDmesg, cfg)
 		if err != nil {
 			logrus.WithField("component", "dmesg").WithError(err).Errorf("NewComponent get default config failed")
 			return nil, err
 		}
 	} else {
-		err = cfg.LoadFromYaml(cfgFile)
+		err = common_config.LoadFromYaml(cfgFile, cfg)
 		if err != nil {
 			logrus.WithField("component", "dmesg").WithError(err).Errorf("NewComponent load config yaml %s failed", cfgFile)
 			return nil, err

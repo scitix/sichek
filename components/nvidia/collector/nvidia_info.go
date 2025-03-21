@@ -73,7 +73,7 @@ func (nvidia *NvidiaInfo) Get(nvmlInst nvml.Interface) error {
 			continue
 			// return fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)
 		}
-		err2 := deviceInfo.Get(device, i)
+		err2 := deviceInfo.Get(device, i, nvidia.SoftwareInfo.DriverVersion)
 		if err2 != nil {
 			continue
 			// return fmt.Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)

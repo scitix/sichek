@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/scitix/sichek/components/common"
@@ -28,6 +29,7 @@ import (
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -65,6 +67,37 @@ func NewAllCmd() *cobra.Command {
 			if !verbos {
 				logrus.SetLevel(logrus.ErrorLevel)
 			}
+
+			cfgFile, err := cmd.Flags().GetString("cfg")
+			if err != nil {
+				logrus.WithField("components", "all").Error(err)
+			} else {
+				if cfgFile != "" {
+					logrus.WithField("components", "all").Info("load cfgFile: " + cfgFile)
+				} else {
+					logrus.WithField("components", "all").Info("load default cfg...")
+				}
+			}
+
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "all").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "all").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "all").Info("load default specFile...")
+				}
+			}
+
+			ignored_checkers_str, err := cmd.Flags().GetString("ignored-checkers")
+			if err != nil {
+				logrus.WithField("components", "all").Error(err)
+			} else {
+				logrus.WithField("components", "all").Info("ignore checkers", ignored_checkers_str)
+			}
+			ignoredCheckers := strings.Split(ignored_checkers_str, ",")
+
 			var wg sync.WaitGroup
 			for _, component_name := range config.DefaultComponents {
 				var component common.Component
@@ -78,16 +111,24 @@ func NewAllCmd() *cobra.Command {
 					component, err = cpu.NewComponent("")
 					printFunc = PrintSystemInfo
 				case config.ComponentNameInfiniband:
-					component, err = infiniband.NewInfinibandComponent("")
+					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 					printFunc = PrintInfinibandInfo
 				case config.ComponentNameDmesg:
 					component, err = dmesg.NewComponent("")
 					printFunc = PrintDmesgInfo
 				case config.ComponentNameHang:
+					if !utils.IsNvidiaGPUExist() {
+						logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+						continue
+					}
 					component, err = hang.NewComponent("")
 					printFunc = PrintHangInfo
 				case config.ComponentNameNvidia:
-					component, err = nvidia.NewComponent("", []string{})
+					if !utils.IsNvidiaGPUExist() {
+						logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
+						continue
+					}
+					component, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 					printFunc = PrintNvidiaInfo
 				case config.ComponentNameNCCL:
 					component, err = nccl.NewComponent("")
@@ -121,6 +162,9 @@ func NewAllCmd() *cobra.Command {
 
 	allCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 	allCmd.Flags().BoolP("eventonly", "e", false, "Print events output only")
+	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
+	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
+	allCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 
 	return allCmd
 }

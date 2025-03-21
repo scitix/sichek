@@ -22,12 +22,8 @@ import (
 type ComponentConfig interface {
 	GetCheckerSpec() map[string]CheckerSpec
 	GetQueryInterval() time.Duration
-	Yaml() (string, error)
-	LoadFromYaml(file string) error
 }
 
 type CheckerSpec interface {
-	JSON() (string, error)
-	Yaml() (string, error)
 	LoadFromYaml(file string) error
 }

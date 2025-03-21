@@ -17,10 +17,13 @@ package collector
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/sirupsen/logrus"
 )
 
 type DeviceInfo struct {
@@ -49,7 +52,7 @@ func (deviceInfo *DeviceInfo) ToString() string {
 	return common.ToString(deviceInfo)
 }
 
-func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int) error {
+func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion string) error {
 	// Get GPU Name
 	name, err := device.GetName()
 	if err != nvml.SUCCESS {
@@ -101,9 +104,18 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int) error {
 		return fmt.Errorf("failed to get clock %v: %v", uuid, err2)
 	}
 
-	err2 = deviceInfo.ClockEvents.Get(device, uuid)
-	if err2 != nil {
-		return fmt.Errorf("failed to get clock events for device %v: %v", uuid, err2)
+	// clock events are supported in version 535 and above
+	// otherwise, the function GetCurrentClocksEventReasons() will exits with undefined symbol: nvmlGetCurrentClocksEventReasons
+	isSupported, err3 := isDriverVersionSupportedClkEvents(driverVersion, 535)
+	if err3 != nil {
+		logrus.WithField("component", "nvidia-collector-device-info").Warnf("failed to check if driver version %v is supported for clock events: %v", driverVersion, err2)
+	}
+	deviceInfo.ClockEvents.IsSupported = isSupported
+	if isSupported {
+		err2 = deviceInfo.ClockEvents.Get(device, uuid)
+		if err2 != nil {
+			return fmt.Errorf("failed to get clock events for device %v: %v", uuid, err2)
+		}
 	}
 
 	err2 = deviceInfo.Power.Get(device, uuid)
@@ -131,4 +143,21 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int) error {
 		return fmt.Errorf("failed to get nvlink states for device %v: %v", uuid, err2)
 	}
 	return nil
+}
+
+func isDriverVersionSupportedClkEvents(driverVersion string, requiredMajor int) (bool, error) {
+	// Split the driver version string by "."
+	parts := strings.Split(driverVersion, ".")
+	if len(parts) < 1 {
+			return false, fmt.Errorf("invalid driver version format: %s", driverVersion)
+	}
+
+	// Parse the major version (first part of the string)
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+			return false, fmt.Errorf("invalid major version in driver version: %s", driverVersion)
+	}
+
+	// Compare the major version
+	return major >= requiredMajor, nil
 }

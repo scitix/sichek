@@ -18,27 +18,27 @@ package checker
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	commonCfg "github.com/scitix/sichek/config"
+	"github.com/sirupsen/logrus"
 )
 
 type IBOFEDChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        config.InfinibandSpec
 	description string
 }
 
-func NewIBOFEDChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBOFEDChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBOFEDChecker{
-		id:   commonCfg.CheckerIDInfinibandOFED,
-		name: config.ChekIBOFED,
-		spec: specCfg,
+		id:          commonCfg.CheckerIDInfinibandOFED,
+		name:        config.ChekIBOFED,
+		spec:        *specCfg,
+		description: "check the rdma ofed",
 	}, nil
 }
 
@@ -60,56 +60,34 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	var (
-		curr, spec, suggestion string
-		level                  = commonCfg.LevelInfo
-		detail                 = config.InfinibandCheckItems[c.name].Detail
-	)
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	curr = infinibandInfo.IBSoftWareInfo.OFEDVer
-	status := commonCfg.StatusNormal
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hostname: %w", err)
-	}
-
-	hostFound := false
-	for _, host := range c.spec.SoftwareDependencies.OFED {
-		if strings.Contains(hostname, host.NodeName) {
-			spec = host.OFEDVer
-			hostFound = true
-			break
+	curr := infinibandInfo.IBSoftWareInfo.OFEDVer
+	spec := c.spec.IBSoftWareInfo.OFEDVer
+	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		hca := c.spec.HCAs[hwInfo.BoardID]
+		if hca.OFEDVer != "" {
+			spec = hca.OFEDVer
+			logrus.Warnf("use the IB device's OFED spec to check the system OFED version")
 		}
 	}
-	if !hostFound {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("host name does not match any spec, curr:%s", hostname)
-		suggestion = "check the default configuration"
-	} else if !strings.Contains(curr, spec) { // 如果主机名匹配，但 OFED 版本不匹配
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("OFED version mismatch, expected:%s, current:%s", spec, curr)
-		suggestion = "update the OFED version"
+	if curr != spec {
+		result.Status = commonCfg.StatusAbnormal
+		result.Detail = fmt.Sprintf("OFED version mismatch, expected:%s  current:%s", spec, curr)
+		result.Suggestion = "update the OFED version"
 	}
 
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = curr
 	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Detail = detail
-	result.Suggestion = suggestion
+	logrus.WithField("component", "infiniband").Infof("get the ofed check: %v", result)
 
 	return &result, nil
 }

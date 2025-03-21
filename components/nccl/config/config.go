@@ -16,17 +16,10 @@ limitations under the License.
 package config
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	commonCfg "github.com/scitix/sichek/config"
 )
 
 type NCCLConfig struct {
@@ -41,44 +34,12 @@ func (c *NCCLConfig) GetQueryInterval() time.Duration {
 	return c.QueryInterval
 }
 
-func (c *NCCLConfig) GetCacheSize() int64 {
-	return c.CacheSize
-}
-
-func (c *NCCLConfig) GetNCCLErrorConfig() map[string]*NCCLErrorConfig {
-	return c.CheckerConfigs
-}
-
 func (c *NCCLConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.CheckerConfigs {
 		commonCfgMap[name] = cfg
 	}
 	return commonCfgMap
-}
-
-func (c *NCCLConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *NCCLConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *NCCLConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type NCCLErrorConfig struct {
@@ -88,46 +49,7 @@ type NCCLErrorConfig struct {
 	Level       string `json:"level" yaml:"level"`
 }
 
-func (c *NCCLErrorConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *NCCLErrorConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
 func (c *NCCLErrorConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DefaultConfig(ctx context.Context) (*NCCLConfig, error) {
-	var ncclConfig NCCLConfig
-	defaultCfgPath := "/config.yaml"
-	_, err := os.Stat("/var/sichek/nccl" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/nccl/config.yaml
-		defaultCfgPath = "/var/sichek/nccl" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = ncclConfig.LoadFromYaml(defaultCfgPath)
-	return &ncclConfig, err
+	err := commonCfg.LoadFromYaml(file, c)
+	return err
 }

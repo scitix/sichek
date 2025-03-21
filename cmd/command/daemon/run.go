@@ -43,14 +43,29 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				logrus.WithField("daemon", "run").Info("load default cfg...")
+				if cfgFile != "" {
+					logrus.WithField("daemon", "run").Info("load cfgFile: " + cfgFile)
+				} else {
+					logrus.WithField("daemon", "run").Info("load default cfgFile...")
+				}
+			}
+
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("daemon", "run").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("daemon", "run").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("daemon", "run").Info("load default specFile...")
+				}
 			}
 
 			used_component_str, err := cmd.Flags().GetString("enable-components")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				logrus.WithField("daemon", "run").Info("enable components ", used_component_str)
+				logrus.WithField("daemon", "run").Infof("enable components = %v", used_component_str)
 			}
 			used_components := make([]string, 0)
 			if len(used_component_str) > 0 {
@@ -60,7 +75,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				logrus.WithField("daemon", "run").Info("ignore-components ", ignore_component_str)
+				logrus.WithField("daemon", "run").Infof("ignore-components = %v", ignore_component_str)
 			}
 			ignored_components := make([]string, 0)
 			if len(ignore_component_str) > 0 {
@@ -97,7 +112,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			done := service.HandleSignals(ctx, cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
 
-			daemon_service, err := service.NewService(ctx, cfg, annoKey)
+			daemon_service, err := service.NewService(ctx, cfg, specFile, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return
@@ -118,6 +133,7 @@ func NewDaemonRunCmd() *cobra.Command {
 		},
 	}
 	daemonRunCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
+	daemonRunCmd.Flags().StringP("spec", "s", "", "Path to the specification file")
 	daemonRunCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by `,`")
 	daemonRunCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
 	daemonRunCmd.Flags().StringP("annotation-key", "A", "", "k8s node annotation key")

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	hangCfg "github.com/scitix/sichek/components/hang/config"
+	HangCfg "github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/scitix/sichek/components/common"
@@ -50,11 +50,11 @@ func (d *HangInfo) JSON() (string, error) {
 type HangChecker struct {
 	id                string
 	name              string
-	cfg               common.CheckerSpec
+	cfg               *HangCfg.HangConfig
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewHangChecker(cfg common.CheckerSpec) common.Checker {
+func NewHangChecker(cfg *HangCfg.HangConfig) common.Checker {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	return &HangChecker{
 		id:                config.CheckerIDHang,
@@ -66,10 +66,6 @@ func NewHangChecker(cfg common.CheckerSpec) common.Checker {
 
 func (c *HangChecker) Name() string {
 	return c.name
-}
-
-func (c *HangChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -124,24 +120,11 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		logrus.Debugf("devices=%v\n", devices)
 	}
 
-	result := hangCfg.HangCheckItems["GPUHang"]
+	result := HangCfg.HangCheckItems["GPUHang"]
 	result.Device = strings.Join(devices, ",")
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status
 	result.Detail = raw
 	result.Suggestion = suggest
 	return &result, nil
-
-	// return &common.CheckerResult{
-	// 	Name:        c.name,
-	// 	Description: "GPU probably hang",
-	// 	Device:      strings.Join(devices, ","),
-	// 	Spec:        "0",
-	// 	Curr:        strconv.Itoa(gpuAbNum),
-	// 	Status:      status,
-	// 	Level:       config.LevelCritical,
-	// 	Detail:      raw,
-	// 	Suggestion:  suggest,
-	// 	ErrorName:   config.ErrorNameHang,
-	// }, nil
 }

@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -37,36 +36,46 @@ import (
 
 var (
 	IBSYSPathPre string = "/sys/class/infiniband/"
-	IBDevPathPre string = "/dev/infiniband/"
+	PCIPath      string = "/sys/bus/pci/devices/"
 )
 
 type InfinibandInfo struct {
+	HCAPCINum      int              `json:"hca_pci_num"`
 	IBDevs         []string         `json:"ib_dev"`
 	IBHardWareInfo []IBHardWareInfo `json:"ib_hardware_info"`
 	IBSoftWareInfo IBSoftWareInfo   `json:"ib_software_info"`
+	PCIETreeInfo   []PCIETreeInfo   `json:"pcie_tree_info"`
 	Time           time.Time        `json:"time"`
 }
 
 type IBHardWareInfo struct {
-	IBDev         string              `json:"IBdev"`
-	NetDev        string              `json:"net_dev"`
-	HCAType       string              `json:"hca_type"`
-	PhyStat       string              `json:"phy_stat"`
-	PortStat      string              `json:"port_stat"`
-	LinkLayer     string              `json:"link_layer"`
-	PortSpeed     string              `json:"port_speed"`
-	BoardID       string              `json:"bodard_id"`
-	DeviceID      string              `json:"device_id"`
-	PCIEBDF       string              `json:"pcie_bdf"`
-	PCIESpeed     string              `json:"pcie_speed"`
-	PCIEWidth     string              `json:"pcie_width"`
-	PCIEMRR       string              `json:"pcie_mrr"`
+	IBDev        string `json:"IBdev"`
+	NetDev       string `json:"net_dev"`
+	HCAType      string `json:"hca_type"`
+	SystemGUID   string `json:"system_guid"`
+	NodeGUID     string `json:"node_guid"`
+	PhyState     string `json:"phy_state"`
+	PortState    string `json:"port_state"`
+	LinkLayer    string `json:"link_layer"`
+	NetOperstate string `json:"net_operstate"`
+	PortSpeed    string `json:"port_speed"`
+	BoardID      string `json:"board_id"`
+	DeviceID     string `json:"device_id"`
+	PCIEBDF      string `json:"pcie_bdf"`
+	PCIESpeed    string `json:"pcie_speed"`
+	PCIEWidth    string `json:"pcie_width"`
+	PCIEMRR      string `json:"pcie_mrr"`
+	Slot         string `json:"slot"`
+	NumaNode     string `json:"numa_node"`
+	CPULists     string `json:"cpu_lists"`
+	FWVer        string `json:"fw_ver"`
+	VPD          string `json:"vpd"`
+	OFEDVer      string `json:"ofed_ver"` // compatible with IB Spec Requirement
+}
+
+type PCIETreeInfo struct {
 	PCIETreeSpeed []PCIETreeSpeedInfo `json:"pcie_tree_speed"`
 	PCIETreeWidth []PCIETreeWidthInfo `json:"pcie_tree_width"`
-	Slot          string              `json:"slot"`
-	NumaNode      string              `json:"numa_node"`
-	CPULists      string              `json:"cpu_lists"`
-	FWVer         string              `json:"fw_ver"`
 }
 
 type PCIETreeSpeedInfo struct {
@@ -80,7 +89,7 @@ type PCIETreeWidthInfo struct {
 }
 
 type IBSoftWareInfo struct {
-	OFEDVer      string   `json:"driver_ver"`
+	OFEDVer      string   `json:"ofed_ver"`
 	KernelModule []string `json:"kernel_module"`
 }
 
@@ -93,15 +102,78 @@ func (i *InfinibandInfo) JSON() (string, error) {
 }
 
 func (i *InfinibandInfo) GetIBdevs() []string {
-	return GetFileCnt(IBSYSPathPre)
+	allIBDevs := GetFileCnt(IBSYSPathPre)
+	var IBDevs []string
+	for _, IBDev := range allIBDevs {
+		if strings.Contains(IBDev, "bond") {
+			continue
+		}
+		IBDevs = append(IBDevs, IBDev)
+	}
+	return IBDevs
+}
+
+func (i *InfinibandInfo) GetHCANum() int {
+	cmd := exec.Command("lspci")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+
+	counter := 0
+	lines := strings.Split(string(output), "\n")
+
+	for _, line := range lines {
+		if strings.Contains(line, "Mell") && !strings.Contains(line, "MT27710") {
+			counter++
+		}
+	}
+	return counter
 }
 
 func (i *InfinibandInfo) GetIBdev2NetDev(IBDev string) []string {
 	return i.GetSysCnt(IBDev, "device/net")
 }
 
+func (i *InfinibandInfo) GetNetOperstate(IBDev string) (string) {
+	netPath := filepath.Join(IBSYSPathPre, IBDev, "device", "net")
+	dirs, err := os.ReadDir(netPath)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("failed to read net directory %s: %v", netPath, err)
+		return ""
+	}
+	if len(dirs) == 0 {
+		logrus.WithField("component", "infiniband").Errorf("no network interfaces found under %s", netPath)
+		return ""
+	}
+	netDir := dirs[0].Name()
+	operstatePath := filepath.Join(netPath, netDir, "operstate")
+	data, err := os.ReadFile(operstatePath)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("failed to read %s: %v", operstatePath, err)
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
 func (i *InfinibandInfo) GetHCAType(IBDev string) []string {
 	return i.GetSysCnt(IBDev, "hca_type")
+}
+
+func (i *InfinibandInfo) GetVPD(IBDev string) string {
+	vpdPath := filepath.Join(IBSYSPathPre, IBDev, "device", "vpd")
+	data, err := os.ReadFile(vpdPath)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("failed to read vpd file %s, err: %v", vpdPath, err)
+	}
+	re := regexp.MustCompile(`[ -~]+`)
+	match := re.Find(data)
+	if match != nil {
+		return string(match)
+	} else {
+		logrus.WithField("component", "infiniband").Errorf("failed to get oem info from vpd file %s", vpdPath)
+		return ""
+	}
 }
 
 func (i *InfinibandInfo) GetFWVer(IBDev string) []string {
@@ -158,7 +230,7 @@ func (i *InfinibandInfo) GetPCIEMRR(IBDev string) []string {
 
 func (i *InfinibandInfo) GetPCIETreeSpeed(IBDev string) []PCIETreeSpeedInfo {
 	bdf := i.GetBDF(IBDev)[0]
-	devicePath := filepath.Join("/sys/bus/pci/devices", bdf)
+	devicePath := filepath.Join(PCIPath, bdf)
 	cmd := exec.Command("readlink", devicePath)
 	output, err := cmd.Output()
 	if err != nil {
@@ -172,7 +244,7 @@ func (i *InfinibandInfo) GetPCIETreeSpeed(IBDev string) []PCIETreeSpeedInfo {
 
 	for _, bdf := range bdfs {
 		var perTreeSpeed PCIETreeSpeedInfo
-		speed := GetFileCnt(filepath.Join("/sys/bus/pci/devices", bdf, "current_link_speed"))
+		speed := GetFileCnt(filepath.Join(PCIPath, bdf, "current_link_speed"))
 		logrus.WithField("component", "infiniband").Infof("get the pcie tree speed, ib:%s bdf:%s speed:%s", IBDev, bdf, speed[0])
 		perTreeSpeed.BDF = bdf
 		perTreeSpeed.Speed = speed[0]
@@ -183,7 +255,7 @@ func (i *InfinibandInfo) GetPCIETreeSpeed(IBDev string) []PCIETreeSpeedInfo {
 
 func (i *InfinibandInfo) GetPCIETreeWidth(IBDev string) []PCIETreeWidthInfo {
 	bdf := i.GetBDF(IBDev)[0]
-	devicePath := filepath.Join("/sys/bus/pci/devices", bdf)
+	devicePath := filepath.Join(PCIPath, bdf)
 	cmd := exec.Command("readlink", devicePath)
 	output, err := cmd.Output()
 	if err != nil {
@@ -197,7 +269,7 @@ func (i *InfinibandInfo) GetPCIETreeWidth(IBDev string) []PCIETreeWidthInfo {
 
 	for _, bdf := range bdfs {
 		var perTreeWidth PCIETreeWidthInfo
-		width := GetFileCnt(filepath.Join("/sys/bus/pci/devices", bdf, "current_link_width"))
+		width := GetFileCnt(filepath.Join(PCIPath, bdf, "current_link_width"))
 		logrus.WithField("component", "infiniband").Infof("get the pcie tree width, ib:%s bdf:%s width:%s", IBDev, bdf, width[0])
 		perTreeWidth.BDF = bdf
 		perTreeWidth.Width = width[0]
@@ -244,27 +316,27 @@ func (i *InfinibandInfo) GetBDF(IBDev string) []string {
 
 func (i *InfinibandInfo) GetNumaNode(IBDev string) []string {
 	BDF := i.GetBDF(IBDev)
-	DesPath := path.Join("/sys/bus/pci/devices", BDF[0], "numa_node")
+	DesPath := path.Join(PCIPath, BDF[0], "numa_node")
 	numaNode := GetFileCnt(DesPath)
 	return numaNode
 }
 
 func (i *InfinibandInfo) GetCPUList(IBDev string) []string {
 	BDF := i.GetBDF(IBDev)
-	DesPath := path.Join("/sys/bus/pci/devices", BDF[0], "local_cpulist")
+	DesPath := path.Join(PCIPath, BDF[0], "local_cpulist")
 	CPUList := GetFileCnt(DesPath)
 	return CPUList
 }
 
 func (i *InfinibandInfo) GetOFEDInfo() string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	var ver string
 	// cmd := exec.Command("ofed_info", "-s")
 	output, err := utils.ExecCommand(ctx, "ofed_info", "-s")
 	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("Fail to run the cmd: ofer_info -s")
+		logrus.WithField("component", "infiniband").Errorf("Fail to run the cmd: ofed_info -s, err:%v", err)
 	}
 	outputStr := string(output)
 	lines := strings.Split(outputStr, ":")
@@ -276,9 +348,16 @@ func (i *InfinibandInfo) GetOFEDInfo() string {
 	return ver
 }
 
+func (i *InfinibandInfo) GetSystemGUID(IBDev string) []string {
+	return i.GetSysCnt(IBDev, "sys_image_guid")
+}
+
+func (i *InfinibandInfo) GetNodeGUID(IBDev string) []string {
+	return i.GetSysCnt(IBDev, "node_guid")
+}
+
 func (i *InfinibandInfo) GetKernelModule() []string {
-	var preInstallModule []string
-	preInstallModule = append(preInstallModule,
+	preInstallModule := []string{
 		"rdma_ucm",
 		"rdma_cm",
 		"ib_ipoib",
@@ -288,8 +367,10 @@ func (i *InfinibandInfo) GetKernelModule() []string {
 		"ib_umad",
 		"ib_cm",
 		"ib_core",
-		"mlxfw",
-		"nvidia_peermem")
+		"mlxfw"}
+	if utils.IsNvidiaGPUExist() {
+		preInstallModule = append(preInstallModule, "nvidia_peermem")
+	}
 
 	var installedModule []string
 	for _, module := range preInstallModule {
@@ -304,21 +385,6 @@ func (i *InfinibandInfo) GetKernelModule() []string {
 	return installedModule
 }
 
-func (i *InfinibandInfo) GetSpec() *config.InfinibandHCASpec {
-	var IBSpec *config.InfinibandHCASpec
-	ibSpec, err := IBSpec.GetHCASpec()
-	if err != nil {
-		logrus.WithField("component", "infiniband").Error("fail to get hca spec ", err)
-	}
-
-	IBSpecJSON, err := ibSpec.JSON()
-	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("fail to Marshal ibSpec %v", err)
-	}
-	logrus.WithField("component", "infiniband").Infof("load ib spec %v ", IBSpecJSON)
-	return ibSpec
-}
-
 func (i *InfinibandInfo) GetIBInfo() *InfinibandInfo {
 	var IBInfo InfinibandInfo
 	var IBSWInfo IBSoftWareInfo
@@ -326,28 +392,68 @@ func (i *InfinibandInfo) GetIBInfo() *InfinibandInfo {
 	IBSWInfo.OFEDVer = i.GetOFEDInfo()
 	IBSWInfo.KernelModule = i.GetKernelModule()
 
+	// IBInfo.HCAPCINum = IBInfo.GetHCANum() // ???
 	IBInfo.IBDevs = IBInfo.GetIBdevs()
+	IBInfo.HCAPCINum = len(IBInfo.IBDevs)
 	IBHWInfo := make([]IBHardWareInfo, 0, len(IBInfo.IBDevs))
 	for _, IBDev := range IBInfo.IBDevs {
 		var perIBHWInfo IBHardWareInfo
 		perIBHWInfo.IBDev = IBDev
-		perIBHWInfo.HCAType = i.GetHCAType(IBDev)[0]
-		perIBHWInfo.PhyStat = i.GetPhyStat(IBDev)[0]
-		perIBHWInfo.PortStat = i.GetIBStat(IBDev)[0]
-		perIBHWInfo.LinkLayer = i.GetLinkLayer(IBDev)[0]
-		perIBHWInfo.PortSpeed = i.GetPortSpeed(IBDev)[0]
-		perIBHWInfo.BoardID = i.GetBoardID(IBDev)[0]
-		perIBHWInfo.DeviceID = i.GetDeviceID(IBDev)[0]
-		perIBHWInfo.PCIEBDF = i.GetBDF(IBDev)[0]
-		perIBHWInfo.PCIEMRR = i.GetPCIEMRR(IBDev)[0]
-		perIBHWInfo.PCIESpeed = i.GetPCIECLinkSpeed(IBDev)[0]
-		perIBHWInfo.PCIEWidth = i.GetPCIECLinkWidth(IBDev)[0]
-		perIBHWInfo.PCIETreeSpeed = i.GetPCIETreeSpeed(IBDev)
-		perIBHWInfo.PCIETreeWidth = i.GetPCIETreeWidth(IBDev)
-		perIBHWInfo.NumaNode = i.GetNumaNode(IBDev)[0]
-		perIBHWInfo.CPULists = i.GetCPUList(IBDev)[0]
-		perIBHWInfo.FWVer = i.GetFWVer(IBDev)[0]
-		perIBHWInfo.NetDev = i.GetIBdev2NetDev(IBDev)[0]
+		perIBHWInfo.NetOperstate = i.GetNetOperstate(IBDev)
+		if len(i.GetHCAType(IBDev)) >= 1 {
+			perIBHWInfo.HCAType = i.GetHCAType(IBDev)[0]
+		}
+		if len(i.GetPhyStat(IBDev)) >= 1 {
+			perIBHWInfo.PhyState = i.GetPhyStat(IBDev)[0]
+		}
+		if len(i.GetIBStat(IBDev)) >= 1 {
+			perIBHWInfo.PortState = i.GetIBStat(IBDev)[0]
+		}
+		if len(i.GetLinkLayer(IBDev)) >= 1 {
+			perIBHWInfo.LinkLayer = i.GetLinkLayer(IBDev)[0]
+		}
+		if len(i.GetPortSpeed(IBDev)) >= 1 {
+			perIBHWInfo.PortSpeed = i.GetPortSpeed(IBDev)[0]
+		}
+		if len(i.GetBoardID(IBDev)) >= 1 {
+			perIBHWInfo.BoardID = i.GetBoardID(IBDev)[0]
+		}
+		if len(i.GetDeviceID(IBDev)) >= 1 {
+			perIBHWInfo.DeviceID = i.GetDeviceID(IBDev)[0]
+		}
+		if len(i.GetBDF(IBDev)) >= 1 {
+			perIBHWInfo.PCIEBDF = i.GetBDF(IBDev)[0]
+		}
+		if len(i.GetPCIEMRR(IBDev)) >= 1 {
+			perIBHWInfo.PCIEMRR = i.GetPCIEMRR(IBDev)[0]
+		}
+		if len(i.GetPCIECLinkSpeed(IBDev)) >= 1 {
+			perIBHWInfo.PCIESpeed = i.GetPCIECLinkSpeed(IBDev)[0]
+		}
+		if len(i.GetPCIECLinkWidth(IBDev)) >= 1 {
+			perIBHWInfo.PCIEWidth = i.GetPCIECLinkWidth(IBDev)[0]
+		}
+		if len(i.GetNumaNode(IBDev)) >= 1 {
+			perIBHWInfo.NumaNode = i.GetNumaNode(IBDev)[0]
+		}
+		if len(i.GetCPUList(IBDev)) >= 1 {
+			perIBHWInfo.CPULists = i.GetCPUList(IBDev)[0]
+		}
+		if len(i.GetFWVer(IBDev)) >= 1 {
+			perIBHWInfo.FWVer = i.GetFWVer(IBDev)[0]
+		}
+		if len(i.GetIBdev2NetDev(IBDev)) >= 1 {
+			perIBHWInfo.NetDev = i.GetIBdev2NetDev(IBDev)[0]
+		}
+		if len(i.GetSystemGUID(IBDev)) >= 1 {
+			perIBHWInfo.SystemGUID = i.GetSystemGUID(IBDev)[0]
+		}
+		if len(i.GetNodeGUID(IBDev)) >= 1 {
+			perIBHWInfo.NodeGUID = i.GetNodeGUID(IBDev)[0]
+		}
+		// perIBHWInfo.PCIETreeSpeed = i.GetPCIETreeSpeed(IBDev)
+		// perIBHWInfo.PCIETreeWidth = i.GetPCIETreeWidth(IBDev)
+		perIBHWInfo.VPD = i.GetVPD(IBDev)
 		IBHWInfo = append(IBHWInfo, perIBHWInfo)
 	}
 	IBInfo.IBHardWareInfo = IBHWInfo

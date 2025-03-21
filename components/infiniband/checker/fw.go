@@ -24,20 +24,21 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	commonCfg "github.com/scitix/sichek/config"
+	"github.com/sirupsen/logrus"
 )
 
 type IBFirmwareChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        config.InfinibandSpec
 	description string
 }
 
-func NewFirmwareChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewFirmwareChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBFirmwareChecker{
 		id:          commonCfg.CheckerIDInfinibandFW,
 		name:        config.ChekIBFW,
-		spec:        specCfg,
+		spec:        *specCfg,
 		description: "check the nic fw",
 	}, nil
 }
@@ -55,85 +56,42 @@ func (c *IBFirmwareChecker) GetSpec() common.CheckerSpec {
 }
 
 func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	var (
-		spec, suggestions string
-		errDev            []string
-		allDevErr         []struct {
-			device  string
-			devType string
-		}
-		level  string = commonCfg.LevelInfo
-		detail string = config.InfinibandCheckItems[c.name].Detail
-	)
 
 	infinibandInfo, ok := data.(*collector.InfinibandInfo)
 	if !ok {
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 
-	status := commonCfg.StatusNormal
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
-		result.Suggestion = config.InfinibandCheckItems[c.name].Suggestion
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
+	var detail []string
+	failedHcas := make([]string, 0)
+	var spec []string
+	var curr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
-		hcaType := hwInfo.HCAType
-		fw := hwInfo.FWVer
-		curr = append(curr, fw)
-		found := false
-		for _, hwSpec := range c.spec.HWSpec {
-			if hcaType != hwSpec.Type {
-				continue
-			}
-			spec = hwSpec.Specifications.FwVersion
-			if strings.Contains(spec, fw) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			allDevErr = append(allDevErr, struct {
-				device  string
-				devType string
-			}{
-				device:  hwInfo.IBDev,
-				devType: hcaType,
-			})
+		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
+		spec = append(spec, hcaSpec.FWVer)
+		curr = append(curr, hwInfo.FWVer)
+		if hwInfo.FWVer != hcaSpec.FWVer {
+			result.Status = commonCfg.StatusAbnormal
+			failedHcas = append(failedHcas, hwInfo.IBDev)
+			err_msg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.FWVer)
+			logrus.WithField("component", "infiniband").Warnf("%s", err_msg)
+			detail = append(detail, err_msg)
 		}
 	}
 
-	if len(allDevErr) != 0 {
-		for _, dev := range allDevErr {
-			errDev = append(errDev, dev.device)
-			for _, hwSpec := range c.spec.HWSpec {
-				if dev.devType != hwSpec.Type {
-					continue
-				}
-				spec = hwSpec.Specifications.FwVersion
-				break
-			}
-		}
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("%s fw is not in the spec, curr:%s, spec:%s", strings.Join(errDev, ","), strings.Join(curr, ","), spec)
-		suggestions = fmt.Sprintf("use flint tool to burn %s fw ", strings.Join(errDev, ","))
-	}
-
-	result := config.InfinibandCheckItems[c.name]
-	result.Curr = strings.Join(curr, ",")
-	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Device = strings.Join(errDev, ",")
-	result.Detail = detail
-	result.Suggestion = suggestions
+	result.Curr = strings.Join(curr, ";")
+	result.Spec = strings.Join(spec, ";")
+	result.Device = strings.Join(failedHcas, ";")
+	result.Detail = strings.Join(detail, ";")
 
 	return &result, nil
 }

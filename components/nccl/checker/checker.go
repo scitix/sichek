@@ -49,10 +49,10 @@ func (d *NCCLInfo) JSON() (string, error) {
 type NCCLChecker struct {
 	id   string
 	name string
-	cfg  common.CheckerSpec
+	cfg  *ncclCfg.NCCLConfig
 }
 
-func NewNCCLChecker(cfg common.CheckerSpec) common.Checker {
+func NewNCCLChecker(cfg *ncclCfg.NCCLConfig) common.Checker {
 	return &NCCLChecker{
 		id:   config.CheckerIDNCCL,
 		name: "NCCLTimeoutChecker",
@@ -62,10 +62,6 @@ func NewNCCLChecker(cfg common.CheckerSpec) common.Checker {
 
 func (c *NCCLChecker) Name() string {
 	return c.name
-}
-
-func (c *NCCLChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *NCCLChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {

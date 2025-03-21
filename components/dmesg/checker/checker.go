@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	DmesgCfg "github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
@@ -47,10 +48,10 @@ func (d *DmesgInfo) JSON() (string, error) {
 type DmesgChecker struct {
 	id   string
 	name string
-	cfg  common.CheckerSpec
+	cfg  *DmesgCfg.DmesgConfig
 }
 
-func NewDmesgChecker(cfg common.CheckerSpec) common.Checker {
+func NewDmesgChecker(cfg *DmesgCfg.DmesgConfig) common.Checker {
 	return &DmesgChecker{
 		id:   config.CheckerIDDmesg,
 		name: "DmesgErrorChecker",
@@ -60,10 +61,6 @@ func NewDmesgChecker(cfg common.CheckerSpec) common.Checker {
 
 func (c *DmesgChecker) Name() string {
 	return c.name
-}
-
-func (c *DmesgChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
