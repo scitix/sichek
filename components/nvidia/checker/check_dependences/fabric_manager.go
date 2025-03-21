@@ -50,13 +50,12 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 	if c.cfg.Dependence.FabricManager == "Not Required" {
 		result.Status = commonCfg.StatusNormal
 		result.Curr = "Not Required"
+		result.Suggestion = ""
+		result.ErrorName = ""
 		return &result, nil
 	}
 
-	active, err := systemd.IsActive("nvidia-fabricmanager")
-	if err != nil {
-		return nil, fmt.Errorf("failed to check Nvidia FabricManager status: %w", err)
-	}
+	active, _ := systemd.IsActive("nvidia-fabricmanager")
 
 	if !active {
 		result.Detail = "Nvidia FabricManager is not active"
@@ -74,6 +73,8 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 		result.Status = commonCfg.StatusNormal
 		result.Curr = "Active"
 		result.Detail = "Nvidia FabricManager is active"
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

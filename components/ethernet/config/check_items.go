@@ -24,7 +24,7 @@ var (
 	ChekEthPhyState = "eth_phy_tate"
 
 	checkDes = map[string]string{
-		ChekEthPhyState: "check the eth phy statue",
+		ChekEthPhyState: "check the eth phy state",
 	}
 	checkLevel = map[string]string{
 		ChekEthPhyState: commonCfg.LevelCritical,

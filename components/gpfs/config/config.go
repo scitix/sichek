@@ -30,26 +30,28 @@ import (
 )
 
 type GpfsConfig struct {
-	Name          string                      `json:"name" yaml:"name"`
-	QueryInterval time.Duration               `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                       `json:"cache_size" yaml:"cache_size"`
-	EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	Gpfs struct {
+		Name          string                      `json:"name" yaml:"name"`
+		QueryInterval time.Duration               `json:"query_interval" yaml:"query_interval"`
+		CacheSize     int64                       `json:"cache_size" yaml:"cache_size"`
+		EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	} `json:"gpfs"`
 }
 
 func (c *GpfsConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.EventCheckers {
+	for name, cfg := range c.Gpfs.EventCheckers {
 		commonCfgMap[name] = cfg
 	}
 	return commonCfgMap
 }
 
 func (c *GpfsConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Gpfs.QueryInterval
 }
 
 func (c *GpfsConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.Gpfs.CacheSize
 }
 
 func (c *GpfsConfig) JSON() (string, error) {

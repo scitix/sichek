@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
@@ -41,17 +42,13 @@ func (s *SoftwareInfo) ToString() string {
 	return common.ToString(s)
 }
 
-func (s *SoftwareInfo) Get() error {
+func (s *SoftwareInfo) Get(devIndex int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// Run the nvidia-smi command
-	// cmd := exec.Command("nvidia-smi", "-q", "-i", "0")
-	// var out bytes.Buffer
-	// cmd.Stdout = &out
-
-	out, err := utils.ExecCommand(ctx, "nvidia-smi", "-q", "-i", "0")
+	out, err := utils.ExecCommand(ctx, "nvidia-smi", "-q", "-i", strconv.Itoa(devIndex))
 	if err != nil {
-		return fmt.Errorf("failed to run nvidia-smi: %v", err)
+		return fmt.Errorf("failed to run nvidia-smi on device %d: %v", devIndex, err)
 	}
 
 	output := string(out)

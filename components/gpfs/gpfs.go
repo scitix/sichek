@@ -121,7 +121,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("failed to collect gpfs info: %v", err)
 		return nil, err
@@ -148,7 +148,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 	}
 
-	res_result := &common.Result{
+	resResult := &common.Result{
 		Item:       commonCfg.ComponentNameGpfs,
 		Status:     status,
 		Level:      level,
@@ -159,11 +159,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
-	c.cacheBuffer[c.currIndex] = res_result
+	c.cacheBuffer[c.currIndex] = resResult
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "gpfs").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "gpfs").Infof("Health Check PASSED")
+	}
 
-	return res_result, nil
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {

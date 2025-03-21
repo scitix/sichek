@@ -38,7 +38,7 @@ func NewCheckers(ctx context.Context, cfg common.ComponentConfig) ([]common.Chec
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, config := range gpfs_cfg.EventCheckers {
+	for name, config := range gpfs_cfg.Gpfs.EventCheckers {
 		checker, err := NewEventChecker(ctx, config)
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("create event checker %s failed: %v", name, err)

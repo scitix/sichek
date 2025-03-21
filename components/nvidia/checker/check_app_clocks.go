@@ -89,7 +89,8 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
 		result.Status = commonCfg.StatusNormal
-
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

@@ -36,9 +36,14 @@ var AllowedSignals = []os.Signal{
 	unix.SIGPIPE,
 }
 
-func HandleSignals(ctx context.Context, cancel context.CancelFunc, signals chan os.Signal, serverC chan Service) chan struct{} {
+func HandleSignals(cancel context.CancelFunc, signals chan os.Signal, serverC chan Service) chan struct{} {
 	done := make(chan struct{}, 1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[HandleSignals] panic err is %s\n", err)
+			}
+		}()
 		var server Service
 		for {
 			select {
@@ -60,7 +65,7 @@ func HandleSignals(ctx context.Context, cancel context.CancelFunc, signals chan 
 					cancel()
 
 					if exist, _ := systemd.SystemctlExists(); exist {
-						if err := NotifyStopping(ctx); err != nil {
+						if err := NotifyStopping(); err != nil {
 							logrus.Error("notify stopping failed")
 						}
 					}
@@ -81,16 +86,16 @@ func HandleSignals(ctx context.Context, cancel context.CancelFunc, signals chan 
 }
 
 // notifyReady notifies systemd that the daemon is ready to serve requests
-func NotifyReady(ctx context.Context) error {
-	return sdNotify(ctx, sd.SdNotifyReady)
+func NotifyReady() error {
+	return sdNotify(sd.SdNotifyReady)
 }
 
 // notifyStopping notifies systemd that the daemon is about to be stopped
-func NotifyStopping(ctx context.Context) error {
-	return sdNotify(ctx, sd.SdNotifyStopping)
+func NotifyStopping() error {
+	return sdNotify(sd.SdNotifyStopping)
 }
 
-func sdNotify(ctx context.Context, state string) error {
+func sdNotify(state string) error {
 	notified, err := sd.SdNotify(false, state)
 	logrus.Debugf("sd notification: %v %v %v", state, notified, err)
 	return err

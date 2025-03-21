@@ -41,13 +41,13 @@ func NewDmesgCollector(ctx context.Context, cfg common.ComponentConfig) (*DmesgC
 		return nil, fmt.Errorf("invalid config type for GPFS")
 	}
 
-	if len(config.CheckerConfigs) == 0 {
+	if len(config.Dmesg.CheckerConfigs) == 0 {
 		return nil, fmt.Errorf("No Dmesg Collector indicate in yaml config")
 	}
-	regexpName := make([]string, 0, len(config.CheckerConfigs))
-	regexp := make([]string, 0, len(config.CheckerConfigs))
+	regexpName := make([]string, 0, len(config.Dmesg.CheckerConfigs))
+	regexp := make([]string, 0, len(config.Dmesg.CheckerConfigs))
 
-	for _, checkers_cfg := range config.CheckerConfigs {
+	for _, checkers_cfg := range config.Dmesg.CheckerConfigs {
 		regexpName = append(regexpName, checkers_cfg.Name)
 		regexp = append(regexp, checkers_cfg.Regexp)
 	}
@@ -55,8 +55,8 @@ func NewDmesgCollector(ctx context.Context, cfg common.ComponentConfig) (*DmesgC
 	filter, err := filter.NewFilter(
 		regexpName,
 		regexp,
-		config.DmesgFileName,
-		config.DmesgCmd,
+		config.Dmesg.DmesgFileName,
+		config.Dmesg.DmesgCmd,
 		5000,
 	)
 	if err != nil {
@@ -79,7 +79,7 @@ func (c *DmesgCollector) GetCfg() common.ComponentConfig {
 	return c.cfg
 }
 
-func (c *DmesgCollector) Collect() (common.Info, error) {
+func (c *DmesgCollector) Collect(ctx context.Context) (common.Info, error) {
 	filterRes := c.filter.Check()
 
 	var res checker.DmesgInfo

@@ -36,16 +36,6 @@ RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure --frontend
 
 WORKDIR /opt/sichek
 
-# COPY --from=build /go/src/sichek/components/cpu/config/*.yaml /var/sichek/cpu/
-# COPY --from=build /go/src/sichek/components/disk/config/*.yaml /var/sichek/disk/
-# COPY --from=build /go/src/sichek/components/dmesg/config/*.yaml /var/sichek/dmesg/
-# COPY --from=build /go/src/sichek/components/gpfs/config/*.yaml /var/sichek/gpfs/
-# COPY --from=build /go/src/sichek/components/hang/config/*.yaml /var/sichek/hang/
-# COPY --from=build /go/src/sichek/components/infiniband/config/*.yaml /var/sichek/infiniband/
-# COPY --from=build /go/src/sichek/components/memory/config/*.yaml /var/sichek/memory/
-# COPY --from=build /go/src/sichek/components/nccl/config/*.yaml /var/sichek/nccl/
-# COPY --from=build /go/src/sichek/components/nvidia/config/*.yaml /var/sichek/nvidia/
-# COPY --from=build /go/src/sichek/build/bin/* /usr/sbin/
 COPY --from=build /go/src/sichek/dist/sichek_linux_amd64.deb .
 RUN dpkg -i sichek_linux_amd64.deb && rm -rf sichek_linux_amd64.deb
 

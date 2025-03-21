@@ -53,7 +53,7 @@ func (c *CPUPerfChecker) GetSpec() common.CheckerSpec {
 func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	cpu_performance_enable, err := checkCPUPerformance()
 	if err != nil {
-		return nil, fmt.Errorf("fail to check cpu performance")
+		return nil, fmt.Errorf("fail to check cpu performance: %v", err)
 	}
 
 	result := config.CPUCheckItems[CPUPerfCheckerName]
@@ -63,7 +63,7 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		if err == nil {
 			cpu_performance_enable, err := checkCPUPerformance()
 			if err != nil {
-				return nil, fmt.Errorf("fail to check cpu performance")
+				return nil, fmt.Errorf("fail to check cpu performance2: %v", err)
 			}
 			if cpu_performance_enable {
 				result.Status = commonCfg.StatusNormal

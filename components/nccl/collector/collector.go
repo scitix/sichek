@@ -44,13 +44,13 @@ func NewNCCLCollector(ctx context.Context, cfg common.ComponentConfig) (*NCCLCol
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for GPFS")
 	}
-	if len(config.CheckerConfigs) == 0 {
+	if len(config.NCCL.CheckerConfigs) == 0 {
 		return nil, fmt.Errorf("No NCCL Collector indicate in yaml config")
 	}
 
 	var regexpName []string
 	var regexp []string
-	for _, checkers_cfg := range config.CheckerConfigs {
+	for _, checkers_cfg := range config.NCCL.CheckerConfigs {
 		regexpName = append(regexpName, checkers_cfg.Name)
 		regexp = append(regexp, checkers_cfg.Regexp)
 	}
@@ -83,10 +83,10 @@ func (c *NCCLCollector) GetCfg() common.ComponentConfig {
 	return c.cfg
 }
 
-func (c *NCCLCollector) Collect() (common.Info, error) {
-	allFiles, err := GetAllFilePaths(c.cfg.DirPath)
+func (c *NCCLCollector) Collect(ctx context.Context) (common.Info, error) {
+	allFiles, err := GetAllFilePaths(c.cfg.NCCL.DirPath)
 	if err != nil {
-		logrus.WithError(err).Errorf("failed to walkdir in %s", c.cfg.DirPath)
+		logrus.WithError(err).Errorf("failed to walkdir in %s", c.cfg.NCCL.DirPath)
 		return nil, err
 	}
 

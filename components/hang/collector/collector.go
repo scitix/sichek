@@ -49,7 +49,7 @@ func NewHangCollector(ctx context.Context, cfg common.ComponentConfig) (*HangCol
 	}
 
 	var res HangCollector
-	res.name = config.Name
+	res.name = config.Hang.Name
 	res.cfg = config
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
@@ -96,7 +96,7 @@ func (c *HangCollector) GetCfg() common.ComponentConfig {
 	return c.cfg
 }
 
-func (c *HangCollector) Collect() (common.Info, error) {
+func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
 
 	gpusInfo := getGPUInfo()
@@ -125,9 +125,6 @@ func (c *HangCollector) Collect() (common.Info, error) {
 }
 
 func getGPUInfo() []map[string]string {
-	// cmd := exec.Command("nvidia-smi", "dmon", "-s", "pucvmet", "-d", "10", "-c", "1")
-	// var out bytes.Buffer
-	// cmd.Stdout = &out
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

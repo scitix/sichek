@@ -21,13 +21,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
 	commonCfg "github.com/scitix/sichek/config"
 
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
 )
 
@@ -61,11 +61,32 @@ var (
 	nvidiaComponentOnce sync.Once
 )
 
-func NewNvml() (nvml.Interface, error) {
-	nvmlInst := nvml.New()
-	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
-		logrus.WithField("component", "NVIDIA").Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
-		return nil, fmt.Errorf("%v", nvml.ErrorString(ret))
+func NewNvml(ctx context.Context) (nvml.Interface, error) {
+	ctx_, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	var nvmlInst nvml.Interface
+	var initError error
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				initError = fmt.Errorf("panic occurred during NVML initialization: %v", err)
+			}
+			close(done)
+		}()
+		nvmlInst = nvml.New()
+		if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
+			initError = fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
+		}
+	}()
+	select {
+	case <-ctx_.Done():
+		return nil, fmt.Errorf("failed to initialize NVML: TIMEOUT")
+	case <-done:
+		if initError != nil {
+			return nil, initError
+		}
 	}
 	return nvmlInst, nil
 }
@@ -87,7 +108,7 @@ func ReNewNvml(c *component) error {
 		return fmt.Errorf("shutdownRet:%s", shutdownRet.Error())
 	}
 
-	nvmlInst, ret := NewNvml()
+	nvmlInst, ret := NewNvml(c.ctx)
 	if ret != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML: %v", ret)
 		return ret
@@ -105,46 +126,21 @@ func StopNvml(nvmlInst nvml.Interface) error {
 	return nil
 }
 
-func NewComponent(cfgFile string, ignored_checkers []string) (comp common.Component, err error) {
+func GetComponent() common.Component {
+	if nvidiaComponent == nil {
+		panic("nvidia component not initialized")
+	}
+	return nvidiaComponent
+}
+
+func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
-		nvidiaComponent, err = newNvidia(cfgFile, ignored_checkers)
-		if err != nil {
-			panic(err)
-		}
+		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
 	})
-	return nvidiaComponent, nil
+	return nvidiaComponent, err
 }
 
-func getDeviceID(nvmlInst nvml.Interface) (string, error) {
-	// In case of GPU error, iterate through all GPUs to find the first valid one
-	deviceCount, err := nvmlInst.DeviceGetCount()
-	if err != nvml.SUCCESS {
-		logrus.WithField("component", "NVIDIA").Errorf("Failed to get device count: %s\n", nvml.ErrorString(err))
-		stopErr := StopNvml(nvmlInst)
-		if stopErr != nil {
-			return "", fmt.Errorf("failed to stop numl: %s", stopErr)
-		}
-		return "", fmt.Errorf("failed to get device count: %s", nvml.ErrorString(err))
-	}
-	var deviceID string
-	for i := 0; i < deviceCount; i++ {
-		device, err := nvmlInst.DeviceGetHandleByIndex(i)
-		if err != nvml.SUCCESS {
-			logrus.WithField("component", "NVIDIA").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
-			continue
-		}
-		pciInfo, err := device.GetPciInfo()
-		if err != nvml.SUCCESS {
-			logrus.WithField("component", "NVIDIA").Errorf("failed to get PCIe Info  for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
-			continue
-		}
-		deviceID = fmt.Sprintf("0x%x", pciInfo.PciDeviceId)
-		return deviceID, nil
-	}
-	return "", fmt.Errorf("failed to get product name for NVIDIA GPU")
-}
-
-func newNvidia(cfgFile string, ignored_checkers []string) (comp *component, err error) {
+func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -152,62 +148,51 @@ func newNvidia(cfgFile string, ignored_checkers []string) (comp *component, err 
 		}
 	}()
 
-	nvmlInst, err := NewNvml()
+	nvmlInst, err := NewNvml(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
 		return nil, err
 	}
-	cfg := &nvidiaCfg.NvidiaConfig{}
-	deviceID, err := getDeviceID(nvmlInst)
-	if err != nil {
-		panic("failed to get PCIe Device ID for NVIDIA GPU")
-	}
-	specFile, err := nvidiaCfg.GetSpec(deviceID)
-	if err != nil {
-		panic("failed to get spec file for NVIDIA GPU")
-	}
-	err = cfg.LoadFromYaml(cfgFile, specFile)
-	if err != nil {
-		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia load config yaml %s failed: %v", cfgFile, err)
-		return nil, err
-	}
-	if len(ignored_checkers) > 0 {
-		cfg.ComponentConfig.IgnoredCheckers = ignored_checkers
+
+	var nvidiaCfg nvidiaCfg.NvidiaConfig
+	nvidiaCfg.LoadFromYaml(cfgFile, specFile)
+	if len(ignoredCheckers) > 0 {
+		nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers = ignoredCheckers
 	}
 
-	collector, err := collector.NewNvidiaCollector(nvmlInst, cfg.Spec.GpuNums)
+	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaCfg.Spec.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidiaCollector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(cfg, nvmlInst)
+	checkers, err := checker.NewCheckers(&nvidiaCfg, nvmlInst)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewCheckers failed: %v", err)
 		return nil, err
 	}
 
 	resultChannel := make(chan *common.Result)
-	xidPoller, err := NewXidEventPoller(ctx, cfg.ComponentConfig, nvmlInst, resultChannel)
+	xidPoller, err := NewXidEventPoller(ctx, nvidiaCfg.ComponentConfig, nvmlInst, resultChannel)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewXidEventPoller failed: %v", err)
 		return nil, err
 	}
 
 	component := &component{
-		name:          "NVIDIA",
+		name:          commonCfg.ComponentNameNvidia,
 		ctx:           ctx,
 		cancel:        cancel,
-		cfg:           cfg.ComponentConfig,
+		cfg:           nvidiaCfg.ComponentConfig,
 		cfgMutex:      sync.RWMutex{},
 		nvmlInst:      nvmlInst,
 		collector:     collector,
 		checkers:      checkers,
 		cacheMtx:      sync.RWMutex{},
-		cacheBuffer:   make([]*common.Result, cfg.ComponentConfig.CacheSize),
-		cacheInfo:     make([]common.Info, cfg.ComponentConfig.CacheSize),
+		cacheBuffer:   make([]*common.Result, nvidiaCfg.ComponentConfig.Nvidia.CacheSize),
+		cacheInfo:     make([]common.Info, nvidiaCfg.ComponentConfig.Nvidia.CacheSize),
 		currIndex:     0,
-		cacheSize:     cfg.ComponentConfig.CacheSize,
+		cacheSize:     nvidiaCfg.ComponentConfig.Nvidia.CacheSize,
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
@@ -224,7 +209,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
 
-	nvidiaInfo, err := c.collector.Collect()
+	nvidiaInfo, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
@@ -239,29 +224,26 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to check: %v", err)
 			// continue
 		}
-		checkerResults = append(checkerResults, checkResult)
+		if checkResult != nil {
+			checkerResults = append(checkerResults, checkResult)
 
-		if checkResult.Status == commonCfg.StatusAbnormal {
-			status = commonCfg.StatusAbnormal
-			if checkResult.Level == commonCfg.LevelCritical || level == commonCfg.LevelInfo {
-				level = checkResult.Level
+			if checkResult.Status == commonCfg.StatusAbnormal {
+				status = commonCfg.StatusAbnormal
+				if checkResult.Level == commonCfg.LevelCritical || level == commonCfg.LevelInfo {
+					level = checkResult.Level
+				}
 			}
 		}
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "NVIDIA").Infof("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
-	}
-
-	for _, checkItem := range checkerResults {
 		if checkItem.Status == commonCfg.StatusAbnormal {
+			logrus.WithField("component", "NVIDIA").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			status = commonCfg.StatusAbnormal
-			level = fmt.Sprintf("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
 			break
 		}
 	}
-
-	res_result := &common.Result{
+	resResult := &common.Result{
 		Item:     c.name,
 		Status:   status,
 		Level:    level,
@@ -270,23 +252,17 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	c.cacheMtx.Lock()
-	c.cacheBuffer[c.currIndex] = res_result
+	c.cacheBuffer[c.currIndex] = resResult
 	c.cacheInfo[c.currIndex] = nvidiaInfo
-	// for index, devInfo := range nvidiaInfo.DevicesInfo {
-	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, Power: %v", c.currIndex, index, common.ToString(devInfo.Power))
-	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, Utilization: %v", c.currIndex, index, common.ToString(devInfo.Utilization))
-	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, PCIeInfo: %v", c.currIndex, index, common.ToString(devInfo.PCIeInfo))
-	// 	logrus.WithField("component", "NVIDIA").Infof("cache index %d gpu %d, Clock: %v", c.currIndex, index, common.ToString(devInfo.Clock))
-	// }
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if res_result.Status == commonCfg.StatusAbnormal {
-		logrus.WithField("component", "NVIDIA").Errorf("health check failed")
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "NVIDIA").Errorf("Health Check Failed")
 	} else {
-		logrus.WithField("component", "NVIDIA").Infof("health check passed")
+		logrus.WithField("component", "NVIDIA").Infof("Health Check PASSED")
 	}
 
-	return res_result, nil
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
@@ -337,6 +313,11 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 	c.serviceMtx.Unlock()
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[Nvidiastart] panic err is %s\n", err)
+			}
+		}()
 		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
 		defer ticker.Stop()
 
@@ -352,16 +333,19 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 					fmt.Printf("%s analyze failed: %v\n", c.name, err)
 					continue
 				}
-				if result.Level == commonCfg.LevelCritical || result.Level == commonCfg.LevelWarning {
-					c.serviceMtx.Lock()
-					c.resultChannel <- result
-					c.serviceMtx.Unlock()
-				}
+				c.serviceMtx.Lock()
+				c.resultChannel <- result
+				c.serviceMtx.Unlock()
 			}
 		}
 	}()
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[xidPoller] panic err is %s\n", err)
+			}
+		}()
 		err := c.xidPoller.Start()
 		if err != nil {
 			logrus.WithField("component", "NVIDIA").Errorf("start xid poller failed: %v", err)
