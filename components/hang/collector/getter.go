@@ -59,7 +59,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter 
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
-	if !config.Hang.Mock {
+	if !config.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
 	} else {
 		if res.nvidiaComponent, err = NewMockNvidiaComponent("", []string{}); err != nil {

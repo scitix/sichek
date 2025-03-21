@@ -1,0 +1,38 @@
+nvidia:
+  0x20b010de:
+    name: NVIDIA A100-SXM4-40GB
+    gpu_nums: 8
+    gpu_memory: 40
+    software:
+      driver_version: "535.129.03"
+      cuda_version: "12.2"
+      vbios_version: "92.00.9E.00.01"
+      fabricmanager_version: "535.129.03"
+    dependence:
+      pcie_acs: disable
+      iommu: off
+      nv_peermem: enable
+      nv_fabricmanager: active
+      cpu_performance: enable
+    MaxClock:
+      Graphics: 1410 # MHz
+      Memory: 1215 # MHz
+      SM: 1410 # MHz
+    nvlink:
+      nvlink_supported: true
+      active_nvlink_num: 12
+      total_replay_errors: 0
+      total_recovery_errors: 0
+      total_crc_errors: 0
+    state:
+      persistence: enable
+      pstate: 0
+    memory_errors_threshold:
+      remapped_uncorrectable_errors: 512
+      sram_volatile_uncorrectable_errors: 0
+      sram_aggregate_uncorrectable_errors: 4
+      sram_volatile_correctable_errors: 10000000
+      sram_aggregate_correctable_errors: 10000000
+    temperature_threshold:
+      gpu: 75
+      memory: 95

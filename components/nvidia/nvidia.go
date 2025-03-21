@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/components/nvidia/config"
 	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
 	commonCfg "github.com/scitix/sichek/config"
 

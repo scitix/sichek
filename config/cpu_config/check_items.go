@@ -13,26 +13,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package config
+package cpu_config
 
 import (
-	"time"
-
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 )
 
-// 实现ComponentsConfig 接口
-type InfinibandConfig struct {
-	Name            string        `json:"name" yaml:"name"`
-	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
-	IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
-}
-
-func (c *InfinibandConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	return nil
-}
-
-func (c *InfinibandConfig) GetQueryInterval() time.Duration {
-	return c.Infiniband.QueryInterval
+// CPUCheckItems is a map of check items for System
+var CPUCheckItems = map[string]common.CheckerResult{
+	"cpu-performance": {
+		Name:        "cpu-performance",
+		Description: "Check if all cpus are in performance mode",
+		Spec:        "Enabled",
+		Status:      "",
+		Level:       consts.LevelWarning,
+		Detail:      "",
+		ErrorName:   "CPUPerfModeNotEnabled",
+		Suggestion:  "run `echo performance > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor` to set all cpus to performance mode. Ideally this will be done automatically online",
+	},
 }

@@ -13,14 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package config
+package nvidia_config
 
 import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
 
-	"sigs.k8s.io/yaml"
+		"github.com/scitix/sichek/utils"
 )
 
 type NvidiaConfig struct {
@@ -28,19 +28,10 @@ type NvidiaConfig struct {
 	ComponentConfig *ComponentConfig
 }
 
-func (c *NvidiaConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *NvidiaConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
 func (c *NvidiaConfig) LoadFromYaml(userConfig string, specFile string) {
 	c.Spec = GetSpec(specFile)
-	err := c.ComponentConfig.LoadFromYaml(userConfig)
+	c.ComponentConfig = &ComponentConfig{}
+	err := utils.LoadFromYaml(userConfig, c.ComponentConfig)
 	if err != nil {
 		c.ComponentConfig.SetDefault()
 	}
@@ -64,43 +55,6 @@ func (c *ComponentConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 }
 func (c *ComponentConfig) GetQueryInterval() time.Duration {
 	return c.Nvidia.QueryInterval
-}
-
-func (c *ComponentConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *ComponentConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *ComponentConfig) LoadFromYaml(filename string) error {
-	if filename == "" {
-		_, err := os.Stat("/var/sichek/nvidia/default_user_config.yaml")
-		if err == nil {
-			// run in pod use /var/sichek/nvidia/default_user_config.yaml
-			filename = "/var/sichek/nvidia/default_user_config.yaml"
-		} else {
-			// run on host use local config
-			_, curFile, _, ok := runtime.Caller(0)
-			if !ok {
-				return fmt.Errorf("get curr file path failed")
-			}
-
-			filename = filepath.Dir(curFile) + "/default_user_config.yaml"
-		}
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-	return nil
 }
 
 func (c *ComponentConfig) SetDefault() {

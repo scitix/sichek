@@ -145,3 +145,20 @@ func GetDefaultConfig(useComponents []string, ignoreComponents []string) (*Confi
 		Components: enabled_components,
 	}, nil
 }
+
+func DefaultConfig(component string, config interface{}) error {
+	defaultCfgPath := consts.DefaultPodCfgPath + component + consts.DefaultCfgName
+	_, err := os.Stat(defaultCfgPath)
+	if err != nil {
+		// run on host use local config
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// 获取当前文件的目录
+		currentDir := filepath.Dir(curFile)
+		defaultCfgPath = filepath.Join(filepath.Dir(currentDir), "components", component, "config", consts.DefaultCfgName)
+	}
+	err = utils.LoadFromYaml(defaultCfgPath, config)
+	return err
+}
