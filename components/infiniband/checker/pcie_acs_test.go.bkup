@@ -42,7 +42,7 @@ func (m *MockPCIEACSChecker) executeSetpciCommand(bdf string, flag string) (stri
 
 func TestPCIEACSChecker_Check(t *testing.T) {
 	// Mock 的 Spec 配置，设定 ACS 期望值
-	spec := &config.InfinibandHCASpec{
+	spec := &config.InfinibandSpec{
 		SoftwareDependencies: config.SoftwareDependencies{
 			PcieACS: "0000", // 模拟的期望 ACS 值
 		},

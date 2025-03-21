@@ -47,9 +47,16 @@ func (c *NvPeerMemChecker) GetSpec() common.CheckerSpec {
 
 func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Check if ib_core and nvidia_peermem, and ib_core is using nvidia_peermem
-	usingPeermem, err := utils.IsKernalModuleHolder("ib_core", "nvidia_peermem")
+	// Note: for Driver Version 470.199.02, nvidia_peermem is holder by ib_uverbs
+	usingPeermem, err := utils.IsKernalModuleHolder("ib_uverbs", "nvidia_peermem")
 	if err != nil {
-		return nil, fmt.Errorf("failed to check %s is in %s", "ib_core", "nvidia_peermem")
+		return nil, fmt.Errorf("failed to check %s is in %s", "ib_uverbs", "nvidia_peermem")
+	}
+	if !usingPeermem {
+		usingPeermem, err = utils.IsKernalModuleHolder("ib_core", "nvidia_peermem")
+		if err != nil {
+			return nil, fmt.Errorf("failed to check %s is in %s", "ib_core", "nvidia_peermem")
+		}
 	}
 
 	result := config.GPUCheckItems[config.NvPeerMemCheckerName]
@@ -60,15 +67,19 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 			result.Status = commonCfg.StatusNormal
 			result.Curr = "LoadedOnline"
 			result.Detail = "nvidia_peermem is not loaded. It has been loaded online successfully"
+			result.Suggestion = ""
+			result.ErrorName = ""
 		} else {
 			result.Status = commonCfg.StatusAbnormal
 			result.Curr = "NotLoaded"
-			result.Detail = "nvidia_peermem is not loaded correctly. Failed to load nvidia_peermem online"
+			result.Detail = fmt.Sprintf("nvidia_peermem is not loaded correctly. Failed to load nvidia_peermem online: %v", err)
 		}
 	} else {
 		result.Status = commonCfg.StatusNormal
 		result.Curr = "Loaded"
 		result.Detail = "nvidia_peermem is loaded correctly"
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

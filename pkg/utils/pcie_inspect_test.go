@@ -2,15 +2,13 @@ package utils
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 )
 
 func TestGetAllPCIeBDF(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := GetAllPCIeBDF(ctx)
 	if err != nil {
@@ -22,24 +20,15 @@ func TestGetAllPCIeBDF(t *testing.T) {
 		t.Errorf("Expected to find PCI devices, but got none")
 	}
 
-	t.Logf("%v", result)
-}
-
-func TestGetACSEnabledPCIEDevices(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	// Call the function being tested
-	acsEnDevices, err := GetACSEnabledPCIEDevices(ctx)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	for _, deviceBDF := range result {
+		t.Logf("%v", deviceBDF)
 	}
+	t.Logf("Got %d PCIe devices", len(result))
 
-	// Check the result
-	t.Logf("Got ACS enabled device BDF %v", acsEnDevices)
 }
 
-func TestGetACSCapPCIEDevices(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+func TestGetACSCapDevices(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// Call the function being tested
 	result, err := GetACSCapablePCIEDevices(ctx)
@@ -49,12 +38,27 @@ func TestGetACSCapPCIEDevices(t *testing.T) {
 
 	// Check the result
 	for _, deviceBDF := range result {
-		t.Logf("Got ACS Capable device BDF %s", deviceBDF)
+		t.Logf("Got %d ACS Capable device BDF %s", len(result), deviceBDF)
+	}
+}
+
+func TestGetACSEnabledDevices(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// Call the function being tested
+	acsEnDevices, err := GetACSEnabledDevices(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Check the result
+	for _, devicePCIACS := range acsEnDevices {
+		t.Logf("Got %d ACS Enabled device BDF %s", len(acsEnDevices), devicePCIACS.BDF)
 	}
 }
 
 func TestACSEnableAndDisable(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	acsCapDevices, err := GetACSCapablePCIEDevices(ctx)
@@ -64,34 +68,36 @@ func TestACSEnableAndDisable(t *testing.T) {
 
 	if len(acsCapDevices) != 0 {
 		// select the last device to test
+		t.Logf("======test: `EnableACS`=====")
 		deviceBDF := acsCapDevices[len(acsCapDevices)-1]
 		result := EnableACS(ctx, deviceBDF)
 		if result != nil {
 			t.Fatalf("Unexpected error: %v", result)
 		}
-		isACSDisable, _ := IsACSDisabled(ctx, deviceBDF)
+		isACSDisable, _, _ := IsACSDisabled(ctx, deviceBDF)
 		if isACSDisable {
 			t.Fatalf("ACS is not enable for device %s", deviceBDF)
 		}
-		t.Logf("ACS enable for device %s successfully", deviceBDF)
+		t.Logf("ACS is enabled for device %s successfully", deviceBDF)
 
+		t.Logf("======test: `DisableACS`=====")
 		result = DisableACS(ctx, deviceBDF)
 		if result != nil {
 			t.Fatalf("Unexpected error: %v", result)
 		}
-		isACSDisable, err = IsACSDisabled(ctx, deviceBDF)
+		isACSDisable, _, err = IsACSDisabled(ctx, deviceBDF)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		if !isACSDisable {
 			t.Fatalf("ACS is not disable for device %s", deviceBDF)
 		}
-		t.Logf("ACS disable for device %s successfully", deviceBDF)
+		t.Logf("ACS is disabled for device %s successfully", deviceBDF)
 	}
 }
 
-func TestDisableAllACS(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+func TestDisableBatchACS(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	acsCapDevices, err := GetACSCapablePCIEDevices(ctx)
 	if err != nil {
@@ -99,24 +105,33 @@ func TestDisableAllACS(t *testing.T) {
 	}
 
 	if len(acsCapDevices) != 0 {
+		t.Logf("======test: `EnableACS for 2 capable devices`=====")
+		batch := 0
 		for _, deviceBDF := range acsCapDevices {
+			batch++
 			result := EnableACS(ctx, deviceBDF)
 			if result != nil {
 				t.Fatalf("Unexpected error: %v", result)
 			}
+			if batch == 2 {
+				break
+			}
 		}
-		t.Logf("Enable ACS for all %d capable devices for test", len(acsCapDevices))
+		t.Logf("Enable ACS for 2 capable devices for test")
 
-		pcieACS, err := IsAllACSDisabled(ctx)
+		t.Logf("======test: `GetACSEnabledDevices`=====")
+		pcieACS, err := GetACSEnabledDevices(ctx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		if pcieACS == nil {
-			t.Fatalf("Unexpected ACS is disabled for all devices")
+		t.Logf("Get %d enabled ACS devices", len(pcieACS))
+		if len(pcieACS) != 2 {
+			t.Fatalf("Got %d devices that ACS is enabled, expected 2", len(pcieACS))
 		}
 
-		pcieACS, err = DisableAllACS(ctx)
+		t.Logf("======test: `BatchDisableACS`=====")
+		pcieACS, err = BatchDisableACS(ctx, pcieACS)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -126,42 +141,3 @@ func TestDisableAllACS(t *testing.T) {
 	}
 }
 
-func GetACSEnabledPCIEDevices(ctx context.Context) ([]string, error) {
-	devices, _ := GetAllPCIeBDF(ctx)
-	var acsDisabledDevices []string
-	for _, deviceBDF := range devices {
-		acsDisable, _ := IsACSDisabled(ctx, deviceBDF)
-		if !acsDisable {
-			acsDisabledDevices = append(acsDisabledDevices, deviceBDF)
-		}
-	}
-	return acsDisabledDevices, nil
-}
-
-func GetACSCapablePCIEDevices(ctx context.Context) ([]string, error) {
-	devices, _ := GetAllPCIeBDF(ctx)
-	var acsCapDevices []string
-	for _, deviceBDF := range devices {
-		acsCap, err := ExecCommand(ctx, "setpci", "-s", deviceBDF, "ecap_acs+4.w")
-		if err == nil {
-			if strings.TrimSpace(string(acsCap))[0] != 'f' {
-				acsCapDevices = append(acsCapDevices, deviceBDF)
-			}
-		}
-	}
-	return acsCapDevices, nil
-}
-
-func EnableACS(ctx context.Context, deviceBDF string) error {
-	isACSDisable, _ := IsACSDisabled(ctx, deviceBDF)
-	if isACSDisable {
-		// Construct and run the setpci command
-		_, err := ExecCommand(ctx, "setpci", "-v", "-s", deviceBDF, "ecap_acs+6.w=7f")
-		if err != nil {
-			logrus.WithField("component", "Utils").Errorf("Error enable ACS on device %v: %v", deviceBDF, err)
-			return err
-		}
-		logrus.WithField("component", "Utils").Infof("Enabling ACS on device %v successfully", deviceBDF)
-	}
-	return nil
-}

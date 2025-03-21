@@ -79,6 +79,8 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
 		result.Status = commonCfg.StatusNormal
+		result.Suggestion = ""
+		result.ErrorName = ""
 		if c.cfg.State.GpuPstate != 0 {
 			result.Curr = fmt.Sprintf("Below or Is P%d", c.cfg.State.GpuPstate)
 		} else {

@@ -66,12 +66,20 @@ func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	isIOMMUClosed := len(groups) == 0
 	result := config.GPUCheckItems[config.IOMMUCheckerName]
 
-	if !isIOMMUClosed {
+	if !isIOMMUClosed && c.cfg.Dependence.Iommu == "on" {
 		result.Status = commonCfg.StatusAbnormal
-		result.Detail = "IOMMU is ON"
+		result.Detail = "IOMMU is ON, while it should be OFF"
+		result.Suggestion = "Please turn off IOMMU"
 	} else {
 		result.Status = commonCfg.StatusNormal
-		result.Detail = "IOMMU is OFF"
+		if isIOMMUClosed {
+			result.Curr = "OFF"
+		} else {
+			result.Curr = "ON"
+		}
+		result.Detail = fmt.Sprintf("IOMMU is %s", result.Curr)
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

@@ -26,8 +26,8 @@ import (
 
 func TestIBKmodChecker_Check(t *testing.T) {
 	// 模拟配置文件 Spec
-	spec := &config.InfinibandHCASpec{
-		SoftwareDependencies: config.SoftwareDependencies{
+	spec := &config.InfinibandSpec{
+		IBSoftWareInfo: collector.IBSoftWareInfo{
 			KernelModule: []string{"mlx5_core", "ib_uverbs", "rdma_ucm"},
 		},
 	}

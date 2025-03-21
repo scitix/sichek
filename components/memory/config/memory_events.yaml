@@ -1,29 +1,30 @@
-name: memory
-query_interval: 10
-cache_size: 10
-checkers:
-  OutOfMemory:
-    name: "OutOfMemory"
-    description: "Out of memory"
-    log_file: "/var/log/syslog"
-    regexp: "(out of memory)|(Out of memory)"
-    level: critical
-  UncorrectableECC:
-    name: "UncorrectableECC"
-    description: "Uncorrectable ECC error detected"
-    log_file: "/var/log/syslog"
-    # example: 
-    # Nov 28 13:45:12 servername kernel: [67890.123456] EDAC MC0: 1 UE memory read error on CPU_SrcID#1_Channel#1_DIMM#1
-    # Nov 28 13:45:12 servername kernel: [67890.123457] Uncorrectable ECC error detected on DIMM_B2.
-    # Nov 28 13:45:12 servername kernel: [67890.123457] Action required: Replace memory module at slot DIMM_B2.
-    regexp: "(EDAC MC0)&(UE memory)"
-    level: critical
-  CorrectableECC:
-    name: "CorrectableECC"
-    description: "Correctable ECC error reported"
-    log_file: "/var/log/syslog"
-    # example: 
-    # Nov 20 12:34:56 servername kernel: [12345.678901] EDAC MC0: 1 CE memory read error on CPU_SrcID#0_Channel#0_DIMM#0
-    # Nov 20 12:34:56 servername kernel: [12345.678901] Correctable ECC error reported on DIMM_A1.
-    regexp: "(EDAC MC0)&(CE memory)"
-    level: warning
+memory:
+  name: memory
+  query_interval: 10
+  cache_size: 10
+  checkers:
+    OutOfMemory:
+      name: "OutOfMemory"
+      description: "Out of memory"
+      log_file: "/var/log/syslog"
+      regexp: "(out of memory)|(Out of memory)"
+      level: critical
+    UncorrectableECC:
+      name: "UncorrectableECC"
+      description: "Uncorrectable ECC error detected"
+      log_file: "/var/log/syslog"
+      # example: 
+      # Nov 28 13:45:12 servername kernel: [67890.123456] EDAC MC0: 1 UE memory read error on CPU_SrcID#1_Channel#1_DIMM#1
+      # Nov 28 13:45:12 servername kernel: [67890.123457] Uncorrectable ECC error detected on DIMM_B2.
+      # Nov 28 13:45:12 servername kernel: [67890.123457] Action required: Replace memory module at slot DIMM_B2.
+      regexp: "(EDAC MC0)&(UE memory)"
+      level: critical
+    CorrectableECC:
+      name: "CorrectableECC"
+      description: "Correctable ECC error reported"
+      log_file: "/var/log/syslog"
+      # example: 
+      # Nov 20 12:34:56 servername kernel: [12345.678901] EDAC MC0: 1 CE memory read error on CPU_SrcID#0_Channel#0_DIMM#0
+      # Nov 20 12:34:56 servername kernel: [12345.678901] Correctable ECC error reported on DIMM_A1.
+      regexp: "(EDAC MC0)&(CE memory)"
+      level: warning

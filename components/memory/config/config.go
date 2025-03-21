@@ -30,26 +30,28 @@ import (
 )
 
 type MemoryConfig struct {
-	Name          string                        `json:"name" yaml:"name"`
-	QueryInterval time.Duration                 `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                         `json:"cache_size" yaml:"cache_size"`
-	Checkers      map[string]*MemoryEventConfig `json:"checkers" yaml:"checkers"`
+	Memory struct {
+		Name          string                        `json:"name" yaml:"name"`
+		QueryInterval time.Duration                 `json:"query_interval" yaml:"query_interval"`
+		CacheSize     int64                         `json:"cache_size" yaml:"cache_size"`
+		Checkers      map[string]*MemoryEventConfig `json:"checkers" yaml:"checkers"`
+	} `json:"memory"`
 }
 
 func (c *MemoryConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.Checkers {
+	for name, cfg := range c.Memory.Checkers {
 		commonCfgMap[name] = cfg
 	}
 	return commonCfgMap
 }
 
 func (c *MemoryConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Memory.QueryInterval
 }
 
 func (c *MemoryConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.Memory.CacheSize
 }
 
 func (c *MemoryConfig) JSON() (string, error) {

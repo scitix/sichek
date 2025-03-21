@@ -29,11 +29,11 @@ import (
 type IBStateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBStateChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewIBStateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBStateChecker{
 		id:   commonCfg.CheckerIDInfinibandFW,
 		name: config.ChekIBState,
@@ -59,59 +59,37 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	var (
-		spec, suggestions string
-		errDevice         []string
-		level             string = commonCfg.LevelInfo
-		detail            string = config.InfinibandCheckItems[c.name].Detail
-	)
-
-	status := commonCfg.StatusNormal
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
+	failedHcas := make([]string, 0)
+	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
-		hcaType := hwInfo.HCAType
-		state := hwInfo.PortStat
-		curr = append(curr, state)
-		found := false
-		for _, hwSpec := range c.spec.HWSpec {
-			if hcaType != hwSpec.Type {
-				continue
-			}
-			spec = hwSpec.Specifications.PortState
-			if strings.Contains(state, spec) {
-				found = true
-				break
-			}
+		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
+		spec = append(spec, hcaSpec.PortState)
+		curr = append(curr, hwInfo.PortState)
+		if !strings.Contains(hwInfo.PortState, hcaSpec.PortState) {
+			result.Status = commonCfg.StatusAbnormal
+			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
-		if !found {
-			errDevice = append(errDevice, hwInfo.IBDev)
-		}
-	}
-	if len(errDevice) != 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("%s status is not ACTIVE, curr status:%s", strings.Join(errDevice, ","), strings.Join(curr, ","))
-		suggestions = fmt.Sprintf("check opensm to active %s status", strings.Join(errDevice, ","))
 	}
 
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
-	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Device = strings.Join(errDevice, ",")
-	result.Detail = detail
-	result.Suggestion = suggestions
+	result.Spec = strings.Join(spec, ",")
+	result.Device = strings.Join(failedHcas, ",")
+
+	if len(failedHcas) != 0 {
+		result.Detail = fmt.Sprintf("PortState check fail: %s NOT ACTIVE",strings.Join(failedHcas, ";"))
+		result.Suggestion = fmt.Sprintf("check opensm to active %s status", strings.Join(failedHcas, ";"))
+	}
 
 	return &result, nil
 }

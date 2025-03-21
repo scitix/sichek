@@ -37,7 +37,7 @@ type EthernetInfo struct {
 
 type EthHardWareInfo struct {
 	EthDev  string `json:"eth_dev"`
-	PhyStat string `json:"phy_stat"`
+	PhyState string `json:"phy_stat"`
 }
 
 var (
@@ -127,7 +127,7 @@ func (i *EthernetInfo) GetEthInfo() *EthernetInfo {
 	for _, EthDev := range ethInfo.EthDevs {
 		var perEthHWInfo EthHardWareInfo
 		perEthHWInfo.EthDev = EthDev
-		perEthHWInfo.PhyStat = i.GetPhyState(EthDev)[0]
+		perEthHWInfo.PhyState = i.GetPhyState(EthDev)[0]
 		perEthHWInfo.EthDev = EthDev
 		allEthHWInfo = append(allEthHWInfo, perEthHWInfo)
 	}

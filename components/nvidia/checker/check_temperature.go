@@ -88,7 +88,8 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
 		result.Status = commonCfg.StatusNormal
-
+		result.Suggestion = ""
+		result.ErrorName = ""
 	}
 	return &result, nil
 }

@@ -54,6 +54,7 @@ func NewInfinibandCmd() *cobra.Command {
 					cancel()
 				}()
 			}
+
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
@@ -62,7 +63,18 @@ func NewInfinibandCmd() *cobra.Command {
 				logrus.WithField("component", "infiniband").Info("load default cfg...")
 			}
 
-			component, err := infiniband.NewInfinibandComponent(cfgFile)
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "infiniband").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "infiniband").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "infiniband").Info("load default specFile...")
+				}
+			}
+
+			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, nil)
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error("fail to Create New Infiniband Components")
 				return
@@ -87,6 +99,7 @@ func NewInfinibandCmd() *cobra.Command {
 	}
 
 	infinibandCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
+	infinibandCmd.Flags().StringP("spec", "s", "", "Path to the Infinibnad Spec")
 	infinibandCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	return infinibandCmd
@@ -191,8 +204,8 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 			printInterval = len(ofedVersionPrint) + 2
 		}
 		fmt.Printf("%-*s\n", printInterval, ibControllersPrint)
-		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "") //, PerformancePrint)
-		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "") //, "Throughput: TBD")
+		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "")          //, PerformancePrint)
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "")   //, "Throughput: TBD")
 		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "") //, "Latency: TBD")
 		fmt.Printf("%-*s%-*s\n", printInterval, Green+""+Reset, printInterval, pcieLinkPrint)
 	}

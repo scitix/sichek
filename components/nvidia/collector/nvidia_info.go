@@ -17,12 +17,12 @@ package collector
 
 import (
 	"encoding/json"
-	"fmt"
+	// "fmt"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
 
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	// "github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 type NvidiaInfo struct {
@@ -49,36 +49,36 @@ func (nvidia *NvidiaInfo) ToString() string {
 	return common.ToString(nvidia)
 }
 
-func (nvidia *NvidiaInfo) Get(nvmlInst nvml.Interface) error {
-	nvidia.Time = time.Now()
-	// Get the software info
-	err := nvidia.SoftwareInfo.Get()
-	if err != nil {
-		return fmt.Errorf("failed to get Nvidia GPU software info: %v", err)
-	}
+// func (nvidia *NvidiaInfo) Get(nvmlInst nvml.Interface) error {
+// 	nvidia.Time = time.Now()
+// 	// Get the software info
+// 	err := nvidia.SoftwareInfo.Get(0)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get Nvidia GPU software info: %v", err)
+// 	}
 
-	// Get the number of devices
-	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1ga93623b195bff04bbe3490ca33c8a42d
-	numDevices, err := nvmlInst.DeviceGetCount()
-	if err != nvml.SUCCESS {
-		return fmt.Errorf("failed to get Nvidia GPU device count: %v", err)
-	}
-	nvidia.DeviceCount = numDevices
+// 	// Get the number of devices
+// 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1ga93623b195bff04bbe3490ca33c8a42d
+// 	numDevices, err := nvmlInst.DeviceGetCount()
+// 	if err != nvml.SUCCESS {
+// 		return fmt.Errorf("failed to get Nvidia GPU device count: %v", err)
+// 	}
+// 	nvidia.DeviceCount = numDevices
 
-	// Get the device info
-	var deviceInfo DeviceInfo
-	for i := 0; i < numDevices; i++ {
-		device, err := nvmlInst.DeviceGetHandleByIndex(i)
-		if err != nvml.SUCCESS {
-			continue
-			// return fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)
-		}
-		err2 := deviceInfo.Get(device, i)
-		if err2 != nil {
-			continue
-			// return fmt.Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
-		}
-		nvidia.DevicesInfo = append(nvidia.DevicesInfo, deviceInfo)
-	}
-	return nil
-}
+// 	// Get the device info
+// 	var deviceInfo DeviceInfo
+// 	for i := 0; i < numDevices; i++ {
+// 		device, err := nvmlInst.DeviceGetHandleByIndex(i)
+// 		if err != nvml.SUCCESS {
+// 			continue
+// 			// return fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)
+// 		}
+// 		err2 := deviceInfo.Get(device, i, nvidia.SoftwareInfo.DriverVersion)
+// 		if err2 != nil {
+// 			continue
+// 			// return fmt.Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
+// 		}
+// 		nvidia.DevicesInfo = append(nvidia.DevicesInfo, deviceInfo)
+// 	}
+// 	return nil
+// }

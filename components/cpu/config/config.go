@@ -30,15 +30,17 @@ import (
 )
 
 type CPUConfig struct {
-	Name          string                     `json:"name" yaml:"name"`
-	QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
-	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	CPU struct {
+		Name          string                     `json:"name" yaml:"name"`
+		QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
+		CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
+		EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	} `json:"cpu"`
 }
 
 func (c *CPUConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.EventCheckers {
+	for name, cfg := range c.CPU.EventCheckers {
 		key := "event_" + name
 		commonCfgMap[key] = cfg
 	}
@@ -46,11 +48,11 @@ func (c *CPUConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 }
 
 func (c *CPUConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.CPU.QueryInterval
 }
 
 func (c *CPUConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.CPU.CacheSize
 }
 
 func (c *CPUConfig) JSON() (string, error) {
