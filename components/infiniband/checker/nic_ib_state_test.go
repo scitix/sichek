@@ -26,19 +26,15 @@ import (
 
 func TestIBStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
-	spec := &config.InfinibandHCASpec{
-		HWSpec: []config.HWSpec{
-			{
-				Type: "mlx5",
-				Specifications: config.Specifications{
-					PortState: "ACTIVE",
-				},
+	spec := &config.InfinibandSpec{
+		HCAs: map[string]collector.IBHardWareInfo{
+			"mlx5": {
+				IBDev:     "mlx5",
+				PortState: "ACTIVE",
 			},
-			{
-				Type: "cx6dx",
-				Specifications: config.Specifications{
-					PortState: "ACTIVE",
-				},
+			"cx6dx": {
+				IBDev:     "cx6dx",
+				PortState: "ACTIVE",
 			},
 		},
 	}
@@ -65,8 +61,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 			name: "Normal case with all ports ACTIVE",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PortStat: "ACTIVE"},
-					{HCAType: "cx6dx", IBDev: "ib1", PortStat: "ACTIVE"},
+					{HCAType: "mlx5", IBDev: "ib0", PortState: "ACTIVE"},
+					{HCAType: "cx6dx", IBDev: "ib1", PortState: "ACTIVE"},
 				},
 			},
 			expectedStatus:     commonCfg.StatusNormal,
@@ -90,8 +86,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 			name: "Error case - One device with non-ACTIVE port state",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PortStat: "DOWN"},
-					{HCAType: "cx6dx", IBDev: "ib1", PortStat: "ACTIVE"},
+					{HCAType: "mlx5", IBDev: "ib0", PortState: "DOWN"},
+					{HCAType: "cx6dx", IBDev: "ib1", PortState: "ACTIVE"},
 				},
 			},
 			expectedStatus:     commonCfg.StatusAbnormal,
@@ -104,8 +100,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 			name: "Error case - Multiple devices with non-ACTIVE port states",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PortStat: "DOWN"},
-					{HCAType: "cx6dx", IBDev: "ib1", PortStat: "INIT"},
+					{HCAType: "mlx5", IBDev: "ib0", PortState: "DOWN"},
+					{HCAType: "cx6dx", IBDev: "ib1", PortState: "INIT"},
 				},
 			},
 			expectedStatus:     commonCfg.StatusAbnormal,

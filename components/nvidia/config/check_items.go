@@ -24,7 +24,7 @@ const (
 	NVFabricManagerCheckerName           = "nvidia-fabricmanager"
 	IOMMUCheckerName                     = "iommu"
 	NvPeerMemCheckerName                 = "nvidia_peermem"
-	GPUPCIeACSCheckerName                = "pcie-acs"
+	PCIeACSCheckerName                   = "pcie-acs"
 	SRAMAggUncorrectableCheckerName      = "ecc-sram-aggregate-uncorrectable"
 	SRAMHighcorrectableCheckerName       = "ecc-sram-high-correctable"
 	SRAMVolatileUncorrectableCheckerName = "ecc-sram-volatile-uncorrectable"
@@ -44,8 +44,8 @@ const (
 
 // GPUCheckItems is a map of check items for GPU
 var GPUCheckItems = map[string]common.CheckerResult{
-	GPUPCIeACSCheckerName: {
-		Name:        GPUPCIeACSCheckerName,
+	PCIeACSCheckerName: {
+		Name:        PCIeACSCheckerName,
 		Description: "Check if any degraded PCIe link is detected",
 		Status:      "",
 		Level:       commonCfg.LevelCritical,

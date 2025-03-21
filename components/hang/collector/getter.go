@@ -60,10 +60,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter 
 	res.indicatesComp = make(map[string]string)
 
 	if !config.Mock {
-		if res.nvidiaComponent, err = nvidia.NewComponent("", []string{}); err != nil {
-			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to NewNvidia")
-			return nil, err
-		}
+		res.nvidiaComponent = nvidia.GetComponent()
 	} else {
 		if res.nvidiaComponent, err = NewMockNvidiaComponent("", []string{}); err != nil {
 			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to NewNvidia")

@@ -29,11 +29,11 @@ import (
 type PCIEMRRChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandHCASpec
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewPCIEMRRChecker(specCfg *config.InfinibandHCASpec) (common.Checker, error) {
+func NewPCIEMRRChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &PCIEMRRChecker{
 		id:   commonCfg.CheckerIDInfinibandFW,
 		name: config.CheckPCIEMRR,
@@ -59,59 +59,40 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	var (
-		errDevice         []string
-		spec, suggestions string
-		level             string = commonCfg.LevelInfo
-		detail            string = config.InfinibandCheckItems[c.name].Detail
-	)
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-
-	status := commonCfg.StatusNormal
+	result := config.InfinibandCheckItems[c.name]
+	result.Status = commonCfg.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result := config.InfinibandCheckItems[c.name]
 		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.InfinibandCheckItems[c.name].Level
+		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
+	failedHcas := make([]string, 0)
+	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	var faiedHcasSpec []string
+	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
-		hcaType := hwInfo.HCAType
-		state := hwInfo.PCIEMRR
-		curr = append(curr, state)
-		found := false
-		for _, hwSpec := range c.spec.HWSpec {
-			if hcaType != hwSpec.Type {
-				continue
-			}
-			spec = hwSpec.Specifications.PcieMrr
-			if strings.Contains(state, spec) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			errDevice = append(errDevice, hwInfo.IBDev)
+		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
+		spec = append(spec, hcaSpec.PCIEMRR)
+		curr = append(curr, hwInfo.PCIEMRR)
+		if hwInfo.PCIEMRR != hcaSpec.PCIEMRR {
+			result.Status = commonCfg.StatusAbnormal
+			failedHcas = append(failedHcas, hwInfo.IBDev)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIEMRR)
+			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEMRR)
 		}
 	}
 
-	if len(errDevice) > 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.InfinibandCheckItems[c.name].Level
-		detail = fmt.Sprintf("%s is not right mrr setting", strings.Join(errDevice, ","))
-		suggestions = fmt.Sprintf("set the %s to write mrr", strings.Join(errDevice, ","))
-	}
-
-	result := config.InfinibandCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
-	result.Spec = spec
-	result.Status = status
-	result.Level = level
-	result.Device = strings.Join(errDevice, ",")
-	result.Detail = detail
-	result.Suggestion = suggestions
+	result.Spec = strings.Join(spec, ",")
+	result.Device = strings.Join(failedHcas, ",")
+	if len(failedHcas) != 0 {
+		result.Detail = fmt.Sprintf("PCIEMRR check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), faiedHcasSpec, faiedHcasCurr)
+		result.Suggestion = fmt.Sprintf("Set %s with PCIe MaxReadReq %s", strings.Join(failedHcas, ","), strings.Join(faiedHcasSpec, ","))
+	}
 
 	return &result, nil
 }

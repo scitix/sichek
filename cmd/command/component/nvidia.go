@@ -40,6 +40,10 @@ func NewNvidiaCmd() *cobra.Command {
 		Short:   "Perform Nvidia - related operations",
 		Long:    "Used to perform specific Nvidia - related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
+			if !utils.IsNvidiaGPUExist() {
+				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
+				logrus.Exit(0)
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
@@ -58,7 +62,22 @@ func NewNvidiaCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error(err)
 			} else {
-				logrus.WithField("components", "Nvidia").Info("load default cfg...")
+				if cfgFile != "" {
+					logrus.WithField("components", "Nvidia").Info("load cfgFile: " + cfgFile)
+				} else {
+					logrus.WithField("components", "Nvidia").Info("load default cfg...")
+				}
+			}
+
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "Nvidia").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "Nvidia").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "Nvidia").Info("load default specFile...")
+				}
 			}
 
 			ignored_checkers_str, err := cmd.Flags().GetString("ignored-checkers")
@@ -67,9 +86,8 @@ func NewNvidiaCmd() *cobra.Command {
 			} else {
 				logrus.WithField("components", "Nvidia").Info("ignore checkers", ignored_checkers_str)
 			}
-			ignored_checkers := strings.Split(ignored_checkers_str, ",")
-
-			component, err := nvidia.NewComponent(cfgFile, ignored_checkers)
+			ignoredCheckers := strings.Split(ignored_checkers_str, ",")
+			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
 			}
@@ -92,7 +110,8 @@ func NewNvidiaCmd() *cobra.Command {
 	}
 
 	NvidaCmd.Flags().StringP("cfg", "c", "", "Path to the Nvidia Cfg")
-	NvidaCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
+	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the Nvidia specification")
+	NvidaCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 	NvidaCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return NvidaCmd
@@ -130,15 +149,15 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 			checkAllPassed = false
 		}
 		switch result.Name {
-		case config.GPUPCIeACSCheckerName:
+		case config.PCIeACSCheckerName:
 			if result.Status == commonCfg.StatusNormal {
 				acsPrint = fmt.Sprintf("PCIe ACS: %sDisabled%s", Green, Reset)
 				if result.Curr != "Disabled" {
-					systemEvent[config.GPUPCIeACSCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
+					systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
 				}
 			} else {
 				acsPrint = fmt.Sprintf("PCIe ACS: %sEnabled%s", Red, Reset)
-				systemEvent[config.GPUPCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", Red, Reset)
+				systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", Red, Reset)
 			}
 		case config.IOMMUCheckerName:
 			if result.Status == commonCfg.StatusNormal {
@@ -182,7 +201,15 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 					Red, nvidiaInfo.DeviceCount, Reset, Green, len(nvidiaInfo.DeviceToPodMap), Reset)
 				gpuStatus[config.HardwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		// case config.SoftwareCheckerName:
+		case config.SoftwareCheckerName:
+			if result.Status == commonCfg.StatusNormal {
+				driverPrint = fmt.Sprintf("Driver Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.DriverVersion, Reset)
+				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.CUDAVersion, Reset)
+			} else {
+				driverPrint = fmt.Sprintf("Driver Version: %s%s%s", Red, nvidiaInfo.SoftwareInfo.DriverVersion, Reset)
+				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", Red, nvidiaInfo.SoftwareInfo.CUDAVersion, Reset)
+				gpuStatus[config.SoftwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+			}
 		case config.GpuPersistenceCheckerName:
 			if result.Status == commonCfg.StatusNormal {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", Green, result.Curr, Reset)
@@ -267,8 +294,6 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 			printInterval = termWidth / 3
 		}
 
-		driverPrint = fmt.Sprintf("Driver Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.DriverVersion, Reset)
-		cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.CUDAVersion, Reset)
 		gpuNumPrint := "GPU NUMs:"
 		fmt.Printf("%s\n", nvidiaInfo.DevicesInfo[0].Name)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, driverPrint, printInterval, iommuPrint, printInterval, persistencePrint)

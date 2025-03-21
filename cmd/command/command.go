@@ -16,7 +16,11 @@ limitations under the License.
 package command
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/scitix/sichek/cmd/command/component"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -27,6 +31,25 @@ func NewRootCmd() *cobra.Command {
 		Use:   "sichek",
 		Short: "Hardware health check tool",
 		Long:  "A command - line tool for performing operations related to different hardware components",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// 需要 root 权限的一级命令
+			commandsRequireRoot := map[string]bool{
+				"gpu":        true,
+				"g":          true,
+				"infiniband": true,
+				"i":          true,
+			}
+
+			// 判断当前命令是否需要 root
+			if commandsRequireRoot[cmd.Use] {
+				root := utils.IsRoot()
+				if !root {
+					fmt.Printf("[ERROR] Command '%s' requires root privileges. Please run as root.\n", cmd.Use)
+					os.Exit(-1)
+				}
+			}
+			return nil
+		},
 	}
 
 	// 添加子命令
@@ -42,6 +65,15 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewAllCmd())
 	rootCmd.AddCommand(NewVersionCmd())
 	rootCmd.AddCommand(NewDaemonCmd())
+
+	// add perftest subcommand
+	perftestCmd := &cobra.Command{
+		Use:   "perftest",
+		Short: "Run performance tests",
+	}
+	rootCmd.AddCommand(perftestCmd)
+
+	perftestCmd.AddCommand(component.NewIBPerftestCmd())
 
 	return rootCmd
 }

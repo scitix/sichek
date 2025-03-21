@@ -125,9 +125,6 @@ func (c *HangCollector) Collect() (common.Info, error) {
 }
 
 func getGPUInfo() []map[string]string {
-	// cmd := exec.Command("nvidia-smi", "dmon", "-s", "pucvmet", "-d", "10", "-c", "1")
-	// var out bytes.Buffer
-	// cmd.Stdout = &out
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

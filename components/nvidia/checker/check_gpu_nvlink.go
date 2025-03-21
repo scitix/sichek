@@ -61,6 +61,8 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		result.Status = commonCfg.StatusNormal
 		result.Curr = NOTSUPPORT
 		result.Detail = "Nvlink Not supported"
+		result.Suggestion = ""
+		result.ErrorName = ""
 		return &result, nil
 	}
 	// Check if all the Nvidia GPUs Nvlink are active
@@ -103,6 +105,8 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		}
 	} else {
 		result.Status = commonCfg.StatusNormal
+		result.Suggestion = ""
+		result.ErrorName = ""
 		if c.cfg.Nvlink.NVlinkSupported {
 			result.Detail = "All GPUs Nvlink are active"
 			result.Curr = "Active"

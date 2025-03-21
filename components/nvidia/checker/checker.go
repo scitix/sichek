@@ -27,23 +27,8 @@ import (
 )
 
 func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]common.Checker, error) {
-	ignoredSet := make(map[string]struct{})
-	for _, checker := range nvidiaCfg.ComponentConfig.IgnoredCheckers {
-		ignoredSet[checker] = struct{}{}
-	}
-
-	usedCheckersName := make([]string, 0)
-	for checker := range config.GPUCheckItems {
-		if _, found := ignoredSet[checker]; !found {
-			usedCheckersName = append(usedCheckersName, checker)
-		}
-	}
-	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckersName: %v, ignoredCheckers: %v", usedCheckersName, nvidiaCfg.ComponentConfig.IgnoredCheckers)
-	usedCheckers := make([]common.Checker, 0)
-	cfg := &nvidiaCfg.Spec
-
 	checkerConstructors := map[string]func(*config.NvidiaSpec) (common.Checker, error){
-		config.GPUPCIeACSCheckerName:      dependence.NewGPUPCIeACSChecker,
+		config.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
 		config.IOMMUCheckerName:           dependence.NewIOMMUChecker,
 		config.NVFabricManagerCheckerName: dependence.NewNVFabricManagerChecker,
 		config.NvPeerMemCheckerName:       dependence.NewNvPeerMemChecker,
@@ -63,6 +48,15 @@ func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]com
 		config.RemmapedRowsPendingCheckerName:       remap.NewRemmapedRowsPendingChecker,
 	}
 
+	ignoredSet := make(map[string]struct{})
+	for _, checker := range nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers {
+		ignoredSet[checker] = struct{}{}
+	}
+
+	usedCheckersName := make([]string, 0)
+	usedCheckers := make([]common.Checker, 0)
+	cfg := &nvidiaCfg.Spec
+
 	for checkerName := range config.GPUCheckItems {
 		if _, found := ignoredSet[checkerName]; found {
 			continue
@@ -75,6 +69,7 @@ func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]com
 				continue
 			}
 			usedCheckers = append(usedCheckers, checker)
+			usedCheckersName = append(usedCheckersName, checkerName)
 			continue
 		}
 
@@ -85,8 +80,9 @@ func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]com
 				continue
 			}
 			usedCheckers = append(usedCheckers, checker)
+			usedCheckersName = append(usedCheckersName, checkerName)
 		}
 	}
-	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.ComponentConfig.IgnoredCheckers)
+	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers)
 	return usedCheckers, nil
 }

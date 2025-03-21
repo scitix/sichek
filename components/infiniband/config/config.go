@@ -32,7 +32,7 @@ type InfinibandConfig struct {
 	Name          string        `json:"name" yaml:"name"`
 	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	Checkers      []string      `json:"checkers" yaml:"checkers"`
+	IgnoredCheckers      []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
 func (c *InfinibandConfig) ComponentName() string {
@@ -72,6 +72,7 @@ func (c *InfinibandConfig) LoadFromYaml(file string) error {
 
 func DefaultConfig() (*InfinibandConfig, error) {
 	var InfinbandConfig InfinibandConfig
+	// 读取用户定义的检查项目
 	defaultCfgPath := "/userDefaultChecker.yaml"
 	_, err := os.Stat("/var/sichek/infiniband" + defaultCfgPath)
 	if err == nil {

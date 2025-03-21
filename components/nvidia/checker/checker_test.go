@@ -36,6 +36,8 @@ var cfg config.NvidiaConfig
 
 // setup function to initialize shared resources
 func setup() error {
+	cfg = config.NvidiaConfig{}
+	cfg.LoadFromYaml("", "")
 	// Initialize NVML
 	nvmlInst = nvml.New()
 	ret := nvmlInst.Init()
@@ -51,20 +53,6 @@ func setup() error {
 	if err != nil {
 		return fmt.Errorf("unexpected error: %v", err)
 	}
-
-	cfg = config.NvidiaConfig{}
-	deviceId := nvidiaInfo.DevicesInfo[0].PCIeInfo.DEVID
-	deviceID := fmt.Sprintf("0x%x", deviceId)
-	specFile, err := config.GetSpec(deviceID)
-	if err != nil {
-		panic("failed to get spec file for NVIDIA GPU")
-	}
-	err = cfg.LoadFromYaml("", specFile)
-	if err != nil {
-		fmt.Printf("NewNvidia load config yaml %s failed: %v", specFile, err)
-		return err
-	}
-
 	return nil
 }
 

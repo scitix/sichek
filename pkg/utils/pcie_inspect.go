@@ -30,6 +30,7 @@ func GetAllPCIeBDF(ctx context.Context) ([]string, error) {
 }
 
 func GetACSStatus(ctx context.Context, BDF string) (string, error) {
+	// Read ACS control register from PCIe device
 	acsCtl, err := ExecCommand(ctx, "setpci", "-s", BDF, "ecap_acs+6.w")
 	if err != nil {
 		return "", fmt.Errorf("failed to execute command: %w", err)
@@ -37,24 +38,25 @@ func GetACSStatus(ctx context.Context, BDF string) (string, error) {
 	return strings.TrimSpace(string(acsCtl)), nil
 }
 
-func IsACSDisabled(ctx context.Context, BDF string) (bool, error) {
+func IsACSDisabled(ctx context.Context, BDF string) (bool, string, error) {
+	// Read ACS control register from PCIe device
 	acsCtl, err := ExecCommand(ctx, "setpci", "-s", BDF, "ecap_acs+6.w")
 	if err != nil {
-		return false, fmt.Errorf("failed to execute command: %w", err)
+		return false, "", fmt.Errorf("failed to execute command: %w", err)
 	}
 	acsStatus := strings.TrimSpace(string(acsCtl))
-	return acsStatus == "0000", nil
+	return acsStatus == "0000", acsStatus, nil
 }
 
-func IsAllACSDisabled(ctx context.Context) ([]PCIeACS, error) {
-	var allDisabled []PCIeACS
+func GetACSEnabledDevices(ctx context.Context) ([]PCIeACS, error) {
+	var acsEnabledDevices []PCIeACS
 	BDFs, err := GetAllPCIeBDF(ctx)
 	if err != nil {
 		logrus.WithField("component", "Utils").Errorf("Failed to get all PCIe BDFs: %v", err)
 		return nil, fmt.Errorf("failed to get all PCIe BDFs: %w", err)
 	}
 	for _, BDF := range BDFs {
-		acsDisabled, err := IsACSDisabled(ctx, BDF)
+		acsDisabled, acsStatus, err := IsACSDisabled(ctx, BDF)
 		// fail to run the cmd
 		if err != nil {
 			continue
@@ -62,26 +64,18 @@ func IsAllACSDisabled(ctx context.Context) ([]PCIeACS, error) {
 		// success run the cmd,but get unexpected result
 		if !acsDisabled {
 			logrus.WithField("component", "Utils").Warnf("ACS not disabled for PCIe device BDF: %s", BDF)
-
-			var perDisabled PCIeACS
-			status, err := GetACSStatus(ctx, BDF)
-			if err != nil {
-				logrus.WithField("component", "Utils").Warnf("Fail to get the PCIe status: %v", err)
-			}
-			perDisabled.BDF = BDF
-			perDisabled.ACSStatus = status
-			allDisabled = append(allDisabled, perDisabled)
+			acsEnabledDevices = append(acsEnabledDevices, PCIeACS{BDF, acsStatus})
 		}
 	}
-	if len(allDisabled) > 0 {
-		return allDisabled, fmt.Errorf("not all PCIe devices are enabled when check acs")
+	if len(acsEnabledDevices) > 0 {
+		return acsEnabledDevices, nil
 	}
 	logrus.WithField("component", "Utils").Info("ACS is disabled on all PCIe devices")
 	return nil, nil
 }
 
 func DisableACS(ctx context.Context, BDF string) error {
-	acsDisabled, err := IsACSDisabled(ctx, BDF)
+	acsDisabled, _, err := IsACSDisabled(ctx, BDF)
 	if err != nil {
 		// logrus.WithField("component", "Utils").Errorf("Failed to check ACS status for device %s: %v", BDF, err)
 		return fmt.Errorf("failed to check ACS status for device %s: %w", BDF, err)
@@ -121,9 +115,59 @@ func DisableAllACS(ctx context.Context) ([]PCIeACS, error) {
 		}
 	}
 	if len(failedDevices) > 0 {
-		return failedDevices, fmt.Errorf("not all PCIe devices are enabled when disable all acs")
+		return failedDevices, nil
 	}
 
 	logrus.WithField("component", "Utils").Info("Successfully disabled ACS on all PCIe devices")
 	return nil, nil
+}
+
+func BatchDisableACS(ctx context.Context, acsEnabledDevices []PCIeACS) ([]PCIeACS, error) {
+	var failedDevices []PCIeACS
+	for _, pciACS := range acsEnabledDevices {
+		if err := DisableACS(ctx, pciACS.BDF); err != nil {
+			logrus.WithField("component", "Utils").Errorf("Failed to disable ACS on device %s: %v", pciACS.BDF, err)
+			failedDevices = append(failedDevices, pciACS)
+		}
+	}
+	if len(failedDevices) > 0 {
+		return failedDevices, nil
+	}
+
+	logrus.WithField("component", "Utils").Info("Successfully disabled ACS on all PCIe devices")
+	return nil, nil
+}
+
+func GetACSCapablePCIEDevices(ctx context.Context) ([]string, error) {
+	devices, _ := GetAllPCIeBDF(ctx)
+	var acsCapDevices []string
+	for _, deviceBDF := range devices {
+		acsCap, err := ExecCommand(ctx, "setpci", "-s", deviceBDF, "ecap_acs+4.w")
+		if err == nil {
+			if strings.TrimSpace(string(acsCap)) != "0000" {
+				acsCapDevices = append(acsCapDevices, deviceBDF)
+			}
+		}
+	}
+	return acsCapDevices, nil
+}
+
+func EnableACS(ctx context.Context, deviceBDF string) error {
+	isACSDisable, _, _ := IsACSDisabled(ctx, deviceBDF)
+	if isACSDisable {
+		logrus.WithField("component", "Utils").Infof("Enabling ACS on device %v", deviceBDF)
+		// Construct and run the setpci command
+		_, err := ExecCommand(ctx, "setpci", "-v", "-s", deviceBDF, "ecap_acs+6.w=f")
+		if err != nil {
+			logrus.WithField("component", "Utils").Errorf("Error enable ACS on device %v: %v", deviceBDF, err)
+			return err
+		}
+		isACSDisable, _, _ = IsACSDisabled(ctx, deviceBDF)
+		if !isACSDisable {
+			logrus.WithField("component", "Utils").Infof("Enabling ACS on device %v successfully", deviceBDF)
+		} else {
+			logrus.WithField("component", "Utils").Errorf("Error enable ACS on device %v", deviceBDF)
+		}
+	}
+	return nil
 }

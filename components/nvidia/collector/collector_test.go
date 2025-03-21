@@ -18,6 +18,7 @@ package collector
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
@@ -72,22 +73,22 @@ func TestSoftwareInfo_Get(t *testing.T) {
 	}
 
 	// Verify the results
-	expectedDriverVersion := "535.129.03" // Update with the expected value
+	expectedDriverVersion := "525.105.17" // Update with the expected value
 	if softwareInfo.DriverVersion != expectedDriverVersion {
 		t.Errorf("Incorrect driver version. Expected: %s, Got: %s", expectedDriverVersion, softwareInfo.DriverVersion)
 	}
 
-	// expectedCUDAVersion := 11 // Update with the expected value
-	// if softwareInfo.CUDAVersion != expectedCUDAVersion {
-	// 	t.Errorf("Incorrect CUDA version. Expected: %d, Got: %d", expectedCUDAVersion, softwareInfo.CUDAVersion)
-	// }
+	expectedCUDAVersion := "12.0" // Update with the expected value
+	if softwareInfo.CUDAVersion != expectedCUDAVersion {
+		t.Errorf("Incorrect CUDA version. Expected: %s, Got: %s", expectedCUDAVersion, softwareInfo.CUDAVersion)
+	}
 
 	// expectedVBIOSVersion := "96.00.89.00.01" // Update with the expected value
 	// if softwareInfo.VBIOSVersion != expectedVBIOSVersion {
 	// 	t.Errorf("Incorrect VBIOS version. Expected: %s, Got: %s", expectedVBIOSVersion, softwareInfo.VBIOSVersion)
 	// }
 
-	// expectedFabricManagerVersion := "535.129.03" // Update with the expected value
+	// expectedFabricManagerVersion := "525.105.17" // Update with the expected value
 	// if softwareInfo.FabricManagerVersion != expectedFabricManagerVersion {
 	// 	t.Errorf("Incorrect Fabric Manager version. Expected: %s, Got: %s", expectedFabricManagerVersion, softwareInfo.FabricManagerVersion)
 	// }
@@ -242,6 +243,11 @@ func TestClockInfo_Get(t *testing.T) {
 }
 
 func TestClockEvents_Get(t *testing.T) {
+	softwareInfo := &SoftwareInfo{}
+	softwareInfo.Get()
+	if !strings.Contains(softwareInfo.DriverVersion, "535") {
+		t.Skip("Skipping TestClockEvents_Get on driver version: ", softwareInfo.DriverVersion)
+	}
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
 	if ret != nvml.SUCCESS {
@@ -374,7 +380,7 @@ func TestDeviceInfo_Get(t *testing.T) {
 	deviceInfo := &DeviceInfo{}
 
 	// Call the Get method
-	err := deviceInfo.Get(device, 0)
+	err := deviceInfo.Get(device, 0, "525")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

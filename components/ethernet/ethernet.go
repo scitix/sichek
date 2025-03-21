@@ -164,14 +164,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
+		logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 	}
 
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == commonCfg.StatusAbnormal {
 			status = commonCfg.StatusAbnormal
 			level = config.EthCheckItems[checkItem.Name].Level
-			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s\n", checkItem.Name, status, level)
+			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
 		}
 	}

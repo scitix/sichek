@@ -46,9 +46,17 @@ func NewNvidiaCollector(nvmlInst nvml.Interface, expectedDeviceCount int) (*Nvid
 		return nil, err
 	}
 	collector := &NvidiaCollector{nvmlInst: nvmlInst, podResourceMapper: podResourceMapper}
-	err := collector.softwareInfo.Get()
+	var err error
+	for i := 0; i < expectedDeviceCount; i++ {
+		err = collector.softwareInfo.Get(i)
+		if err != nil {
+			logrus.WithField("component", "NVIDIA-Collector-getSWInfo").Errorf("%v", err)
+		} else {
+			break
+		}
+	}
 	if err != nil {
-		logrus.WithField("component", "NVIDIA-Collector").Errorf("%v", err)
+		return nil, err
 	}
 	collector.ExpectedDeviceCount = expectedDeviceCount
 	collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
@@ -112,7 +120,7 @@ func (collector *NvidiaCollector) Collect() (*NvidiaInfo, error) {
 			continue
 			// return nil, fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)
 		}
-		err2 := nvidia.DevicesInfo[i].Get(device, i)
+		err2 := nvidia.DevicesInfo[i].Get(device, i, collector.softwareInfo.DriverVersion)
 		if err2 != nil {
 			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
 			continue
