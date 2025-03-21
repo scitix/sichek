@@ -13,9 +13,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+<<<<<<< HEAD:config/nvidia/specification.go
 package nvidia
 
 import (
+=======
+package config
+
+import (
+	"encoding/json"
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,12 +36,22 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+<<<<<<< HEAD:config/nvidia/specification.go
 type NvidiaSpec struct {
 	nvidiaSpecMap map[int32]*NvidiaSpecItem
 	// Other fileds like `infiniband` can be added here if needed
 }
 
 type NvidiaSpecItem struct {
+=======
+
+type Spec struct {
+	NvidiaSpec map[int32]NvidiaSpec `json:"nvidia"`
+	// Other fileds like `infiniband` can be added here if needed
+}
+
+type NvidiaSpec struct {
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 	Name                 string                 `json:"name"`
 	GpuNums              int                    `json:"gpu_nums"`
 	GpuMemory            int                    `json:"gpu_memory"`
@@ -49,6 +66,26 @@ type NvidiaSpecItem struct {
 	CriticalXidEvents    map[int]string         `json:"critical_xid_events"`
 }
 
+<<<<<<< HEAD:config/nvidia/specification.go
+=======
+func (s NvidiaSpec) JSON() (string, error) {
+	data, err := json.Marshal(s)
+	return string(data), err
+}
+
+func (s NvidiaSpec) Yaml() (string, error) {
+	data, err := yaml.Marshal(s)
+	return string(data), err
+}
+
+func (s NvidiaSpec) LoadFromYaml(file string) error {
+	_, err := LoadSpecFromYaml("")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 
 type Dependence struct {
 	PcieAcs        string `json:"pcie-acs"`
@@ -71,7 +108,22 @@ type TemperatureThreshold struct {
 	Memory int `json:"memory"`
 }
 
+<<<<<<< HEAD:config/nvidia/specification.go
 func (s )GetSpec(specFile string) *NvidiaSpecItem {
+=======
+
+// Map of NVIDIA Device IDs to Product Names
+// var NvidiaDeviceNames = map[string]string{
+// 	"0x233010de": "NVIDIA H100 80GB HBM3",
+// 	"0x20b510de": "NVIDIA A100 80GB PCIe",
+// 	"0x20b210de": "NVIDIA A100-SXM4-80GB",
+// 	"0x20f310de": "NVIDIA A800-SXM4-80GB",
+// 	"0x26b510de": "NVIDIA L40",
+// 	"0x1df610de": "Tesla V100S-PCIE-32GB",
+// }
+
+func GetSpec(specFile string) NvidiaSpec {
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 	deviceID := getDeviceID()
 	specs, err := LoadSpecFromYaml(specFile)
 	if err != nil {
@@ -87,7 +139,11 @@ func getDeviceID() string {
 	nvmlInst := nvml.New()
 	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
 		panic(fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
+<<<<<<< HEAD:config/nvidia/specification.go
 
+=======
+		
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 	}
 	defer nvmlInst.Shutdown()
 
@@ -115,8 +171,13 @@ func getDeviceID() string {
 }
 
 // LoadSpecFromYaml loads nvidia specifications from a single yaml file or multiple yaml files in default directory.
+<<<<<<< HEAD:config/nvidia/specification.go
 func LoadSpecFromYaml(specFile string) (map[string]*NvidiaSpec, error) {
 	nvidiaSpecsMap := make(map[string]*NvidiaSpec)
+=======
+func LoadSpecFromYaml(specFile string) (map[string]NvidiaSpec, error) {
+	nvidiaSpecsMap := make(map[string]NvidiaSpec)
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 	if specFile != "" {
 		// Parse from the specified file
 		if err := parseSpecYamlFile(specFile, nvidiaSpecsMap); err != nil {
@@ -126,7 +187,11 @@ func LoadSpecFromYaml(specFile string) (map[string]*NvidiaSpec, error) {
 		// Parse from the default directory
 		specDirs := []string{
 			"/var/sichek/nvidia", // directory for production environment
+<<<<<<< HEAD:config/nvidia/specification.go
 			getLocalSpecDir(),    // Local directory relative to the source code for development
+=======
+			getLocalSpecDir(), // Local directory relative to the source code for development
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 		}
 
 		foundFile := false
@@ -164,7 +229,11 @@ func getLocalSpecDir() string {
 }
 
 // parseSpecYamlFile read and parses a single YAML file into a map of NvidiaSpec.
+<<<<<<< HEAD:config/nvidia/specification.go
 func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]*NvidiaSpec) error {
+=======
+func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]NvidiaSpec) (error) {
+>>>>>>> 15f1047 (update specification):components/nvidia/config/specification.go
 	data, err := os.ReadFile(specFile)
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %w", specFile, err)

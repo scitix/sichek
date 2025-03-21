@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"strings"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,8 +34,18 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 
 	// disable perfomance mode for testing
 	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
+	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
 	output, err := utils.ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
 	if err != nil {
+		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
+			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
+			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
+		} else {
+			t.Fatalf("failed to stop nvidia-fabricmanager: %v, output: %v", err, string(output))
+		}
+	}
+
+	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
 		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
 			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
 			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
@@ -50,10 +61,12 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	}
 
 	t.Logf("======test: `systemctl status nvidia-fabricmanager`=====")
+	t.Logf("======test: `systemctl status nvidia-fabricmanager`=====")
 	output, _ = utils.ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
 	t.Logf("nvidia-fabricmanager status: %s", string(output))
 
 	// Run the Check method
+	t.Logf("======test: `do NVFabricManagerChecker and expect to start nvidia-fabricmanager`=====")
 	t.Logf("======test: `do NVFabricManagerChecker and expect to start nvidia-fabricmanager`=====")
 	cfg := &config.NvidiaConfig{}
 	checker, err := NewNVFabricManagerChecker(cfg.Spec)
@@ -69,6 +82,7 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 		t.Fatalf("expected status 'normal', got %v", result.Status)
 	}
 	t.Logf("result: %v", result)
+	t.Logf("======test: `systemctl status nvidia-fabricmanager` after NVFabricManagerChecker =====")
 	t.Logf("======test: `systemctl status nvidia-fabricmanager` after NVFabricManagerChecker =====")
 	output, _ = utils.ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
 	t.Logf("nvidia-fabricmanager status: %s", string(output))
@@ -97,8 +111,14 @@ func TestNvPeerMemChecker_Check(t *testing.T) {
 	defer cancel()
 	// rmmod nvidia_peermem for testing
 	t.Logf("======test: `rmmod nvidia_peermem`=====")
+	t.Logf("======test: `rmmod nvidia_peermem`=====")
 	output, err := utils.ExecCommand(ctx, "rmmod", "nvidia_peermem")
 	if err != nil {
+		if strings.Contains(string(output), "nvidia_peermem") {
+			t.Logf("nvidia_peermem is already unloaded")
+		} else {
+			t.Fatalf("failed to rmmod nvidia_peermem: %v, output: %v", err, string(output))
+		}
 		if strings.Contains(string(output), "nvidia_peermem") {
 			t.Logf("nvidia_peermem is already unloaded")
 		} else {
@@ -113,6 +133,7 @@ func TestNvPeerMemChecker_Check(t *testing.T) {
 
 	// Run the Check method
 	// Create a new NvPeerMemChecker
+	t.Logf("======test: `do NvPeerMemChecker and expect to load nvidia_peermem`=====")
 	t.Logf("======test: `do NvPeerMemChecker and expect to load nvidia_peermem`=====")
 	cfg := &config.NvidiaConfig{}
 	checker, err := NewNvPeerMemChecker(cfg.Spec)
@@ -168,7 +189,7 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 		// Create a new NvPeerMemChecker
 		t.Logf("======test: `do PCIeACSChecker and expect to disable ACS online`=====")
 		cfg := &config.NvidiaConfig{}
-		checker, err := NewPCIeACSChecker(cfg.Spec)
+		checker, err := NewPCIeACSChecker(&cfg.Spec)
 		if err != nil {
 			t.Fatalf("failed to create PCIeACSChecker: %v", err)
 		}
@@ -185,7 +206,7 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 
 	t.Logf("======test: `do PCIeACSChecker again and expect all ACS are disabled`=====")
 	cfg := &config.NvidiaConfig{}
-	checker, err := NewPCIeACSChecker(cfg.Spec)
+	checker, err := NewPCIeACSChecker(&cfg.Spec)
 	if err != nil {
 		t.Fatalf("failed to create PCIeACSChecker: %v", err)
 	}

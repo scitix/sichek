@@ -46,9 +46,17 @@ func NewNvidiaCollector(nvmlInst nvml.Interface, expectedDeviceCount int) (*Nvid
 		return nil, err
 	}
 	collector := &NvidiaCollector{nvmlInst: nvmlInst, podResourceMapper: podResourceMapper}
-	err := collector.softwareInfo.Get()
+	var err error
+	for i := 0; i < expectedDeviceCount; i++ {
+		err = collector.softwareInfo.Get(i)
+		if err != nil {
+			logrus.WithField("component", "NVIDIA-Collector-getSWInfo").Errorf("%v", err)
+		} else {
+			break
+		}
+	}
 	if err != nil {
-		logrus.WithField("component", "NVIDIA-Collector").Errorf("%v", err)
+		return nil, err
 	}
 	collector.ExpectedDeviceCount = expectedDeviceCount
 	collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)

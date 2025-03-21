@@ -25,11 +25,6 @@ import (
 )
 
 func main() {
-	root := utils.IsRoot()
-	if !root {
-		fmt.Println("sichek must be run as root")
-		os.Exit(1)
-	}
 	rootCmd := command.NewRootCmd()
 	if err := rootCmd.Execute(); err != nil {
 		panic(err)

@@ -22,12 +22,11 @@ import (
 
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
 )
 
 func TestIbChecker_Check(t *testing.T) {
 	cfg := &config.InfinibandConfig{}
-	err := commonCfg.DefaultConfig(commonCfg.ComponentNameInfiniband, cfg)
+	cfg, err := config.DefaultConfig()
 	if err != nil {
 		t.Fatalf("failed to load default config: %v", err)
 	}

@@ -1,11 +1,11 @@
 name: "infiniband"
-query_interval: 1
+query_interval: 10
 cache_size: 10
 checkers:
   - "ofed"
   - "ib_fw"
   - "ib_state"
-  - "ib_phy_tate"
+  - "ib_phy_state"
   - "ib_port_speed"
   - "pcie_acs"
   - "pcie_mrr"
