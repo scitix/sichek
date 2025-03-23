@@ -84,8 +84,8 @@ func TestCollector_Collect(t *testing.T) {
 	}()
 
 	// Update the log file path in the configuration
-	cfg.EventCheckers["testChecker"].LogFile = logFile.Name()
-	t.Logf("Event checkers: %+v", cfg.EventCheckers["testChecker"])
+	cfg.CPU.EventCheckers["testChecker"].LogFile = logFile.Name()
+	t.Logf("Event checkers: %+v", cfg.CPU.EventCheckers["testChecker"])
 	// Create a new collector instance
 	collector, err := NewCpuCollector(ctx, cfg)
 	if err != nil {
@@ -98,7 +98,7 @@ func TestCollector_Collect(t *testing.T) {
 	}
 	t.Logf("Current log file content: %s", string(content))
 
-	collector.Collect()
+	collector.Collect(ctx)
 	time.Sleep(2 * time.Second)
 	// Read the current content of the log file
 	content, err = os.ReadFile(logFile.Name())
@@ -107,7 +107,7 @@ func TestCollector_Collect(t *testing.T) {
 	}
 	t.Logf("Current log file content: %s", string(content))
 	// Call the Collect method
-	info, err := collector.Collect()
+	info, err := collector.Collect(ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

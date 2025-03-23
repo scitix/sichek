@@ -23,20 +23,22 @@ import (
 )
 
 type NCCLConfig struct {
-	Name           string                      `json:"name" yaml:"name"`
-	DirPath        string                      `json:"log_dir" yaml:"log_dir"`
-	QueryInterval  time.Duration               `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                       `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*NCCLErrorConfig `json:"checkers" yaml:"checkers"`
+	NCCL struct {
+		Name           string                      `json:"name" yaml:"name"`
+		DirPath        string                      `json:"log_dir" yaml:"log_dir"`
+		QueryInterval  time.Duration               `json:"query_interval" yaml:"query_interval"`
+		CacheSize      int64                       `json:"cache_size" yaml:"cache_size"`
+		CheckerConfigs map[string]*NCCLErrorConfig `json:"checkers" yaml:"checkers"`
+	} `json:"NCCL"`
 }
 
 func (c *NCCLConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.NCCL.QueryInterval
 }
 
 func (c *NCCLConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.CheckerConfigs {
+	for name, cfg := range c.NCCL.CheckerConfigs {
 		commonCfgMap[name] = cfg
 	}
 	return commonCfgMap

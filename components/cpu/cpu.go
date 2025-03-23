@@ -116,7 +116,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	cctx, cancel := context.WithTimeout(ctx, c.cfg.QueryInterval*time.Second)
 	defer cancel()
 
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("%v", err)
 		return nil, err

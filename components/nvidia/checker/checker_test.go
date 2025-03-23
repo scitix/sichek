@@ -36,6 +36,8 @@ var cfg config.NvidiaConfig
 
 // setup function to initialize shared resources
 func setup() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	cfg = config.NvidiaConfig{}
 	cfg.LoadFromYaml("", "")
 	// Initialize NVML
@@ -45,11 +47,11 @@ func setup() error {
 		return fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	// Call the Get method
-	nvidiaCollector, err := collector.NewNvidiaCollector(nvmlInst, 8)
+	nvidiaCollector, err := collector.NewNvidiaCollector(ctx, nvmlInst, 8)
 	if err != nil {
 		return fmt.Errorf("failed to create NvidiaCollector: %v", err)
 	}
-	nvidiaInfo, err = nvidiaCollector.Collect()
+	nvidiaInfo, err = nvidiaCollector.Collect(ctx)
 	if err != nil {
 		return fmt.Errorf("unexpected error: %v", err)
 	}

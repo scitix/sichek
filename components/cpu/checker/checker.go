@@ -31,6 +31,7 @@ func NewCheckers(ctx context.Context, cfg *cpu.CPUConfig) ([]common.Checker, err
 	}
 	checkers = append(checkers, checker)
 
+	for name, eventCfg := range cpuCfg.CPU.EventCheckers {
 	for name, eventCfg := range cfg.EventCheckers {
 		eventChecker, err := NewEventChecker(ctx, eventCfg)
 		if err != nil {

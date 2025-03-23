@@ -41,9 +41,13 @@ infiniband:
     ib_devs:
       - mlx5_0
       - mlx5_1
+      - mlx5_2
+      - mlx5_3
     eth_devs:
-      - ibs18
-      - ibs20
+      - ibs0
+      - ibs1
+      - ibs2
+      - ibs3
     sw_deps:
       kernel_module:
         - "rdma_ucm"
@@ -59,19 +63,19 @@ infiniband:
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     pcie_acs: "disable"
     hca_specs:
-      MT_0000001119:
+      MT_0000000970:
         hca_type: "MT4129"
-        board_id: "MT_0000001119"
-        fw_ver: "28.42.1000"
-        vpd: "HPE InfiniBand NDR200/Ethernet 200Gb 1-port OSFP PCIe5 x16 MCX75310AAS-HEAT Adapter"
+        board_id: "MT_0000000970"
+        fw_ver: "28.39.2048"
+        vpd: "P45645-001 / HPE InfiniBand NDR 1-port OSFP PCIe5 x16 MCX75310AAS-NEAT Adapter"
         net_port: 1
-        port_speed: "200 Gb/sec (2X NDR)"
+        port_speed: "400 Gb/sec (4X NDR)"
         phy_state: "LinkUp"
         port_state: "ACTIVE"
         net_operstate: "down"
         link_layer: "InfiniBand"
         pcie_width: "16"
-        pcie_speed: "16.0 GT/s PCIe"
+        pcie_speed: "32.0 GT/s PCIe"
         pcie_tree_width: "32"
         pcie_tree_speed: "16"
         pcie_acs: "disable"

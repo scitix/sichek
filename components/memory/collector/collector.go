@@ -56,7 +56,7 @@ func NewCollector(ctx context.Context, cfg common.ComponentConfig) (*MemoryColle
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.Checkers {
+	for _, checker_cfg := range config.Memory.Checkers {
 		_, err := os.Stat(checker_cfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "Memory").Errorf("log file %s not exist for Memory collector", checker_cfg.LogFile)
@@ -90,7 +90,7 @@ func (c *MemoryCollector) GetCfg() common.ComponentConfig {
 	return c.cfg
 }
 
-func (c *MemoryCollector) Collect() (common.Info, error) {
+func (c *MemoryCollector) Collect(ctx context.Context) (common.Info, error) {
 	filterRes := c.filter.Check()
 	filterResMap := make(map[string][]*filter.FilterResult)
 	for _, res := range filterRes {

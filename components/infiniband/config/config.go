@@ -23,14 +23,16 @@ import (
 
 // 实现ComponentsConfig 接口
 type InfinibandConfig struct {
-	Name          string        `json:"name" yaml:"name"`
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	IgnoredCheckers      []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
+	Infiniband struct {
+		Name            string        `json:"name" yaml:"name"`
+		QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
+		CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
+		IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
+	} `json:"infiniband"`
 }
 
 func (c *InfinibandConfig) ComponentName() string {
-	return c.Name
+	return c.Infiniband.Name
 }
 
 func (c *InfinibandConfig) GetCheckerSpec() map[string]common.CheckerSpec {
@@ -38,11 +40,11 @@ func (c *InfinibandConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 }
 
 func (c *InfinibandConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Infiniband.QueryInterval
 }
 
 func (c *InfinibandConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.Infiniband.CacheSize
 }
 
 func (c *InfinibandConfig) Yaml() (string, error) {

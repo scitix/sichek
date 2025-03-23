@@ -17,6 +17,7 @@ package common
 
 import (
 	"context"
+	"strings"
 )
 
 type Checker interface {
@@ -30,4 +31,23 @@ type Checker interface {
 	 * @return error nil for valid result, error for invalid result
 	 */
 	Check(ctx context.Context, data any) (*CheckerResult, error)
+}
+
+func CompareVersion(spec, version string) bool {
+	spec = strings.TrimPrefix(spec, "spec")
+	version = strings.TrimPrefix(version, "spec")
+
+	specParts := strings.Split(spec, ".")
+	versionParts := strings.Split(version, ".")
+
+	// 处理 `*` 通配符
+	for i := range specParts {
+		if specParts[i] == "*" {
+			break // 只对比到 `*` 之前的部分
+		}
+		if i >= len(versionParts) || specParts[i] != versionParts[i] {
+			return false
+		}
+	}
+	return true
 }

@@ -25,7 +25,6 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
 	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
 	commonCfg "github.com/scitix/sichek/config"
 
@@ -62,11 +61,27 @@ var (
 	nvidiaComponentOnce sync.Once
 )
 
-func NewNvml() (nvml.Interface, error) {
-	nvmlInst := nvml.New()
-	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
-		logrus.WithField("component", "NVIDIA").Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
-		return nil, fmt.Errorf("%v", nvml.ErrorString(ret))
+func NewNvml(ctx context.Context) (nvml.Interface, error) {
+	ctx_, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	var nvmlInst nvml.Interface
+	var initError error
+	go func() {
+		defer close(done)
+		nvmlInst = nvml.New()
+		if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
+			initError = fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
+		}
+	}()
+	select {
+	case <-ctx_.Done():
+		return nil, fmt.Errorf("failed to initialize NVML: TIMEOUT")
+	case <-done:
+		if initError != nil {
+			return nil, initError
+		}
 	}
 	return nvmlInst, nil
 }
@@ -88,7 +103,7 @@ func ReNewNvml(c *component) error {
 		return fmt.Errorf("shutdownRet:%s", shutdownRet.Error())
 	}
 
-	nvmlInst, ret := NewNvml()
+	nvmlInst, ret := NewNvml(c.ctx)
 	if ret != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML: %v", ret)
 		return ret
@@ -116,11 +131,8 @@ func GetComponent() common.Component {
 func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
 		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
-		if err != nil {
-			panic(err)
-		}
 	})
-	return nvidiaComponent, nil
+	return nvidiaComponent, err
 }
 
 func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
@@ -131,19 +143,19 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		}
 	}()
 
-	nvmlInst, err := NewNvml()
+	nvmlInst, err := NewNvml(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
 		return nil, err
 	}
 
-	var nvidiaCfg config.NvidiaConfig
+	var nvidiaCfg nvidiaCfg.NvidiaConfig
 	nvidiaCfg.LoadFromYaml(cfgFile, specFile)
 	if len(ignoredCheckers) > 0 {
 		nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers = ignoredCheckers
 	}
 
-	collector, err := collector.NewNvidiaCollector(nvmlInst, nvidiaCfg.Spec.GpuNums)
+	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaCfg.Spec.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidiaCollector failed: %v", err)
 		return nil, err
@@ -192,7 +204,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
 
-	nvidiaInfo, err := c.collector.Collect()
+	nvidiaInfo, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
