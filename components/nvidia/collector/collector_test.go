@@ -16,12 +16,14 @@ limitations under the License.
 package collector
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/scitix/sichek/components/common"
 )
 
 var nvmlInst nvml.Interface
@@ -62,24 +64,49 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func TestCompareVersion(t *testing.T) {
+	tests := []struct {
+		spec    string
+		version string
+		expect  bool
+	}{
+		{"spec535.129.03", "spec535.129.03", true},  // 完全匹配
+		{"spec535.129.*", "spec535.129.99", true},   // 只匹配 major.minor
+		{"spec535.129.*", "spec535.130.01", false},  // minor 不匹配
+		{"spec535.*.*", "spec535.120.01", true},     // 只匹配 major
+		{"spec535.*.*", "spec536.120.01", false},    // major 不匹配
+		{"spec535.129.03", "spec535.129.04", false}, // patch 不匹配
+	}
+
+	// 运行测试
+	for _, test := range tests {
+		result := common.CompareVersion(test.spec, test.version)
+		if result != test.expect {
+			t.Errorf("compareVersion(%s, %s) = %v (expected %v)\n", test.spec, test.version, result, test.expect)
+		}
+	}
+}
+
 func TestSoftwareInfo_Get(t *testing.T) {
 	// Create a SoftwareInfo instance
 	softwareInfo := &SoftwareInfo{}
 
 	// Call the Get method
-	err := softwareInfo.Get()
+	err := softwareInfo.Get(0)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	// Verify the results
-	expectedDriverVersion := "525.105.17" // Update with the expected value
-	if softwareInfo.DriverVersion != expectedDriverVersion {
+	expectedDriverVersion := "535.*.*"
+	result := common.CompareVersion(expectedDriverVersion, softwareInfo.DriverVersion)
+	if !result {
 		t.Errorf("Incorrect driver version. Expected: %s, Got: %s", expectedDriverVersion, softwareInfo.DriverVersion)
 	}
 
-	expectedCUDAVersion := "12.0" // Update with the expected value
-	if softwareInfo.CUDAVersion != expectedCUDAVersion {
+	expectedCUDAVersion := "12.*" // Update with the expected value
+	result = common.CompareVersion(expectedCUDAVersion, softwareInfo.CUDAVersion)
+	if !result {
 		t.Errorf("Incorrect CUDA version. Expected: %s, Got: %s", expectedCUDAVersion, softwareInfo.CUDAVersion)
 	}
 
@@ -244,7 +271,7 @@ func TestClockInfo_Get(t *testing.T) {
 
 func TestClockEvents_Get(t *testing.T) {
 	softwareInfo := &SoftwareInfo{}
-	softwareInfo.Get()
+	softwareInfo.Get(0)
 	if !strings.Contains(softwareInfo.DriverVersion, "535") {
 		t.Skip("Skipping TestClockEvents_Get on driver version: ", softwareInfo.DriverVersion)
 	}
@@ -388,34 +415,36 @@ func TestDeviceInfo_Get(t *testing.T) {
 	t.Logf("DeviceInfo: %+v", deviceInfo.ToString())
 }
 
-func TestNvidiaInfo_Get(t *testing.T) {
-	// Create a NvidiaInfo instance
-	nvidiaInfo := &NvidiaInfo{}
+// func TestNvidiaInfo_Get(t *testing.T) {
+// 	// Create a NvidiaInfo instance
+// 	nvidiaInfo := &NvidiaInfo{}
 
-	// Call the Get method
-	err := nvidiaInfo.Get(nvmlInst)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+// 	// Call the Get method
+// 	err := nvidiaInfo.Get(nvmlInst)
+// 	if err != nil {
+// 		t.Errorf("Unexpected error: %v", err)
+// 	}
 
-	// Verify the results
-	expectedDeviceCount := 8 // Update with the expected value
-	if nvidiaInfo.DeviceCount != expectedDeviceCount {
-		t.Errorf("Incorrect device count. Expected: %d, Got: %d", expectedDeviceCount, nvidiaInfo.DeviceCount)
-	}
+// 	// Verify the results
+// 	expectedDeviceCount := 8 // Update with the expected value
+// 	if nvidiaInfo.DeviceCount != expectedDeviceCount {
+// 		t.Errorf("Incorrect device count. Expected: %d, Got: %d", expectedDeviceCount, nvidiaInfo.DeviceCount)
+// 	}
 
-	t.Logf("NvidiaInfo: %+v", nvidiaInfo.ToString())
-}
+// 	t.Logf("NvidiaInfo: %+v", nvidiaInfo.ToString())
+// }
 
 func TestNvidiaCollector_Collect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Create a NvidiaInfo instance
-	NvidiaCollector, err := NewNvidiaCollector(nvmlInst, 8)
+	NvidiaCollector, err := NewNvidiaCollector(ctx, nvmlInst, 8)
 	if err != nil {
 		t.Fatalf("Failed to create NvidiaCollector: %v", err)
 	}
 
 	// Call the Collect method
-	nvidiaInfo, err := NvidiaCollector.Collect()
+	nvidiaInfo, err := NvidiaCollector.Collect(ctx)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

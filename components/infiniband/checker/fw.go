@@ -88,10 +88,10 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 		}
 	}
 
-	result.Curr = strings.Join(curr, ";")
-	result.Spec = strings.Join(spec, ";")
-	result.Device = strings.Join(failedHcas, ";")
-	result.Detail = strings.Join(detail, ";")
+	result.Curr = strings.Join(curr, ",")
+	result.Spec = strings.Join(spec, ",")
+	result.Device = strings.Join(failedHcas, ",")
+	result.Detail = strings.Join(detail, ",")
 
 	return &result, nil
 }

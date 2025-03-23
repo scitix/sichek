@@ -87,8 +87,8 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 	result.Device = strings.Join(failedHcas, ",")
 
 	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("NetOperstate check fail: %s NOT ACTIVE",strings.Join(failedHcas, ";"))
-		result.Suggestion = fmt.Sprintf("check opensm to active %s status", strings.Join(failedHcas, ";"))
+		result.Detail = fmt.Sprintf("NetOperstate check fail: %s expected state = %s, current state = %s", strings.Join(failedHcas, ","), result.Spec, result.Curr)
+		result.Suggestion = fmt.Sprintf("check opensm to active %s status", strings.Join(failedHcas, ","))
 	}
 
 	return &result, nil

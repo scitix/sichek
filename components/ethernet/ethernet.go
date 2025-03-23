@@ -89,7 +89,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 			logrus.WithField("component", "ethernet").Error(err)
 		}
 	}
-	logrus.WithField("component", "ethernet").Infof("checker items:%v", cfg.Cherkers)
+	logrus.WithField("component", "ethernet").Infof("checker items:%v", cfg.Ethernet.Cherkers)
 
 	var EthSpecCfg config.EthernetSpec
 	specCfg, err := EthSpecCfg.GetEthSpec()
@@ -99,7 +99,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 
 	checkers := make([]common.Checker, 0)
 	checkerIndex := 0
-	for _, checkItem := range cfg.Cherkers {
+	for _, checkItem := range cfg.Ethernet.Cherkers {
 		switch checkItem {
 		case "phy_state":
 			checkerIndex = checkerIndex + 1

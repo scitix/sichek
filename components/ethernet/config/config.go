@@ -28,14 +28,16 @@ import (
 )
 
 type EthernetConfig struct {
+	Ethernet struct {
 	Name          string        `json:"name" yaml:"name"`
 	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
 	Cherkers      []string      `json:"checkers" yaml:"checkers"`
+	}`json:"ethernet"`
 }
 
 func (c *EthernetConfig) ComponentName() string {
-	return c.Name
+	return c.Ethernet.Name
 }
 
 func (c *EthernetConfig) GetCheckerSpec() map[string]common.CheckerSpec {
@@ -43,11 +45,11 @@ func (c *EthernetConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 }
 
 func (c *EthernetConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Ethernet.QueryInterval
 }
 
 func (c *EthernetConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.Ethernet.CacheSize
 }
 
 func (c *EthernetConfig) Yaml() (string, error) {

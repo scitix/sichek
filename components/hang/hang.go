@@ -88,7 +88,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	}
 
 	var collector common.Collector
-	if cfg.NVSMI {
+	if cfg.Hang.NVSMI {
 		collector, err = HangColl.NewHangCollector(ctx, cfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
@@ -113,10 +113,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		collector: collector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, cfg.Hang.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, cfg.Hang.CacheSize),
 		currIndex:         0,
-		cacheSize:         cfg.CacheSize,
+		cacheSize:         cfg.Hang.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
@@ -127,9 +127,9 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	_, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect()")
 		return &common.Result{}, err

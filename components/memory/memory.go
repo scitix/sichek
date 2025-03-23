@@ -125,7 +125,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(cctx)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("failed to collect memory info: %v", err)
 		return nil, err
@@ -146,7 +146,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 		checker_results = append(checker_results, check_result)
 
-		checker_cfg := c.cfg.Checkers[checker.Name()]
+		checker_cfg := c.cfg.Memory.Checkers[checker.Name()]
 		if checker_cfg.Level == commonCfg.LevelCritical && check_result.Status == commonCfg.StatusAbnormal {
 			status = commonCfg.StatusAbnormal
 		}

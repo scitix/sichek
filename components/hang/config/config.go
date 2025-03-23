@@ -30,29 +30,31 @@ import (
 )
 
 type HangConfig struct {
-	Name           string                      `json:"name" yaml:"name"`
-	QueryInterval  time.Duration               `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                       `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*HangErrorConfig `json:"checkers" yaml:"checkers"`
-	NVSMI          bool                        `json:"nvsmi" yaml:"nvsmi"`
-	Mock           bool                        `json:"mock" yaml:"mock"`
+	Hang struct {
+		Name           string                      `json:"name" yaml:"name"`
+		QueryInterval  time.Duration               `json:"query_interval" yaml:"query_interval"`
+		CacheSize      int64                       `json:"cache_size" yaml:"cache_size"`
+		CheckerConfigs map[string]*HangErrorConfig `json:"checkers" yaml:"checkers"`
+		NVSMI          bool                        `json:"nvsmi" yaml:"nvsmi"`
+		Mock           bool                        `json:"mock" yaml:"mock"`
+	} `json:"hang"`
 }
 
 func (c *HangConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Hang.QueryInterval
 }
 
 func (c *HangConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.Hang.CacheSize
 }
 
 func (c *HangConfig) GetHangErrorConfig() map[string]*HangErrorConfig {
-	return c.CheckerConfigs
+	return c.Hang.CheckerConfigs
 }
 
 func (c *HangConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.CheckerConfigs {
+	for name, cfg := range c.Hang.CheckerConfigs {
 		commonCfgMap[name] = cfg
 	}
 	return commonCfgMap

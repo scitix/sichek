@@ -83,14 +83,16 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 			logrus.WithField("component", "infiniband").Error("Infiniband use default config failed ", err)
 			return nil, err
 		}
-		cfg.IgnoredCheckers = ignoredCheckers
+		if len(ignoredCheckers) > 0 {
+			cfg.Infiniband.IgnoredCheckers = ignoredCheckers
+		}
 	} else {
 		err = cfg.LoadFromYaml(cfgFile)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Error(err)
 		}
 	}
-	logrus.WithField("component", "infiniband").Infof("checker items:%v", cfg.IgnoredCheckers)
+	logrus.WithField("component", "infiniband").Infof("checker items:%v", cfg.Infiniband.IgnoredCheckers)
 
 	// step2: load ib spec
 	ibSpec := config.GetClusterInfinibandSpec(specFile)

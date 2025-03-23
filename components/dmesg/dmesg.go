@@ -103,10 +103,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		collector: collector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, cfg.Dmesg.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, cfg.Dmesg.CacheSize),
 		currIndex:         0,
-		cacheSize:         cfg.CacheSize,
+		cacheSize:         cfg.Dmesg.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
@@ -119,7 +119,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	_, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
 	defer cancel()
-	info, err := c.collector.Collect()
+	info, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect()")
 		return &common.Result{}, err

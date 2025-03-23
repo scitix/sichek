@@ -87,7 +87,6 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	result.Curr = curr
 	result.Spec = spec
-	logrus.WithField("component", "infiniband").Infof("get the ofed check: %v", result)
 
 	return &result, nil
 }

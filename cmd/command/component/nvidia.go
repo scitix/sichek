@@ -89,7 +89,8 @@ func NewNvidiaCmd() *cobra.Command {
 			ignoredCheckers := strings.Split(ignored_checkers_str, ",")
 			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
-				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
+				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components, err = ", err)
+				return
 			}
 			result, err := component.HealthCheck(ctx)
 			if err != nil {

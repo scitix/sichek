@@ -30,29 +30,31 @@ import (
 )
 
 type DmesgConfig struct {
-	Name           string                       `json:"name" yaml:"name"`
-	DmesgFileName  []string                     `json:"FileNmae" yaml:"FileNmae"`
-	DmesgCmd       [][]string                   `json:"Cmd" yaml:"Cmd"`
-	QueryInterval  time.Duration                `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                        `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*DmesgErrorConfig `json:"checkers" yaml:"checkers"`
+	Dmesg struct {
+		Name           string                       `json:"name" yaml:"name"`
+		DmesgFileName  []string                     `json:"FileNmae" yaml:"FileNmae"`
+		DmesgCmd       [][]string                   `json:"Cmd" yaml:"Cmd"`
+		QueryInterval  time.Duration                `json:"query_interval" yaml:"query_interval"`
+		CacheSize      int64                        `json:"cache_size" yaml:"cache_size"`
+		CheckerConfigs map[string]*DmesgErrorConfig `json:"checkers" yaml:"checkers"`
+	} `json:"dmesg"`
 }
 
 func (c *DmesgConfig) GetQueryInterval() time.Duration {
-	return c.QueryInterval
+	return c.Dmesg.QueryInterval
 }
 
 func (c *DmesgConfig) GetCacheSize() int64 {
-	return c.CacheSize
+	return c.Dmesg.CacheSize
 }
 
 func (c *DmesgConfig) GetDmesgErrorConfig() map[string]*DmesgErrorConfig {
-	return c.CheckerConfigs
+	return c.Dmesg.CheckerConfigs
 }
 
 func (c *DmesgConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.CheckerConfigs {
+	for name, cfg := range c.Dmesg.CheckerConfigs {
 		commonCfgMap[name] = cfg
 	}
 	return commonCfgMap

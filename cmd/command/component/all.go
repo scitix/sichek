@@ -164,7 +164,7 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().BoolP("eventonly", "e", false, "Print events output only")
 	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
-	allCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
+	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
 }

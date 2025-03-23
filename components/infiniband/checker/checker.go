@@ -30,7 +30,7 @@ func NewCheckers(cfg *config.InfinibandConfig, spec *config.InfinibandSpec) ([]c
 		config.ChekIBState:      NewIBStateChecker,
 		config.ChekIBPhyState:   NewIBPhyStateChecker,
 		config.ChekIBPortSpeed:  NewIBPortSpeedChecker,
-		config.ChekNetOperstate: NewNetOperstateChecker,
+		// config.ChekNetOperstate: NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
 		config.CheckPCIEMRR:   NewPCIEMRRChecker,
 		config.CheckPCIESpeed: NewIBPCIESpeedChecker,
@@ -42,7 +42,7 @@ func NewCheckers(cfg *config.InfinibandConfig, spec *config.InfinibandSpec) ([]c
 	}
 
 	ignoredSet := make(map[string]struct{})
-	for _, checker := range cfg.IgnoredCheckers {
+	for _, checker := range cfg.Infiniband.IgnoredCheckers {
 		ignoredSet[checker] = struct{}{}
 	}
 	usedCheckersName := make([]string, 0)
@@ -62,7 +62,7 @@ func NewCheckers(cfg *config.InfinibandConfig, spec *config.InfinibandSpec) ([]c
 			usedCheckersName = append(usedCheckersName, checkerName)
 		}
 	}
-	logrus.WithField("component", "Infiniband-Checker").Infof("usedCheckersName: %v, ignoredCheckers: %v", usedCheckersName, cfg.IgnoredCheckers)
+	logrus.WithField("component", "Infiniband-Checker").Infof("usedCheckersName: %v, ignoredCheckers: %v", usedCheckersName, cfg.Infiniband.IgnoredCheckers)
 
 	return usedCheckers, nil
 }

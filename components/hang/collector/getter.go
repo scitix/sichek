@@ -53,13 +53,13 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter 
 	}
 
 	var res HangGetter
-	res.name = config.Name
+	res.name = config.Hang.Name
 	res.cfg = config
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
-	if !config.Mock {
+	if !config.Hang.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
 	} else {
 		if res.nvidiaComponent, err = NewMockNvidiaComponent("", []string{}); err != nil {
@@ -110,10 +110,10 @@ func (c *HangGetter) GetCfg() common.ComponentConfig {
 	return c.cfg
 }
 
-func (c *HangGetter) Collect() (common.Info, error) {
+func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	getinfo, err := c.nvidiaComponent.CacheInfos(ctx)
 	if err != nil {

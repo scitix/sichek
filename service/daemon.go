@@ -35,6 +35,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const timeoutDuration = 60 * time.Second
+
 type Service interface {
 	Run(ctx context.Context)
 	Status(ctx context.Context) (interface{}, error)
@@ -59,7 +61,7 @@ type DaemonService struct {
 }
 
 func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKey string) (s Service, err error) {
-	cctx, ccancel := context.WithCancel(context.Background())
+	cctx, ccancel := context.WithCancel(ctx)
 	defer func() {
 		if err != nil {
 			ccancel()
@@ -147,28 +149,52 @@ func (d *DaemonService) Run(ctx context.Context) {
 	d.componentsLock.Unlock()
 	d.componentsResultLock.Unlock()
 
-	for component_name, resultChan := range d.componentResults {
-		go func() {
-			d.componentsStatusLock.Lock()
-			d.componentsStatus[component_name] = d.components[component_name].Status()
-			d.componentsStatusLock.Unlock()
+	for componentName, resultChan := range d.componentResults {
+		go d.monitorComponent(componentName, resultChan)
+	}
+}
 
-			for {
-				select {
-				case <-d.ctx.Done():
-					return
-				case result, ok := <-resultChan:
-					if !ok {
-						logrus.WithField("daemon", "run").Infof("component %s result channel has closed", component_name)
-						return
-					}
-					err := d.notifier.SetNodeAnnotation(d.ctx, result)
-					if err != nil {
-						logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
-					}
-				}
+func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan *common.Result) {
+	d.componentsStatusLock.Lock()
+	d.componentsStatus[componentName] = d.components[componentName].Status()
+	d.componentsStatusLock.Unlock()
+	for {
+		select {
+		case <-d.ctx.Done():
+			return
+		case result, ok := <-resultChan:
+			if !ok {
+				logrus.WithField("daemon", "run").Infof("component %s result channel has closed", componentName)
+				return
 			}
-		}()
+			err := d.notifier.SetNodeAnnotation(d.ctx, result)
+			if err != nil {
+				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
+			}
+		case <-time.After(timeoutDuration):
+			timeoutCheckerResult := &common.CheckerResult{
+				Name:        fmt.Sprintf("%sTimeout", componentName),
+				Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
+				Status:      "",
+				Level:       config.LevelCritical,
+				Detail:      "",
+				ErrorName:   fmt.Sprintf("%sTimeout", componentName),
+				Suggestion:  "The Nvidida GPU may be broken, please restart the node",
+			}
+			timeoutResult := &common.Result{
+				Item:     componentName,
+				Status:   config.StatusAbnormal,
+				Level:    config.LevelCritical,
+				Checkers: []*common.CheckerResult{timeoutCheckerResult},
+				Time:     time.Now(),
+			}
+			logrus.WithField("daemon", "run").Warnf("component %s timed out", componentName)
+
+			err := d.notifier.SetNodeAnnotation(d.ctx, timeoutResult)
+			if err != nil {
+				logrus.WithField("daemon", "run").Errorf("set %s timeout annotation failed: %v", componentName, err)
+			}
+		}
 	}
 }
 
