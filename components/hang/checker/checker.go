@@ -131,17 +131,4 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	result.Detail = raw
 	result.Suggestion = suggest
 	return &result, nil
-
-	// return &common.CheckerResult{
-	// 	Name:        c.name,
-	// 	Description: "GPU probably hang",
-	// 	Device:      strings.Join(devices, ","),
-	// 	Spec:        "0",
-	// 	Curr:        strconv.Itoa(gpuAbNum),
-	// 	Status:      status,
-	// 	Level:       config.LevelCritical,
-	// 	Detail:      raw,
-	// 	Suggestion:  suggest,
-	// 	ErrorName:   config.ErrorNameHang,
-	// }, nil
 }

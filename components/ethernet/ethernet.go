@@ -164,7 +164,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
+		if checkItem.Status == commonCfg.StatusAbnormal {
+			logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
+		}
 	}
 
 	for _, checkItem := range checkerResults {
@@ -181,7 +183,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 
-	finalResult := &common.Result{
+	resResult := &common.Result{
 		Item:     commonCfg.ComponentNameInfiniband,
 		Status:   status,
 		Level:    level,
@@ -192,11 +194,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = ethernetInfo
-	c.cacheBuffer[c.currIndex] = finalResult
+	c.cacheBuffer[c.currIndex] = resResult
 	c.currIndex = (c.currIndex + 1) % c.cfg.GetCacheSize()
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "ethernet").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "ethernet").Infof("Health Check PASSED")
+	}
 
-	return finalResult, nil
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
