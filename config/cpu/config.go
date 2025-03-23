@@ -23,11 +23,11 @@ import (
 
 type CPUConfig struct {
 	CPU struct {
-	Name          string                     `json:"name" yaml:"name"`
-	QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
-	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
-	}`json:"cpu"`
+		Name          string                     `json:"name" yaml:"name"`
+		QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
+		CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
+		EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	} `json:"cpu"`
 }
 
 func (c *CPUConfig) GetCheckerSpec() map[string]common.CheckerSpec {
