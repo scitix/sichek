@@ -70,7 +70,7 @@ func GetACSEnabledDevices(ctx context.Context) ([]PCIeACS, error) {
 	if len(acsEnabledDevices) > 0 {
 		return acsEnabledDevices, nil
 	}
-	logrus.WithField("component", "Utils").Info("ACS is disabled on all PCIe devices")
+	// logrus.WithField("component", "Utils").Info("ACS is disabled on all PCIe devices")
 	return nil, nil
 }
 

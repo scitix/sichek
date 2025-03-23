@@ -232,7 +232,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "NVIDIA").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
+		if checkItem.Status == commonCfg.StatusAbnormal {
+			logrus.WithField("component", "NVIDIA").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
+		}
 	}
 
 	for _, checkItem := range checkerResults {
@@ -243,7 +245,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 	}
 
-	res_result := &common.Result{
+	resResult := &common.Result{
 		Item:     c.name,
 		Status:   status,
 		Level:    level,
@@ -252,17 +254,17 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	c.cacheMtx.Lock()
-	c.cacheBuffer[c.currIndex] = res_result
+	c.cacheBuffer[c.currIndex] = resResult
 	c.cacheInfo[c.currIndex] = nvidiaInfo
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if res_result.Status == commonCfg.StatusAbnormal {
-		logrus.WithField("component", "NVIDIA").Errorf("health check failed")
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "NVIDIA").Errorf("Health Check Failed")
 	} else {
-		logrus.WithField("component", "NVIDIA").Infof("health check passed")
+		logrus.WithField("component", "NVIDIA").Infof("Health Check PASSED")
 	}
 
-	return res_result, nil
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {

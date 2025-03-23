@@ -35,11 +35,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const timeoutDuration = 60 * time.Second
+const timeoutDuration = 120 * time.Second
 
 type Service interface {
-	Run(ctx context.Context)
-	Status(ctx context.Context) (interface{}, error)
+	Run()
+	Status() (interface{}, error)
 	Metrics(ctx context.Context, since time.Time) (interface{}, error)
 	Stop() error
 }
@@ -134,7 +134,7 @@ func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKe
 	return daemon_service, nil
 }
 
-func (d *DaemonService) Run(ctx context.Context) {
+func (d *DaemonService) Run() {
 	d.componentsLock.Lock()
 	d.componentsResultLock.Lock()
 
@@ -159,13 +159,17 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 	d.componentsStatus[componentName] = d.components[componentName].Status()
 	d.componentsStatusLock.Unlock()
 	for {
+		logrus.WithField("daemon", "run").Infof("start to listen component %s result channel", componentName)
 		select {
 		case <-d.ctx.Done():
+			logrus.WithField("daemon", "run").Warnf("component %s stop listen as d.ctx.Done()", componentName)
 			return
 		case result, ok := <-resultChan:
 			if !ok {
 				logrus.WithField("daemon", "run").Infof("component %s result channel has closed", componentName)
 				return
+			} else {
+				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
 			err := d.notifier.SetNodeAnnotation(d.ctx, result)
 			if err != nil {
@@ -198,7 +202,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 	}
 }
 
-func (d *DaemonService) Status(ctx context.Context) (interface{}, error) {
+func (d *DaemonService) Status() (interface{}, error) {
 	return d.componentsStatus, nil
 }
 

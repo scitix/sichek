@@ -143,6 +143,11 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
 	c.currIndex++
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "nccl").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "nccl").Infof("Health Check PASSED")
+	}
 
 	return resResult, nil
 }

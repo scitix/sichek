@@ -114,7 +114,7 @@ func (x *XidEventPoller) Start() error {
 		}
 
 		if err == nvml.ERROR_TIMEOUT {
-			logrus.WithField("component", "Nvidia").Warningf("XidEvent Not found during waiting time -- Retrying...\n")
+			// logrus.WithField("component", "Nvidia").Warningf("XidEvent Not found during waiting time -- Retrying...\n")
 			continue
 		}
 

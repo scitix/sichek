@@ -152,7 +152,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		logrus.WithField("component", "infiniband").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
+		if checkItem.Status == commonCfg.StatusAbnormal {
+			logrus.WithField("component", "infiniband").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
+		}
 	}
 
 	for _, checkItem := range checkerResults {
@@ -174,7 +176,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		hostname = "unknown"
 	}
 
-	finalResult := &common.Result{
+	resResult := &common.Result{
 		Item:     commonCfg.ComponentNameInfiniband,
 		Node:     hostname,
 		Status:   status,
@@ -186,11 +188,17 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = InfinibandInfo
-	c.cacheBuffer[c.currIndex] = finalResult
-	c.currIndex = (c.currIndex + 1) % c.cfg.CacheSize
+	c.cacheBuffer[c.currIndex] = resResult
+	c.currIndex = (c.currIndex + 1) % c.cfg.GetCacheSize()
 	c.cacheMtx.Unlock()
 
-	return finalResult, nil
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "Infiniband").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "Infiniband").Infof("Health Check PASSED")
+	}
+
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {

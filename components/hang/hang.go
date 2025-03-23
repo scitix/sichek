@@ -157,9 +157,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.currIndex++
 	c.cacheMtx.Unlock()
 	if resResult.Status == common_config.StatusAbnormal {
-		logrus.WithField("component", "Hang").Errorf("health check failed")
+		logrus.WithField("component", "Hang").Errorf("Health Check Failed")
 	} else {
-		logrus.WithField("component", "Hang").Infof("health check passed")
+		logrus.WithField("component", "Hang").Infof("Health Check PASSED")
 	}
 
 	return resResult, nil

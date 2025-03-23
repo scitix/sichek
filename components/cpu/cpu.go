@@ -127,51 +127,58 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 
-	status := consts.StatusNormal
-	checker_results := make([]*common.CheckerResult, 0)
+	status := commonCfg.StatusNormal
+	checkerResults := make([]*common.CheckerResult, 0)
 	for _, chker := range c.checkers {
-		var check_result *common.CheckerResult
-		event_checker, ok := chker.(*checker.EventChecker)
+		var checkResult *common.CheckerResult
+		eventChecker, ok := chker.(*checker.EventChecker)
 		if ok {
-			check_result, err = event_checker.Check(ctx, cpu_info.EventResults[event_checker.Name()])
+			checkResult, err = eventChecker.Check(ctx, cpu_info.EventResults[eventChecker.Name()])
 			if err != nil {
 				logrus.WithField("component", "cpu").Errorf("failed to check: %v", err)
 				continue
 			}
 		} else {
-			check_result, err = chker.Check(cctx, cpu_info)
+			checkResult, err = chker.Check(cctx, cpu_info)
 			if err != nil {
 				logrus.WithField("component", "cpu").Errorf("failed to check: %v", err)
 				continue
 			}
 		}
-		checker_results = append(checker_results, check_result)
+		checkerResults = append(checkerResults, checkResult)
 
-		if check_result.Level != consts.LevelInfo {
-			status = consts.StatusAbnormal
+		if checkResult.Status != commonCfg.StatusNormal {
+			status = commonCfg.StatusAbnormal
+			logrus.WithField("component", "cpu").Errorf("check Item:%s, status:%s, level:%s", checkResult.Name, checkResult.Status, checkResult.Level)
 		}
 	}
-	level := consts.LevelInfo
-	if status != consts.StatusNormal {
-		level = consts.LevelWarning
+
+	level := commonCfg.LevelInfo
+	if status == commonCfg.StatusAbnormal {
+		level = commonCfg.LevelWarning
 	}
 
-	res_result := &common.Result{
-		Item:     consts.ComponentNameCPU,
+	resResult := &common.Result{
+		Item:     commonCfg.ComponentNameCPU,
 		Node:     cpu_info.HostInfo.Hostname,
 		Status:   status,
 		Level:    level,
-		Checkers: checker_results,
+		Checkers: checkerResults,
 		Time:     time.Now(),
 	}
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
-	c.cacheBuffer[c.currIndex] = res_result
+	c.cacheBuffer[c.currIndex] = resResult
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
+	if resResult.Status == commonCfg.StatusAbnormal {
+		logrus.WithField("component", "cpu").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "cpu").Infof("Health Check PASSED")
+	}
 
-	return res_result, nil
+	return resResult, nil
 }
 
 func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
