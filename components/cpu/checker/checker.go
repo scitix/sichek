@@ -20,10 +20,10 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/cpu_config"
+	"github.com/scitix/sichek/config/cpu"
 )
 
-func NewCheckers(ctx context.Context, cfg *cpu_config.CPUConfig) ([]common.Checker, error) {
+func NewCheckers(ctx context.Context, cfg *cpu.CPUConfig) ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
 	checker, err := NewCPUPerfChecker()
 	if err != nil {

@@ -24,10 +24,9 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu/checker"
 	"github.com/scitix/sichek/components/cpu/collector"
-	commonCfg "github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/cpu_config"
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/cpu"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,7 +34,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *cpu_config.CPUConfig
+	cfg      *cpu.CPUConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -55,9 +54,9 @@ var (
 	cpuComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
 	cpuComponentOnce.Do(func() {
-		cpuComponent, err = new(cfgFile)
+		cpuComponent, err = new(componentConfig)
 		if err != nil {
 			panic(err)
 		}
@@ -65,35 +64,29 @@ func NewComponent(cfgFile string) (comp common.Component, err error) {
 	return cpuComponent, nil
 }
 
-func new(cfgFile string) (comp *component, err error) {
+func new(componentConfig *config.ComponentConfig) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-
-	cfg := &cpu_config.CPUConfig{}
-	if len(cfgFile) == 0 {
-		err := commonCfg.DefaultConfig(consts.ComponentNameCPU, cfg)
-		if err != nil {
-			logrus.WithField("component", "cpu").Errorf("NewComponent get default config failed: %v", err)
-			return nil, err
-		}
-	} else {
-		err = utils.LoadFromYaml(cfgFile, cfg)
-		if err != nil {
-			logrus.WithField("component", "cpu").Errorf("NewComponent load config yaml %s failed: %v", cfgFile, err)
-			return nil, err
-		}
+	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameCPU)
+	if cfg == nil {
+		logrus.WithField("component", "cpu").Errorf("NewComponent get config failed: %v", err)
+		return nil, err
 	}
-	collector, err := collector.NewCpuCollector(ctx, cfg)
+	cpuCfg, ok := cfg.(*cpu.CPUConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type for CPU component")
+	}
+	collector, err := collector.NewCpuCollector(ctx, cpuCfg)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(ctx, cfg)
+	checkers, err := checker.NewCheckers(ctx, cpuCfg)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create checkers failed: %v", err)
 		return nil, err
@@ -104,12 +97,12 @@ func new(cfgFile string) (comp *component, err error) {
 		cancel:      cancel,
 		collector:   collector,
 		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.CacheSize),
-		cacheSize:   cfg.CacheSize,
+		cfg:         cpuCfg,
+		cacheBuffer: make([]*common.Result, cpuCfg.CacheSize),
+		cacheInfo:   make([]common.Info, cpuCfg.CacheSize),
+		cacheSize:   cpuCfg.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, comp.HealthCheck)
+	service := common.NewCommonService(ctx, cpuCfg, comp.HealthCheck)
 	comp.service = service
 
 	return
@@ -229,7 +222,7 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*cpu_config.CPUConfig)
+	config, ok := cfg.(*cpu.CPUConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for cpu")
 	}

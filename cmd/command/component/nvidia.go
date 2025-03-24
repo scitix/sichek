@@ -23,7 +23,6 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
 	commonCfg "github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/pkg/utils"
 

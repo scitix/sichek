@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nvidia_config
+package nvidia
 
 import (
 	"fmt"
@@ -29,12 +29,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type Spec struct {
-	NvidiaSpec map[int32]*NvidiaSpec `json:"nvidia"`
+type NvidiaSpec struct {
+	nvidiaSpecMap map[int32]*NvidiaSpecItem
 	// Other fileds like `infiniband` can be added here if needed
 }
 
-type NvidiaSpec struct {
+type NvidiaSpecItem struct {
 	Name                 string                 `json:"name"`
 	GpuNums              int                    `json:"gpu_nums"`
 	GpuMemory            int                    `json:"gpu_memory"`
@@ -49,13 +49,6 @@ type NvidiaSpec struct {
 	CriticalXidEvents    map[int]string         `json:"critical_xid_events"`
 }
 
-func (s NvidiaSpec) LoadFromYaml(file string) error {
-	_, err := LoadSpecFromYaml("")
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 type Dependence struct {
 	PcieAcs        string `json:"pcie-acs"`
@@ -78,7 +71,7 @@ type TemperatureThreshold struct {
 	Memory int `json:"memory"`
 }
 
-func GetSpec(specFile string) *NvidiaSpec {
+func (s )GetSpec(specFile string) *NvidiaSpecItem {
 	deviceID := getDeviceID()
 	specs, err := LoadSpecFromYaml(specFile)
 	if err != nil {

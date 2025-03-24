@@ -13,13 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package config
+package cpu
 
 import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	commonCfg "github.com/scitix/sichek/config"
 )
 
 type CPUConfig struct {
@@ -51,6 +50,6 @@ type CPUEventConfig struct {
 }
 
 func (c *CPUEventConfig) LoadFromYaml(file string) error {
-	err := commonCfg.LoadFromYaml(file, c)
-	return err
+	// err := commonCfg.LoadFromYaml(file, c)
+	return nil
 }

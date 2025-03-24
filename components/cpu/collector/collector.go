@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/cpu_config"
+	"github.com/scitix/sichek/config/cpu"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -47,13 +47,13 @@ func (o *CPUOutput) JSON() (string, error) {
 
 type collector struct {
 	name        string
-	cfg         *cpu_config.CPUConfig
+	cfg         *cpu.CPUConfig
 	CPUArchInfo *CPUArchInfo `json:"cpu_arch_info"`
 	HostInfo    *HostInfo    `json:"host_info"`
 	filter      *filter.FileFilter
 }
 
-func NewCpuCollector(ctx context.Context, config *cpu_config.CPUConfig) (*collector, error) {
+func NewCpuCollector(ctx context.Context, config *cpu.CPUConfig) (*collector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)

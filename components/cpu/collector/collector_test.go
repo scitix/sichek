@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/config/cpu_config"
+	"github.com/scitix/sichek/config/cpu"
 )
 
 func TestCollector_Collect(t *testing.T) {
@@ -30,8 +30,8 @@ func TestCollector_Collect(t *testing.T) {
 	defer cancel()
 
 	// Mock configuration
-	cfg := &cpu_config.CPUConfig{
-		EventCheckers: map[string]*cpu_config.CPUEventConfig{
+	cfg := &cpu.CPUConfig{
+		EventCheckers: map[string]*cpu.CPUEventConfig{
 			"testChecker": {
 				Name:        "testChecker",
 				Description: "Test checker",

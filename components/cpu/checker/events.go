@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/cpu_config"
+	"github.com/scitix/sichek/config/cpu"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
@@ -31,11 +31,11 @@ import (
 
 type EventChecker struct {
 	name string
-	cfg  *cpu_config.CPUEventConfig
+	cfg  *cpu.CPUEventConfig
 }
 
 func NewEventChecker(ctx context.Context, cfg common.CheckerSpec) (common.Checker, error) {
-	cpuEventCfg, ok := cfg.(*cpu_config.CPUEventConfig)
+	cpuEventCfg, ok := cfg.(*cpu.CPUEventConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid CPU event checker config type")
 	}

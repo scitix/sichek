@@ -24,7 +24,7 @@ import (
 	"github.com/scitix/sichek/components/cpu/checker"
 	"github.com/scitix/sichek/components/cpu/collector"
 	"github.com/scitix/sichek/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -59,8 +59,12 @@ func NewCPUCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "cpu").Info("load default cfg...")
 			}
-
-			component, err := cpu.NewComponent(cfgFile)
+			cfg, err := config.LoadComponentConfig(cfgFile, "")
+			if err != nil {
+				logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
+				return
+			}
+			component, err := cpu.NewComponent(cfg)
 			if err != nil {
 				logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
 				return
@@ -79,7 +83,7 @@ func NewCPUCmd() *cobra.Command {
 			}
 			pass := PrintSystemInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[config.ComponentNameCPU] = pass
+			ComponentStatuses[consts.ComponentNameCPU] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -111,7 +115,7 @@ func PrintSystemInfo(info common.Info, result *common.Result, summaryPrint bool)
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		statusColor := Green
-		if result.Status != commonCfg.StatusNormal {
+		if result.Status != consts.StatusNormal {
 			statusColor = Red
 			checkAllPassed = false
 		}
