@@ -36,7 +36,7 @@ func NewDaemonRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Run sichek daemon process",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
 			cfgFile, err := cmd.Flags().GetString("cfg")

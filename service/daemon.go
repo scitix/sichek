@@ -61,7 +61,7 @@ type DaemonService struct {
 }
 
 func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKey string) (s Service, err error) {
-	cctx, ccancel := context.WithCancel(ctx)
+	cctx, ccancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			ccancel()
