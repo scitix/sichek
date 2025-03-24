@@ -32,7 +32,6 @@ func NewRootCmd() *cobra.Command {
 		Short: "Hardware health check tool",
 		Long:  "A command - line tool for performing operations related to different hardware components",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// 需要 root 权限的一级命令
 			commandsRequireRoot := map[string]bool{
 				"gpu":        true,
 				"g":          true,
@@ -40,7 +39,6 @@ func NewRootCmd() *cobra.Command {
 				"i":          true,
 			}
 
-			// 判断当前命令是否需要 root
 			if commandsRequireRoot[cmd.Use] {
 				root := utils.IsRoot()
 				if !root {
@@ -52,7 +50,6 @@ func NewRootCmd() *cobra.Command {
 		},
 	}
 
-	// 添加子命令
 	rootCmd.AddCommand(component.NewCPUCmd())
 	rootCmd.AddCommand(component.NewNvidiaCmd())
 	rootCmd.AddCommand(component.NewInfinibandCmd())
