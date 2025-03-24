@@ -330,11 +330,9 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 					fmt.Printf("%s analyze failed: %v\n", c.name, err)
 					continue
 				}
-				if result.Level == commonCfg.LevelCritical || result.Level == commonCfg.LevelWarning {
-					c.serviceMtx.Lock()
-					c.resultChannel <- result
-					c.serviceMtx.Unlock()
-				}
+				c.serviceMtx.Lock()
+				c.resultChannel <- result
+				c.serviceMtx.Unlock()
 			}
 		}
 	}()
