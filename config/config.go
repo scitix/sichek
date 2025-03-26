@@ -42,9 +42,6 @@ type BasicComponentConfigs struct {
 type SpecComponentConfigs struct {
 	nvidiaSpecConfig *nvidia.NvidiaSpec `json:"nvidia" yaml:"nvidia"`
 }
-type ComponentSepcConfig interface {
-	Process(c *ComponentConfig)
-}
 
 var (
 	instance *ComponentConfig
@@ -68,23 +65,23 @@ func LoadComponentConfig(basicConfigPath, specConfigPath string) (*ComponentConf
 	return instance, err
 }
 
-func (c *ComponentConfig) getComponentConfigByComponentName(componentName string, defaultBasicConfig interface{}, defaultSpecConfig ComponentSepcConfig) (interface{}, interface{}) {
+func (c *ComponentConfig) GetComponentConfigByComponentName(componentName string, defaultBasicConfig interface{}, defaultSpecConfig interface{}) (interface{}, interface{}) {
 	if defaultBasicConfig == nil {
 		DefaultComponentConfig(componentName, defaultBasicConfig, consts.DefaultBasicCfgName)
 	}
 	if defaultSpecConfig == nil {
 		DefaultComponentConfig(componentName, defaultSpecConfig, consts.DefaultSpecCfgName)
 	}
-	defaultSpecConfig.Process(c)
+
 	return defaultBasicConfig, defaultSpecConfig
 }
 
 func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interface{}, interface{}) {
 	switch componentName {
-	case "cpu":
-		return c.getComponentConfigByComponentName(componentName, c.componentBasicConfig.cpuBasicConfig, nil)
-	// case "nvidia":
-	// 	return c.GetDefaultConfigByComponentName(componentName, c.componentBasicConfig.nvidiaBasicConfig, c.componentSpecConfig.nvidiaSpecConfig)
+	case consts.ComponentNameCPU:
+		return c.GetComponentConfigByComponentName(componentName, c.componentBasicConfig.cpuBasicConfig, nil)
+	case consts.ComponentNameNvidia:
+		return c.GetComponentConfigByComponentName(componentName, c.componentBasicConfig.nvidiaBasicConfig, c.componentSpecConfig.nvidiaSpecConfig)
 	default:
 		return nil, nil // 未找到配置
 	}

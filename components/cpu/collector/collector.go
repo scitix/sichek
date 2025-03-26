@@ -58,7 +58,7 @@ func NewCpuCollector(ctx context.Context, config *cpu.CPUConfig) (*collector, er
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.CPU.EventCheckers {
+	for _, checker_cfg := range config.EventCheckers {
 		_, err := os.Stat(checker_cfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "CPU").Errorf("log file %s not exist for CPU collector", checker_cfg.LogFile)

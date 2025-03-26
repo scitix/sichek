@@ -29,6 +29,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -85,41 +86,35 @@ func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKe
 	}
 
 	// init components
-	if enable, exists := cfg.Components[config.ComponentNameNvidia]; exists && enable {
+	if enable, exists := cfg.Components[consts.ComponentNameNvidia]; exists && enable {
 		if !utils.IsNvidiaGPUExist() {
 			logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 		}
 		component, err := nvidia.NewComponent("", specFile, nil)
-		daemon_service.components[config.ComponentNameNvidia] = component
+		daemon_service.components[consts.ComponentNameNvidia] = component
 		if err != nil {
 			return nil, err
 		}
 	}
 	for component_name, enabled := range cfg.Components {
-		if !enabled || component_name == config.ComponentNameNvidia {
+		if !enabled || component_name == consts.ComponentNameNvidia {
 			continue
 		}
 
 		var component common.Component
 		var err error
 		switch component_name {
-		case config.ComponentNameGpfs:
+		case consts.ComponentNameGpfs:
 			component, err = gpfs.NewGpfsComponent("")
-		case config.ComponentNameCPU:
+		case consts.ComponentNameCPU:
 			component, err = cpu.NewComponent("")
-		case config.ComponentNameInfiniband:
+		case consts.ComponentNameInfiniband:
 			component, err = infiniband.NewInfinibandComponent("", specFile, nil)
-		case config.ComponentNameDmesg:
+		case consts.ComponentNameDmesg:
 			component, err = dmesg.NewComponent("")
-		case config.ComponentNameHang:
+		case consts.ComponentNameHang:
 			component, err = hang.NewComponent("")
-		case config.ComponentNameNvidia:
-			if !utils.IsNvidiaGPUExist() {
-				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
-				continue
-			}
-			component, err = nvidia.NewComponent("", specFile, nil)
-		case config.ComponentNameNCCL:
+		case consts.ComponentNameNCCL:
 			component, err = nccl.NewComponent("")
 		default:
 			err = fmt.Errorf("invalid component_name: %s", component_name)

@@ -84,8 +84,8 @@ func TestCollector_Collect(t *testing.T) {
 	}()
 
 	// Update the log file path in the configuration
-	cfg.CPU.EventCheckers["testChecker"].LogFile = logFile.Name()
-	t.Logf("Event checkers: %+v", cfg.CPU.EventCheckers["testChecker"])
+	cfg.EventCheckers["testChecker"].LogFile = logFile.Name()
+	t.Logf("Event checkers: %+v", cfg.EventCheckers["testChecker"])
 	// Create a new collector instance
 	collector, err := NewCpuCollector(ctx, cfg)
 	if err != nil {

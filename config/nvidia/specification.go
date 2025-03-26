@@ -49,7 +49,6 @@ type NvidiaSpecItem struct {
 	CriticalXidEvents    map[int]string         `json:"critical_xid_events"`
 }
 
-
 type Dependence struct {
 	PcieAcs        string `json:"pcie-acs"`
 	Iommu          string `json:"iommu"`
@@ -71,12 +70,17 @@ type TemperatureThreshold struct {
 	Memory int `json:"memory"`
 }
 
-func (s )GetSpec(specFile string) *NvidiaSpecItem {
-	deviceID := getDeviceID()
-	specs, err := LoadSpecFromYaml(specFile)
-	if err != nil {
-		panic(fmt.Errorf("failed to load spec file: %v", err))
+func (s *NvidiaSpec) GetSpec(specFile string) *NvidiaSpecItem {
+	for gpu_id, nvidiaSpec := range s.nvidiaSpecMap {
+		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
+		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
+		nvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
 	}
+	// specs, err := LoadSpecFromYaml(specFile)
+	// if err != nil {
+	// 	panic(fmt.Errorf("failed to load spec file: %v", err))
+	// }
+	deviceID := getDeviceID()
 	if _, ok := specs[deviceID]; !ok {
 		panic("failed to find spec file for deviceID: " + deviceID)
 	}
@@ -115,8 +119,8 @@ func getDeviceID() string {
 }
 
 // LoadSpecFromYaml loads nvidia specifications from a single yaml file or multiple yaml files in default directory.
-func LoadSpecFromYaml(specFile string) (map[string]*NvidiaSpec, error) {
-	nvidiaSpecsMap := make(map[string]*NvidiaSpec)
+func LoadSpecFromYaml(specFile string) (map[string]*NvidiaSpecItem, error) {
+	nvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
 	if specFile != "" {
 		// Parse from the specified file
 		if err := parseSpecYamlFile(specFile, nvidiaSpecsMap); err != nil {
@@ -164,17 +168,17 @@ func getLocalSpecDir() string {
 }
 
 // parseSpecYamlFile read and parses a single YAML file into a map of NvidiaSpec.
-func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]*NvidiaSpec) error {
+func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]*NvidiaSpecItem) error {
 	data, err := os.ReadFile(specFile)
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %w", specFile, err)
 	}
-	var spec Spec
+	var spec NvidiaSpec
 	if err := yaml.Unmarshal(data, &spec); err != nil {
 		return fmt.Errorf("failed to unmarshal file %s: %w", specFile, err)
 	}
 	// Merge the parsed spec into the main nvidiaSpec map
-	for gpu_id, nvidiaSpec := range spec.NvidiaSpec {
+	for gpu_id, nvidiaSpec := range spec.nvidiaSpecMap {
 		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
 		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
 		nvidiaSpecsMap[gpu_id_hex] = nvidiaSpec

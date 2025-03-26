@@ -25,9 +25,10 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
 	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -37,7 +38,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *nvidiaCfg.ComponentConfig
+	cfg      *nvidia.NvidiaConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
 
 	nvmlInst  nvml.Interface
@@ -134,14 +135,14 @@ func GetComponent() common.Component {
 	return nvidiaComponent
 }
 
-func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
+func NewComponent(componentConfig *config.ComponentConfig, ignoredCheckers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
-		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
+		nvidiaComponent, err = newNvidia(componentConfig, ignoredCheckers)
 	})
 	return nvidiaComponent, err
 }
 
-func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
+func newNvidia(componentConfig *config.ComponentConfig, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -154,14 +155,27 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
 		return nil, err
 	}
-
-	var nvidiaCfg nvidiaCfg.NvidiaConfig
-	nvidiaCfg.LoadFromYaml(cfgFile, specFile)
-	if len(ignoredCheckers) > 0 {
-		nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers = ignoredCheckers
+	cfg, specCfg := componentConfig.GetConfigByComponentName(consts.ComponentNameNvidia)
+	if cfg == nil || specCfg == nil {
+		logrus.WithField("component", "nvidia").Errorf("NewComponent get config cfg: %v, specCfg: %v", cfg, specCfg)
+		return nil, fmt.Errorf("NewComponent get config failed")
 	}
+	nvidiaCfg, ok := cfg.(*nvidia.NvidiaConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid basic config type for nvidia component")
+	}
+	nvidiaSpecCfg, ok := specCfg.(*nvidia.NvidiaSpec)
+	if !ok {
+		return nil, fmt.Errorf("invalid spec config type for nvidia component")
+	}
+	nvidiaSpecCfg = 
+	// var nvidiaCfg nvidiaCfg.NvidiaConfig
+	// nvidiaCfg.LoadFromYaml(cfgFile, specFile)
+	// if len(ignoredCheckers) > 0 {
+	// 	nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers = ignoredCheckers
+	// }
 
-	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaCfg.Spec.GpuNums)
+	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidiaCollector failed: %v", err)
 		return nil, err
@@ -181,7 +195,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	}
 
 	component := &component{
-		name:          commonCfg.ComponentNameNvidia,
+		name:          consts.ComponentNameNvidia,
 		ctx:           ctx,
 		cancel:        cancel,
 		cfg:           nvidiaCfg.ComponentConfig,
