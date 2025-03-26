@@ -70,21 +70,18 @@ type TemperatureThreshold struct {
 	Memory int `json:"memory"`
 }
 
-func (s *NvidiaSpec) GetSpec(specFile string) *NvidiaSpecItem {
+func (s *NvidiaSpec) GetSpec() *NvidiaSpecItem {
+	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
 	for gpu_id, nvidiaSpec := range s.nvidiaSpecMap {
 		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
 		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
-		nvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
+		formatedNvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
 	}
-	// specs, err := LoadSpecFromYaml(specFile)
-	// if err != nil {
-	// 	panic(fmt.Errorf("failed to load spec file: %v", err))
-	// }
 	deviceID := getDeviceID()
-	if _, ok := specs[deviceID]; !ok {
+	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
 		panic("failed to find spec file for deviceID: " + deviceID)
 	}
-	return specs[deviceID]
+	return formatedNvidiaSpecsMap[deviceID]
 }
 
 func getDeviceID() string {

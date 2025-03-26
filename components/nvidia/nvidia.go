@@ -164,16 +164,15 @@ func newNvidia(componentConfig *config.ComponentConfig, ignoredCheckers []string
 	if !ok {
 		return nil, fmt.Errorf("invalid basic config type for nvidia component")
 	}
-	nvidiaSpecCfg, ok := specCfg.(*nvidia.NvidiaSpec)
+	nvidiaSpecCfgs, ok := specCfg.(*nvidia.NvidiaSpec)
 	if !ok {
 		return nil, fmt.Errorf("invalid spec config type for nvidia component")
 	}
-	nvidiaSpecCfg = 
-	// var nvidiaCfg nvidiaCfg.NvidiaConfig
-	// nvidiaCfg.LoadFromYaml(cfgFile, specFile)
-	// if len(ignoredCheckers) > 0 {
-	// 	nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers = ignoredCheckers
-	// }
+	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec()
+
+	if len(ignoredCheckers) > 0 {
+		nvidiaCfg.IgnoredCheckers = ignoredCheckers
+	}
 
 	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
 	if err != nil {
