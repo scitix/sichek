@@ -52,7 +52,12 @@ func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDe
 	var err error
 	done := make(chan struct{})
 	go func() {
-		defer close(done)
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[NewNvidiaCollector] panic err is %s\n", err)
+			}
+			close(done)
+		}()
 		for i := 0; i < expectedDeviceCount; i++ {
 			err = collector.softwareInfo.Get(i)
 			if err != nil {

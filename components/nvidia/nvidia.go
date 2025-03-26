@@ -69,7 +69,12 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 	var nvmlInst nvml.Interface
 	var initError error
 	go func() {
-		defer close(done)
+		defer func() {
+			if err := recover(); err != nil {
+				initError = fmt.Errorf("panic occurred during NVML initialization: %v", err)
+			}
+			close(done)
+		}()
 		nvmlInst = nvml.New()
 		if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
 			initError = fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
@@ -175,7 +180,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	}
 
 	component := &component{
-		name:          "NVIDIA",
+		name:          commonCfg.ComponentNameNvidia,
 		ctx:           ctx,
 		cancel:        cancel,
 		cfg:           nvidiaCfg.ComponentConfig,
@@ -234,17 +239,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == commonCfg.StatusAbnormal {
 			logrus.WithField("component", "NVIDIA").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
-		}
-	}
-
-	for _, checkItem := range checkerResults {
-		if checkItem.Status == commonCfg.StatusAbnormal {
 			status = commonCfg.StatusAbnormal
-			level = fmt.Sprintf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
 		}
 	}
-
 	resResult := &common.Result{
 		Item:     c.name,
 		Status:   status,
@@ -315,6 +313,11 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 	c.serviceMtx.Unlock()
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[Nvidiastart] panic err is %s\n", err)
+			}
+		}()
 		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
 		defer ticker.Stop()
 
@@ -338,6 +341,11 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 	}()
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("[xidPoller] panic err is %s\n", err)
+			}
+		}()
 		err := c.xidPoller.Start()
 		if err != nil {
 			logrus.WithField("component", "NVIDIA").Errorf("start xid poller failed: %v", err)

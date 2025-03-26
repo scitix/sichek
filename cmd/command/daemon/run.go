@@ -109,7 +109,7 @@ func NewDaemonRunCmd() *cobra.Command {
 
 			logrus.WithField("daemon", "run").Info("starting sichek daemon service")
 
-			done := service.HandleSignals(ctx, cancel, signals, serviceChan)
+			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
 
 			daemonService, err := service.NewService(ctx, cfg, specFile, annoKey)
@@ -121,7 +121,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			go daemonService.Run()
 
 			if exist, _ := pkg_systemd.SystemctlExists(); exist {
-				if err := service.NotifyReady(ctx); err != nil {
+				if err := service.NotifyReady(); err != nil {
 					logrus.WithField("daemon", "run").Warn("notify is not ready")
 				}
 			} else {
