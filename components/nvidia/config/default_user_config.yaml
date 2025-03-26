@@ -2,5 +2,4 @@ nvidia:
   name: nvidia
   query_interval: 10
   cache_size: 10
-  ignored_checkers:
-    - app-clocks
+  ignored_checkers: []

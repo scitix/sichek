@@ -50,7 +50,7 @@ func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
 }
 
 func (a *nodeAnnotation) JSON() (string, error) {
-	data, err := json.Marshal(a)
+	data, err := json.MarshalIndent(a, "", "  ")
 	return string(data), err
 }
 
@@ -58,12 +58,12 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 	if result == nil {
 		return fmt.Errorf("input result is empty")
 	}
-	jsonData, err := json.Marshal(result)
+	jsonData, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		logrus.Errorf("Error marshaling JSON: %v", err)
 		return err
 	}
-	pre_anno_str, err := a.JSON()
+	preAnnoStr, err := a.JSON()
 	if err != nil {
 		logrus.Errorf("Error marshaling annotation: %v", err)
 		return err
@@ -109,8 +109,8 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 		return err
 	}
 	if result.Status == config.StatusAbnormal && (result.Level == config.LevelCritical || result.Level == config.LevelFatal) {
-		logrus.Infof("set node annotation for check result %s", jsonData)
-		logrus.Infof("update node annotataion from %s to %s", pre_anno_str, annoStr)
+		logrus.Infof("set node annotation for check result %v", string(jsonData))
+		logrus.Infof("update node annotataion from %v to %v", preAnnoStr, annoStr)
 	}
 
 	return nil
