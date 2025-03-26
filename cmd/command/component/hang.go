@@ -66,7 +66,7 @@ func NewHangCommand() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
 			}
-			
+
 			_, err = nvidia.NewComponent("", specFile, nil)
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
@@ -84,6 +84,11 @@ func NewHangCommand() *cobra.Command {
 			var wg sync.WaitGroup
 			wg.Add(1)
 			go func(ctx context.Context) {
+				defer func() {
+					if err := recover(); err != nil {
+						logrus.WithField("component", "Hang").Errorf("recover panic err: %v", err)
+					}
+				}()
 				defer wg.Done()
 				select {
 				case <-ctx.Done():

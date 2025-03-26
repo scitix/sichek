@@ -68,7 +68,7 @@ func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKe
 		}
 	}()
 
-	notifier, err := NewNotifier(ctx, annoKey)
+	notifier, err := NewNotifier(annoKey)
 	if err != nil {
 		logrus.WithField("daemon", "new").Errorf("create notifier failed: %v", err)
 		return nil, err
@@ -135,8 +135,12 @@ func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKe
 }
 
 func (d *DaemonService) Run() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("[DaemonService|Run] panic err is %s\n", err)
+		}
+	}()
 	d.componentsLock.Lock()
-	d.componentsResultLock.Lock()
 
 	for component_name := range d.cfg.Components {
 		component, exist := d.components[component_name]
@@ -147,7 +151,6 @@ func (d *DaemonService) Run() {
 		d.componentResults[component_name] = resultChan
 	}
 	d.componentsLock.Unlock()
-	d.componentsResultLock.Unlock()
 
 	for componentName, resultChan := range d.componentResults {
 		go d.monitorComponent(componentName, resultChan)
@@ -155,6 +158,11 @@ func (d *DaemonService) Run() {
 }
 
 func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan *common.Result) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("[DaemonService|monitorComponent] panic err is %s\n", err)
+		}
+	}()
 	d.componentsStatusLock.Lock()
 	d.componentsStatus[componentName] = d.components[componentName].Status()
 	d.componentsStatusLock.Unlock()
