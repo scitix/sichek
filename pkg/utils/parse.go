@@ -6,6 +6,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 )
+
 func JSON(c interface{}) (string, error) {
 	data, err := json.Marshal(c)
 	return string(data), err
@@ -26,6 +27,5 @@ func LoadFromYaml(file string, c interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

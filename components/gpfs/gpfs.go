@@ -24,8 +24,9 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/gpfs/checker"
 	"github.com/scitix/sichek/components/gpfs/collector"
-	"github.com/scitix/sichek/components/gpfs/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/gpfs"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +35,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *config.GpfsConfig
+	cfg      *gpfs.GpfsConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -54,9 +55,9 @@ var (
 	gpfsComponentOnce sync.Once
 )
 
-func NewGpfsComponent(cfgFile string) (comp common.Component, err error) {
+func NewGpfsComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
 	gpfsComponentOnce.Do(func() {
-		gpfsComponent, err = newGpfsComponent(cfgFile)
+		gpfsComponent, err = newGpfsComponent(componentConfig)
 		if err != nil {
 			panic(err)
 		}
@@ -64,7 +65,7 @@ func NewGpfsComponent(cfgFile string) (comp common.Component, err error) {
 	return gpfsComponent, nil
 }
 
-func newGpfsComponent(cfgFile string) (comp *component, err error) {
+func newGpfsComponent(componentConfig *config.ComponentConfig) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -72,27 +73,22 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		}
 	}()
 
-	cfg := &config.GpfsConfig{}
-	if len(cfgFile) == 0 {
-		err := commonCfg.DefaultConfig(commonCfg.ComponentNameGpfs, cfg)
-		if err != nil {
-			logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent get default config failed: %v", err)
-			return nil, err
-		}
-	} else {
-		err = commonCfg.LoadFromYaml(cfgFile,cfg)
-		if err != nil {
-			logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent load config yaml %s failed: %v", cfgFile, err)
-			return nil, err
-		}
+	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameGpfs)
+	if cfg == nil {
+		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed: %v", err)
+		return nil, err
 	}
-	collector, err := collector.NewGPFSCollector(ctx, cfg)
+	gpfsCfg, ok := cfg.(*gpfs.GpfsConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type for GPFS component")
+	}
+	collector, err := collector.NewGPFSCollector(ctx, gpfsCfg)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(ctx, cfg)
+	checkers, err := checker.NewCheckers(ctx, gpfsCfg)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create checkers failed: %v", err)
 		return nil, err
@@ -103,19 +99,19 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		cancel:      cancel,
 		collector:   collector,
 		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.CacheSize),
-		cacheSize:   cfg.CacheSize,
+		cfg:         gpfsCfg,
+		cacheBuffer: make([]*common.Result, gpfsCfg.CacheSize),
+		cacheInfo:   make([]common.Info, gpfsCfg.CacheSize),
+		cacheSize:   gpfsCfg.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, component.HealthCheck)
+	service := common.NewCommonService(ctx, gpfsCfg, component.HealthCheck)
 	component.service = service
 
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameGpfs
+	return consts.ComponentNameGpfs
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -132,8 +128,8 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 
-	status := commonCfg.StatusNormal
-	level := commonCfg.LevelInfo
+	status := consts.StatusNormal
+	level := consts.LevelInfo
 	checker_results := make([]*common.CheckerResult, 0)
 	for _, checker := range c.checkers {
 		check_result, err := checker.Check(cctx, gpfs_info.FilterResults[checker.Name()])
@@ -142,14 +138,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			continue
 		}
 		checker_results = append(checker_results, check_result)
-		if check_result.Level == commonCfg.LevelCritical && check_result.Status == commonCfg.StatusAbnormal {
-			status = commonCfg.StatusAbnormal
+		if check_result.Level == consts.LevelCritical && check_result.Status == consts.StatusAbnormal {
+			status = consts.StatusAbnormal
 			level = check_result.Level
 		}
 	}
 
 	resResult := &common.Result{
-		Item:       commonCfg.ComponentNameGpfs,
+		Item:       consts.ComponentNameGpfs,
 		Status:     status,
 		Level:      level,
 		Suggestion: string("Repaire and Reboot the system"),
@@ -162,7 +158,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheBuffer[c.currIndex] = resResult
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "gpfs").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "gpfs").Infof("Health Check PASSED")
@@ -219,7 +215,7 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.GpfsConfig)
+	config, ok := cfg.(*gpfs.GpfsConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for gpfs")
 	}

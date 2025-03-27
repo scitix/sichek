@@ -29,8 +29,8 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -61,7 +61,7 @@ type DaemonService struct {
 	notifier Notifier
 }
 
-func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKey string) (s Service, err error) {
+func NewService(ctx context.Context, cfg *config.Config, componentConfig *config.ComponentConfig, annoKey string) (s Service, err error) {
 	cctx, ccancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -90,7 +90,7 @@ func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKe
 		if !utils.IsNvidiaGPUExist() {
 			logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 		}
-		component, err := nvidia.NewComponent("", specFile, nil)
+		component, err := nvidia.NewComponent(componentConfig, nil)
 		daemon_service.components[consts.ComponentNameNvidia] = component
 		if err != nil {
 			return nil, err
@@ -105,17 +105,17 @@ func NewService(ctx context.Context, cfg *config.Config, specFile string, annoKe
 		var err error
 		switch component_name {
 		case consts.ComponentNameGpfs:
-			component, err = gpfs.NewGpfsComponent("")
+			component, err = gpfs.NewGpfsComponent(componentConfig)
 		case consts.ComponentNameCPU:
-			component, err = cpu.NewComponent("")
+			component, err = cpu.NewComponent(componentConfig)
 		case consts.ComponentNameInfiniband:
-			component, err = infiniband.NewInfinibandComponent("", specFile, nil)
+			component, err = infiniband.NewInfinibandComponent(componentConfig, nil)
 		case consts.ComponentNameDmesg:
-			component, err = dmesg.NewComponent("")
+			component, err = dmesg.NewComponent(componentConfig)
 		case consts.ComponentNameHang:
-			component, err = hang.NewComponent("")
+			component, err = hang.NewComponent(componentConfig)
 		case consts.ComponentNameNCCL:
-			component, err = nccl.NewComponent("")
+			component, err = nccl.NewComponent(componentConfig)
 		default:
 			err = fmt.Errorf("invalid component_name: %s", component_name)
 			return nil, err
@@ -183,15 +183,15 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				Name:        fmt.Sprintf("%sTimeout", componentName),
 				Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
 				Status:      "",
-				Level:       config.LevelCritical,
+				Level:       consts.LevelCritical,
 				Detail:      "",
 				ErrorName:   fmt.Sprintf("%sTimeout", componentName),
 				Suggestion:  "The Nvidida GPU may be broken, please restart the node",
 			}
 			timeoutResult := &common.Result{
 				Item:     componentName,
-				Status:   config.StatusAbnormal,
-				Level:    config.LevelCritical,
+				Status:   consts.StatusAbnormal,
+				Level:    consts.LevelCritical,
 				Checkers: []*common.CheckerResult{timeoutCheckerResult},
 				Time:     time.Now(),
 			}

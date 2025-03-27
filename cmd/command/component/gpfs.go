@@ -22,8 +22,9 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/gpfs"
 	"github.com/scitix/sichek/components/gpfs/collector"
-	"github.com/scitix/sichek/components/gpfs/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config"
+	gpfsconfig "github.com/scitix/sichek/config/gpfs"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -60,7 +61,12 @@ func NewGpfsCmd() *cobra.Command {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
 
-			component, err := gpfs.NewGpfsComponent(cfgFile)
+			cfg, err := config.LoadComponentConfig(cfgFile, "")
+			if err != nil {
+				logrus.WithField("component", "Gpfs").Errorf("create gpfs component failed: %v", err)
+				return
+			}
+			component, err := gpfs.NewGpfsComponent(cfg)
 			if err != nil {
 				logrus.WithField("component", "Gpfs").Errorf("create gpfs component failed: %v", err)
 				return
@@ -79,7 +85,7 @@ func NewGpfsCmd() *cobra.Command {
 			}
 			pass := PrintGPFSInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameGpfs] = pass
+			ComponentStatuses[consts.ComponentNameGpfs] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -103,14 +109,14 @@ func PrintGPFSInfo(info common.Info, result *common.Result, summaryPrint bool) b
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		statusColor := Green
-		if result.Status != commonCfg.StatusNormal {
+		if result.Status != consts.StatusNormal {
 			statusColor = Red
 			checkAllPassed = false
 			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", Red, result.ErrorName, Reset)
 		}
 
 		switch result.Name {
-		case config.FilesystemUnmountCheckerName:
+		case gpfsconfig.FilesystemUnmountCheckerName:
 			mountPrint = fmt.Sprintf("GPFS: %sMounted%s", statusColor, Reset)
 		}
 	}

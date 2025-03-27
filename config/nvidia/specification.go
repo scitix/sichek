@@ -30,49 +30,49 @@ import (
 )
 
 type NvidiaSpec struct {
-	nvidiaSpecMap map[int32]*NvidiaSpecItem
+	NvidiaSpecMap map[int32]*NvidiaSpecItem `json:"nvidia_specs" yaml:"nvidia_specs"`
 	// Other fileds like `infiniband` can be added here if needed
 }
 
 type NvidiaSpecItem struct {
-	Name                 string                 `json:"name"`
-	GpuNums              int                    `json:"gpu_nums"`
-	GpuMemory            int                    `json:"gpu_memory"`
-	GpuMemoryBandwidth   int                    `json:"gpu_memory_bandwidth,omitempty"`
-	PCIe                 collector.PCIeInfo     `json:"pcie,omitempty"`
-	Dependence           Dependence             `json:"dependence"`
-	Software             collector.SoftwareInfo `json:"software"`
-	Nvlink               collector.NVLinkStates `json:"nvlink"`
-	State                collector.StatesInfo   `json:"state"`
-	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold"`
-	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold"`
-	CriticalXidEvents    map[int]string         `json:"critical_xid_events"`
+	Name                 string                 `json:"name" yaml:"name"`
+	GpuNums              int                    `json:"gpu_nums" yaml:"gpu_nums"`
+	GpuMemory            int                    `json:"gpu_memory" yaml:"gpu_memory"`
+	GpuMemoryBandwidth   int                    `json:"gpu_memory_bandwidth,omitempty" yaml:"gpu_memory_bandwidth,omitempty"`
+	PCIe                 collector.PCIeInfo     `json:"pcie,omitempty" yaml:"pcie,omitempty"`
+	Dependence           Dependence             `json:"dependence" yaml:"dependence"`
+	Software             collector.SoftwareInfo `json:"software" yaml:"software"`
+	Nvlink               collector.NVLinkStates `json:"nvlink" yaml:"nvlink"`
+	State                collector.StatesInfo   `json:"state" yaml:"state"`
+	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold" yaml:"memory_errors_threshold"`
+	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold" yaml:"temperature_threshold"`
+	CriticalXidEvents    map[int]string         `json:"critical_xid_events" yaml:"critical_xid_events"`
 }
 
 type Dependence struct {
-	PcieAcs        string `json:"pcie-acs"`
-	Iommu          string `json:"iommu"`
-	NvidiaPeermem  string `json:"nv-peermem"`
-	FabricManager  string `json:"nv_fabricmanager"`
-	CpuPerformance string `json:"cpu_performance"`
+	PcieAcs        string `json:"pcie-acs" yaml:"pcie-acs"`
+	Iommu          string `json:"iommu" yaml:"iommu"`
+	NvidiaPeermem  string `json:"nv-peermem" yaml:"nv-peermem"`
+	FabricManager  string `json:"nv_fabricmanager" yaml:"nv_fabricmanager"`
+	CpuPerformance string `json:"cpu_performance" yaml:"cpu_performance"`
 }
 
 type MemoryErrorThreshold struct {
-	RemappedUncorrectableErrors      uint64 `json:"remapped_uncorrectable_errors"`
-	SRAMVolatileUncorrectableErrors  uint64 `json:"sram_volatile_uncorrectable_errors"`
-	SRAMAggregateUncorrectableErrors uint64 `json:"sram_aggregate_uncorrectable_errors"`
-	SRAMVolatileCorrectableErrors    uint64 `json:"sram_volatile_correctable_errors"`
-	SRAMAggregateCorrectableErrors   uint64 `json:"sram_aggregate_correctable_errors"`
+	RemappedUncorrectableErrors      uint64 `json:"remapped_uncorrectable_errors" yaml:"remapped_uncorrectable_errors"`
+	SRAMVolatileUncorrectableErrors  uint64 `json:"sram_volatile_uncorrectable_errors" yaml:"sram_volatile_uncorrectable_errors"`
+	SRAMAggregateUncorrectableErrors uint64 `json:"sram_aggregate_uncorrectable_errors" yaml:"sram_aggregate_uncorrectable_errors"`
+	SRAMVolatileCorrectableErrors    uint64 `json:"sram_volatile_correctable_errors" yaml:"sram_volatile_correctable_errors"`
+	SRAMAggregateCorrectableErrors   uint64 `json:"sram_aggregate_correctable_errors" yaml:"sram_aggregate_correctable_errors"`
 }
 
 type TemperatureThreshold struct {
-	Gpu    int `json:"gpu"`
-	Memory int `json:"memory"`
+	Gpu    int `json:"gpu" yaml:"gpu"`
+	Memory int `json:"memory" yaml:"memory"	`
 }
 
 func (s *NvidiaSpec) GetSpec() *NvidiaSpecItem {
 	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
-	for gpu_id, nvidiaSpec := range s.nvidiaSpecMap {
+	for gpu_id, nvidiaSpec := range s.NvidiaSpecMap {
 		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
 		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
 		formatedNvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
@@ -175,7 +175,7 @@ func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]*NvidiaSpecIte
 		return fmt.Errorf("failed to unmarshal file %s: %w", specFile, err)
 	}
 	// Merge the parsed spec into the main nvidiaSpec map
-	for gpu_id, nvidiaSpec := range spec.nvidiaSpecMap {
+	for gpu_id, nvidiaSpec := range spec.NvidiaSpecMap {
 		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
 		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
 		nvidiaSpecsMap[gpu_id_hex] = nvidiaSpec

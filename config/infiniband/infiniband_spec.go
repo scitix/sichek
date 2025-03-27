@@ -25,7 +25,7 @@ import (
 )
 
 type InfinibandSpec struct {
-	Clusters map[string]*InfinibandSpecItem `json:"infiniband"`
+	Clusters map[string]*InfinibandSpecItem `json:"infiniband_cluster_specs"`
 	// Other fileds like `nvidia` can be added here if needed
 }
 

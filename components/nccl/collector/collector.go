@@ -25,7 +25,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nccl/checker"
-	NCCLCfg "github.com/scitix/sichek/components/nccl/config"
+	"github.com/scitix/sichek/config/nccl"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -33,24 +33,24 @@ import (
 
 type NCCLCollector struct {
 	name string
-	cfg  *NCCLCfg.NCCLConfig
+	cfg  *nccl.NCCLConfig
 
 	RegexpName []string
 	Regexp     []string
 }
 
 func NewNCCLCollector(ctx context.Context, cfg common.ComponentConfig) (*NCCLCollector, error) {
-	config, ok := cfg.(*NCCLCfg.NCCLConfig)
+	config, ok := cfg.(*nccl.NCCLConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for GPFS")
 	}
-	if len(config.NCCL.CheckerConfigs) == 0 {
+	if len(config.CheckerConfigs) == 0 {
 		return nil, fmt.Errorf("No NCCL Collector indicate in yaml config")
 	}
 
 	var regexpName []string
 	var regexp []string
-	for _, checkers_cfg := range config.NCCL.CheckerConfigs {
+	for _, checkers_cfg := range config.CheckerConfigs {
 		regexpName = append(regexpName, checkers_cfg.Name)
 		regexp = append(regexp, checkers_cfg.Regexp)
 	}
@@ -84,9 +84,9 @@ func (c *NCCLCollector) GetCfg() common.ComponentConfig {
 }
 
 func (c *NCCLCollector) Collect(ctx context.Context) (common.Info, error) {
-	allFiles, err := GetAllFilePaths(c.cfg.NCCL.DirPath)
+	allFiles, err := GetAllFilePaths(c.cfg.DirPath)
 	if err != nil {
-		logrus.WithError(err).Errorf("failed to walkdir in %s", c.cfg.NCCL.DirPath)
+		logrus.WithError(err).Errorf("failed to walkdir in %s", c.cfg.DirPath)
 		return nil, err
 	}
 

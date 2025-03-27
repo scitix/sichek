@@ -5,5 +5,5 @@ import (
 )
 
 type HCASpec struct {
-	HCAs map[string]*collector.IBHardWareInfo `json:"hca_spec"`
+	HCAs map[string]*collector.IBHardWareInfo `json:"hca_specs"`
 }

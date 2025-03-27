@@ -23,8 +23,9 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	DmesgCfg "github.com/scitix/sichek/components/dmesg/config"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/dmesg"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -48,12 +49,12 @@ func (d *DmesgInfo) JSON() (string, error) {
 type DmesgChecker struct {
 	id   string
 	name string
-	cfg  *DmesgCfg.DmesgConfig
+	cfg  *dmesg.DmesgConfig
 }
 
-func NewDmesgChecker(cfg *DmesgCfg.DmesgConfig) common.Checker {
+func NewDmesgChecker(cfg *dmesg.DmesgConfig) common.Checker {
 	return &DmesgChecker{
-		id:   config.CheckerIDDmesg,
+		id:   consts.CheckerIDDmesg,
 		name: "DmesgErrorChecker",
 		cfg:  cfg,
 	}
@@ -70,16 +71,16 @@ func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	}
 
 	var raw string
-	js, err := info.JSON()
+	js, err := utils.JSON(info)
 	if err != nil {
 		logrus.WithError(err).Error("failed to get info")
 	}
 	raw = raw + js + "\n"
 
-	status := config.StatusNormal
+	status := consts.StatusNormal
 	var suggest string
 	if len(info.Name) != 0 {
-		status = config.StatusAbnormal
+		status = consts.StatusAbnormal
 		suggest = "check dmesg error"
 	}
 	return &common.CheckerResult{
@@ -89,9 +90,9 @@ func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		Spec:        "0",
 		Curr:        strconv.Itoa(len(info.Name)),
 		Status:      status,
-		Level:       config.LevelCritical,
+		Level:       consts.LevelCritical,
 		Suggestion:  suggest,
 		Detail:      raw,
-		ErrorName:   config.ErrorNameDmesg,
+		ErrorName:   consts.ErrorNameDmesg,
 	}, nil
 }

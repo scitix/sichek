@@ -1,5 +1,0 @@
-name: "ethernet"
-query_interval: 10
-cache_size: 10
-checkers:
- - "phy_state"

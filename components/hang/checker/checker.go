@@ -23,12 +23,11 @@ import (
 	"strings"
 	"time"
 
-	HangCfg "github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
-
+	"github.com/scitix/sichek/config/hang"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,14 +49,14 @@ func (d *HangInfo) JSON() (string, error) {
 type HangChecker struct {
 	id                string
 	name              string
-	cfg               *HangCfg.HangConfig
+	cfg               *hang.HangConfig
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewHangChecker(cfg *HangCfg.HangConfig) common.Checker {
+func NewHangChecker(cfg *hang.HangConfig) common.Checker {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	return &HangChecker{
-		id:                config.CheckerIDHang,
+		id:                consts.CheckerIDHang,
 		name:              "GPUHangChecker",
 		cfg:               cfg,
 		podResourceMapper: podResourceMapper,
@@ -86,7 +85,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 			}
 		}
 	}
-	status := config.StatusNormal
+	status := consts.StatusNormal
 	var suggest string
 	var gpuAbNum int = 0
 	devices := make([]string, 0)
@@ -101,7 +100,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	for name, num := range hangNum {
 		if num == int64(len(info.Items)) {
 			gpuAbNum++
-			status = config.StatusAbnormal
+			status = consts.StatusAbnormal
 			suggest = fmt.Sprintf("%ssuggest check gpu device=%s which probably hang\n", suggest, name)
 			var device_pod string
 			if _, found := deviceToPodMap[name]; found {
@@ -120,7 +119,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		logrus.Debugf("devices=%v\n", devices)
 	}
 
-	result := HangCfg.HangCheckItems["GPUHang"]
+	result := hang.HangCheckItems["GPUHang"]
 	result.Device = strings.Join(devices, ",")
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status

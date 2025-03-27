@@ -22,10 +22,11 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	DmesgChek "github.com/scitix/sichek/components/dmesg/checker"
-	DmesgColl "github.com/scitix/sichek/components/dmesg/collector"
-	DmesgCfg "github.com/scitix/sichek/components/dmesg/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/components/dmesg/checker"
+	"github.com/scitix/sichek/components/dmesg/collector"
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/dmesg"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +35,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *DmesgCfg.DmesgConfig
+	cfg      *dmesg.DmesgConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -54,9 +55,9 @@ var (
 	dmesgComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
 	dmesgComponentOnce.Do(func() {
-		dmesgComponent, err = newComponent(cfgFile)
+		dmesgComponent, err = newComponent(componentConfig)
 		if err != nil {
 			panic(err)
 		}
@@ -64,56 +65,50 @@ func NewComponent(cfgFile string) (comp common.Component, err error) {
 	return dmesgComponent, nil
 }
 
-func newComponent(cfgFile string) (comp common.Component, err error) {
+func newComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-
-	cfg := &DmesgCfg.DmesgConfig{}
-	if len(cfgFile) == 0 {
-		err := common_config.DefaultConfig(common_config.ComponentNameDmesg, cfg)
-		if err != nil {
-			logrus.WithField("component", "dmesg").WithError(err).Errorf("NewComponent get default config failed")
-			return nil, err
-		}
-	} else {
-		err = common_config.LoadFromYaml(cfgFile, cfg)
-		if err != nil {
-			logrus.WithField("component", "dmesg").WithError(err).Errorf("NewComponent load config yaml %s failed", cfgFile)
-			return nil, err
-		}
+	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameDmesg)
+	if cfg == nil {
+		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed: %v", err)
+		return nil, err
+	}
+	dmsgCfg, ok := cfg.(*dmesg.DmesgConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type for CPU component")
 	}
 
-	collector, err := DmesgColl.NewDmesgCollector(ctx, cfg)
+	collector, err := collector.NewDmesgCollector(ctx, dmsgCfg)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
 
-	checker := DmesgChek.NewDmesgChecker(cfg)
+	checker := checker.NewDmesgChecker(dmsgCfg)
 
 	component := &component{
 		ctx:    ctx,
 		cancel: cancel,
 
-		cfg: cfg,
+		cfg: dmsgCfg,
 
 		collector: collector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, cfg.Dmesg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.Dmesg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, dmsgCfg.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, dmsgCfg.CacheSize),
 		currIndex:         0,
-		cacheSize:         cfg.Dmesg.CacheSize,
+		cacheSize:         dmsgCfg.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, dmsgCfg, component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameDmesg
+	return consts.ComponentNameDmesg
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -132,10 +127,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:       commonCfg.ComponentNameDmesg,
+		Item:       consts.ComponentNameDmesg,
 		Node:       "dmesg",
 		Status:     checkRes.Status,
-		Level:      commonCfg.LevelCritical,
+		Level:      consts.LevelCritical,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),
@@ -146,7 +141,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
 	c.currIndex++
 	c.cacheMtx.Unlock()
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "dmesg").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "dmesg").Infof("Health Check PASSED")
@@ -201,11 +196,11 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*DmesgCfg.DmesgConfig)
+	dmsgCfg, ok := cfg.(*dmesg.DmesgConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for dmesg")
 	}
-	c.cfg = config
+	c.cfg = dmsgCfg
 	c.cfgMutex.Unlock()
 	return c.service.Update(ctx, cfg)
 }

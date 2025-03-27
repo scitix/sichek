@@ -45,3 +45,4 @@ func (c *NvidiaConfig) SetDefault() {
 	c.CacheSize = 10
 	c.IgnoredCheckers = []string{}
 }
+

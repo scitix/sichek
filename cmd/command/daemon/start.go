@@ -18,7 +18,7 @@ package daemon
 import (
 	"os"
 
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	pkg_systemd "github.com/scitix/sichek/pkg/systemd"
 	pkg_utils "github.com/scitix/sichek/pkg/utils"
 	"github.com/scitix/sichek/systemd"
@@ -60,11 +60,11 @@ func NewDaemonStartCmd() *cobra.Command {
 				return
 			}
 
-			if err := pkg_systemd.EnableSystemdService(config.ServiceName); err != nil {
+			if err := pkg_systemd.EnableSystemdService(consts.ServiceName); err != nil {
 				logrus.WithField("daemon", "start").Error("failed to enable systemd unit 'sichek.service'")
 				return
 			}
-			if err := pkg_systemd.RestartSystemdService(config.ServiceName); err != nil {
+			if err := pkg_systemd.RestartSystemdService(consts.ServiceName); err != nil {
 				logrus.WithField("daemon", "start").Error("failed to restart systemd unit 'sichek.service'")
 				return
 			}

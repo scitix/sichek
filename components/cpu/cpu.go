@@ -72,12 +72,8 @@ func new(componentConfig *config.ComponentConfig) (comp *component, err error) {
 		}
 	}()
 	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameCPU)
-	if cfg == nil {
-		logrus.WithField("component", "cpu").Errorf("NewComponent get config failed: %v", err)
-		return nil, err
-	}
 	cpuCfg, ok := cfg.(*cpu.CPUConfig)
-	if !ok {
+	if !ok || cpuCfg == nil {
 		return nil, fmt.Errorf("invalid config type for CPU component")
 	}
 	collector, err := collector.NewCpuCollector(ctx, cpuCfg)

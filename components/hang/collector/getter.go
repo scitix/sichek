@@ -24,16 +24,16 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang/checker"
-	HangCfg "github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/config/hang"
 
 	"github.com/sirupsen/logrus"
 )
 
 type HangGetter struct {
 	name string
-	cfg  *HangCfg.HangConfig
+	cfg  *hang.HangConfig
 
 	items         []string
 	threshold     map[string]int64
@@ -47,13 +47,13 @@ type HangGetter struct {
 }
 
 func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter *HangGetter, err error) {
-	config, ok := cfg.(*HangCfg.HangConfig)
+	config, ok := cfg.(*hang.HangConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
 	}
 
 	var res HangGetter
-	res.name = config.Hang.Name
+	res.name = config.Name
 	res.cfg = config
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
@@ -69,7 +69,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter 
 	}
 
 	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		getterConfig, ok := tmpCfg.(*HangCfg.HangErrorConfig)
+		getterConfig, ok := tmpCfg.(*hang.HangErrorConfig)
 		if !ok {
 			return nil, fmt.Errorf("invalid config type for Hang getter")
 		}

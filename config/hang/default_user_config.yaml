@@ -1,0 +1,47 @@
+
+  name: Hang
+  query_interval: 10
+  cache_size: 10
+  nvsmi: false
+  mock: false
+  checkers:
+    GPU:
+      name: "GPUHang"
+      description: "GPU Hang"
+      hang_threshold: 60
+      level: warn
+      check_items:
+        power:
+          name: "pwr"
+          threshold: 150
+          compare: low
+        gclk:
+          name: "gclk"
+          threshold: 1400
+          compare: high
+        smclk:
+          name: "smclk"
+          threshold: 1400
+          compare: high
+        comp_util:
+          name: "sm"
+          threshold: 95
+          compare: high
+        mem_util:
+          name: "mem"
+          threshold: 5
+          compare: low
+        pviol:
+          name: "pviol"
+          threshold: 5
+          compare: low
+        # rxpci:
+        #   name: "rxpci"
+        #   # MB/s
+        #   threshold: 10
+        #   compare: low
+        # txpci:
+        #   name: "txpci"
+        #   # MB/s
+        #   threshold: 10
+        #   compare: low

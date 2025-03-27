@@ -22,10 +22,11 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	NCCLChek "github.com/scitix/sichek/components/nccl/checker"
-	NCCLColl "github.com/scitix/sichek/components/nccl/collector"
-	NCCLCfg "github.com/scitix/sichek/components/nccl/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/components/nccl/checker"
+	"github.com/scitix/sichek/components/nccl/collector"
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nccl"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +35,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *NCCLCfg.NCCLConfig
+	cfg      *nccl.NCCLConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -54,9 +55,9 @@ var (
 	ncclComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
 	ncclComponentOnce.Do(func() {
-		ncclComponent, err = newComponent(cfgFile)
+		ncclComponent, err = newComponent(componentConfig)
 		if err != nil {
 			panic(err)
 		}
@@ -64,55 +65,51 @@ func NewComponent(cfgFile string) (comp common.Component, err error) {
 	return ncclComponent, nil
 }
 
-func newComponent(cfgFile string) (comp common.Component, err error) {
+func newComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-	cfg := &NCCLCfg.NCCLConfig{}
-	if len(cfgFile) == 0 {
-		err := commonCfg.DefaultConfig(commonCfg.ComponentNameNCCL, cfg)
-		if err != nil {
-			logrus.WithField("component", "nccl").WithError(err).Errorf("NewComponent get default config failed")
-			return nil, err
-		}
-	} else {
-		err = commonCfg.LoadFromYaml(cfgFile, cfg)
-		if err != nil {
-			logrus.WithField("component", "nccl").WithError(err).Errorf("NewComponent load config yaml %s failed", cfgFile)
-			return nil, err
-		}
-	}
 
-	collector, err := NCCLColl.NewNCCLCollector(ctx, cfg)
+	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameNCCL)
+	if cfg == nil {
+		logrus.WithField("component", "nccl").Errorf("NewComponent get config failed: %v", err)
+		return nil, err
+	}
+	ncclCfg, ok := cfg.(*nccl.NCCLConfig)
+	if !ok || ncclCfg == nil {
+		return nil, fmt.Errorf("invalid config type for nccl")
+	}
+	ncclCollector, err := collector.NewNCCLCollector(ctx, ncclCfg)
 	if err != nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to create NCCLCollector")
+		return nil, err
 	}
 
-	checker := NCCLChek.NewNCCLChecker(cfg)
+	ncclChecker := checker.NewNCCLChecker(ncclCfg)
 
 	component := &component{
 		ctx:    ctx,
 		cancel: cancel,
 
-		cfg: cfg,
+		cfg: ncclCfg,
 
-		collector: collector,
-		checker:   checker,
+		collector: ncclCollector,
+		checker:   ncclChecker,
 
-		cacheResultBuffer: make([]*common.Result, cfg.NCCL.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.NCCL.CacheSize),
+		cacheResultBuffer: make([]*common.Result, ncclCfg.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, ncclCfg.CacheSize),
 		currIndex:         0,
-		cacheSize:         cfg.NCCL.CacheSize,
+		cacheSize:         ncclCfg.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, ncclCfg, component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameNCCL
+	return consts.ComponentNameNCCL
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -129,10 +126,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:       commonCfg.ComponentNameNCCL,
+		Item:       consts.ComponentNameNCCL,
 		Node:       "NCCLLog",
 		Status:     checkRes.Status,
-		Level:      commonCfg.LevelCritical,
+		Level:      consts.LevelCritical,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),
@@ -143,7 +140,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
 	c.currIndex++
 	c.cacheMtx.Unlock()
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "nccl").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "nccl").Infof("Health Check PASSED")
@@ -200,7 +197,7 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*NCCLCfg.NCCLConfig)
+	config, ok := cfg.(*nccl.NCCLConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nccl")
 	}
