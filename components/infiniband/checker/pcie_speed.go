@@ -22,21 +22,21 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 )
 
 type IBPCIESpeedChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *infiniband.InfinibandSpecItem
 	description string
 }
 
-func NewIBPCIESpeedChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBPCIESpeedChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
 	return &IBPCIESpeedChecker{
-		id:   commonCfg.CheckerIDInfinibandFW,
-		name: config.CheckPCIESpeed,
+		id:   consts.CheckerIDInfinibandFW,
+		name: infiniband.CheckPCIESpeed,
 		spec: specCfg,
 	}, nil
 }
@@ -58,13 +58,13 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	if !ok {
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
-	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result := infiniband.InfinibandCheckItems[c.name]
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
-		result.Detail = config.NOIBFOUND
+		result.Detail = infiniband.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
@@ -78,7 +78,7 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		spec = append(spec, hcaSpec.PCIESpeed)
 		curr = append(curr, hwInfo.PCIESpeed)
 		if hwInfo.PCIESpeed != hcaSpec.PCIESpeed {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIESpeed)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIESpeed)

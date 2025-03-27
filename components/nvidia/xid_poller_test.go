@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/config/nvidia"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
@@ -36,10 +36,10 @@ func TestNewXidEventPoller(t *testing.T) {
 	defer nvmlInst.Shutdown()
 
 	ctx := context.Background()
-	cfg := config.NvidiaConfig{}
+	cfg := &nvidia.NvidiaConfig{}
 	eventChan := make(chan *common.Result, 1)
 
-	poller, err := NewXidEventPoller(ctx, cfg.ComponentConfig, nvmlInst, eventChan)
+	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
 	if err != nil {
 		t.Errorf("failed to create XidEventPoller: %v", err)
 	}
@@ -58,10 +58,10 @@ func TestXidEventPoller_Start(t *testing.T) {
 	defer nvmlInst.Shutdown()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := config.NvidiaConfig{}
+	cfg := &nvidia.NvidiaConfig{}
 	eventChan := make(chan *common.Result, 1)
 
-	poller, err := NewXidEventPoller(ctx, cfg.ComponentConfig, nvmlInst, eventChan)
+	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
 	if err != nil {
 		t.Errorf("failed to create XidEventPoller: %v", err)
 	}

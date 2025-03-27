@@ -22,21 +22,21 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 type HardwareChecker struct {
 	name     string
-	cfg      *config.NvidiaSpec
+	cfg      *nvidia.NvidiaSpecItem
 	nvmlInst nvml.Interface
 }
 
-func NewHardwareChecker(cfg *config.NvidiaSpec, nvmlInst nvml.Interface) (common.Checker, error) {
+func NewHardwareChecker(cfg *nvidia.NvidiaSpecItem, nvmlInst nvml.Interface) (common.Checker, error) {
 	return &HardwareChecker{
-		name:     config.HardwareCheckerName,
+		name:     nvidia.HardwareCheckerName,
 		cfg:      cfg,
 		nvmlInst: nvmlInst,
 	}, nil
@@ -46,9 +46,9 @@ func (c *HardwareChecker) Name() string {
 	return c.name
 }
 
-func (c *HardwareChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *HardwareChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -56,18 +56,18 @@ func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.HardwareCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.HardwareCheckerName]
 
 	// Check if any Nvidia GPU is lost
 	lostGPUs, lostReasons := c.checkGPUbyIndex(nvidiaInfo)
 	curGPUNums := len(lostGPUs)
 	if curGPUNums != 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Expected GPU number: %d, Current GPU number: %d, Lost GPU: %v\n%v",
 			c.cfg.GpuNums, curGPUNums, len(lostGPUs), strings.Join(lostReasons, "\n"))
 		result.Device = strings.Join(lostGPUs, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 
 	}
 	return &result, nil

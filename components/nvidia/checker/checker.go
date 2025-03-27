@@ -20,14 +20,13 @@ import (
 	dependence "github.com/scitix/sichek/components/nvidia/checker/check_dependences"
 	sram "github.com/scitix/sichek/components/nvidia/checker/check_ecc_sram"
 	remap "github.com/scitix/sichek/components/nvidia/checker/check_remmaped_rows"
-	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/config/nvidia"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]common.Checker, error) {
+func NewCheckers(nvidiaCfg *nvidia.NvidiaConfig, nvidiaSpecCfg *nvidia.NvidiaSpecItem, nvmlInst nvml.Interface) ([]common.Checker, error) {
 	checkerConstructors := map[string]func(*nvidia.NvidiaSpecItem) (common.Checker, error){
 		nvidia.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
 		nvidia.IOMMUCheckerName:           dependence.NewIOMMUChecker,
@@ -50,13 +49,13 @@ func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]com
 	}
 
 	ignoredSet := make(map[string]struct{})
-	for _, checker := range nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers {
+	for _, checker := range nvidiaCfg.IgnoredCheckers {
 		ignoredSet[checker] = struct{}{}
 	}
 
 	usedCheckersName := make([]string, 0)
 	usedCheckers := make([]common.Checker, 0)
-	cfg := &nvidiaCfg.Spec
+	cfg := nvidiaSpecCfg
 
 	for checkerName := range nvidia.GPUCheckItems {
 		if _, found := ignoredSet[checkerName]; found {
@@ -86,7 +85,6 @@ func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]com
 			usedCheckersName = append(usedCheckersName, checkerName)
 		}
 	}
-	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers)
-	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers)
+	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.IgnoredCheckers)
 	return usedCheckers, nil
 }

@@ -22,22 +22,22 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type IBKmodChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *infiniband.InfinibandSpecItem
 	description string
 }
 
-func NewIBKmodChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBKmodChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
 	return &IBKmodChecker{
-		id:   commonCfg.CheckerIDInfinibandFW,
-		name: config.CheckIBKmod,
+		id:   consts.CheckerIDInfinibandFW,
+		name: infiniband.CheckIBKmod,
 		spec: specCfg,
 	}, nil
 }
@@ -63,15 +63,15 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	var (
 		spec, curr, suggestions string
 		notInstalled            []string
-		detail                  string = config.InfinibandCheckItems[c.name].Detail
+		detail                  string = infiniband.InfinibandCheckItems[c.name].Detail
 	)
 
-	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result := infiniband.InfinibandCheckItems[c.name]
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
-		result.Detail = config.NOIBFOUND
+		result.Status = consts.StatusAbnormal
+		result.Detail = infiniband.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
@@ -95,7 +95,7 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	if len(notInstalled) != 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		detail = fmt.Sprintf("need to install kmod:%s", strings.Join(notInstalled, ","))
 		suggestions = fmt.Sprintf("use modprobe to install kmod:%s", strings.Join(notInstalled, ","))
 	}

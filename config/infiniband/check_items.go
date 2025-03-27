@@ -13,11 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package config
+package infiniband
 
 import (
 	"github.com/scitix/sichek/components/common"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 var (
@@ -55,21 +55,21 @@ var (
 		CheckIBDevs:        "check the ib dev list",
 	}
 	checkLevel = map[string]string{
-		ChekIBOFED:         commonCfg.LevelWarning,
-		ChekIBNUM:          commonCfg.LevelCritical,
-		ChekIBFW:           commonCfg.LevelWarning,
-		ChekIBState:        commonCfg.LevelCritical,
-		ChekIBPhyState:     commonCfg.LevelCritical,
-		ChekNetOperstate:   commonCfg.LevelCritical,
-		ChekIBPortSpeed:    commonCfg.LevelCritical,
-		CheckPCIEACS:       commonCfg.LevelCritical,
-		CheckPCIEMRR:       commonCfg.LevelCritical,
-		CheckPCIESpeed:     commonCfg.LevelCritical,
-		CheckPCIEWidth:     commonCfg.LevelCritical,
-		CheckPCIETreeSpeed: commonCfg.LevelCritical,
-		CheckPCIETreeWidth: commonCfg.LevelCritical,
-		CheckIBKmod:        commonCfg.LevelCritical,
-		CheckIBDevs:        commonCfg.LevelWarning,
+		ChekIBOFED:         consts.LevelWarning,
+		ChekIBNUM:          consts.LevelCritical,
+		ChekIBFW:           consts.LevelWarning,
+		ChekIBState:        consts.LevelCritical,
+		ChekIBPhyState:     consts.LevelCritical,
+		ChekNetOperstate:   consts.LevelCritical,
+		ChekIBPortSpeed:    consts.LevelCritical,
+		CheckPCIEACS:       consts.LevelCritical,
+		CheckPCIEMRR:       consts.LevelCritical,
+		CheckPCIESpeed:     consts.LevelCritical,
+		CheckPCIEWidth:     consts.LevelCritical,
+		CheckPCIETreeSpeed: consts.LevelCritical,
+		CheckPCIETreeWidth: consts.LevelCritical,
+		CheckIBKmod:        consts.LevelCritical,
+		CheckIBDevs:        consts.LevelWarning,
 	}
 	errName = map[string]string{
 		ChekIBOFED:         "the ofed is not in spec",

@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type AppClocksChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewAppClocksChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewAppClocksChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &AppClocksChecker{
-		name: config.AppClocksCheckerName,
+		name: nvidia.AppClocksCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *AppClocksChecker) Name() string {
 	return c.name
 }
 
-func (c *AppClocksChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *AppClocksChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
@@ -53,7 +53,7 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.AppClocksCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.AppClocksCheckerName]
 
 	// Check if all the Nvidia GPUs have set application clocks to max
 	var gpus_app_clocks_status map[int]string
@@ -84,11 +84,11 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 		}
 	}
 	if len(gpus_app_clocks_status) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Not all GPU application clocks are set to max: \n %v", gpus_app_clocks_status)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

@@ -13,13 +13,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package infiniband_config
+package tests
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/hca"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 )
 
 func TestGetHCASpec(t *testing.T) {
@@ -71,11 +76,20 @@ hca_spec:
 	if _, err := specFile.Write([]byte(specData)); err != nil {
 		t.Fatalf("Failed to write to temp spec file: %v", err)
 	}
-
-	// Test the GetHCASpec function
-	hcaSpecs, err := GetHCASpec(specFile.Name())
+	cfg, err := config.LoadComponentConfig("", specFile.Name())
 	if err != nil {
-		t.Fatalf("GetHCASpec() returned an error: %v", err)
+		t.Fatalf("load component config failed: %v", err)
+		return
+	}
+	_, hcaSpec := cfg.GetConfigByComponentName(consts.ComponentNameHCA)
+	if hcaSpec == nil {
+		t.Fatalf("GetConfigByComponentName() returned nil")
+		return
+	}
+	hcaSpecs, ok := hcaSpec.(*hca.HCASpec)
+	if !ok {
+		t.Fatalf("invalid config type for HCA component")
+		return
 	}
 
 	// Convert the config struct to a pretty-printed JSON string and print it
@@ -99,7 +113,6 @@ hca_spec:
 		t.Fatalf("Expected Spec.HCAType to be 'MT4129', got '%s'", hcaSpecs.HCAs["MT_0000000971"].HCAType)
 	}
 }
-
 
 func TestGetInfinibandSpec(t *testing.T) {
 	// Create temporary files for testing
@@ -235,19 +248,28 @@ infiniband:
 	if _, err := specFile.Write([]byte(specData)); err != nil {
 		t.Fatalf("Failed to write to temp spec file: %v", err)
 	}
-
-	// Test the GetHCASpec function
-  spec, err := GetInfinibandSpec(specFile.Name())
-  if err != nil {
-    t.Fatalf("Failed to get spec: %v", err)
-  } 
+	cfg, err := config.LoadComponentConfig("", specFile.Name())
+	if err != nil {
+		t.Fatalf("load component config failed: %v", err)
+		return
+	}
+	_, infinibandSpec := cfg.GetConfigByComponentName(consts.ComponentNameInfiniband)
+	if infinibandSpec == nil {
+		t.Fatalf("GetConfigByComponentName() returned nil")
+		return
+	}
+	spec, ok := infinibandSpec.(*infiniband.InfinibandSpec)
+	if !ok {
+		t.Fatalf("invalid config type for HCA component")
+		return
+	}
 	// Convert the config struct to a pretty-printed JSON string and print it
 	jsonData, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal config to JSON: %v", err)
 	}
 
-  fmt.Printf("spec JSON:\n%s\n", string(jsonData))
+	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
 	if len(spec.Clusters) != 1 {
@@ -377,19 +399,28 @@ infiniband:
 	if _, err := specFile.Write([]byte(specData)); err != nil {
 		t.Fatalf("Failed to write to temp spec file: %v", err)
 	}
-
-	// Test the GetHCASpec function
-  spec, err := GetInfinibandSpec(specFile.Name())
-  if err != nil {
-    t.Fatalf("Failed to get spec: %v", err)
-  } 
+	cfg, err := config.LoadComponentConfig("", specFile.Name())
+	if err != nil {
+		t.Fatalf("load component config failed: %v", err)
+		return
+	}
+	_, infinibandSpec := cfg.GetConfigByComponentName(consts.ComponentNameInfiniband)
+	if infinibandSpec == nil {
+		t.Fatalf("GetConfigByComponentName() returned nil")
+		return
+	}
+	spec, ok := infinibandSpec.(*infiniband.InfinibandSpec)
+	if !ok {
+		t.Fatalf("invalid config type for Infiniband component")
+		return
+	}
 	// Convert the config struct to a pretty-printed JSON string and print it
 	jsonData, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal config to JSON: %v", err)
 	}
 
-  fmt.Printf("spec JSON:\n%s\n", string(jsonData))
+	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
 	if len(spec.Clusters) != 1 {
@@ -401,7 +432,25 @@ infiniband:
 }
 
 func TestGetClusterInfinibandSpec(t *testing.T) {
-  clusterSpec := GetClusterInfinibandSpec("")
+	cfg, err := config.LoadComponentConfig("", "")
+	if err != nil {
+		t.Fatalf("load component config failed: %v", err)
+		return
+	}
+	_, infinibandSpec := cfg.GetConfigByComponentName(consts.ComponentNameInfiniband)
+	if infinibandSpec == nil {
+		t.Fatalf("GetConfigByComponentName() returned nil")
+		return
+	}
+	spec, ok := infinibandSpec.(*infiniband.InfinibandSpec)
+	if !ok {
+		t.Fatalf("invalid config type for Infiniband component")
+		return
+	}
+	clusterSpec, err := spec.GetClusterInfinibandSpec()
+	if err != nil {
+		t.Fatalf("Failed to get cluster spec: %v", err)
+	}
 	jsonData, err := json.MarshalIndent(clusterSpec, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal config to JSON: %v", err)

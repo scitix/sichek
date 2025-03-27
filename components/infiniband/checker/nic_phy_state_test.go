@@ -20,15 +20,15 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"	
+	"github.com/scitix/sichek/consts"
 )
 
 func TestIBPhyStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
 	// 模拟 Spec 配置
-	spec := &config.InfinibandSpec{
-		HCAs: map[string]collector.IBHardWareInfo{
+	spec := &infiniband.InfinibandSpecItem{
+		HCAs: map[string]*collector.IBHardWareInfo{
 			"ib0": {
 				IBDev:     "ib0",
 				PhyState: "LinkUp",
@@ -67,8 +67,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 					{HCAType: "cx5", IBDev: "ib1", PhyState: "LinkUp"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusNormal,
-			expectedLevel:      commonCfg.LevelInfo,
+			expectedStatus:     consts.StatusNormal,
+			expectedLevel:      consts.LevelInfo,
 			expectedDetail:     "all ib phy link status is up",
 			expectedSuggestion: "",
 			expectedError:      false,
@@ -78,9 +78,9 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     config.NOIBFOUND,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
+			expectedDetail:     infiniband.NOIBFOUND,
 			expectedSuggestion: "",
 			expectedError:      true,
 		},
@@ -92,8 +92,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 					{HCAType: "cx5", IBDev: "ib1", PhyState: "LinkUp"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0 status is not LinkUp, curr:Down,LinkUp",
 			expectedSuggestion: "check nic to up ib0 link status",
 			expectedError:      false,
@@ -106,8 +106,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 					{HCAType: "cx5", IBDev: "ib1", PhyState: "Init"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0,ib1 status is not LinkUp, curr:Down,Init",
 			expectedSuggestion: "check nic to up ib0,ib1 link status",
 			expectedError:      false,

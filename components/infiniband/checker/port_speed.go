@@ -22,21 +22,21 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 )
 
 type IBPortSpeedChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *infiniband.InfinibandSpecItem
 	description string
 }
 
-func NewIBPortSpeedChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBPortSpeedChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
 	return &IBPortSpeedChecker{
-		id:   commonCfg.CheckerIDInfinibandPortSpeed,
-		name: config.ChekIBPortSpeed,
+		id:   consts.CheckerIDInfinibandPortSpeed,
+		name: infiniband.ChekIBPortSpeed,
 		spec: specCfg,
 	}, nil
 }
@@ -59,13 +59,13 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result := infiniband.InfinibandCheckItems[c.name]
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
-		result.Detail = config.NOIBFOUND
+		result.Detail = infiniband.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
@@ -79,7 +79,7 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		spec = append(spec, hcaSpec.PortSpeed)
 		curr = append(curr, hwInfo.PortSpeed)
 		if hwInfo.PortSpeed != hcaSpec.PortSpeed {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PortSpeed)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PortSpeed)

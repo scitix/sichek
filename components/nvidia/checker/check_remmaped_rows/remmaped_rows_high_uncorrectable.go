@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type RemmapedRowsUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewRemmapedRowsUncorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &RemmapedRowsUncorrectableChecker{
-		name: config.RemmapedRowsUncorrectableCheckerName,
+		name: nvidia.RemmapedRowsUncorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *RemmapedRowsUncorrectableChecker) Name() string {
 	return c.name
 }
 
-func (c *RemmapedRowsUncorrectableChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *RemmapedRowsUncorrectableChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
@@ -53,7 +53,7 @@ func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) 
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.RemmapedRowsUncorrectableCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.RemmapedRowsUncorrectableCheckerName]
 
 	var falied_gpuid_podnames []string
 	var falied_gpus_info map[int]string
@@ -77,11 +77,11 @@ func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) 
 		}
 	}
 	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", falied_gpus_info)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

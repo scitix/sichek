@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type ClockEventsChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewClockEventsChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewClockEventsChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &ClockEventsChecker{
-		name: config.ClockEventsCheckerName,
+		name: nvidia.ClockEventsCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *ClockEventsChecker) Name() string {
 	return c.name
 }
 
-func (c *ClockEventsChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *ClockEventsChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
@@ -53,7 +53,7 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.ClockEventsCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.ClockEventsCheckerName]
 
 	// Check if any critical clock event is engaged in any Nvidia GPU
 	var dev_clock_events map[int]string
@@ -77,11 +77,11 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 		}
 	}
 	if len(dev_clock_events) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Critical clock events engaged: \n%v", dev_clock_events)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

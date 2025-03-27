@@ -17,37 +17,36 @@ package checker
 
 import (
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/infiniband/config"
-
+	"github.com/scitix/sichek/config/infiniband"
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.InfinibandConfig, spec *config.InfinibandSpec) ([]common.Checker, error) {
-	checkerConstructors := map[string]func(*config.InfinibandSpec) (common.Checker, error){
-		config.ChekIBOFED: NewIBOFEDChecker,
+func NewCheckers(cfg *infiniband.InfinibandConfig, spec *infiniband.InfinibandSpecItem) ([]common.Checker, error) {
+	checkerConstructors := map[string]func(*infiniband.InfinibandSpecItem) (common.Checker, error){
+		infiniband.ChekIBOFED: NewIBOFEDChecker,
 		// config.ChekIBNUM:           dependence.NewIOMMUChecker,
-		config.ChekIBFW:         NewFirmwareChecker,
-		config.ChekIBState:      NewIBStateChecker,
-		config.ChekIBPhyState:   NewIBPhyStateChecker,
-		config.ChekIBPortSpeed:  NewIBPortSpeedChecker,
+		infiniband.ChekIBFW:        NewFirmwareChecker,
+		infiniband.ChekIBState:     NewIBStateChecker,
+		infiniband.ChekIBPhyState:  NewIBPhyStateChecker,
+		infiniband.ChekIBPortSpeed: NewIBPortSpeedChecker,
 		// config.ChekNetOperstate: NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
-		config.CheckPCIEMRR:   NewPCIEMRRChecker,
-		config.CheckPCIESpeed: NewIBPCIESpeedChecker,
-		config.CheckPCIEWidth: NewIBPCIEWidthChecker,
+		infiniband.CheckPCIEMRR:   NewPCIEMRRChecker,
+		infiniband.CheckPCIESpeed: NewIBPCIESpeedChecker,
+		infiniband.CheckPCIEWidth: NewIBPCIEWidthChecker,
 		// config.CheckPCIETreeSpeed: NewBPCIETreeSpeedChecker,
 		// config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
-		config.CheckIBKmod: NewIBKmodChecker,
-		config.CheckIBDevs: NewIBDevsChecker,
+		infiniband.CheckIBKmod: NewIBKmodChecker,
+		infiniband.CheckIBDevs: NewIBDevsChecker,
 	}
 
 	ignoredSet := make(map[string]struct{})
-	for _, checker := range cfg.Infiniband.IgnoredCheckers {
+	for _, checker := range cfg.IgnoredCheckers {
 		ignoredSet[checker] = struct{}{}
 	}
 	usedCheckersName := make([]string, 0)
 	usedCheckers := make([]common.Checker, 0)
-	for checkerName := range config.InfinibandCheckItems {
+	for checkerName := range infiniband.InfinibandCheckItems {
 		if _, found := ignoredSet[checkerName]; found {
 			continue
 		}
@@ -62,7 +61,7 @@ func NewCheckers(cfg *config.InfinibandConfig, spec *config.InfinibandSpec) ([]c
 			usedCheckersName = append(usedCheckersName, checkerName)
 		}
 	}
-	logrus.WithField("component", "Infiniband-Checker").Infof("usedCheckersName: %v, ignoredCheckers: %v", usedCheckersName, cfg.Infiniband.IgnoredCheckers)
+	logrus.WithField("component", "Infiniband-Checker").Infof("usedCheckersName: %v, ignoredCheckers: %v", usedCheckersName, cfg.IgnoredCheckers)
 
 	return usedCheckers, nil
 }

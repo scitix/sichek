@@ -21,18 +21,18 @@ import (
 	"os"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type IOMMUChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewIOMMUChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewIOMMUChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &IOMMUChecker{
-		name: config.IOMMUCheckerName,
+		name: nvidia.IOMMUCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -41,9 +41,9 @@ func (c *IOMMUChecker) Name() string {
 	return c.name
 }
 
-func (c *IOMMUChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *IOMMUChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 // Checks if IOMMU is closed
 func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -64,14 +64,14 @@ func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		fmt.Printf("failed to read IOMMU groups: %v", err) // IOMMU is likely disabled
 	}
 	isIOMMUClosed := len(groups) == 0
-	result := config.GPUCheckItems[config.IOMMUCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.IOMMUCheckerName]
 
 	if !isIOMMUClosed && c.cfg.Dependence.Iommu == "on" {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = "IOMMU is ON, while it should be OFF"
 		result.Suggestion = "Please turn off IOMMU"
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		if isIOMMUClosed {
 			result.Curr = "OFF"
 		} else {

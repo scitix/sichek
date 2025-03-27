@@ -21,22 +21,22 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
 type IBOFEDChecker struct {
 	id          string
 	name        string
-	spec        config.InfinibandSpec
+	spec        infiniband.InfinibandSpecItem
 	description string
 }
 
-func NewIBOFEDChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBOFEDChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
 	return &IBOFEDChecker{
-		id:          commonCfg.CheckerIDInfinibandOFED,
-		name:        config.ChekIBOFED,
+		id:          consts.CheckerIDInfinibandOFED,
+		name:        infiniband.ChekIBOFED,
 		spec:        *specCfg,
 		description: "check the rdma ofed",
 	}, nil
@@ -60,13 +60,13 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result := infiniband.InfinibandCheckItems[c.name]
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
-		result.Detail = config.NOIBFOUND
+		result.Detail = infiniband.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
@@ -80,7 +80,7 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		}
 	}
 	if curr != spec {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("OFED version mismatch, expected:%s  current:%s", spec, curr)
 		result.Suggestion = "update the OFED version"
 	}

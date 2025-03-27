@@ -37,6 +37,8 @@ const (
 	ComponentNameHang       = "hang"
 	ComponentIDNCCL         = "12"
 	ComponentNameNCCL       = "nccl"
+	ComponentIDHCA          = "13"
+	ComponentNameHCA        = "hca"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"

@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type SRAMAggUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewSRAMAggUncorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &SRAMAggUncorrectableChecker{
-		name: config.SRAMAggUncorrectableCheckerName,
+		name: nvidia.SRAMAggUncorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *SRAMAggUncorrectableChecker) Name() string {
 	return c.name
 }
 
-func (c *SRAMAggUncorrectableChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *SRAMAggUncorrectableChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
@@ -53,7 +53,7 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.SRAMAggUncorrectableCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.SRAMAggUncorrectableCheckerName]
 
 	var falied_gpuid_podnames []string
 	var memory_error_events map[int]string
@@ -78,11 +78,11 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 		}
 	}
 	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", memory_error_events)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

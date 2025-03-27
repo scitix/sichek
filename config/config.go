@@ -23,6 +23,8 @@ import (
 	"sync"
 
 	"github.com/scitix/sichek/config/cpu"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/config/hca"
 	"github.com/scitix/sichek/config/nvidia"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -38,9 +40,12 @@ type ComponentConfig struct {
 type BasicComponentConfigs struct {
 	cpuBasicConfig    *cpu.CPUConfig       `json:"cpu" yaml:"cpu"`
 	nvidiaBasicConfig *nvidia.NvidiaConfig `json:"nvidia" yaml:"nvidia"`
+	infinibandBasicConfig *infiniband.InfinibandConfig `json:"infiniband" yaml:"infiniband"`
 }
 type SpecComponentConfigs struct {
 	nvidiaSpecConfig *nvidia.NvidiaSpec `json:"nvidia" yaml:"nvidia"`
+	infinibandSpecConfig *infiniband.InfinibandSpec `json:"infiniband" yaml:"infiniband"`
+	hcaSpecConfig *hca.HCASpec `json:"hca" yaml:"hca"`
 }
 
 var (
@@ -82,6 +87,10 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 		return c.GetComponentConfigByComponentName(componentName, c.componentBasicConfig.cpuBasicConfig, nil)
 	case consts.ComponentNameNvidia:
 		return c.GetComponentConfigByComponentName(componentName, c.componentBasicConfig.nvidiaBasicConfig, c.componentSpecConfig.nvidiaSpecConfig)
+	case consts.ComponentNameInfiniband:
+		return c.GetComponentConfigByComponentName(componentName, c.componentBasicConfig.infinibandBasicConfig, c.componentSpecConfig.infinibandSpecConfig)
+	case consts.ComponentNameHCA:
+		return c.GetComponentConfigByComponentName(componentName, nil, c.componentSpecConfig.hcaSpecConfig)
 	default:
 		return nil, nil // 未找到配置
 	}

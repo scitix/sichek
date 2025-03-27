@@ -21,20 +21,6 @@ import (
 	"github.com/scitix/sichek/components/common"
 )
 
-// type NvidiaConfig struct {
-// 	Spec            *NvidiaSpec
-// 	ComponentConfig *ComponentConfig
-// }
-
-// func (c *NvidiaConfig) LoadFromYaml(userConfig string, specFile string) {
-// 	c.Spec = GetSpec(specFile)
-// 	c.ComponentConfig = &ComponentConfig{}
-// 	err := utils.LoadFromYaml(userConfig, c.ComponentConfig)
-// 	if err != nil {
-// 		c.ComponentConfig.SetDefault()
-// 	}
-// }
-
 type NvidiaConfig struct {
 	Name            string        `json:"name"`
 	QueryInterval   time.Duration `json:"query_interval"`

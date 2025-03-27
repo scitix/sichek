@@ -22,22 +22,22 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
 type IBFirmwareChecker struct {
 	id          string
 	name        string
-	spec        config.InfinibandSpec
+	spec        infiniband.InfinibandSpecItem
 	description string
 }
 
-func NewFirmwareChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewFirmwareChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
 	return &IBFirmwareChecker{
-		id:          commonCfg.CheckerIDInfinibandFW,
-		name:        config.ChekIBFW,
+		id:          consts.CheckerIDInfinibandFW,
+		name:        infiniband.ChekIBFW,
 		spec:        *specCfg,
 		description: "check the nic fw",
 	}, nil
@@ -62,12 +62,12 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result := infiniband.InfinibandCheckItems[c.name]
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
-		result.Detail = config.NOIBFOUND
+		result.Status = consts.StatusAbnormal
+		result.Detail = infiniband.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
@@ -80,7 +80,7 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 		spec = append(spec, hcaSpec.FWVer)
 		curr = append(curr, hwInfo.FWVer)
 		if hwInfo.FWVer != hcaSpec.FWVer {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			err_msg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.FWVer)
 			logrus.WithField("component", "infiniband").Warnf("%s", err_msg)

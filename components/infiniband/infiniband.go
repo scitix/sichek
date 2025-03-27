@@ -25,9 +25,9 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/checker"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
-
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,10 +39,10 @@ var (
 type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	spec   *config.InfinibandSpec
+	spec   *infiniband.InfinibandSpec
 	info   common.Info
 
-	cfg      *config.InfinibandConfig
+	cfg      *infiniband.InfinibandConfig
 	cfgMutex sync.RWMutex
 
 	// collector common.Collector
@@ -57,9 +57,9 @@ type component struct {
 	service *common.CommonService
 }
 
-func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
+func NewInfinibandComponent(componentConfig *config.ComponentConfig, ignoredCheckers []string) (comp common.Component, err error) {
 	infinibandComponentOnce.Do(func() {
-		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
+		infinibandComponent, err = newInfinibandComponent(componentConfig, ignoredCheckers)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +67,7 @@ func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	return infinibandComponent, nil
 }
 
-func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
+func newInfinibandComponent(componentConfig *config.ComponentConfig, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -76,26 +76,15 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}()
 
 	// step1: load user define check item
-	cfg := &config.InfinibandConfig{}
-	if len(cfgFile) == 0 {
-		err := commonCfg.DefaultConfig(commonCfg.ComponentNameInfiniband, cfg)
-		if err != nil {
-			logrus.WithField("component", "infiniband").Error("Infiniband use default config failed ", err)
-			return nil, err
-		}
-		if len(ignoredCheckers) > 0 {
-			cfg.Infiniband.IgnoredCheckers = ignoredCheckers
-		}
-	} else {
-		err = commonCfg.LoadFromYaml(cfgFile, cfg)
-		if err != nil {
-			logrus.WithField("component", "infiniband").Error(err)
-		}
+	cfg, ibSpec, err := GetConfig(componentConfig)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent get config failed: %v", err)
+		return nil, err
 	}
-	logrus.WithField("component", "infiniband").Infof("checker items:%v", cfg.Infiniband.IgnoredCheckers)
+	if len(ignoredCheckers) > 0 {
+		cfg.IgnoredCheckers = ignoredCheckers
+	}
 
-	// step2: load ib spec
-	ibSpec := config.GetClusterInfinibandSpec(specFile)
 	checkers, err := checker.NewCheckers(cfg, &ibSpec)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
@@ -124,7 +113,29 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameInfiniband
+	return consts.ComponentNameInfiniband
+}
+
+func GetConfig(componentConfig *config.ComponentConfig) (*infiniband.InfinibandConfig, *infiniband.InfinibandSpecItem, error) {
+	cfg, specCfg := componentConfig.GetConfigByComponentName(consts.ComponentNameInfiniband)
+	if cfg == nil || specCfg == nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent get config cfg: %v, specCfg: %v", cfg, specCfg)
+		return nil, nil, fmt.Errorf("NewComponent get config failed")
+	}
+	infinibandCfg, ok := cfg.(*infiniband.InfinibandConfig)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid basic config type for infiniband component")
+	}
+	infinibandSpecCfgs, ok := specCfg.(*infiniband.InfinibandSpec)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid spec config type for infiniband component")
+	}
+	infinibandSpecCfgs.LoadHCASpec()
+	infinibandSpecCfg, err := infinibandSpecCfgs.GetClusterInfinibandSpec()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get cluster infiniband spec: %w", err)
+	}
+	return infinibandCfg, infinibandSpecCfg, nil
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

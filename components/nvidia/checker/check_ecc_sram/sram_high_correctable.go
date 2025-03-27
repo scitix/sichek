@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type SRAMHighcorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewSRAMHighcorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewSRAMHighcorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &SRAMHighcorrectableChecker{
-		name: config.SRAMHighcorrectableCheckerName,
+		name: nvidia.SRAMHighcorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *SRAMHighcorrectableChecker) Name() string {
 	return c.name
 }
 
-func (c *SRAMHighcorrectableChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *SRAMHighcorrectableChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
@@ -53,7 +53,7 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.SRAMHighcorrectableCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.SRAMHighcorrectableCheckerName]
 
 	var memory_error_events map[string]string
 	var falied_gpuid_podnames []string
@@ -86,11 +86,11 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 		}
 	}
 	if len(memory_error_events) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", memory_error_events)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}
