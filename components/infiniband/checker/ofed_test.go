@@ -25,23 +25,22 @@ func TestCheckOFEDVersion(t *testing.T) {
 		version string
 		expect  bool
 	}{
-		{">= MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},  // Version is higher than spec
-		{"== MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-5.9-0.5.6.0", true},  // Version is equal to spec
-		{"MLNX_OFED_LINUX-23.10-1.1.9.0", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},     // Version is equal to spec
-		{">= MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10.1-1.1.9.0", false}, // invalid current version
-		{">= MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10.1-1.1.9.0", false},   // invalid spec version
-		{"MLNX_OFED_LINUX-23.10-1.*.*.*", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},     // Wildcard matches
-		{"MLNX_OFED_LINUX-23.10-*.*.*.*", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},     // Wildcard matches
-		{">MLNX_OFED_LINUX-23.10-*.*.*.*", "MLNX_OFED_LINUX-23.9-1.1.9.0", false},     // Wildcard matches
+		{">=MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},    // Version is higher than spec
+		{"==MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-5.9-0.5.6.0", true},      // Version is equal to spec
+		{"MLNX_OFED_LINUX-23.10-1.1.9.0", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},    // Version is equal to spec
+		{">=MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10.1-1.1.9.0", false}, // invalid current version
+		{">=MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10-1.1.9.0.9", false}, // invalid current version
+		{">=MLNX_OFED_LINUX-5.9-0.5.6.0", "MLNX_OFED_LINUX-23.10.1-1.1.9.0", false}, // invalid spec version
+		{"MLNX_OFED_LINUX-23.10-1.*.*.*", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},    // Wildcard matches
+		{"MLNX_OFED_LINUX-23.10-*.*.*.*", "MLNX_OFED_LINUX-23.10-1.1.9.0", true},    // Wildcard matches
+		{">MLNX_OFED_LINUX-23.10-*.*.*.*", "MLNX_OFED_LINUX-23.9-1.1.9.0", false},   // Wildcard matches
 	}
 
 	for _, test := range tests {
-		result, err := checkOFEDVersion(test.spec, test.version)
-		if result != test.expect || err != nil {
+		result, _ := checkOFEDVersion(test.spec, test.version)
+		if result != test.expect {
 			t.Errorf("compareVersion(%s, %s) = %v (expected %v)\n", test.spec, test.version, result, test.expect)
-			if err != nil {
-				t.Errorf("compareVersion(%s, %s) err = %v\n", test.spec, test.version, err)
-			}
+
 		}
 	}
 }

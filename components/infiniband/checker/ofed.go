@@ -58,13 +58,33 @@ func (c *IBOFEDChecker) GetSpec() common.CheckerSpec {
 
 // parseOFEDVersion extracts major and minor versions from an OFED version string.
 func parseOFEDVersion(ofed string) (major string, minor string, err error) {
+
+	// logrus.Infof("parseOFEDVersion: %s %d %d", ofed,len(ofed),len("MLNX_OFED_LINUX-5.9-0.5.6.0"))
 	// Regex to extract the version part: "MLNX_OFED_LINUX-X.Y-A.B.C.D"
-	re := regexp.MustCompile(`MLNX_OFED_LINUX-(\d+\.\d+)-(\d+\.\d+\.\d+\.\d+)`)
+	re := regexp.MustCompile(`MLNX_OFED_LINUX-(\d+|\*)\.(\d+|\*)-(\d+|\*)\.(\d+|\*)\.(\d+|\*)\.(\d+|\*)`)
 	matches := re.FindStringSubmatch(ofed)
-	if len(matches) < 3 {
+	// logrus.Infof("parseOFEDVersion: %s %d", ofed, len(matches))
+	if len(matches) < 7 {
 		return "", "", fmt.Errorf("invalid OFED version format: %s", ofed)
 	}
-	return matches[1], matches[2], nil
+	major = (matches[1] + "." + matches[2])
+	minor = (matches[3] + "." + matches[4] + "." + matches[5] + "." + matches[6])
+	return major, minor, nil
+}
+func checkOFEDFormat(spec string, curr string) (bool, error) {
+	specsplit := strings.Split(spec, "-")
+	currsplit := strings.Split(curr, "-")
+	if len(specsplit) != 3 || len(currsplit) != 3 {
+		return false, fmt.Errorf("invalid OFED version format: %s %s", spec, curr)
+	}
+	specMajor := strings.Split(specsplit[1], ".")
+	specMinor := strings.Split(specsplit[2], ".")
+	currMajor := strings.Split(currsplit[1], ".")
+	currMinor := strings.Split(currsplit[2], ".")
+	if len(specMajor) != 2 || len(specMinor) != 4 || len(currMajor) != 2 || len(currMinor) != 4 {
+		return false, fmt.Errorf("invalid OFED version format: %s %s", spec, curr)
+	}
+	return true, nil
 }
 
 // checkOFEDVersion validates if the given OFED version meets the requirements.
@@ -85,7 +105,10 @@ func checkOFEDVersion(spec string, curr string) (bool, error) {
 		operator = "==" // Default to "==" if no operator is specified
 		specVersion = spec
 	}
-
+	pass, err := checkOFEDFormat(spec, curr)
+	if !pass || err != nil {
+		return false, err
+	}
 	specMajor, specMinor, err := parseOFEDVersion(specVersion)
 	if err != nil {
 		return false, err
