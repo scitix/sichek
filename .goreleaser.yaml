@@ -56,21 +56,21 @@ nfpms:
     license: Apache 2.0
     bindir: /usr/sbin
     contents:
-    - src: ./components/cpu/config/*.yaml
+    - src: ./config/cpu/*.yaml
       dst: /var/sichek/cpu/
-    - src: ./components/dmesg/config/*.yaml
+    - src: ./config/dmesg/*.yaml
       dst: /var/sichek/dmesg/
-    - src: ./components/gpfs/config/*.yaml
+    - src: ./config/gpfs/*.yaml
       dst: /var/sichek/gpfs/
-    - src: ./components/hang/config/*.yaml
+    - src: ./config/hang/*.yaml
       dst: /var/sichek/hang/
-    - src: ./components/infiniband/config/*.yaml
+    - src: ./config/infiniband/*.yaml
       dst: /var/sichek/infiniband/
-    - src: ./components/memory/config/*.yaml
+    - src: ./config/memory/*.yaml
       dst: /var/sichek/memory/
-    - src: ./components/nccl/config/*.yaml
+    - src: ./config/nccl/*.yaml
       dst: /var/sichek/nccl/
-    - src: ./components/nvidia/config/*.yaml
+    - src: ./config/nvidia/*.yaml
       dst: /var/sichek/nvidia/
     - src: ./config/*.yaml
       dst: /var/sichek/config
