@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	// "github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -51,7 +50,7 @@ func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
 }
 
 func (a *nodeAnnotation) JSON() (string, error) {
-	data, err := json.MarshalIndent(a, "", "  ")
+	data, err := json.Marshal(a)
 	return string(data), err
 }
 
@@ -59,12 +58,12 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 	if result == nil {
 		return fmt.Errorf("input result is empty")
 	}
-	jsonData, err := json.MarshalIndent(result, "", "  ")
+	jsonData, err := json.Marshal(result)
 	if err != nil {
 		logrus.Errorf("Error marshaling JSON: %v", err)
 		return err
 	}
-	preAnnoStr, err := a.JSON()
+	pre_anno_str, err := a.JSON()
 	if err != nil {
 		logrus.Errorf("Error marshaling annotation: %v", err)
 		return err
@@ -110,8 +109,8 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 		return err
 	}
 	if result.Status == consts.StatusAbnormal && (result.Level == consts.LevelCritical || result.Level == consts.LevelFatal) {
-		logrus.Infof("set node annotation for check result %v", string(jsonData))
-		logrus.Infof("update node annotataion from %v to %v", preAnnoStr, annoStr)
+		logrus.Infof("set node annotation for check result %s", jsonData)
+		logrus.Infof("update node annotataion from %s to %s", pre_anno_str, annoStr)
 	}
 
 	return nil
