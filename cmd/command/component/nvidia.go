@@ -259,37 +259,37 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 			if result.Status == consts.StatusNormal {
 				eccEvents[nvidiaCfg.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Agg Uncorrectable Found%s", Green, Reset)
 			} else {
-				eccEvents[nvidiaCfg.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Agg Uncorrectable Found%s", Red, Reset)
+				eccEvents[nvidiaCfg.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Agg Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case nvidiaCfg.SRAMHighcorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
 				eccEvents[nvidiaCfg.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sNo SRAM High Correctable Found%s", Green, Reset)
 			} else {
-				eccEvents[nvidiaCfg.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sSRAM High Correctable Found%s", Red, Reset)
+				eccEvents[nvidiaCfg.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sSRAM High Correctable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case nvidiaCfg.SRAMVolatileUncorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
 				eccEvents[nvidiaCfg.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Volatile Uncorrectable Found%s", Green, Reset)
 			} else {
-				eccEvents[nvidiaCfg.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Volatile Uncorrectable Found%s", Red, Reset)
+				eccEvents[nvidiaCfg.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Volatile Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case nvidiaCfg.RemmapedRowsFailureCheckerName:
 			if result.Status == consts.StatusNormal {
 				remmapedRowsEvents[nvidiaCfg.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Failure Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sRemmaped Rows Failure Found%s", Red, Reset)
+				remmapedRowsEvents[nvidiaCfg.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sRemmaped Rows Failure Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case nvidiaCfg.RemmapedRowsUncorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
 				remmapedRowsEvents[nvidiaCfg.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Uncorrectable Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sRemmaped Rows Uncorrectable Found%s", Red, Reset)
+				remmapedRowsEvents[nvidiaCfg.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sRemmaped Rows Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case nvidiaCfg.RemmapedRowsPendingCheckerName:
 			if result.Status == consts.StatusNormal {
 				remmapedRowsEvents[nvidiaCfg.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Pending Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found%s", Red, Reset)
+				remmapedRowsEvents[nvidiaCfg.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found\n%s%s", Red, result.Detail, Reset)
 			}
 		}
 	}

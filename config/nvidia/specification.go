@@ -24,6 +24,8 @@ import (
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 
 	"sigs.k8s.io/yaml"
@@ -82,6 +84,35 @@ func (s *NvidiaSpec) GetSpec() *NvidiaSpecItem {
 		panic("failed to find spec file for deviceID: " + deviceID)
 	}
 	return formatedNvidiaSpecsMap[deviceID]
+}
+
+func (s *NvidiaSpec) LoadDefaultSpec() error {
+	defaultCfgDirPath, err := utils.GetDefaultConfigDirPath(consts.ComponentNameNvidia)
+	if err != nil {
+		return err
+	}
+	files, err := os.ReadDir(defaultCfgDirPath)
+	if err != nil {
+		return fmt.Errorf("failed to read directory: %v", err)
+	}
+
+	// 遍历文件并加载符合条件的 YAML 文件
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			nvidiaSpec := &NvidiaSpec{}
+			filePath := filepath.Join(defaultCfgDirPath, file.Name())
+			err := utils.LoadFromYaml(filePath, nvidiaSpec)
+			if err != nil {
+				return fmt.Errorf("failed to load from YAML file %s: %v", filePath, err)
+			}
+			for gpu_id, nvidiaSpec := range nvidiaSpec.NvidiaSpecMap {
+				if _, ok := s.NvidiaSpecMap[gpu_id]; !ok {
+					s.NvidiaSpecMap[gpu_id] = nvidiaSpec
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func getDeviceID() string {

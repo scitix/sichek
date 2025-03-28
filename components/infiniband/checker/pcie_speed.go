@@ -77,7 +77,7 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.PCIESpeed)
 		curr = append(curr, hwInfo.PCIESpeed)
-		if hwInfo.PCIESpeed != hcaSpec.PCIESpeed {
+		if !strings.Contains(hwInfo.PCIESpeed, hcaSpec.PCIESpeed) {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIESpeed)

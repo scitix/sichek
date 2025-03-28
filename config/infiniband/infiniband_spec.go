@@ -18,10 +18,15 @@ package infiniband
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/config/hca"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type InfinibandSpec struct {
@@ -61,8 +66,38 @@ func (s *InfinibandSpec) GetClusterInfinibandSpec() (*InfinibandSpecItem, error)
 	if _, ok := s.Clusters[clustetName]; ok {
 		return s.Clusters[clustetName], nil
 	} else {
-		return nil, fmt.Errorf("no valid cluster specification found for cluster %s", clustetName)
+		logrus.WithField("infiniband", "Spec").Warnf("no valid cluster specification found for cluster %s, using default spec", clustetName)
+		return s.Clusters["default"], nil
 	}
+}
+
+func (s *InfinibandSpec) LoadDefaultSpec() error {
+	defaultCfgDirPath, err := utils.GetDefaultConfigDirPath(consts.ComponentNameInfiniband)
+	if err != nil {
+		return err
+	}
+	files, err := os.ReadDir(defaultCfgDirPath)
+	if err != nil {
+		return fmt.Errorf("failed to read directory: %v", err)
+	}
+
+	// 遍历文件并加载符合条件的 YAML 文件
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			infinibandSpec := &InfinibandSpec{}
+			filePath := filepath.Join(defaultCfgDirPath, file.Name())
+			err := utils.LoadFromYaml(filePath, infinibandSpec)
+			if err != nil {
+				return fmt.Errorf("failed to load from YAML file %s: %v", filePath, err)
+			}
+			for clusterName, infinibandSpec := range infinibandSpec.Clusters {
+				if _, ok := s.Clusters[clusterName]; !ok {
+					s.Clusters[clusterName] = infinibandSpec
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func extractClusterName() string {

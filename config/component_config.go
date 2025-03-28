@@ -2,20 +2,18 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/scitix/sichek/config/cpu"
 	"github.com/scitix/sichek/config/dmesg"
 	"github.com/scitix/sichek/config/ethernet"
 	"github.com/scitix/sichek/config/gpfs"
+	"github.com/scitix/sichek/config/hang"
 	"github.com/scitix/sichek/config/hca"
 	"github.com/scitix/sichek/config/infiniband"
 	"github.com/scitix/sichek/config/memory"
 	"github.com/scitix/sichek/config/nccl"
-	"github.com/scitix/sichek/config/hang"
 	"github.com/scitix/sichek/config/nvidia"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -81,6 +79,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.cpuBasicConfig = cpuConfig
 		}
 		return c.componentBasicConfig.cpuBasicConfig, nil
+
 	case consts.ComponentNameDmesg:
 		if c.componentBasicConfig.dmesgBasicConfig == nil {
 			dmesgConfig := &dmesg.DmesgConfig{}
@@ -91,6 +90,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.dmesgBasicConfig = dmesgConfig
 		}
 		return c.componentBasicConfig.dmesgBasicConfig, nil
+
 	case consts.ComponentNameGpfs:
 		if c.componentBasicConfig.gpfsBasicConfig == nil {
 			gpfsConfig := &gpfs.GpfsConfig{}
@@ -101,6 +101,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.gpfsBasicConfig = gpfsConfig
 		}
 		return c.componentBasicConfig.gpfsBasicConfig, nil
+
 	case consts.ComponentNameNCCL:
 		if c.componentBasicConfig.ncclBasicConfig == nil {
 			ncclConfig := &nccl.NCCLConfig{}
@@ -111,6 +112,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.ncclBasicConfig = ncclConfig
 		}
 		return c.componentBasicConfig.ncclBasicConfig, nil
+
 	case consts.ComponentNameMemory:
 		if c.componentBasicConfig.memoryBasicConfig == nil {
 			memoryConfig := &memory.MemoryConfig{}
@@ -121,6 +123,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.memoryBasicConfig = memoryConfig
 		}
 		return c.componentBasicConfig.memoryBasicConfig, nil
+
 	case consts.ComponentNameHang:
 		if c.componentBasicConfig.hangBasicConfig == nil {
 			hangConfig := &hang.HangConfig{}
@@ -131,6 +134,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.hangBasicConfig = hangConfig
 		}
 		return c.componentBasicConfig.hangBasicConfig, nil
+
 	case consts.ComponentNameEthernet:
 		if c.componentBasicConfig.ethernetBasicConfig == nil {
 			ethernetConfig := &ethernet.EthernetConfig{}
@@ -149,6 +153,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentSpecConfig.ethernetSpecConfig = ethernetSpecConfig
 		}
 		return c.componentBasicConfig.ethernetBasicConfig, c.componentSpecConfig.ethernetSpecConfig
+
 	case consts.ComponentNameNvidia:
 		if c.componentBasicConfig.nvidiaBasicConfig == nil {
 			nvidiaConfig := &nvidia.NvidiaConfig{}
@@ -159,14 +164,14 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.nvidiaBasicConfig = nvidiaConfig
 		}
 		if c.componentSpecConfig.nvidiaSpecConfig == nil {
-			nvidiaSpecConfig := &nvidia.NvidiaSpec{}
-			err := DefaultComponentConfig(componentName, nvidiaSpecConfig, consts.DefaultSpecCfgName)
-			if err != nil {
-				return nil, nil
-			}
-			c.componentSpecConfig.nvidiaSpecConfig = nvidiaSpecConfig
+			c.componentSpecConfig.nvidiaSpecConfig = &nvidia.NvidiaSpec{}
+		}
+		err := c.componentSpecConfig.nvidiaSpecConfig.LoadDefaultSpec()
+		if err != nil {
+			return nil, nil
 		}
 		return c.componentBasicConfig.nvidiaBasicConfig, c.componentSpecConfig.nvidiaSpecConfig
+
 	case consts.ComponentNameInfiniband:
 		if c.componentBasicConfig.infinibandBasicConfig == nil {
 			infinibandConfig := &infiniband.InfinibandConfig{}
@@ -177,22 +182,20 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			c.componentBasicConfig.infinibandBasicConfig = infinibandConfig
 		}
 		if c.componentSpecConfig.infinibandSpecConfig == nil {
-			infinibandSpecConfig := &infiniband.InfinibandSpec{}
-			err := DefaultComponentConfig(componentName, infinibandSpecConfig, consts.DefaultSpecCfgName)
-			if err != nil {
-				return nil, nil
-			}
-			c.componentSpecConfig.infinibandSpecConfig = infinibandSpecConfig
+			c.componentSpecConfig.infinibandSpecConfig = &infiniband.InfinibandSpec{}
+		}
+		err := c.componentSpecConfig.infinibandSpecConfig.LoadDefaultSpec()
+		if err != nil {
+			return nil, nil
 		}
 		return c.componentBasicConfig.infinibandBasicConfig, c.componentSpecConfig.infinibandSpecConfig
 	case consts.ComponentNameHCA:
 		if c.componentSpecConfig.hcaSpecConfig == nil {
-			hcaSpecConfig := &hca.HCASpec{}
-			err := DefaultComponentConfig(componentName, hcaSpecConfig, consts.DefaultSpecCfgName)
-			if err != nil {
-				return nil, nil
-			}
-			c.componentSpecConfig.hcaSpecConfig = hcaSpecConfig
+			c.componentSpecConfig.hcaSpecConfig = &hca.HCASpec{}
+		}
+		err := c.componentSpecConfig.hcaSpecConfig.LoadDefaultSpec()
+		if err != nil {
+			return nil, nil
 		}
 		return nil, c.componentSpecConfig.hcaSpecConfig
 	default:
@@ -201,18 +204,11 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 }
 
 func DefaultComponentConfig(component string, config interface{}, filename string) error {
-	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, component, filename)
-	_, err := os.Stat(defaultCfgPath)
+	defaultCfgDirPath, err := utils.GetDefaultConfigDirPath(component)
 	if err != nil {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
-		}
-		// 获取当前文件的目录
-
-		defaultCfgPath = filepath.Join(filepath.Dir(curFile), component, filename)
+		return err
 	}
+	defaultCfgPath := filepath.Join(defaultCfgDirPath, filename)
 	err = utils.LoadFromYaml(defaultCfgPath, config)
 	return err
 }
