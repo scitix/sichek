@@ -24,7 +24,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang/checker"
-	HangCfg "github.com/scitix/sichek/components/hang/config"
+	"github.com/scitix/sichek/config/hang"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -32,7 +32,7 @@ import (
 
 type HangCollector struct {
 	name string
-	cfg  *HangCfg.HangConfig
+	cfg  *hang.HangConfig
 
 	items         []string
 	threshold     map[string]int64
@@ -43,20 +43,20 @@ type HangCollector struct {
 }
 
 func NewHangCollector(ctx context.Context, cfg common.ComponentConfig) (*HangCollector, error) {
-	config, ok := cfg.(*HangCfg.HangConfig)
+	config, ok := cfg.(*hang.HangConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
 	}
 
 	var res HangCollector
-	res.name = config.Hang.Name
+	res.name = config.Name
 	res.cfg = config
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
 	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		collectorConfig, ok := tmpCfg.(*HangCfg.HangErrorConfig)
+		collectorConfig, ok := tmpCfg.(*hang.HangErrorConfig)
 		if !ok {
 			return nil, fmt.Errorf("invalid config type for Hang collector")
 		}

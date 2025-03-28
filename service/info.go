@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -69,10 +69,10 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 		return err
 	}
 	var annotations map[string][]*annotation
-	if result.Status == config.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		annotations = make(map[string][]*annotation)
 		for _, check_result := range result.Checkers {
-			if check_result.Status == config.StatusAbnormal {
+			if check_result.Status == consts.StatusAbnormal {
 				anno := &annotation{
 					ErrorName: check_result.ErrorName,
 					Devcie:    check_result.Device,
@@ -86,21 +86,21 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 		}
 	}
 	switch result.Item {
-	case config.ComponentNameCPU:
+	case consts.ComponentNameCPU:
 		a.CPU = annotations
-	case config.ComponentNameDmesg:
+	case consts.ComponentNameDmesg:
 		a.Dmesg = annotations
-	case config.ComponentNameEthernet:
+	case consts.ComponentNameEthernet:
 		a.Ethernet = annotations
-	case config.ComponentNameGpfs:
+	case consts.ComponentNameGpfs:
 		a.GPFS = annotations
-	case config.ComponentNameHang:
+	case consts.ComponentNameHang:
 		a.Hang = annotations
-	case config.ComponentNameInfiniband:
+	case consts.ComponentNameInfiniband:
 		a.Infiniband = annotations
-	case config.ComponentNameNCCL:
+	case consts.ComponentNameNCCL:
 		a.NCCL = annotations
-	case config.ComponentNameNvidia:
+	case consts.ComponentNameNvidia:
 		a.NVIDIA = annotations
 	}
 	annoStr, err := a.JSON()
@@ -108,7 +108,7 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 		logrus.Errorf("Error marshaling annotation: %v", err)
 		return err
 	}
-	if result.Status == config.StatusAbnormal && (result.Level == config.LevelCritical || result.Level == config.LevelFatal) {
+	if result.Status == consts.StatusAbnormal && (result.Level == consts.LevelCritical || result.Level == consts.LevelFatal) {
 		logrus.Infof("set node annotation for check result %s", jsonData)
 		logrus.Infof("update node annotataion from %s to %s", pre_anno_str, annoStr)
 	}

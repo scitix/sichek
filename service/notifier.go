@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/sirupsen/logrus"
@@ -50,14 +50,14 @@ func NewNotifier(annoKey string) (Notifier, error) {
 		return nil, err
 	}
 	if len(annoKey) == 0 {
-		annoKey = config.DefaultAnnoKey
+		annoKey = consts.DefaultAnnoKey
 	}
 
 	return &notifier{
 		client:     &http.Client{},
 		k8s_client: k8s_client,
-		endpoint:   config.TaskGuardEndpoint,
-		port:       config.TaskGuardPort,
+		endpoint:   consts.TaskGuardEndpoint,
+		port:       consts.TaskGuardPort,
 		annoKey:    annoKey,
 	}, nil
 }

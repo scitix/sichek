@@ -20,19 +20,19 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type NvPeerMemChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewNvPeerMemChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewNvPeerMemChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &NvPeerMemChecker{
-		name: config.NvPeerMemCheckerName,
+		name: nvidia.NvPeerMemCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -41,9 +41,9 @@ func (c *NvPeerMemChecker) Name() string {
 	return c.name
 }
 
-func (c *NvPeerMemChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *NvPeerMemChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Check if ib_core and nvidia_peermem, and ib_core is using nvidia_peermem
@@ -59,23 +59,23 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 		}
 	}
 
-	result := config.GPUCheckItems[config.NvPeerMemCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.NvPeerMemCheckerName]
 
 	if !usingPeermem {
 		_, err := utils.ExecCommand(ctx, "modprobe", "nvidia_peermem")
 		if err == nil {
-			result.Status = commonCfg.StatusNormal
+			result.Status = consts.StatusNormal
 			result.Curr = "LoadedOnline"
 			result.Detail = "nvidia_peermem is not loaded. It has been loaded online successfully"
 			result.Suggestion = ""
 			result.ErrorName = ""
 		} else {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "NotLoaded"
 			result.Detail = fmt.Sprintf("nvidia_peermem is not loaded correctly. Failed to load nvidia_peermem online: %v", err)
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Loaded"
 		result.Detail = "nvidia_peermem is loaded correctly"
 		result.Suggestion = ""

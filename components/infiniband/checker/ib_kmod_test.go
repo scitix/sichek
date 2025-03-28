@@ -20,14 +20,14 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 )
 
 func TestIBKmodChecker_Check(t *testing.T) {
 	// 模拟配置文件 Spec
-	spec := &config.InfinibandSpec{
-		IBSoftWareInfo: collector.IBSoftWareInfo{
+	spec := &infiniband.InfinibandSpecItem{
+		IBSoftWareInfo: &collector.IBSoftWareInfo{
 			KernelModule: []string{"mlx5_core", "ib_uverbs", "rdma_ucm"},
 		},
 	}
@@ -59,18 +59,18 @@ func TestIBKmodChecker_Check(t *testing.T) {
 					KernelModule: []string{"mlx5_core", "ib_uverbs", "rdma_ucm"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusNormal,
-			expectedDetail:     config.InfinibandCheckItems[ibChecker.name].Detail,
+			expectedStatus:     consts.StatusNormal,
+			expectedDetail:     infiniband.InfinibandCheckItems[ibChecker.name].Detail,
 			expectedSuggestion: "",
 			expectError:        false,
 		},
 		{
-			name: config.NOIBFOUND,
+			name: infiniband.NOIBFOUND,
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedDetail:     config.NOIBFOUND,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedDetail:     infiniband.NOIBFOUND,
 			expectedSuggestion: "need check the kernel module is all installed",
 			expectError:        true,
 		},
@@ -84,7 +84,7 @@ func TestIBKmodChecker_Check(t *testing.T) {
 					KernelModule: []string{"ib_uverbs"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
+			expectedStatus:     consts.StatusAbnormal,
 			expectedDetail:     "need to install kmod:mlx5_core,rdma_ucm",
 			expectedSuggestion: "use modprobe to install kmod:mlx5_core,rdma_ucm",
 			expectError:        false,

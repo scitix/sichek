@@ -23,8 +23,9 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config"
+	infinibandcfg "github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -74,7 +75,12 @@ func NewInfinibandCmd() *cobra.Command {
 				}
 			}
 
-			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, nil)
+			cfg, err := config.LoadComponentConfig(cfgFile, specFile)
+			if err != nil {
+				logrus.WithField("component", "infiniband").Errorf("create infiniband component failed: %v", err)
+				return
+			}
+			component, err := infiniband.NewInfinibandComponent(cfg, nil)
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error("fail to Create New Infiniband Components")
 				return
@@ -93,7 +99,7 @@ func NewInfinibandCmd() *cobra.Command {
 			}
 			pass := PrintInfinibandInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameInfiniband] = pass
+			ComponentStatuses[consts.ComponentNameInfiniband] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -139,43 +145,43 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 
 	for _, result := range checkerResults {
 		statusColor := Green
-		if result.Status != commonCfg.StatusNormal {
+		if result.Status != consts.StatusNormal {
 			statusColor = Red
 			infinibandEvents[result.Name] = fmt.Sprintf("%s%s%s", statusColor, result.Detail, Reset)
 			checkAllPassed = false
 		}
 
 		switch result.Name {
-		case config.ChekIBOFED:
+		case infinibandcfg.ChekIBOFED:
 			ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", statusColor, result.Curr, Reset)
-		case config.CheckIBKmod:
+		case infinibandcfg.CheckIBKmod:
 			ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Loaded", Reset)
-			if result.Status != commonCfg.StatusNormal {
+			if result.Status != consts.StatusNormal {
 				ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Not Loaded Correctly", Reset)
 			}
-		case config.ChekIBFW:
+		case infinibandcfg.ChekIBFW:
 			fwVersion := extractAndDeduplicate(result.Curr)
 			fwVersionPrint = fmt.Sprintf("FW Version: %s%s%s", statusColor, fwVersion, Reset)
-		case config.ChekIBPortSpeed:
+		case infinibandcfg.ChekIBPortSpeed:
 			portSpeed := extractAndDeduplicate(result.Curr)
 			ibPortSpeedPrint = fmt.Sprintf("IB Port Speed: %s%s%s", statusColor, portSpeed, Reset)
-		case config.ChekIBPhyState:
+		case infinibandcfg.ChekIBPhyState:
 			phyState := "LinkUp"
-			if result.Status != commonCfg.StatusNormal {
+			if result.Status != consts.StatusNormal {
 				phyState = "Not All LinkUp"
 			}
 			phyStatPrint = fmt.Sprintf("Phy State: %s%s%s", statusColor, phyState, Reset)
-		case config.ChekIBState:
+		case infinibandcfg.ChekIBState:
 			ibState := "Active"
-			if result.Status != commonCfg.StatusNormal {
+			if result.Status != consts.StatusNormal {
 				ibState = "Not All Active"
 			}
 			ibStatePrint = fmt.Sprintf("IB State: %s%s%s", statusColor, ibState, Reset)
-		case config.CheckPCIESpeed:
+		case infinibandcfg.CheckPCIESpeed:
 			pcieGen = fmt.Sprintf("%s%s%s", statusColor, extractAndDeduplicate(result.Curr), Reset)
-		case config.CheckPCIEWidth:
+		case infinibandcfg.CheckPCIEWidth:
 			pcieWidth = fmt.Sprintf("%s%s%s", statusColor, extractAndDeduplicate(result.Curr), Reset)
-		case config.CheckIBDevs:
+		case infinibandcfg.CheckIBDevs:
 			ibControllersPrintColor = statusColor
 		}
 	}

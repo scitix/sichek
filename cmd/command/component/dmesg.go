@@ -21,7 +21,8 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/dmesg"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -55,8 +56,12 @@ func NewDmesgCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Dmesg").Infof("load cfg file:%s", cfgFile)
 			}
-
-			component, err := dmesg.NewComponent(cfgFile)
+			cfg, err := config.LoadComponentConfig(cfgFile, "")
+			if err != nil {
+				logrus.WithField("component", "Dmesg").Errorf("create dmesg component failed: %v", err)
+				return
+			}
+			component, err := dmesg.NewComponent(cfg)
 			if err != nil {
 				logrus.WithField("component", "Dmesg").Errorf("create dmesg component failed: %v", err)
 				return
@@ -71,7 +76,7 @@ func NewDmesgCmd() *cobra.Command {
 			logrus.WithField("component", "Dmesg").Infof("Dmesg analysis result: \n%s", common.ToString(result))
 			pass := PrintDmesgInfo(nil, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameDmesg] = pass
+			ComponentStatuses[consts.ComponentNameDmesg] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -89,7 +94,7 @@ func PrintDmesgInfo(info common.Info, result *common.Result, summaryPrint bool) 
 	for _, result := range checkerResults {
 		switch result.Name {
 		case "DmesgErrorChecker":
-			if result.Status == commonCfg.StatusAbnormal {
+			if result.Status == consts.StatusAbnormal {
 				checkAllPassed = false
 				dmesgEvent["DmesgErrorChecker"] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}

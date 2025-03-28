@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package config
 import (
 	"os"
 
+	"github.com/scitix/sichek/consts"
 	"sigs.k8s.io/yaml"
 )
 
@@ -46,7 +47,7 @@ func LoadConfigFromYaml(file string) (*Config, error) {
 func GetDefaultConfig(useComponents []string, ignoreComponents []string) (*Config, error) {
 	enabled_components := make(map[string]bool)
 	if len(useComponents) == 0 {
-		useComponents = DefaultComponents
+		useComponents = consts.DefaultComponents
 	}
 	for _, component_name := range useComponents {
 		enabled_components[component_name] = true

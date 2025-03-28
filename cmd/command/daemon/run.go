@@ -111,8 +111,12 @@ func NewDaemonRunCmd() *cobra.Command {
 
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
-
-			daemonService, err := service.NewService(ctx, cfg, specFile, annoKey)
+			componentConfig, err := config.LoadComponentConfig(cfgFile, specFile)
+			if err != nil {
+				logrus.WithField("daemon", "run").Errorf("create component config failed: %v", err)
+				return
+			}
+			daemonService, err := service.NewService(ctx, cfg, componentConfig, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return

@@ -21,7 +21,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/memory"
 	"github.com/scitix/sichek/config"
-
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -55,8 +55,13 @@ func NewMemoryCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "memory").Info("load default cfg...")
 			}
+			cfg, err := config.LoadComponentConfig(cfgFile, "")
+			if err != nil {
+				logrus.WithField("component", "memory").Errorf("create memory component failed: %v", err)
+				return
+			}
 
-			component, err := memory.NewComponent(cfgFile)
+			component, err := memory.NewComponent(cfg)
 			if err != nil {
 				logrus.WithField("component", "memory").Errorf("create memory component failed: %v", err)
 				return
@@ -75,7 +80,7 @@ func NewMemoryCmd() *cobra.Command {
 			}
 			pass := PrintMemoryInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[config.ComponentNameInfiniband] = pass
+			ComponentStatuses[consts.ComponentNameMemory] = pass
 			StatusMutex.Unlock()
 		},
 	}

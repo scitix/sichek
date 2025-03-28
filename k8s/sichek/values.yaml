@@ -80,7 +80,7 @@ volumeMounts:
   - name: host-var-lib-kubelet
     mountPath: /var/lib/kubelet
 
-nodeSelector: {}
+nodeSelector: {} 
 
 tolerations: []
 

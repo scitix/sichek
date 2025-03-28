@@ -23,19 +23,19 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type GpuPersistenceChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewGpuPersistenceChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewGpuPersistenceChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPersistenceChecker{
-		name: config.GpuPersistenceCheckerName,
+		name: nvidia.GpuPersistenceCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -44,9 +44,9 @@ func (c *GpuPersistenceChecker) Name() string {
 	return c.name
 }
 
-func (c *GpuPersistenceChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *GpuPersistenceChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 // Check verifies if the Nvidia GPU persistence mode is enabled and working correctly.
 // It takes a context and data of type NvidiaInfo, and returns a CheckerResult and an error.
@@ -61,7 +61,7 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.GpuPersistenceCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.GpuPersistenceCheckerName]
 
 	// Check if all the Nvidia GPUs have persistence mode enabled
 	var disable_gpus []string
@@ -84,21 +84,21 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 			}
 		}
 	}
-	result.Status = commonCfg.StatusNormal
+	result.Status = consts.StatusNormal
 	if len(disable_gpus) == 0 {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Detail = "All Nvidia GPUs have persistence mode enabled"
 		result.Curr = "Enabled"
 		result.Suggestion = ""
 		result.ErrorName = ""
 	} else {
 		if len(falied_gpuid_podnames) == 0 {
-			result.Status = commonCfg.StatusNormal
+			result.Status = consts.StatusNormal
 			result.Curr = "EnabledOnline"
 			result.Suggestion = ""
 			result.ErrorName = ""
 		} else {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "Disabled"
 			result.Device = fmt.Sprintf("%v", strings.Join(falied_gpuid_podnames, ","))
 		}

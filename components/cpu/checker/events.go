@@ -22,8 +22,8 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/cpu/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/cpu"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -31,15 +31,10 @@ import (
 
 type EventChecker struct {
 	name string
-	cfg  *config.CPUEventConfig
+	cfg  *cpu.CPUEventConfig
 }
 
-func NewEventChecker(cfg common.CheckerSpec) (common.Checker, error) {
-	cpuEventCfg, ok := cfg.(*config.CPUEventConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid CPU event checker config type")
-	}
-
+func NewEventChecker(cpuEventCfg *cpu.CPUEventConfig) (common.Checker, error) {
 	return &EventChecker{
 		name: cpuEventCfg.Name,
 		cfg:  cpuEventCfg,
@@ -66,10 +61,10 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	}
 
 	total_num := len(info)
-	status := commonCfg.StatusNormal
+	status := consts.StatusNormal
 	suggestion := ""
 	if total_num > 0 {
-		status = commonCfg.StatusAbnormal
+		status = consts.StatusAbnormal
 		suggestion = c.cfg.Suggestion
 	}
 

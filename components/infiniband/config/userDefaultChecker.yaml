@@ -1,6 +1,0 @@
-infiniband:
-  name: "infiniband"
-  query_interval: 10
-  cache_size: 10
-  ignored_checkers:
-    - "net_operstate"

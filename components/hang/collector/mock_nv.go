@@ -21,14 +21,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/collector"
-	nvidiaCollector "github.com/scitix/sichek/components/nvidia/collector"
-	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
-
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
-	"github.com/sirupsen/logrus"
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/nvidia"
+	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/config"
+	nvcfg "github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type component struct {
@@ -36,7 +35,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      nvidiaCfg.ComponentConfig
+	cfg      nvcfg.NvidiaConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
 
 	nvmlInst  nvml.Interface
@@ -59,34 +58,6 @@ var (
 	nvidiaComponentOnce sync.Once
 )
 
-func NewNvml() (nvml.Interface, error) {
-	nvmlInst := nvml.New()
-	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
-		logrus.WithField("component", "nvidia").Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
-		return nil, fmt.Errorf("%v", nvml.ErrorString(ret))
-	}
-	return nvmlInst, nil
-}
-
-func ReNewNvml(c *component) error {
-	nvmlInst, ret := NewNvml()
-	if ret != nil {
-		logrus.WithField("component", "nvidia").Errorf("failed to Reinitialize NVML: %v", ret)
-		return ret
-	}
-	c.nvmlInst = nvmlInst
-	return nil
-}
-
-func StopNvml(nvmlInst nvml.Interface) error {
-	ret := nvmlInst.Shutdown()
-	if ret != nvml.SUCCESS {
-		logrus.WithField("component", "nvidia").Errorf("failed to shutdown NVML: %v", nvml.ErrorString(ret))
-		return ret
-	}
-	return nil
-}
-
 func NewMockNvidiaComponent(cfgFile string, ignored_checkers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
 		nvidiaComponent, err = newMockNvidia(cfgFile, ignored_checkers)
@@ -105,22 +76,26 @@ func newMockNvidia(cfgFile string, ignored_checkers []string) (comp *component, 
 			cancel()
 		}
 	}()
-
-	cfg := &nvidiaCfg.NvidiaConfig{}
-	cfg.LoadFromYaml("", "")
+	cfg, err := config.LoadComponentConfig("", "")
+	if err != nil {
+		return nil, err
+	}
+	basicCfg, _, err := nvidia.GetConfig(cfg)
+	// cfg := &nvidia.NvidiaConfig{}
+	// cfg.LoadFromYaml("", "")
 
 	component := &component{
-		name:        "nvidia",
+		name:        consts.ComponentNameNvidia,
 		ctx:         ctx,
 		cancel:      cancel,
 		cfgMutex:    sync.RWMutex{},
 		nvmlInst:    nil,
 		checkers:    nil,
 		cacheMtx:    sync.RWMutex{},
-		cacheBuffer: make([]*common.Result, cfg.ComponentConfig.Nvidia.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.ComponentConfig.Nvidia.CacheSize),
+		cacheBuffer: make([]*common.Result, basicCfg.CacheSize),
+		cacheInfo:   make([]common.Info, basicCfg.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.ComponentConfig.Nvidia.CacheSize,
+		cacheSize:   basicCfg.CacheSize,
 		running:     false,
 	}
 	return component, nil
@@ -134,11 +109,11 @@ var now time.Time
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	now = now.Add(10 * time.Second)
-	collector := &nvidiaCollector.NvidiaInfo{}
-	collector.Time = now
-	collector.DeviceCount = 8
+	nvdiaCollector := &collector.NvidiaInfo{}
+	nvdiaCollector.Time = now
+	nvdiaCollector.DeviceCount = 8
 	for i := 0; i < 8; i++ {
-		deviceInfo := nvidiaCollector.DeviceInfo{}
+		deviceInfo := collector.DeviceInfo{}
 		deviceInfo.Index = i
 		deviceInfo.UUID = fmt.Sprintf("mock-uuid-%d", i)
 		deviceInfo.Power.PowerUsage = 75
@@ -147,12 +122,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		deviceInfo.Power.PowerViolations = 0
 		deviceInfo.PCIeInfo.PCIeRx = 0
 		deviceInfo.PCIeInfo.PCIeTx = 0
-		collector.DevicesInfo = append(collector.DevicesInfo, deviceInfo)
+		nvdiaCollector.DevicesInfo = append(nvdiaCollector.DevicesInfo, deviceInfo)
 	}
 
 	c.cacheMtx.Lock()
 	c.cacheBuffer[c.currIndex] = nil
-	c.cacheInfo[c.currIndex] = collector
+	c.cacheInfo[c.currIndex] = nvdiaCollector
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
 
@@ -220,7 +195,7 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 					fmt.Printf("%s analyze failed: %v\n", c.name, err)
 					continue
 				}
-				if result.Level == commonCfg.LevelCritical || result.Level == commonCfg.LevelWarning {
+				if result.Level == consts.LevelCritical || result.Level == consts.LevelWarning {
 					c.serviceMtx.Lock()
 					c.resultChannel <- result
 					c.serviceMtx.Unlock()
@@ -247,7 +222,7 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*nvidiaCfg.ComponentConfig)
+	config, ok := cfg.(*nvcfg.NvidiaConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nvidia")
 	}

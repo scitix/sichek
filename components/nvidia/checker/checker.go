@@ -20,55 +20,56 @@ import (
 	dependence "github.com/scitix/sichek/components/nvidia/checker/check_dependences"
 	sram "github.com/scitix/sichek/components/nvidia/checker/check_ecc_sram"
 	remap "github.com/scitix/sichek/components/nvidia/checker/check_remmaped_rows"
-	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/config/nvidia"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]common.Checker, error) {
-	checkerConstructors := map[string]func(*config.NvidiaSpec) (common.Checker, error){
-		config.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
-		config.IOMMUCheckerName:           dependence.NewIOMMUChecker,
-		config.NVFabricManagerCheckerName: dependence.NewNVFabricManagerChecker,
-		config.NvPeerMemCheckerName:       dependence.NewNvPeerMemChecker,
-		config.PCIeCheckerName:            NewPCIeChecker,
+func NewCheckers(nvidiaCfg *nvidia.NvidiaConfig, nvidiaSpecCfg *nvidia.NvidiaSpecItem, nvmlInst nvml.Interface) ([]common.Checker, error) {
+	checkerConstructors := map[string]func(*nvidia.NvidiaSpecItem) (common.Checker, error){
+		nvidia.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
+		nvidia.IOMMUCheckerName:           dependence.NewIOMMUChecker,
+		nvidia.NVFabricManagerCheckerName: dependence.NewNVFabricManagerChecker,
+		nvidia.NvPeerMemCheckerName:       dependence.NewNvPeerMemChecker,
+		nvidia.PCIeCheckerName:            NewPCIeChecker,
 		// config.HardwareCheckerName:                  NewHardwareChecker,
-		config.SoftwareCheckerName:                  NewSoftwareChecker,
-		config.GpuPersistenceCheckerName:            NewGpuPersistenceChecker,
-		config.GpuPStateCheckerName:                 NewGpuPStateChecker,
-		config.NvlinkCheckerName:                    NewNvlinkChecker,
-		config.AppClocksCheckerName:                 NewAppClocksChecker,
-		config.ClockEventsCheckerName:               NewClockEventsChecker,
-		config.SRAMAggUncorrectableCheckerName:      sram.NewSRAMAggUncorrectableChecker,
-		config.SRAMHighcorrectableCheckerName:       sram.NewSRAMHighcorrectableChecker,
-		config.SRAMVolatileUncorrectableCheckerName: sram.NewSRAMVolatileUncorrectableChecker,
-		config.RemmapedRowsFailureCheckerName:       remap.NewRemmapedRowsFailureChecker,
-		config.RemmapedRowsUncorrectableCheckerName: remap.NewRemmapedRowsUncorrectableChecker,
-		config.RemmapedRowsPendingCheckerName:       remap.NewRemmapedRowsPendingChecker,
+		nvidia.SoftwareCheckerName:                  NewSoftwareChecker,
+		nvidia.GpuPersistenceCheckerName:            NewGpuPersistenceChecker,
+		nvidia.GpuPStateCheckerName:                 NewGpuPStateChecker,
+		nvidia.NvlinkCheckerName:                    NewNvlinkChecker,
+		nvidia.AppClocksCheckerName:                 NewAppClocksChecker,
+		nvidia.ClockEventsCheckerName:               NewClockEventsChecker,
+		nvidia.SRAMAggUncorrectableCheckerName:      sram.NewSRAMAggUncorrectableChecker,
+		nvidia.SRAMHighcorrectableCheckerName:       sram.NewSRAMHighcorrectableChecker,
+		nvidia.SRAMVolatileUncorrectableCheckerName: sram.NewSRAMVolatileUncorrectableChecker,
+		nvidia.RemmapedRowsFailureCheckerName:       remap.NewRemmapedRowsFailureChecker,
+		nvidia.RemmapedRowsUncorrectableCheckerName: remap.NewRemmapedRowsUncorrectableChecker,
+		nvidia.RemmapedRowsPendingCheckerName:       remap.NewRemmapedRowsPendingChecker,
 	}
 
 	ignoredSet := make(map[string]struct{})
-	for _, checker := range nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers {
+	for _, checker := range nvidiaCfg.IgnoredCheckers {
 		ignoredSet[checker] = struct{}{}
 	}
 
 	usedCheckersName := make([]string, 0)
 	usedCheckers := make([]common.Checker, 0)
-	cfg := &nvidiaCfg.Spec
+	cfg := nvidiaSpecCfg
 
-	for checkerName := range config.GPUCheckItems {
+	for checkerName := range nvidia.GPUCheckItems {
 		if _, found := ignoredSet[checkerName]; found {
 			continue
 		}
 
-		if checkerName == config.HardwareCheckerName {
+		if checkerName == nvidia.HardwareCheckerName {
 			checker, err := NewHardwareChecker(cfg, nvmlInst)
 			if err != nil {
 				logrus.WithError(err).WithField("checker", checkerName).Error("Failed to create checker")
 				continue
 			}
 			usedCheckers = append(usedCheckers, checker)
+			usedCheckersName = append(usedCheckersName, checkerName)
 			usedCheckersName = append(usedCheckersName, checkerName)
 			continue
 		}
@@ -81,8 +82,9 @@ func NewCheckers(nvidiaCfg *config.NvidiaConfig, nvmlInst nvml.Interface) ([]com
 			}
 			usedCheckers = append(usedCheckers, checker)
 			usedCheckersName = append(usedCheckersName, checkerName)
+			usedCheckersName = append(usedCheckersName, checkerName)
 		}
 	}
-	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers)
+	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckersName, nvidiaCfg.IgnoredCheckers)
 	return usedCheckers, nil
 }

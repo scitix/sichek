@@ -21,19 +21,19 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type PCIeACSChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewPCIeACSChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewPCIeACSChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &PCIeACSChecker{
-		name: config.PCIeACSCheckerName,
+		name: nvidia.PCIeACSCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *PCIeACSChecker) Name() string {
 	return c.name
 }
 
-func (c *PCIeACSChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *PCIeACSChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 // checks if PCIe ACS is disabled for all NVIDIA GPU
 func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -53,12 +53,12 @@ func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("failed to run GetACSEnabledDevices, err: %v", err)
 	}
 
-	result := config.GPUCheckItems[config.PCIeACSCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.PCIeACSCheckerName]
 
 	if len(enabledACS) > 0 {
 		failedDevices, err := utils.BatchDisableACS(ctx, enabledACS)
 		if err == nil && len(failedDevices) == 0 {
-			result.Status = commonCfg.StatusNormal
+			result.Status = consts.StatusNormal
 			result.Curr = "DisabledOnline"
 			result.Detail = "Detect Not All PCIe ACS are disabled. They have been disabled online successfully"
 		} else {
@@ -67,12 +67,12 @@ func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 				failedBDFs = append(failedBDFs, failedDevice.BDF)
 			}
 			result.Device = strings.Join(failedBDFs, ",")
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "NotAllDisabled"
 			result.Detail = fmt.Sprintf("Not All PCIe ACS are disabled. Failed to disable online: %v", failedBDFs)
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Disabled"
 		result.Detail = "All PCIe ACS are disabled"
 		result.Suggestion = ""

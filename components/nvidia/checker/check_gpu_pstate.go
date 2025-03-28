@@ -23,18 +23,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type GpuPStateChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewGpuPStateChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewGpuPStateChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPStateChecker{
-		name: config.GpuPStateCheckerName,
+		name: nvidia.GpuPStateCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -43,9 +43,9 @@ func (c *GpuPStateChecker) Name() string {
 	return c.name
 }
 
-func (c *GpuPStateChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *GpuPStateChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 // Check if the Nvidia GPU performance state is in state 0 -- Maximum Performance.
 func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -55,7 +55,7 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.GpuPStateCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.GpuPStateCheckerName]
 
 	// Check if all the Nvidia GPUs are in pstate 0
 	var info string
@@ -73,12 +73,12 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 		}
 	}
 	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("The following GPUs pstates less than P%d:\n %v", c.cfg.State.GpuPstate, info)
 		result.Curr = fmt.Sprintf("Above P%d", c.cfg.State.GpuPstate)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 		if c.cfg.State.GpuPstate != 0 {

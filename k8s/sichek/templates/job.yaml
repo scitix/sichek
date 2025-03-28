@@ -61,10 +61,10 @@ spec:
           args:
             - "-c"
             - |-
-              output=$(sichek all -e)
+              output=$(sichek i -s /scratch/xyjiang02/workspace/sichek/components/infiniband/config/default_infiniband_spec.yaml)
               ret=$?
               if [[  $ret -ne 0 ]]; then
-                 sichek all -e
+                 sichek i -s /scratch/xyjiang02/workspace/sichek/components/infiniband/config/default_infiniband_spec.yaml
               fi
               exit $ret
           resources:

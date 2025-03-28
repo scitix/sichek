@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type RemmapedRowsFailureChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewRemmapedRowsFailureChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewRemmapedRowsFailureChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &RemmapedRowsFailureChecker{
-		name: config.RemmapedRowsFailureCheckerName,
+		name: nvidia.RemmapedRowsFailureCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -42,9 +42,9 @@ func (c *RemmapedRowsFailureChecker) Name() string {
 	return c.name
 }
 
-func (c *RemmapedRowsFailureChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *RemmapedRowsFailureChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
@@ -53,7 +53,7 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.RemmapedRowsFailureCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.RemmapedRowsFailureCheckerName]
 
 	var falied_gpus []string
 	var falied_gpuid_podnames []string
@@ -70,11 +70,11 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 		}
 	}
 	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Row Remap Failure occurred on GPUs: %v", falied_gpus)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

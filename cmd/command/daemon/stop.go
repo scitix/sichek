@@ -21,7 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	pkg_systemd "github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -52,12 +52,12 @@ func NewDaemonStopCmd() *cobra.Command {
 				return
 			}
 
-			err = pkg_systemd.StopSystemdService(config.ServiceName)
+			err = pkg_systemd.StopSystemdService(consts.ServiceName)
 			if err != nil {
 				logrus.WithField("daemon", "stop").Error(err)
 				return
 			}
-			err = pkg_systemd.DisableSystemdService(config.ServiceName)
+			err = pkg_systemd.DisableSystemdService(consts.ServiceName)
 			if err != nil {
 				logrus.WithField("daemon", "stop").Error(err)
 				return

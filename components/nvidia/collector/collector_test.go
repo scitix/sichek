@@ -70,12 +70,23 @@ func TestCompareVersion(t *testing.T) {
 		version string
 		expect  bool
 	}{
-		{"spec535.129.03", "spec535.129.03", true},  // 完全匹配
-		{"spec535.129.*", "spec535.129.99", true},   // 只匹配 major.minor
-		{"spec535.129.*", "spec535.130.01", false},  // minor 不匹配
-		{"spec535.*.*", "spec535.120.01", true},     // 只匹配 major
-		{"spec535.*.*", "spec536.120.01", false},    // major 不匹配
-		{"spec535.129.03", "spec535.129.04", false}, // patch 不匹配
+		{">= 550.54.15", "550.54.16", true},  // Version is higher than spec
+		{">= 550.54.15", "550.54.15", true},  // Version is equal to spec
+		{"550.54.15", "550.54.15", true},     // Version is equal to spec
+		{">= 550.54.15", "550.54.14", false}, // Version is lower than spec
+		{"> 550.54.15", "550.54.16", true},   // Version is higher than spec
+		{">= 12.2", "12.2", true},            // Version is lower than spec
+		{"12.2", "12.2", true},               // Version is lower than spec
+		{"> 12.2", "12.8", true},             // Version is higher than spec
+		{"> 550.54.15", "550.54.15", false},  // Version is equal to spec
+		{"== 550.54.15", "550.54.15", true},  // Version matches spec
+		{"== 550.54.15", "550.54.16", false}, // Version does not match spec
+		{">= 550.*", "550.60.20", true},      // Wildcard matches
+		{">= 550.*", "549.99.99", false},     // Version is below wildcard range
+		{"== 550.*", "550.99.99", true},      // Wildcard matches
+		{"== 550.*", "551.0.0", false},       // Exceeds wildcard range
+		{">= 535.*", "535.99.99", true},      // Version is below wildcard range
+		{"535.*", "535.99.99", true},         // Version is below wildcard range
 	}
 
 	// 运行测试

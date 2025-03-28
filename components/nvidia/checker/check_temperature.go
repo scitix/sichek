@@ -23,18 +23,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/consts"
 )
 
 type GpuTemperatureChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *nvidia.NvidiaSpecItem
 }
 
-func NewGpuTemperatureChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewGpuTemperatureChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPStateChecker{
-		name: config.GpuTemperatureCheckerName,
+		name: nvidia.GpuTemperatureCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -43,9 +43,9 @@ func (c *GpuTemperatureChecker) Name() string {
 	return c.name
 }
 
-func (c *GpuTemperatureChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
+// func (c *GpuTemperatureChecker) GetSpec() common.CheckerSpec {
+// 	return c.cfg
+// }
 
 // Check verifies if the Nvidia GPU temperature is > specified C, e.g 75 C .
 func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -55,7 +55,7 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.GpuTemperatureCheckerName]
+	result := nvidia.GPUCheckItems[nvidia.GpuTemperatureCheckerName]
 
 	var unexpected_gpus_temp map[int]string
 	var falied_gpuid_podnames []string
@@ -83,11 +83,11 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 		}
 	}
 	if len(unexpected_gpus_temp) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", unexpected_gpus_temp)
 		result.Device = strings.Join(falied_gpuid_podnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

@@ -22,21 +22,21 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/ethernet/collector"
-	"github.com/scitix/sichek/components/ethernet/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/ethernet"
+	"github.com/scitix/sichek/consts"
 )
 
 type EthPhyStateChecker struct {
 	id          string
 	name        string
-	spec        *config.EthernetSpec
+	spec        *ethernet.EthernetSpec
 	description string
 }
 
-func NewEthPhyStateChecker(specCfg *config.EthernetSpec) (common.Checker, error) {
+func NewEthPhyStateChecker(specCfg *ethernet.EthernetSpec) (common.Checker, error) {
 	return &EthPhyStateChecker{
-		id:   commonCfg.CheckerIDEthPhyState,
-		name: config.ChekEthPhyState,
+		id:   consts.CheckerIDEthPhyState,
+		name: ethernet.ChekEthPhyState,
 		spec: specCfg,
 	}, nil
 }
@@ -60,9 +60,9 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	if len(ethernetInfo.EthDevs) == 0 {
-		result := config.EthCheckItems[c.name]
-		result.Status = commonCfg.StatusAbnormal
-		result.Level = config.EthCheckItems[c.name].Level
+		result := ethernet.EthCheckItems[c.name]
+		result.Status = consts.StatusAbnormal
+		result.Level = ethernet.EthCheckItems[c.name].Level
 		result.Detail = "No eth device found"
 		return &result, fmt.Errorf("fail to get the eth device")
 	}
@@ -70,11 +70,11 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	var (
 		errDevice []string
 		spec      string
-		level     string = commonCfg.LevelInfo
-		detail    string = config.EthCheckItems[c.name].Detail
+		level     string = consts.LevelInfo
+		detail    string = ethernet.EthCheckItems[c.name].Detail
 	)
 
-	status := commonCfg.StatusNormal
+	status := consts.StatusNormal
 	suggestions := " "
 
 	curr := make([]string, 0, len(ethernetInfo.EthHardWareInfo))
@@ -97,13 +97,13 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	if len(errDevice) != 0 {
-		status = commonCfg.StatusAbnormal
-		level = config.EthCheckItems[c.name].Level
+		status = consts.StatusAbnormal
+		level = ethernet.EthCheckItems[c.name].Level
 		detail = fmt.Sprintf("%s status is not right status", strings.Join(errDevice, ","))
 		suggestions = fmt.Sprintf("check nic to up %s link status", strings.Join(errDevice, ","))
 	}
 
-	result := config.EthCheckItems[c.name]
+	result := ethernet.EthCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = spec
 	result.Level = level

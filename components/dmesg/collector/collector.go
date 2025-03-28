@@ -22,7 +22,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/dmesg/checker"
-	DmesgCfg "github.com/scitix/sichek/components/dmesg/config"
+	"github.com/scitix/sichek/config/dmesg"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -35,19 +35,15 @@ type DmesgCollector struct {
 	filter *filter.Filter
 }
 
-func NewDmesgCollector(ctx context.Context, cfg common.ComponentConfig) (*DmesgCollector, error) {
-	config, ok := cfg.(*DmesgCfg.DmesgConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for GPFS")
-	}
+func NewDmesgCollector(ctx context.Context, cfg *dmesg.DmesgConfig) (*DmesgCollector, error) {
 
-	if len(config.Dmesg.CheckerConfigs) == 0 {
+	if len(cfg.CheckerConfigs) == 0 {
 		return nil, fmt.Errorf("No Dmesg Collector indicate in yaml config")
 	}
-	regexpName := make([]string, 0, len(config.Dmesg.CheckerConfigs))
-	regexp := make([]string, 0, len(config.Dmesg.CheckerConfigs))
+	regexpName := make([]string, 0, len(cfg.CheckerConfigs))
+	regexp := make([]string, 0, len(cfg.CheckerConfigs))
 
-	for _, checkers_cfg := range config.Dmesg.CheckerConfigs {
+	for _, checkers_cfg := range cfg.CheckerConfigs {
 		regexpName = append(regexpName, checkers_cfg.Name)
 		regexp = append(regexp, checkers_cfg.Regexp)
 	}
@@ -55,8 +51,8 @@ func NewDmesgCollector(ctx context.Context, cfg common.ComponentConfig) (*DmesgC
 	filter, err := filter.NewFilter(
 		regexpName,
 		regexp,
-		config.Dmesg.DmesgFileName,
-		config.Dmesg.DmesgCmd,
+		cfg.DmesgFileName,
+		cfg.DmesgCmd,
 		5000,
 	)
 	if err != nil {

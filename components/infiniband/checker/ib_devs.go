@@ -22,19 +22,19 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 )
 
 type IBDevsChecker struct {
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *infiniband.InfinibandSpecItem
 	description string
 }
 
-func NewIBDevsChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBDevsChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
 	return &IBDevsChecker{
-		name: config.CheckIBDevs,
+		name: infiniband.CheckIBDevs,
 		spec: specCfg,
 	}, nil
 }
@@ -58,7 +58,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	result := config.InfinibandCheckItems[c.name]
+	result := infiniband.InfinibandCheckItems[c.name]
 
 	failedHcas := make([]string, 0)
 	IBDevSet := make(map[string]struct{})
@@ -73,11 +73,11 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	if len(failedHcas) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Device = strings.Join(failedHcas, ",")
 		result.Detail = fmt.Sprintf("Unexpected IB devices %v, expected IB devices : %v", infinibandInfo.IBDevs, c.spec.IBDevs)
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 	}
 
 	return &result, nil

@@ -20,14 +20,14 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/consts"
 )
 
 func TestIBStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
-	spec := &config.InfinibandSpec{
-		HCAs: map[string]collector.IBHardWareInfo{
+	spec := &infiniband.InfinibandSpecItem{
+		HCAs: map[string]*collector.IBHardWareInfo{
 			"mlx5": {
 				IBDev:     "mlx5",
 				PortState: "ACTIVE",
@@ -65,8 +65,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 					{HCAType: "cx6dx", IBDev: "ib1", PortState: "ACTIVE"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusNormal,
-			expectedLevel:      commonCfg.LevelInfo,
+			expectedStatus:     consts.StatusNormal,
+			expectedLevel:      consts.LevelInfo,
 			expectedDetail:     "all ib state is active",
 			expectedSuggestion: "",
 			expectError:        false,
@@ -76,9 +76,9 @@ func TestIBStateChecker_Check(t *testing.T) {
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     config.NOIBFOUND,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
+			expectedDetail:     infiniband.NOIBFOUND,
 			expectedSuggestion: "",
 			expectError:        true,
 		},
@@ -90,8 +90,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 					{HCAType: "cx6dx", IBDev: "ib1", PortState: "ACTIVE"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0 status is not ACTIVE, curr status:DOWN,ACTIVE",
 			expectedSuggestion: "check opensm to active ib0 status",
 			expectError:        false,
@@ -104,8 +104,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 					{HCAType: "cx6dx", IBDev: "ib1", PortState: "INIT"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedStatus:     consts.StatusAbnormal,
+			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0,ib1 status is not ACTIVE, curr status:DOWN,INIT",
 			expectedSuggestion: "check opensm to active ib0,ib1 status",
 			expectError:        false,
