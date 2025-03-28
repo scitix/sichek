@@ -79,12 +79,13 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.FWVer)
 		curr = append(curr, hwInfo.FWVer)
-		if hwInfo.FWVer != hcaSpec.FWVer {
+		pass := common.CompareVersion(hcaSpec.FWVer, hwInfo.FWVer)
+		if !pass {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			err_msg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.FWVer)
-			logrus.WithField("component", "infiniband").Warnf("%s", err_msg)
-			detail = append(detail, err_msg)
+			errMsg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.FWVer)
+			logrus.WithField("component", "infiniband").Warnf("%s", errMsg)
+			detail = append(detail, errMsg)
 		}
 	}
 

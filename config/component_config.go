@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/scitix/sichek/config/cpu"
@@ -177,6 +179,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 			infinibandConfig := &infiniband.InfinibandConfig{}
 			err := DefaultComponentConfig(componentName, infinibandConfig, consts.DefaultBasicCfgName)
 			if err != nil {
+				logrus.Warnf("[GetConfigByComponentName] load infiniband config failed: %v", err)
 				return nil, nil
 			}
 			c.componentBasicConfig.infinibandBasicConfig = infinibandConfig
@@ -186,6 +189,7 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 		}
 		err := c.componentSpecConfig.infinibandSpecConfig.LoadDefaultSpec()
 		if err != nil {
+			logrus.Warnf("[GetConfigByComponentName] load infiniband spec config failed: %v", err)
 			return nil, nil
 		}
 		return c.componentBasicConfig.infinibandBasicConfig, c.componentSpecConfig.infinibandSpecConfig
@@ -204,11 +208,17 @@ func (c *ComponentConfig) GetConfigByComponentName(componentName string) (interf
 }
 
 func DefaultComponentConfig(component string, config interface{}, filename string) error {
-	defaultCfgDirPath, err := utils.GetDefaultConfigDirPath(component)
+	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, component, filename)
+	_, err := os.Stat(defaultCfgPath)
 	if err != nil {
-		return err
+		// run on host use local config
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// 获取当前文件的目录
+		defaultCfgPath = filepath.Join(filepath.Dir(curFile), component, filename)
 	}
-	defaultCfgPath := filepath.Join(defaultCfgDirPath, filename)
 	err = utils.LoadFromYaml(defaultCfgPath, config)
 	return err
 }

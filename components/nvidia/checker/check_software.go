@@ -56,11 +56,13 @@ func (c *SoftwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 
 	info := ""
 
-	if nvidiaInfo.SoftwareInfo.DriverVersion != c.cfg.Software.DriverVersion {
+	pass := common.CompareVersion(c.cfg.Software.DriverVersion, nvidiaInfo.SoftwareInfo.DriverVersion)
+	if !pass {
 		info += fmt.Sprintf("Driver version is %s, expected version is %s\n", nvidiaInfo.SoftwareInfo.DriverVersion, c.cfg.Software.DriverVersion)
 		result.Status = consts.StatusAbnormal
 	}
-	if nvidiaInfo.SoftwareInfo.CUDAVersion != c.cfg.Software.CUDAVersion {
+	pass = common.CompareVersion(c.cfg.Software.CUDAVersion, nvidiaInfo.SoftwareInfo.CUDAVersion)
+	if !pass {
 		info += fmt.Sprintf("CUDA version is %s, expected version is %s\n", nvidiaInfo.SoftwareInfo.CUDAVersion, c.cfg.Software.CUDAVersion)
 		result.Status = consts.StatusAbnormal
 	}

@@ -39,7 +39,7 @@ func JSON(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-// Base function to convert any struct to a pretty-printed JSON string
+// ToString Base function to convert any struct to a pretty-printed JSON string
 func ToString(v interface{}) string {
 	jsonData, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

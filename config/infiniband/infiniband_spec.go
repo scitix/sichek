@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
@@ -72,15 +73,26 @@ func (s *InfinibandSpec) GetClusterInfinibandSpec() (*InfinibandSpecItem, error)
 }
 
 func (s *InfinibandSpec) LoadDefaultSpec() error {
-	defaultCfgDirPath, err := utils.GetDefaultConfigDirPath(consts.ComponentNameInfiniband)
+
+	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, consts.ComponentNameInfiniband)
+	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
-		return err
+		// run on host use local config
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// 获取当前文件的目录
+
+		defaultCfgDirPath = filepath.Dir(curFile)
 	}
 	files, err := os.ReadDir(defaultCfgDirPath)
 	if err != nil {
 		return fmt.Errorf("failed to read directory: %v", err)
 	}
-
+	if s.Clusters == nil {
+		s.Clusters = make(map[string]*InfinibandSpecItem)
+	}
 	// 遍历文件并加载符合条件的 YAML 文件
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {

@@ -27,8 +27,6 @@ import (
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
-
-	"sigs.k8s.io/yaml"
 )
 
 type NvidiaSpec struct {
@@ -87,15 +85,24 @@ func (s *NvidiaSpec) GetSpec() *NvidiaSpecItem {
 }
 
 func (s *NvidiaSpec) LoadDefaultSpec() error {
-	defaultCfgDirPath, err := utils.GetDefaultConfigDirPath(consts.ComponentNameNvidia)
+	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, consts.ComponentNameNvidia)
+	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
-		return err
+		// run on host use local config
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// 获取当前文件的目录
+		defaultCfgDirPath = filepath.Dir(curFile)
 	}
 	files, err := os.ReadDir(defaultCfgDirPath)
 	if err != nil {
 		return fmt.Errorf("failed to read directory: %v", err)
 	}
-
+	if s.NvidiaSpecMap == nil {
+		s.NvidiaSpecMap = make(map[int32]*NvidiaSpecItem)
+	}
 	// 遍历文件并加载符合条件的 YAML 文件
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
@@ -110,6 +117,7 @@ func (s *NvidiaSpec) LoadDefaultSpec() error {
 					s.NvidiaSpecMap[gpu_id] = nvidiaSpec
 				}
 			}
+
 		}
 	}
 	return nil
@@ -144,72 +152,4 @@ func getDeviceID() string {
 		return deviceID
 	}
 	panic(fmt.Errorf("failed to get product name for NVIDIA GPU"))
-}
-
-// LoadSpecFromYaml loads nvidia specifications from a single yaml file or multiple yaml files in default directory.
-func LoadSpecFromYaml(specFile string) (map[string]*NvidiaSpecItem, error) {
-	nvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
-	if specFile != "" {
-		// Parse from the specified file
-		if err := parseSpecYamlFile(specFile, nvidiaSpecsMap); err != nil {
-			return nil, err
-		}
-	} else {
-		// Parse from the default directory
-		specDirs := []string{
-			"/var/sichek/nvidia", // directory for production environment
-			getLocalSpecDir(),    // Local directory relative to the source code for development
-		}
-
-		foundFile := false
-		for _, dir := range specDirs {
-			files, err := os.ReadDir(dir)
-			if err != nil {
-				continue // Skip if the directory does not exist
-			}
-			foundFile = true
-			for _, file := range files {
-				if strings.HasSuffix(file.Name(), "spec.yaml") {
-					specFile := filepath.Join(dir, file.Name())
-					if err := parseSpecYamlFile(specFile, nvidiaSpecsMap); err != nil {
-						return nil, err
-					}
-				}
-			}
-		}
-
-		if !foundFile {
-			return nil, fmt.Errorf("failed to find spec file in %v", specDirs)
-		}
-	}
-	return nvidiaSpecsMap, nil
-}
-
-// getLocalSpecDir returns the directory of the spec yaml files.
-func getLocalSpecDir() string {
-	_, curFile, _, ok := runtime.Caller(0)
-	if !ok {
-		fmt.Println("unable to determine src dirctory path, return current directory")
-		return "."
-	}
-	return filepath.Dir(curFile)
-}
-
-// parseSpecYamlFile read and parses a single YAML file into a map of NvidiaSpec.
-func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]*NvidiaSpecItem) error {
-	data, err := os.ReadFile(specFile)
-	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", specFile, err)
-	}
-	var spec NvidiaSpec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
-		return fmt.Errorf("failed to unmarshal file %s: %w", specFile, err)
-	}
-	// Merge the parsed spec into the main nvidiaSpec map
-	for gpu_id, nvidiaSpec := range spec.NvidiaSpecMap {
-		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
-		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
-		nvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
-	}
-	return nil
 }

@@ -131,7 +131,7 @@ func GetConfig(componentConfig *config.ComponentConfig) (*infiniband.InfinibandC
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid spec config type for infiniband component")
 	}
-	_,hcaSpec := componentConfig.GetConfigByComponentName(consts.ComponentNameHCA)
+	_, hcaSpec := componentConfig.GetConfigByComponentName(consts.ComponentNameHCA)
 	hcaSpecCfg, ok := hcaSpec.(*hca.HCASpec)
 	if !ok || hcaSpecCfg == nil {
 		return nil, nil, fmt.Errorf("11212invalid hca spec type for infiniband component")

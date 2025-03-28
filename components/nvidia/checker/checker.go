@@ -85,6 +85,6 @@ func NewCheckers(nvidiaCfg *nvidia.NvidiaConfig, nvidiaSpecCfg *nvidia.NvidiaSpe
 			usedCheckersName = append(usedCheckersName, checkerName)
 		}
 	}
-	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckers, nvidiaCfg.IgnoredCheckers)
+	logrus.WithField("component", "NVIDIA-Checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckersName, nvidiaCfg.IgnoredCheckers)
 	return usedCheckers, nil
 }

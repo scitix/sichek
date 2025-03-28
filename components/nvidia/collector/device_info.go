@@ -149,13 +149,13 @@ func isDriverVersionSupportedClkEvents(driverVersion string, requiredMajor int) 
 	// Split the driver version string by "."
 	parts := strings.Split(driverVersion, ".")
 	if len(parts) < 1 {
-			return false, fmt.Errorf("invalid driver version format: %s", driverVersion)
+		return false, fmt.Errorf("invalid driver version format: %s", driverVersion)
 	}
 
 	// Parse the major version (first part of the string)
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-			return false, fmt.Errorf("invalid major version in driver version: %s", driverVersion)
+		return false, fmt.Errorf("invalid major version in driver version: %s", driverVersion)
 	}
 
 	// Compare the major version

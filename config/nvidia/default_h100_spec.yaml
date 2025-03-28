@@ -4,10 +4,10 @@ nvidia_specs:
     gpu_nums: 8
     gpu_memory: 80
     software:
-      driver_version: "535.129.03"
-      cuda_version: "12.2"
+      driver_version: ">=535.129.03"
+      cuda_version: ">=12.2"
       vbios_version: "96.00.89.00.01"
-      fabricmanager_version: "535.129.03"
+      fabricmanager_version: ">=535.129.03"
     dependence:
       pcie_acs: disable
       iommu: off

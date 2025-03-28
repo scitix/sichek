@@ -100,7 +100,7 @@ const (
 
 const (
 	DefaultBasicCfgName  = "default_user_config.yaml"
-	DefaultSpecCfgName  = "/default_spec_config.yaml"
+	DefaultSpecCfgName   = "default_spec_config.yaml"
 	DefaultSpecCfgSuffix = "_spec.yaml"
 	DefaultPodCfgPath    = "/var/sichek/"
 )
