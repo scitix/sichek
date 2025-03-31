@@ -22,7 +22,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
+	 "github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -140,98 +140,98 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 			checkAllPassed = false
 		}
 		switch result.Name {
-		case nvidiaCfg.PCIeACSCheckerName:
+		case config.PCIeACSCheckerName:
 			if result.Status == consts.StatusNormal {
 				acsPrint = fmt.Sprintf("PCIe ACS: %sDisabled%s", Green, Reset)
 				if result.Curr != "Disabled" {
-					systemEvent[nvidiaCfg.PCIeACSCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
+					systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
 				}
 			} else {
 				acsPrint = fmt.Sprintf("PCIe ACS: %sEnabled%s", Red, Reset)
-				systemEvent[nvidiaCfg.PCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", Red, Reset)
+				systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", Red, Reset)
 			}
-		case nvidiaCfg.IOMMUCheckerName:
+		case config.IOMMUCheckerName:
 			if result.Status == consts.StatusNormal {
 				iommuPrint = fmt.Sprintf("IOMMU: %sOFF%s", Green, Reset)
 			} else {
 				iommuPrint = fmt.Sprintf("IOMMU: %sON%s", Red, Reset)
-				systemEvent[nvidiaCfg.IOMMUCheckerName] = fmt.Sprintf("%sIOMMU is ON%s", Red, Reset)
+				systemEvent[config.IOMMUCheckerName] = fmt.Sprintf("%sIOMMU is ON%s", Red, Reset)
 			}
-		case nvidiaCfg.NVFabricManagerCheckerName:
+		case config.NVFabricManagerCheckerName:
 			if result.Status == consts.StatusNormal {
 				fabricmanagerPrint = fmt.Sprintf("FabricManager: %s%s%s", Green, result.Curr, Reset)
 				if result.Curr != "Active" {
-					gpuStatus[nvidiaCfg.NVFabricManagerCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
+					gpuStatus[config.NVFabricManagerCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
 				}
 			} else {
 				fabricmanagerPrint = fmt.Sprintf("FabricManager: %sNot Active%s", Red, Reset)
-				gpuStatus[nvidiaCfg.NVFabricManagerCheckerName] = fmt.Sprintf("%sNvidia FabricManager is not active%s", Red, Reset)
+				gpuStatus[config.NVFabricManagerCheckerName] = fmt.Sprintf("%sNvidia FabricManager is not active%s", Red, Reset)
 			}
-		case nvidiaCfg.NvPeerMemCheckerName:
+		case config.NvPeerMemCheckerName:
 			if result.Status == consts.StatusNormal {
 				peermemPrint = fmt.Sprintf("nvidia_peermem: %sLoaded%s", Green, Reset)
 				if result.Curr != "Loaded" {
-					gpuStatus[nvidiaCfg.NvPeerMemCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
+					gpuStatus[config.NvPeerMemCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
 				}
 			} else {
 				peermemPrint = fmt.Sprintf("nvidia_peermem: %sNotLoaded%s", Red, Reset)
-				gpuStatus[nvidiaCfg.NvPeerMemCheckerName] = fmt.Sprintf("%snvidia_peermem module: NotLoaded%s", Red, Reset)
+				gpuStatus[config.NvPeerMemCheckerName] = fmt.Sprintf("%snvidia_peermem module: NotLoaded%s", Red, Reset)
 			}
-		case nvidiaCfg.PCIeCheckerName:
+		case config.PCIeCheckerName:
 			if result.Status == consts.StatusNormal {
 				pcieLinkPrint = fmt.Sprintf("PCIeLink: %sOK%s", Green, Reset)
 			} else {
-				gpuStatus[nvidiaCfg.PCIeCheckerName] = fmt.Sprintf("%sPCIe degradation detected:\n%s%s%s", Red, Yellow, result.Detail, Reset)
+				gpuStatus[config.PCIeCheckerName] = fmt.Sprintf("%sPCIe degradation detected:\n%s%s%s", Red, Yellow, result.Detail, Reset)
 			}
-		case nvidiaCfg.HardwareCheckerName:
+		case config.HardwareCheckerName:
 			if result.Status == consts.StatusNormal {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
 					Green, nvidiaInfo.DeviceCount, Reset, Green, len(nvidiaInfo.DeviceToPodMap), Reset)
 			} else {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
 					Red, nvidiaInfo.DeviceCount, Reset, Green, len(nvidiaInfo.DeviceToPodMap), Reset)
-				gpuStatus[nvidiaCfg.HardwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+				gpuStatus[config.HardwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.SoftwareCheckerName:
+		case config.SoftwareCheckerName:
 			if result.Status == consts.StatusNormal {
 				driverPrint = fmt.Sprintf("Driver Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.DriverVersion, Reset)
 				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.CUDAVersion, Reset)
 			} else {
 				driverPrint = fmt.Sprintf("Driver Version: %s%s%s", Red, nvidiaInfo.SoftwareInfo.DriverVersion, Reset)
 				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", Red, nvidiaInfo.SoftwareInfo.CUDAVersion, Reset)
-				gpuStatus[nvidiaCfg.SoftwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+				gpuStatus[config.SoftwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.GpuPersistenceCheckerName:
+		case config.GpuPersistenceCheckerName:
 			if result.Status == consts.StatusNormal {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", Green, result.Curr, Reset)
 				if result.Curr != "Enabled" {
-					gpuStatus[nvidiaCfg.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
+					gpuStatus[config.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
 				}
 			} else {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", Red, result.Curr, Reset)
-				gpuStatus[nvidiaCfg.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+				gpuStatus[config.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.GpuPStateCheckerName:
+		case config.GpuPStateCheckerName:
 			if result.Status == consts.StatusNormal {
 				pstatePrint = fmt.Sprintf("PState: %s%s%s", Green, result.Curr, Reset)
 			} else {
 				pstatePrint = fmt.Sprintf("PState: %s%s%s", Red, result.Curr, Reset)
-				gpuStatus[nvidiaCfg.GpuPStateCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+				gpuStatus[config.GpuPStateCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.NvlinkCheckerName:
+		case config.NvlinkCheckerName:
 			if result.Status == consts.StatusNormal {
 				nvlinkPrint = fmt.Sprintf("NVLink: %s%s%s", Green, result.Curr, Reset)
 			} else {
 				nvlinkPrint = fmt.Sprintf("NVLink: %s%s%s", Green, result.Curr, Reset)
-				gpuStatus[nvidiaCfg.NvlinkCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+				gpuStatus[config.NvlinkCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.AppClocksCheckerName:
+		case config.AppClocksCheckerName:
 			if result.Status == consts.StatusNormal {
 				// gpuStatus[config.AppClocksCheckerName] = fmt.Sprintf("%sGPU application clocks: Set to maximum%s", Green, Reset)
 			} else {
-				gpuStatus[nvidiaCfg.AppClocksCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
+				gpuStatus[config.AppClocksCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.ClockEventsCheckerName:
+		case config.ClockEventsCheckerName:
 			if result.Status == consts.StatusNormal {
 				clockEvents["Thermal"] = fmt.Sprintf("%sNo HW Thermal Slowdown Found%s", Green, Reset)
 				clockEvents["PowerBrake"] = fmt.Sprintf("%sNo HW Power Brake Slowdown Found%s", Green, Reset)
@@ -239,41 +239,41 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				clockEvents["Thermal"] = fmt.Sprintf("%sHW Thermal Slowdown Found%s", Red, Reset)
 				clockEvents["PowerBrake"] = fmt.Sprintf("%sHW Power Brake Slowdown Found%s", Red, Reset)
 			}
-		case nvidiaCfg.SRAMAggUncorrectableCheckerName:
+		case config.SRAMAggUncorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
-				eccEvents[nvidiaCfg.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Agg Uncorrectable Found%s", Green, Reset)
+				eccEvents[config.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Agg Uncorrectable Found%s", Green, Reset)
 			} else {
-				eccEvents[nvidiaCfg.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Agg Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
+				eccEvents[config.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Agg Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.SRAMHighcorrectableCheckerName:
+		case config.SRAMHighcorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
-				eccEvents[nvidiaCfg.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sNo SRAM High Correctable Found%s", Green, Reset)
+				eccEvents[config.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sNo SRAM High Correctable Found%s", Green, Reset)
 			} else {
-				eccEvents[nvidiaCfg.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sSRAM High Correctable Found\n%s%s", Red, result.Detail, Reset)
+				eccEvents[config.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sSRAM High Correctable Found\n%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.SRAMVolatileUncorrectableCheckerName:
+		case config.SRAMVolatileUncorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
-				eccEvents[nvidiaCfg.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Volatile Uncorrectable Found%s", Green, Reset)
+				eccEvents[config.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Volatile Uncorrectable Found%s", Green, Reset)
 			} else {
-				eccEvents[nvidiaCfg.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Volatile Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
+				eccEvents[config.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Volatile Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.RemmapedRowsFailureCheckerName:
+		case config.RemmapedRowsFailureCheckerName:
 			if result.Status == consts.StatusNormal {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Failure Found%s", Green, Reset)
+				remmapedRowsEvents[config.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Failure Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sRemmaped Rows Failure Found\n%s%s", Red, result.Detail, Reset)
+				remmapedRowsEvents[config.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sRemmaped Rows Failure Found\n%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.RemmapedRowsUncorrectableCheckerName:
+		case config.RemmapedRowsUncorrectableCheckerName:
 			if result.Status == consts.StatusNormal {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Uncorrectable Found%s", Green, Reset)
+				remmapedRowsEvents[config.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Uncorrectable Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sRemmaped Rows Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
+				remmapedRowsEvents[config.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sRemmaped Rows Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
-		case nvidiaCfg.RemmapedRowsPendingCheckerName:
+		case config.RemmapedRowsPendingCheckerName:
 			if result.Status == consts.StatusNormal {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Pending Found%s", Green, Reset)
+				remmapedRowsEvents[config.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Pending Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[nvidiaCfg.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found\n%s%s", Red, result.Detail, Reset)
+				remmapedRowsEvents[config.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found\n%s%s", Red, result.Detail, Reset)
 			}
 		}
 	}

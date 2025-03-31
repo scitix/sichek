@@ -67,7 +67,7 @@ func NewHangCommand() *cobra.Command {
 			}
 			component, err := hang.NewComponent(cfgFile)
 			if err != nil {
-				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
+				logrus.WithField("components", "Hang").Error("fail to Create Hang Components")
 				return
 			}
 
@@ -109,7 +109,7 @@ func NewHangCommand() *cobra.Command {
 				return
 			}
 
-			logrus.WithField("component", "Gpfs").Infof("Gpfs analysis result: %s\n", common.ToString(result))
+			logrus.WithField("component", "Hang").Infof("Hang analysis result: %s\n", common.ToString(result))
 			info, err := component.LastInfo(ctx)
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
