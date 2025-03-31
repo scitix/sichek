@@ -39,19 +39,37 @@ type CheckerSpec interface {
 	// LoadFromYaml(file string) error
 }
 
-func DefaultComponentConfig(component string, config interface{}, filename string) error {
-	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, component, filename)
-	_, err := os.Stat(defaultCfgPath)
+func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
+	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, component)
+	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
 		// run on host use local config
 		_, curFile, _, ok := runtime.Caller(0)
 		if !ok {
-			return fmt.Errorf("get curr file path failed")
+			return "", nil, fmt.Errorf("get curr file path failed")
 		}
-		commonDir := filepath.Dir(curFile)
 		// 获取当前文件的目录
-		defaultCfgPath = filepath.Join(filepath.Dir(commonDir), component, "config", filename)
+		commonDir := filepath.Dir(curFile)
+		defaultCfgDirPath = filepath.Join(filepath.Dir(commonDir), component, "config")
 	}
-	err = utils.LoadFromYaml(defaultCfgPath, config)
-	return err
+	files, err := os.ReadDir(defaultCfgDirPath)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to read directory: %v", err)
+	}
+	return defaultCfgDirPath, files, nil
+}
+
+func DefaultComponentConfig(component string, config interface{}, filename string) error {
+	defaultCfgDirPath, files, err := GetDefaultConfigFiles(component)
+	if err != nil {
+		return fmt.Errorf("failed to get default config files: %v", err)
+	}
+	for _, file := range files {
+		if file.Name() == filename {
+			defaultCfgPath := filepath.Join(defaultCfgDirPath, file.Name())
+			err = utils.LoadFromYaml(defaultCfgPath, config)
+			return err
+		}
+	}
+	return fmt.Errorf("failed to find default config file: %s", filename)
 }

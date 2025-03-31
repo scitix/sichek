@@ -2,11 +2,10 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -40,20 +39,9 @@ func (s *HCASpecConfig) LoadDefaultSpec() error {
 			HCAHardwares: make(map[string]*collector.IBHardWareInfo),
 		}
 	}
-	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, consts.ComponentNameHCA)
-	_, err := os.Stat(defaultCfgDirPath)
+	defaultCfgDirPath, files, err := common.GetDefaultConfigFiles(consts.ComponentNameHCA)
 	if err != nil {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
-		}
-		// 获取当前文件的目录
-		defaultCfgDirPath = filepath.Dir(curFile)
-	}
-	files, err := os.ReadDir(defaultCfgDirPath)
-	if err != nil {
-		return fmt.Errorf("failed to read directory: %v", err)
+		return fmt.Errorf("failed to get default hca config files: %v", err)
 	}
 	// 遍历文件并加载符合条件的 YAML 文件
 	for _, file := range files {

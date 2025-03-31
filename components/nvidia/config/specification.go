@@ -17,12 +17,11 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -108,20 +107,9 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 			NvidiaSpecMap: make(map[int32]*NvidiaSpecItem),
 		}
 	}
-	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, consts.ComponentNameNvidia)
-	_, err := os.Stat(defaultCfgDirPath)
+	defaultCfgDirPath, files, err := common.GetDefaultConfigFiles(consts.ComponentNameNvidia)
 	if err != nil {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
-		}
-		// 获取当前文件的目录
-		defaultCfgDirPath = filepath.Dir(curFile)
-	}
-	files, err := os.ReadDir(defaultCfgDirPath)
-	if err != nil {
-		return fmt.Errorf("failed to read directory: %v", err)
+		return fmt.Errorf("failed to get default nvidia config files: %v", err)
 	}
 	// 遍历文件并加载符合条件的 YAML 文件
 	for _, file := range files {
