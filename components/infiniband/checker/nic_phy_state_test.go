@@ -20,26 +20,25 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config/infiniband"	
+	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 )
 
 func TestIBPhyStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
 	// 模拟 Spec 配置
-	spec := &infiniband.InfinibandSpecItem{
+	spec := &config.InfinibandSpecItem{
 		HCAs: map[string]*collector.IBHardWareInfo{
 			"ib0": {
-				IBDev:     "ib0",
+				IBDev:    "ib0",
 				PhyState: "LinkUp",
 			},
 			"ib1": {
-				IBDev:     "ib1",
+				IBDev:    "ib1",
 				PhyState: "LinkUp",
 			},
 		},
 	}
-
 
 	// 创建 Checker 实例
 	checker, err := NewIBPhyStateChecker(spec)
@@ -79,8 +78,8 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     infiniband.NOIBFOUND,
+			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedDetail:     config.NOIBFOUND,
 			expectedSuggestion: "",
 			expectedError:      true,
 		},
@@ -93,7 +92,7 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 				},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
+			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0 status is not LinkUp, curr:Down,LinkUp",
 			expectedSuggestion: "check nic to up ib0 link status",
 			expectedError:      false,
@@ -107,7 +106,7 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 				},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
+			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0,ib1 status is not LinkUp, curr:Down,Init",
 			expectedSuggestion: "check nic to up ib0,ib1 link status",
 			expectedError:      false,

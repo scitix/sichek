@@ -21,7 +21,6 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/dmesg"
-	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -56,12 +55,7 @@ func NewDmesgCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Dmesg").Infof("load cfg file:%s", cfgFile)
 			}
-			cfg, err := config.LoadComponentConfig(cfgFile, "")
-			if err != nil {
-				logrus.WithField("component", "Dmesg").Errorf("create dmesg component failed: %v", err)
-				return
-			}
-			component, err := dmesg.NewComponent(cfg)
+			component, err := dmesg.NewComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "Dmesg").Errorf("create dmesg component failed: %v", err)
 				return

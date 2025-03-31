@@ -23,7 +23,6 @@ import (
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/cpu/checker"
 	"github.com/scitix/sichek/components/cpu/collector"
-	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -59,12 +58,7 @@ func NewCPUCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "cpu").Info("load default cfg...")
 			}
-			cfg, err := config.LoadComponentConfig(cfgFile, "")
-			if err != nil {
-				logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
-				return
-			}
-			component, err := cpu.NewComponent(cfg)
+			component, err := cpu.NewComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
 				return

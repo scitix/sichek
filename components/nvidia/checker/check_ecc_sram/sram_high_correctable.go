@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type SRAMHighcorrectableChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewSRAMHighcorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewSRAMHighcorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &SRAMHighcorrectableChecker{
-		name: nvidia.SRAMHighcorrectableCheckerName,
+		name: config.SRAMHighcorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.SRAMHighcorrectableCheckerName]
+	result := config.GPUCheckItems[config.SRAMHighcorrectableCheckerName]
 
 	var memory_error_events map[string]string
 	var falied_gpuid_podnames []string

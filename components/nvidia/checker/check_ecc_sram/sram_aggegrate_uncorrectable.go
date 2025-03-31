@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type SRAMAggUncorrectableChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewSRAMAggUncorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &SRAMAggUncorrectableChecker{
-		name: nvidia.SRAMAggUncorrectableCheckerName,
+		name: config.SRAMAggUncorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.SRAMAggUncorrectableCheckerName]
+	result := config.GPUCheckItems[config.SRAMAggUncorrectableCheckerName]
 
 	var falied_gpuid_podnames []string
 	var memory_error_events map[int]string

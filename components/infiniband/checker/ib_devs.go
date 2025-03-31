@@ -22,19 +22,19 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type IBDevsChecker struct {
 	name        string
-	spec        *infiniband.InfinibandSpecItem
+	spec        *config.InfinibandSpecItem
 	description string
 }
 
-func NewIBDevsChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
+func NewIBDevsChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBDevsChecker{
-		name: infiniband.CheckIBDevs,
+		name: config.CheckIBDevs,
 		spec: specCfg,
 	}, nil
 }
@@ -58,7 +58,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	result := infiniband.InfinibandCheckItems[c.name]
+	result := config.InfinibandCheckItems[c.name]
 
 	failedHcas := make([]string, 0)
 	IBDevSet := make(map[string]struct{})

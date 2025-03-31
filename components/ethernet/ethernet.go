@@ -22,13 +22,11 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/ethernet/checker"
 	"github.com/scitix/sichek/components/ethernet/collector"
-	"github.com/scitix/sichek/config/ethernet"
+	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
 
 	"sync"
 	"time"
-
-	"github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -41,10 +39,10 @@ var (
 type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	spec   *ethernet.EthernetSpec
+	spec   *config.EthernetSpecConfig
 	info   common.Info
 
-	cfg      *ethernet.EthernetConfig
+	cfg      *config.EthernetUserConfig
 	cfgMutex sync.RWMutex
 
 	// collector common.Collector
@@ -59,9 +57,9 @@ type component struct {
 	service *common.CommonService
 }
 
-func NewEthernetComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
 	ethernetComponentOnce.Do(func() {
-		ethernetComponent, err = newEthernetComponent(componentConfig)
+		ethernetComponent, err = newEthernetComponent(cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -69,27 +67,33 @@ func NewEthernetComponent(componentConfig *config.ComponentConfig) (comp common.
 	return ethernetComponent, nil
 }
 
-func newEthernetComponent(componentConfig *config.ComponentConfig) (comp *component, err error) {
+func newEthernetComponent(cfgFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-
-	cfg, specCfg, err := GetConfig(componentConfig)
+	cfg := &config.EthernetUserConfig{}
+	err = cfg.LoadUserConfigFromYaml(cfgFile)
 	if err != nil {
-		logrus.WithField("component", "ethernet").Errorf("NewComponent get config failed: %v", err)
+		logrus.WithField("component", "ethernet").Errorf("NewComponent load user config failed: %v", err)
 		return nil, err
 	}
-
+	specCfg := &config.EthernetSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "ethernet").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	ethernetSpec := specCfg.EthernetSpec
 	checkers := make([]common.Checker, 0)
 	checkerIndex := 0
-	for _, checkItem := range cfg.Cherkers {
+	for _, checkItem := range cfg.Ethernet.Cherkers {
 		switch checkItem {
 		case "phy_state":
 			checkerIndex = checkerIndex + 1
-			checker, err := checker.NewEthPhyStateChecker(specCfg)
+			checker, err := checker.NewEthPhyStateChecker(ethernetSpec)
 			if err != nil {
 				logrus.WithField("component", "ethernet").Errorf("Fail to create the checker: %d, err: %v", checkerIndex, err)
 			}
@@ -110,10 +114,10 @@ func newEthernetComponent(componentConfig *config.ComponentConfig) (comp *compon
 		info:        info.GetEthInfo(),
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.CacheSize),
+		cacheBuffer: make([]*common.Result, cfg.Ethernet.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.CacheSize,
+		cacheSize:   cfg.Ethernet.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
@@ -121,23 +125,6 @@ func newEthernetComponent(componentConfig *config.ComponentConfig) (comp *compon
 
 func (c *component) Name() string {
 	return consts.ComponentNameEthernet
-}
-
-func GetConfig(componentConfig *config.ComponentConfig) (*ethernet.EthernetConfig, *ethernet.EthernetSpec, error) {
-	cfg, specCfg := componentConfig.GetConfigByComponentName(consts.ComponentNameEthernet)
-	if cfg == nil || specCfg == nil {
-		logrus.WithField("component", "ethernet").Errorf("NewComponent get config cfg: %v, specCfg: %v", cfg, specCfg)
-		return nil, nil, fmt.Errorf("NewComponent get config failed")
-	}
-	ethernetCfg, ok := cfg.(*ethernet.EthernetConfig)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid basic config type for ethernet component")
-	}
-	ethernetSpecCfg, ok := specCfg.(*ethernet.EthernetSpec)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid spec config type for ethernet component")
-	}
-	return ethernetCfg, ethernetSpecCfg, nil
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -173,7 +160,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == consts.StatusAbnormal {
 			status = consts.StatusAbnormal
-			level = ethernet.EthCheckItems[checkItem.Name].Level
+			level = config.EthCheckItems[checkItem.Name].Level
 			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
 		}
@@ -246,9 +233,9 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*ethernet.EthernetConfig)
+	config, ok := cfg.(*config.EthernetUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for ethernet")
 	}

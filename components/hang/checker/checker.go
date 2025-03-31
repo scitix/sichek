@@ -26,7 +26,7 @@ import (
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/hang"
+	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
@@ -49,11 +49,11 @@ func (d *HangInfo) JSON() (string, error) {
 type HangChecker struct {
 	id                string
 	name              string
-	cfg               *hang.HangConfig
+	cfg               *config.HangUserConfig
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewHangChecker(cfg *hang.HangConfig) common.Checker {
+func NewHangChecker(cfg *config.HangUserConfig) common.Checker {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	return &HangChecker{
 		id:                consts.CheckerIDHang,
@@ -119,7 +119,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		logrus.Debugf("devices=%v\n", devices)
 	}
 
-	result := hang.HangCheckItems["GPUHang"]
+	result := config.HangCheckItems["GPUHang"]
 	result.Device = strings.Join(devices, ",")
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status

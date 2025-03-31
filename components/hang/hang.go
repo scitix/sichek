@@ -24,8 +24,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang/checker"
 	"github.com/scitix/sichek/components/hang/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/hang"
+	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *hang.HangConfig
+	cfg      *config.HangUserConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -55,9 +54,9 @@ var (
 	hangComponentOnce sync.Once
 )
 
-func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func NewComponent(cfgFile string) (comp common.Component, err error) {
 	hangComponentOnce.Do(func() {
-		hangComponent, err = newComponent(componentConfig)
+		hangComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -65,7 +64,7 @@ func NewComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 	return hangComponent, nil
 }
 
-func newComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func newComponent(cfgFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -73,18 +72,15 @@ func newComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 		}
 	}()
 
-	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameHang)
-	if cfg == nil {
-		logrus.WithField("component", "hang").Errorf("NewComponent get config failed: %v", err)
+	hangCfg := &config.HangUserConfig{}
+	err = hangCfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "hang").WithError(err).Error("failed to load HangUserConfig")
 		return nil, err
-	}
-	hangCfg, ok := cfg.(*hang.HangConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for hang component")
 	}
 
 	var hangCollector common.Collector
-	if hangCfg.NVSMI {
+	if hangCfg.Hang.NVSMI {
 		hangCollector, err = collector.NewHangCollector(ctx, hangCfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
@@ -109,10 +105,10 @@ func newComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 		collector: hangCollector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, hangCfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, hangCfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, hangCfg.Hang.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),
 		currIndex:         0,
-		cacheSize:         hangCfg.CacheSize,
+		cacheSize:         hangCfg.Hang.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, hangCfg, component.HealthCheck)
 	return component, nil
@@ -205,13 +201,13 @@ func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*hang.HangConfig)
+	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for hang")
 	}
-	c.cfg = config
+	c.cfg = hangCfg
 	c.cfgMutex.Unlock()
 	return c.service.Update(ctx, cfg)
 }

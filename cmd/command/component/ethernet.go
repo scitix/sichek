@@ -22,8 +22,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/ethernet"
 	"github.com/scitix/sichek/components/ethernet/collector"
-	"github.com/scitix/sichek/config"
-	ethernetcfg "github.com/scitix/sichek/config/ethernet"
+	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -58,12 +57,7 @@ func NewEthernetCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "ethernet").Info("load default cfg...")
 			}
-			cfg, err := config.LoadComponentConfig(cfgFile, "")
-			if err != nil {
-				logrus.WithField("component", "ethernet").Errorf("create ethernet component failed: %v", err)
-				return
-			}
-			component, err := ethernet.NewEthernetComponent(cfg)
+			component, err := ethernet.NewEthernetComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "ethernet").Error("fail to Create New Infiniband Components")
 			}
@@ -113,7 +107,7 @@ func PrintEthernetInfo(info common.Info, result *common.Result, summaryPrint boo
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		switch result.Name {
-		case ethernetcfg.ChekEthPhyState:
+		case config.ChekEthPhyState:
 			if result.Status == consts.StatusNormal {
 				phyStatPrint = fmt.Sprintf("Phy State: %sLinkUp%s", Green, Reset)
 			} else {

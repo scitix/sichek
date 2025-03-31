@@ -25,8 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/scitix/sichek/config"
-	pkg_systemd "github.com/scitix/sichek/pkg/systemd"
+	"github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/service"
 )
 
@@ -81,21 +80,6 @@ func NewDaemonRunCmd() *cobra.Command {
 			if len(ignore_component_str) > 0 {
 				ignored_components = strings.Split(ignore_component_str, ",")
 			}
-
-			var cfg *config.Config
-			if cfgFile != "" {
-				cfg, err = config.LoadConfigFromYaml(cfgFile)
-				if err != nil {
-					logrus.WithField("components", "infiniband").Error(err)
-				}
-			} else {
-				// 默认配置
-				cfg, err = config.GetDefaultConfig(used_components, ignored_components)
-				if err != nil {
-					logrus.WithField("daemon", "run").Error("Daemon create default config failed", err)
-					return
-				}
-			}
 			annoKey, err := cmd.Flags().GetString("annotation-key")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
@@ -111,12 +95,7 @@ func NewDaemonRunCmd() *cobra.Command {
 
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
-			componentConfig, err := config.LoadComponentConfig(cfgFile, specFile)
-			if err != nil {
-				logrus.WithField("daemon", "run").Errorf("create component config failed: %v", err)
-				return
-			}
-			daemonService, err := service.NewService(ctx, cfg, componentConfig, annoKey)
+			daemonService, err := service.NewService(ctx, cfgFile, specFile, used_components, ignored_components, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return
@@ -124,7 +103,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			serviceChan <- daemonService
 			go daemonService.Run()
 
-			if exist, _ := pkg_systemd.SystemctlExists(); exist {
+			if exist, _ := systemd.SystemctlExists(); exist {
 				if err := service.NotifyReady(); err != nil {
 					logrus.WithField("daemon", "run").Warn("notify is not ready")
 				}

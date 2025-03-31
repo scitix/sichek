@@ -22,21 +22,21 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/ethernet/collector"
-	"github.com/scitix/sichek/config/ethernet"
+	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type EthPhyStateChecker struct {
 	id          string
 	name        string
-	spec        *ethernet.EthernetSpec
+	spec        *config.EthernetSpec
 	description string
 }
 
-func NewEthPhyStateChecker(specCfg *ethernet.EthernetSpec) (common.Checker, error) {
+func NewEthPhyStateChecker(specCfg *config.EthernetSpec) (common.Checker, error) {
 	return &EthPhyStateChecker{
 		id:   consts.CheckerIDEthPhyState,
-		name: ethernet.ChekEthPhyState,
+		name: config.ChekEthPhyState,
 		spec: specCfg,
 	}, nil
 }
@@ -60,9 +60,9 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	if len(ethernetInfo.EthDevs) == 0 {
-		result := ethernet.EthCheckItems[c.name]
+		result := config.EthCheckItems[c.name]
 		result.Status = consts.StatusAbnormal
-		result.Level = ethernet.EthCheckItems[c.name].Level
+		result.Level = config.EthCheckItems[c.name].Level
 		result.Detail = "No eth device found"
 		return &result, fmt.Errorf("fail to get the eth device")
 	}
@@ -71,7 +71,7 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 		errDevice []string
 		spec      string
 		level     string = consts.LevelInfo
-		detail    string = ethernet.EthCheckItems[c.name].Detail
+		detail    string = config.EthCheckItems[c.name].Detail
 	)
 
 	status := consts.StatusNormal
@@ -98,12 +98,12 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 
 	if len(errDevice) != 0 {
 		status = consts.StatusAbnormal
-		level = ethernet.EthCheckItems[c.name].Level
+		level = config.EthCheckItems[c.name].Level
 		detail = fmt.Sprintf("%s status is not right status", strings.Join(errDevice, ","))
 		suggestions = fmt.Sprintf("check nic to up %s link status", strings.Join(errDevice, ","))
 	}
 
-	result := ethernet.EthCheckItems[c.name]
+	result := config.EthCheckItems[c.name]
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = spec
 	result.Level = level

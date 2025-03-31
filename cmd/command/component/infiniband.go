@@ -23,8 +23,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config"
-	infinibandcfg "github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -75,12 +74,7 @@ func NewInfinibandCmd() *cobra.Command {
 				}
 			}
 
-			cfg, err := config.LoadComponentConfig(cfgFile, specFile)
-			if err != nil {
-				logrus.WithField("component", "infiniband").Errorf("create infiniband component failed: %v", err)
-				return
-			}
-			component, err := infiniband.NewInfinibandComponent(cfg, nil)
+			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error("fail to Create New Infiniband Components")
 				return
@@ -152,36 +146,36 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 		}
 
 		switch result.Name {
-		case infinibandcfg.ChekIBOFED:
+		case config.ChekIBOFED:
 			ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", statusColor, result.Curr, Reset)
-		case infinibandcfg.CheckIBKmod:
+		case config.CheckIBKmod:
 			ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Loaded", Reset)
 			if result.Status != consts.StatusNormal {
 				ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Not Loaded Correctly", Reset)
 			}
-		case infinibandcfg.ChekIBFW:
+		case config.ChekIBFW:
 			fwVersion := extractAndDeduplicate(result.Curr)
 			fwVersionPrint = fmt.Sprintf("FW Version: %s%s%s", statusColor, fwVersion, Reset)
-		case infinibandcfg.ChekIBPortSpeed:
+		case config.ChekIBPortSpeed:
 			portSpeed := extractAndDeduplicate(result.Curr)
 			ibPortSpeedPrint = fmt.Sprintf("IB Port Speed: %s%s%s", statusColor, portSpeed, Reset)
-		case infinibandcfg.ChekIBPhyState:
+		case config.ChekIBPhyState:
 			phyState := "LinkUp"
 			if result.Status != consts.StatusNormal {
 				phyState = "Not All LinkUp"
 			}
 			phyStatPrint = fmt.Sprintf("Phy State: %s%s%s", statusColor, phyState, Reset)
-		case infinibandcfg.ChekIBState:
+		case config.ChekIBState:
 			ibState := "Active"
 			if result.Status != consts.StatusNormal {
 				ibState = "Not All Active"
 			}
 			ibStatePrint = fmt.Sprintf("IB State: %s%s%s", statusColor, ibState, Reset)
-		case infinibandcfg.CheckPCIESpeed:
+		case config.CheckPCIESpeed:
 			pcieGen = fmt.Sprintf("%s%s%s", statusColor, extractAndDeduplicate(result.Curr), Reset)
-		case infinibandcfg.CheckPCIEWidth:
+		case config.CheckPCIEWidth:
 			pcieWidth = fmt.Sprintf("%s%s%s", statusColor, extractAndDeduplicate(result.Curr), Reset)
-		case infinibandcfg.CheckIBDevs:
+		case config.CheckIBDevs:
 			ibControllersPrintColor = statusColor
 		}
 	}

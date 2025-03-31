@@ -21,19 +21,19 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type PCIeACSChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewPCIeACSChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewPCIeACSChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &PCIeACSChecker{
-		name: nvidia.PCIeACSCheckerName,
+		name: config.PCIeACSCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("failed to run GetACSEnabledDevices, err: %v", err)
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.PCIeACSCheckerName]
+	result := config.GPUCheckItems[config.PCIeACSCheckerName]
 
 	if len(enabledACS) > 0 {
 		failedDevices, err := utils.BatchDisableACS(ctx, enabledACS)

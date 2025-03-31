@@ -24,8 +24,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/dmesg/checker"
 	"github.com/scitix/sichek/components/dmesg/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/dmesg"
+	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *dmesg.DmesgConfig
+	cfg      *config.DmesgUserConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -55,9 +54,9 @@ var (
 	dmesgComponentOnce sync.Once
 )
 
-func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func NewComponent(cfgFile string) (comp common.Component, err error) {
 	dmesgComponentOnce.Do(func() {
-		dmesgComponent, err = newComponent(componentConfig)
+		dmesgComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -65,21 +64,18 @@ func NewComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 	return dmesgComponent, nil
 }
 
-func newComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func newComponent(cfgFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameDmesg)
-	if cfg == nil {
+	dmsgCfg := &config.DmesgUserConfig{}
+	err = dmsgCfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
 		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed: %v", err)
 		return nil, err
-	}
-	dmsgCfg, ok := cfg.(*dmesg.DmesgConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for CPU component")
 	}
 
 	collector, err := collector.NewDmesgCollector(ctx, dmsgCfg)
@@ -98,10 +94,10 @@ func newComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 		collector: collector,
 		checker:   checker,
 
-		cacheResultBuffer: make([]*common.Result, dmsgCfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, dmsgCfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, dmsgCfg.Dmesg.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, dmsgCfg.Dmesg.CacheSize),
 		currIndex:         0,
-		cacheSize:         dmsgCfg.CacheSize,
+		cacheSize:         dmsgCfg.Dmesg.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, dmsgCfg, component.HealthCheck)
 	return component, nil
@@ -194,9 +190,9 @@ func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	dmsgCfg, ok := cfg.(*dmesg.DmesgConfig)
+	dmsgCfg, ok := cfg.(*config.DmesgUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for dmesg")
 	}

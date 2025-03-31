@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nccl"
+	"github.com/scitix/sichek/components/nccl/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -49,10 +49,10 @@ func (d *NCCLInfo) JSON() (string, error) {
 type NCCLChecker struct {
 	id   string
 	name string
-	cfg  *nccl.NCCLConfig
+	cfg  *config.NCCLUserConfig
 }
 
-func NewNCCLChecker(cfg *nccl.NCCLConfig) common.Checker {
+func NewNCCLChecker(cfg *config.NCCLUserConfig) common.Checker {
 	return &NCCLChecker{
 		id:   consts.CheckerIDNCCL,
 		name: "NCCLTimeoutChecker",
@@ -98,7 +98,7 @@ func (c *NCCLChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		suggest = "nccl log has timeout error"
 	}
 
-	result := nccl.NCCLCheckItems["NCCLTimeout"]
+	result := config.NCCLCheckItems["NCCLTimeout"]
 	result.Device = strings.Join(devicePodNames, ",")
 	result.Curr = strconv.Itoa(len(info.Name))
 	result.Status = status

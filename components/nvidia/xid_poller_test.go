@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
@@ -36,7 +36,7 @@ func TestNewXidEventPoller(t *testing.T) {
 	defer nvmlInst.Shutdown()
 
 	ctx := context.Background()
-	cfg := &nvidia.NvidiaConfig{}
+	cfg := &config.NvidiaUserConfig{}
 	eventChan := make(chan *common.Result, 1)
 
 	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
@@ -58,7 +58,7 @@ func TestXidEventPoller_Start(t *testing.T) {
 	defer nvmlInst.Shutdown()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := &nvidia.NvidiaConfig{}
+	cfg := &config.NvidiaUserConfig{}
 	eventChan := make(chan *common.Result, 1)
 
 	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)

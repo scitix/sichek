@@ -20,13 +20,13 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 )
 
 func TestIBKmodChecker_Check(t *testing.T) {
 	// 模拟配置文件 Spec
-	spec := &infiniband.InfinibandSpecItem{
+	spec := &config.InfinibandSpecItem{
 		IBSoftWareInfo: &collector.IBSoftWareInfo{
 			KernelModule: []string{"mlx5_core", "ib_uverbs", "rdma_ucm"},
 		},
@@ -60,17 +60,17 @@ func TestIBKmodChecker_Check(t *testing.T) {
 				},
 			},
 			expectedStatus:     consts.StatusNormal,
-			expectedDetail:     infiniband.InfinibandCheckItems[ibChecker.name].Detail,
+			expectedDetail:     config.InfinibandCheckItems[ibChecker.name].Detail,
 			expectedSuggestion: "",
 			expectError:        false,
 		},
 		{
-			name: infiniband.NOIBFOUND,
+			name: config.NOIBFOUND,
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedDetail:     infiniband.NOIBFOUND,
+			expectedDetail:     config.NOIBFOUND,
 			expectedSuggestion: "need check the kernel module is all installed",
 			expectError:        true,
 		},

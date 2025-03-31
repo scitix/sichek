@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type RemmapedRowsFailureChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewRemmapedRowsFailureChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewRemmapedRowsFailureChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &RemmapedRowsFailureChecker{
-		name: nvidia.RemmapedRowsFailureCheckerName,
+		name: config.RemmapedRowsFailureCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.RemmapedRowsFailureCheckerName]
+	result := config.GPUCheckItems[config.RemmapedRowsFailureCheckerName]
 
 	var falied_gpus []string
 	var falied_gpuid_podnames []string

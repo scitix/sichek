@@ -107,7 +107,7 @@ func (collector *NvidiaCollector) Name() string {
 	return "NvidiaCollector"
 }
 
-func (collector *NvidiaCollector) GetCfg() common.ComponentConfig {
+func (collector *NvidiaCollector) GetCfg() common.ComponentUserConfig {
 	return nil
 }
 

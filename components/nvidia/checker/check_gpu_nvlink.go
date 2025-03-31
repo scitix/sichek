@@ -22,7 +22,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
@@ -30,12 +30,12 @@ var NOTSUPPORT = "Not Supported"
 
 type NvlinkChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewNvlinkChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewNvlinkChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &NvlinkChecker{
-		name: nvidia.NvlinkCheckerName,
+		name: config.NvlinkCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -55,7 +55,7 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.NvlinkCheckerName]
+	result := config.GPUCheckItems[config.NvlinkCheckerName]
 
 	if !c.cfg.Nvlink.NVlinkSupported {
 		result.Status = consts.StatusNormal

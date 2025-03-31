@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
 
@@ -19,7 +18,6 @@ func Yaml(c interface{}) (string, error) {
 }
 
 func LoadFromYaml(file string, c interface{}) error {
-	logrus.WithField("file", file).Info("LoadFromYaml")
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return err

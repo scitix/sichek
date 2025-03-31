@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
 )
 
 func TestGpfs_HealthCheck(t *testing.T) {
@@ -57,12 +56,7 @@ func TestGpfs_HealthCheck(t *testing.T) {
 		return
 	}
 	testCfgFile := path.Dir(curFile) + "/test/gpfsCfg.yaml"
-	componentConfig, err := config.LoadComponentConfig(testCfgFile, "")
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	component, err := NewGpfsComponent(componentConfig)
+	component, err := NewGpfsComponent(testCfgFile)
 	if err != nil {
 		t.Log(err)
 		return
@@ -106,7 +100,7 @@ func TestGpfs_HealthCheck(t *testing.T) {
 		t.Fatalf("Failed to read testLogFile: %v", err)
 	}
 	t.Logf("Current log file content: %s", string(content))
-
+	
 	result, err := component.HealthCheck(ctx)
 	if err != nil {
 		t.Log(err)

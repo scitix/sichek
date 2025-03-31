@@ -40,7 +40,7 @@ type Component interface {
 
 	// For daemon service
 	Start(ctx context.Context) <-chan *Result
-	Update(ctx context.Context, cfg ComponentConfig) error
+	Update(ctx context.Context, cfg ComponentUserConfig) error
 	Status() bool
 	Stop() error
 }
@@ -87,7 +87,7 @@ type CommonService struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      ComponentConfig
+	cfg      ComponentUserConfig
 	cfgMutex sync.RWMutex
 
 	analyzeFunc HealthCheckFunc
@@ -99,7 +99,7 @@ type CommonService struct {
 
 type HealthCheckFunc func(ctx context.Context) (*Result, error)
 
-func NewCommonService(ctx context.Context, cfg ComponentConfig, analyze HealthCheckFunc) *CommonService {
+func NewCommonService(ctx context.Context, cfg ComponentUserConfig, analyze HealthCheckFunc) *CommonService {
 	cctx, ccancel := context.WithCancel(ctx)
 
 	return &CommonService{
@@ -166,7 +166,7 @@ func (s *CommonService) Stop() error {
 }
 
 // 更新组件的配置信息，比如采样周期
-func (s *CommonService) Update(ctx context.Context, cfg ComponentConfig) error {
+func (s *CommonService) Update(ctx context.Context, cfg ComponentUserConfig) error {
 	s.cfgMutex.Lock()
 	s.cfg = cfg
 	s.cfgMutex.Unlock()

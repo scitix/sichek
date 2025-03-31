@@ -20,19 +20,19 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type NvPeerMemChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewNvPeerMemChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewNvPeerMemChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &NvPeerMemChecker{
-		name: nvidia.NvPeerMemCheckerName,
+		name: config.NvPeerMemCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -59,7 +59,7 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 		}
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.NvPeerMemCheckerName]
+	result := config.GPUCheckItems[config.NvPeerMemCheckerName]
 
 	if !usingPeermem {
 		_, err := utils.ExecCommand(ctx, "modprobe", "nvidia_peermem")

@@ -21,18 +21,18 @@ import (
 	"os"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type IOMMUChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewIOMMUChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewIOMMUChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &IOMMUChecker{
-		name: nvidia.IOMMUCheckerName,
+		name: config.IOMMUCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -64,7 +64,7 @@ func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		fmt.Printf("failed to read IOMMU groups: %v", err) // IOMMU is likely disabled
 	}
 	isIOMMUClosed := len(groups) == 0
-	result := nvidia.GPUCheckItems[nvidia.IOMMUCheckerName]
+	result := config.GPUCheckItems[config.IOMMUCheckerName]
 
 	if !isIOMMUClosed && c.cfg.Dependence.Iommu == "on" {
 		result.Status = consts.StatusAbnormal

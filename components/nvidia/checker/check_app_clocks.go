@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type AppClocksChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewAppClocksChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewAppClocksChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &AppClocksChecker{
-		name: nvidia.AppClocksCheckerName,
+		name: config.AppClocksCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.AppClocksCheckerName]
+	result := config.GPUCheckItems[config.AppClocksCheckerName]
 
 	// Check if all the Nvidia GPUs have set application clocks to max
 	var gpus_app_clocks_status map[int]string

@@ -26,14 +26,14 @@ import (
 	"github.com/scitix/sichek/components/hang/checker"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/hang"
+	"github.com/scitix/sichek/components/hang/config"
 
 	"github.com/sirupsen/logrus"
 )
 
 type HangGetter struct {
 	name string
-	cfg  *hang.HangConfig
+	cfg  *config.HangUserConfig
 
 	items         []string
 	threshold     map[string]int64
@@ -46,20 +46,20 @@ type HangGetter struct {
 	nvidiaComponent common.Component
 }
 
-func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter *HangGetter, err error) {
-	config, ok := cfg.(*hang.HangConfig)
+func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
+	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
 	}
 
 	var res HangGetter
-	res.name = config.Name
-	res.cfg = config
+	res.name = hangCfg.Hang.Name
+	res.cfg = hangCfg
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
-	if !config.Mock {
+	if !hangCfg.Hang.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
 	} else {
 		if res.nvidiaComponent, err = NewMockNvidiaComponent("", []string{}); err != nil {
@@ -69,7 +69,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter 
 	}
 
 	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		getterConfig, ok := tmpCfg.(*hang.HangErrorConfig)
+		getterConfig, ok := tmpCfg.(*config.HangErrorConfig)
 		if !ok {
 			return nil, fmt.Errorf("invalid config type for Hang getter")
 		}
@@ -106,7 +106,7 @@ func (c *HangGetter) Name() string {
 	return c.name
 }
 
-func (c *HangGetter) GetCfg() common.ComponentConfig {
+func (c *HangGetter) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 

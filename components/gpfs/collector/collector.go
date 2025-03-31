@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/gpfs"
+	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -41,13 +41,13 @@ func (i *GPFSInfo) JSON() (string, error) {
 
 type GPFSCollector struct {
 	name string
-	cfg  *gpfs.GpfsConfig
+	cfg  *config.GpfsUserConfig
 
 	filter *filter.FileFilter
 }
 
-func NewGPFSCollector(ctx context.Context, cfg common.ComponentConfig) (*GPFSCollector, error) {
-	config, ok := cfg.(*gpfs.GpfsConfig)
+func NewGPFSCollector(ctx context.Context, cfg common.ComponentUserConfig) (*GPFSCollector, error) {
+	config, ok := cfg.(*config.GpfsUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for GPFS")
 	}
@@ -55,7 +55,7 @@ func NewGPFSCollector(ctx context.Context, cfg common.ComponentConfig) (*GPFSCol
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.EventCheckers {
+	for _, checker_cfg := range config.Gpfs.EventCheckers {
 		_, err := os.Stat(checker_cfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "GPFS").Errorf("log file %s not exist for GPFS collector", checker_cfg.LogFile)
@@ -85,7 +85,7 @@ func (c *GPFSCollector) Name() string {
 	return c.name
 }
 
-func (c *GPFSCollector) GetCfg() common.ComponentConfig {
+func (c *GPFSCollector) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 

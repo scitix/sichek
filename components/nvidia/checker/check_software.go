@@ -21,18 +21,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type SoftwareChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewSoftwareChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewSoftwareChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &SoftwareChecker{
-		name: nvidia.SoftwareCheckerName,
+		name: config.SoftwareCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -52,7 +52,7 @@ func (c *SoftwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.SoftwareCheckerName]
+	result := config.GPUCheckItems[config.SoftwareCheckerName]
 
 	info := ""
 

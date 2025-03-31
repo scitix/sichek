@@ -17,15 +17,8 @@ package infiniband
 
 import (
 	"testing"
-
-	"github.com/scitix/sichek/config"
 )
 
 func TestNewInfinibandComponent(t *testing.T) {
-	cfg, err := config.LoadComponentConfig("", "")
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	NewInfinibandComponent(cfg, nil)
+	NewInfinibandComponent("", "")
 }

@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
@@ -45,7 +45,7 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	t.Logf("nvidia-fabricmanager status: %s", string(output))
 
 	// Run the Check method
-	cfg := &nvidia.NvidiaSpecItem{}
+	cfg := &config.NvidiaSpecItem{}
 	checker, err := NewNVFabricManagerChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create NVFabricManagerChecker: %v", err)
@@ -65,7 +65,7 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 
 func TestIOMMUChecker_Check(t *testing.T) {
 	// Create a new IOMMUChecker
-	cfg := &nvidia.NvidiaSpecItem{}
+	cfg := &config.NvidiaSpecItem{}
 	checker, err := NewIOMMUChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create IOMMUChecker: %v", err)
@@ -98,7 +98,7 @@ func TestNvPeerMemChecker_Check(t *testing.T) {
 
 	// Run the Check method
 	// Create a new NvPeerMemChecker
-	cfg := &nvidia.NvidiaSpecItem{}
+	cfg := &config.NvidiaSpecItem{}
 	checker, err := NewNvPeerMemChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create NvPeerMemChecker: %v", err)

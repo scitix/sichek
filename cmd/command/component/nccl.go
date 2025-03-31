@@ -21,7 +21,6 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nccl"
-	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -57,12 +56,7 @@ func NewNCCLCmd() *cobra.Command {
 				logrus.WithField("component", "NCCL").Infof("load cfg file:%s", cfgFile)
 			}
 
-			cfg, err := config.LoadComponentConfig(cfgFile, "")
-			if err != nil {
-				logrus.WithField("component", "NCCL").Errorf("create nccl component failed: %v", err)
-				return
-			}
-			component, err := nccl.NewComponent(cfg)
+			component, err := nccl.NewComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "NCCL").Errorf("create nccl component failed: %v", err)
 				return

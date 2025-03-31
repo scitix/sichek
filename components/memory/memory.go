@@ -24,8 +24,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/memory/checker"
 	"github.com/scitix/sichek/components/memory/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/memory"
+	"github.com/scitix/sichek/components/memory/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *memory.MemoryConfig
+	cfg      *config.MemoryUserConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -55,9 +54,9 @@ var (
 	memComponentOnce sync.Once
 )
 
-func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func NewComponent(cfgFile string) (comp common.Component, err error) {
 	memComponentOnce.Do(func() {
-		memComponent, err = newMemoryComponent(componentConfig)
+		memComponent, err = newMemoryComponent(cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -65,7 +64,7 @@ func NewComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 	return memComponent, nil
 }
 
-func newMemoryComponent(componentConfig *config.ComponentConfig) (comp *component, err error) {
+func newMemoryComponent(cfgFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -73,14 +72,11 @@ func newMemoryComponent(componentConfig *config.ComponentConfig) (comp *componen
 		}
 	}()
 
-	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameMemory)
-	if cfg == nil {
-		logrus.WithField("component", "memory").Errorf("NewMemoryComponent get config failed: %v", err)
+	memoryCfg := &config.MemoryUserConfig{}
+	err = memoryCfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
-	}
-	memoryCfg, ok := cfg.(*memory.MemoryConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for memory")
 	}
 
 	collector, err := collector.NewCollector(ctx, memoryCfg)
@@ -105,9 +101,9 @@ func newMemoryComponent(componentConfig *config.ComponentConfig) (comp *componen
 		collector:   collector,
 		checkers:    checkers,
 		cfg:         memoryCfg,
-		cacheBuffer: make([]*common.Result, memoryCfg.CacheSize),
-		cacheInfo:   make([]common.Info, memoryCfg.CacheSize),
-		cacheSize:   memoryCfg.CacheSize,
+		cacheBuffer: make([]*common.Result, memoryCfg.Memory.CacheSize),
+		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
+		cacheSize:   memoryCfg.Memory.CacheSize,
 	}
 	service := common.NewCommonService(ctx, memoryCfg, component.HealthCheck)
 	component.service = service
@@ -143,7 +139,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 		checker_results = append(checker_results, check_result)
 
-		checker_cfg := c.cfg.Checkers[checker.Name()]
+		checker_cfg := c.cfg.Memory.Checkers[checker.Name()]
 		if checker_cfg.Level == consts.LevelCritical && check_result.Status == consts.StatusAbnormal {
 			status = consts.StatusAbnormal
 		}
@@ -215,9 +211,9 @@ func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*memory.MemoryConfig)
+	config, ok := cfg.(*config.MemoryUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for memory")
 	}

@@ -23,10 +23,8 @@ import (
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config"
-	nvcfg "github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
@@ -35,7 +33,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      nvcfg.NvidiaConfig
+	cfg      *config.NvidiaUserConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
 
 	nvmlInst  nvml.Interface
@@ -76,13 +74,11 @@ func newMockNvidia(cfgFile string, ignored_checkers []string) (comp *component, 
 			cancel()
 		}
 	}()
-	cfg, err := config.LoadComponentConfig("", "")
+	var cfg *config.NvidiaUserConfig
+	err = cfg.LoadUserConfigFromYaml(cfgFile)
 	if err != nil {
 		return nil, err
 	}
-	basicCfg, _, err := nvidia.GetConfig(cfg)
-	// cfg := &nvidia.NvidiaConfig{}
-	// cfg.LoadFromYaml("", "")
 
 	component := &component{
 		name:        consts.ComponentNameNvidia,
@@ -92,10 +88,10 @@ func newMockNvidia(cfgFile string, ignored_checkers []string) (comp *component, 
 		nvmlInst:    nil,
 		checkers:    nil,
 		cacheMtx:    sync.RWMutex{},
-		cacheBuffer: make([]*common.Result, basicCfg.CacheSize),
-		cacheInfo:   make([]common.Info, basicCfg.CacheSize),
+		cacheBuffer: make([]*common.Result, cfg.Nvidia.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.Nvidia.CacheSize),
 		currIndex:   0,
-		cacheSize:   basicCfg.CacheSize,
+		cacheSize:   cfg.Nvidia.CacheSize,
 		running:     false,
 	}
 	return component, nil
@@ -220,13 +216,13 @@ func (c *component) Stop() error {
 	return nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*nvcfg.NvidiaConfig)
+	nvCfg, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nvidia")
 	}
-	c.cfg = *config
+	c.cfg = nvCfg
 	c.cfgMutex.Unlock()
 	return nil
 }

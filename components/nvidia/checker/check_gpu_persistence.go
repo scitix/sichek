@@ -23,19 +23,19 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type GpuPersistenceChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewGpuPersistenceChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewGpuPersistenceChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPersistenceChecker{
-		name: nvidia.GpuPersistenceCheckerName,
+		name: config.GpuPersistenceCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -61,7 +61,7 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.GpuPersistenceCheckerName]
+	result := config.GPUCheckItems[config.GpuPersistenceCheckerName]
 
 	// Check if all the Nvidia GPUs have persistence mode enabled
 	var disable_gpus []string

@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type RemmapedRowsUncorrectableChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewRemmapedRowsUncorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &RemmapedRowsUncorrectableChecker{
-		name: nvidia.RemmapedRowsUncorrectableCheckerName,
+		name: config.RemmapedRowsUncorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) 
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.RemmapedRowsUncorrectableCheckerName]
+	result := config.GPUCheckItems[config.RemmapedRowsUncorrectableCheckerName]
 
 	var falied_gpuid_podnames []string
 	var falied_gpus_info map[int]string

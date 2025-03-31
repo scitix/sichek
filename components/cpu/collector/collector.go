@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/cpu"
+	"github.com/scitix/sichek/components/cpu/config"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -47,18 +47,18 @@ func (o *CPUOutput) JSON() (string, error) {
 
 type collector struct {
 	name        string
-	cfg         *cpu.CPUConfig
+	cfg         *config.CpuUserConfig
 	CPUArchInfo *CPUArchInfo `json:"cpu_arch_info"`
 	HostInfo    *HostInfo    `json:"host_info"`
 	filter      *filter.FileFilter
 }
 
-func NewCpuCollector(ctx context.Context, config *cpu.CPUConfig) (*collector, error) {
+	func NewCpuCollector(ctx context.Context, config *config.CpuUserConfig) (*collector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.EventCheckers {
+	for _, checker_cfg := range config.CPU.EventCheckers {
 		_, err := os.Stat(checker_cfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "CPU").Errorf("log file %s not exist for CPU collector", checker_cfg.LogFile)
@@ -97,7 +97,7 @@ func (c *collector) Name() string {
 	return c.name
 }
 
-func (c *collector) GetCfg() common.ComponentConfig {
+func (c *collector) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 

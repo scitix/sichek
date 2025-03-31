@@ -20,13 +20,13 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/components/infiniband/config"	
 	"github.com/scitix/sichek/consts"
 )
 
 func TestIBStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
-	spec := &infiniband.InfinibandSpecItem{
+	spec := &config.InfinibandSpecItem{
 		HCAs: map[string]*collector.IBHardWareInfo{
 			"mlx5": {
 				IBDev:     "mlx5",
@@ -77,8 +77,8 @@ func TestIBStateChecker_Check(t *testing.T) {
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     infiniband.NOIBFOUND,
+			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedDetail:     config.NOIBFOUND,
 			expectedSuggestion: "",
 			expectError:        true,
 		},
@@ -91,7 +91,7 @@ func TestIBStateChecker_Check(t *testing.T) {
 				},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
+			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0 status is not ACTIVE, curr status:DOWN,ACTIVE",
 			expectedSuggestion: "check opensm to active ib0 status",
 			expectError:        false,
@@ -105,7 +105,7 @@ func TestIBStateChecker_Check(t *testing.T) {
 				},
 			},
 			expectedStatus:     consts.StatusAbnormal,
-			expectedLevel:      infiniband.InfinibandCheckItems[ibChecker.name].Level,
+			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
 			expectedDetail:     "ib0,ib1 status is not ACTIVE, curr status:DOWN,INIT",
 			expectedSuggestion: "check opensm to active ib0,ib1 status",
 			expectError:        false,

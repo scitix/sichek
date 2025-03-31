@@ -22,7 +22,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
@@ -30,13 +30,13 @@ import (
 
 type HardwareChecker struct {
 	name     string
-	cfg      *nvidia.NvidiaSpecItem
+	cfg      *config.NvidiaSpecItem
 	nvmlInst nvml.Interface
 }
 
-func NewHardwareChecker(cfg *nvidia.NvidiaSpecItem, nvmlInst nvml.Interface) (common.Checker, error) {
+func NewHardwareChecker(cfg *config.NvidiaSpecItem, nvmlInst nvml.Interface) (common.Checker, error) {
 	return &HardwareChecker{
-		name:     nvidia.HardwareCheckerName,
+		name:     config.HardwareCheckerName,
 		cfg:      cfg,
 		nvmlInst: nvmlInst,
 	}, nil
@@ -56,7 +56,7 @@ func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.HardwareCheckerName]
+	result := config.GPUCheckItems[config.HardwareCheckerName]
 
 	// Check if any Nvidia GPU is lost
 	lostGPUs, lostReasons := c.checkGPUbyIndex(nvidiaInfo)

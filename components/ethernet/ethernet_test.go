@@ -21,17 +21,15 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
 )
 
 func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	componentConfig, err := config.LoadComponentConfig("", "")
+	component, err := NewEthernetComponent("")
 	if err != nil {
-		t.Fatalf("failed to load config: %v", err)
+		t.Fatalf("failed to create Ethernet component: %v", err)
 	}
-	component, err := NewEthernetComponent(componentConfig)
 	if err != nil {
 		t.Fatalf("failed to create Ethernet component: %v", err)
 	}

@@ -29,7 +29,6 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -46,11 +45,9 @@ type Service interface {
 }
 
 type DaemonService struct {
-	cfg *config.Config
-
-	ctx    context.Context
-	cancel context.CancelFunc
-
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	usedComponentsMap    map[string]bool
 	components           map[string]common.Component
 	componentsLock       sync.RWMutex
 	componentsStatus     map[string]bool
@@ -61,7 +58,7 @@ type DaemonService struct {
 	notifier Notifier
 }
 
-func NewService(ctx context.Context, cfg *config.Config, componentConfig *config.ComponentConfig, annoKey string) (s Service, err error) {
+func NewService(ctx context.Context, cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
 	cctx, ccancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -74,76 +71,84 @@ func NewService(ctx context.Context, cfg *config.Config, componentConfig *config
 		logrus.WithField("daemon", "new").Errorf("create notifier failed: %v", err)
 		return nil, err
 	}
+	usedComponentsMap := make(map[string]bool)
+	if len(usedComponents) == 0 {
+		usedComponents = consts.DefaultComponents
+	}
+	for _, componentName := range usedComponents {
+		usedComponentsMap[componentName] = true
+	}
+	for _, componentName := range ignoredComponents {
+		usedComponentsMap[componentName] = false
+	}
 
 	daemon_service := &DaemonService{
-		ctx:              cctx,
-		cancel:           ccancel,
-		cfg:              cfg,
-		components:       make(map[string]common.Component),
-		componentsStatus: make(map[string]bool),
-		componentResults: make(map[string]<-chan *common.Result),
-		notifier:         notifier,
+		ctx:               cctx,
+		cancel:            ccancel,
+		usedComponentsMap: usedComponentsMap,
+		components:        make(map[string]common.Component),
+		componentsStatus:  make(map[string]bool),
+		componentResults:  make(map[string]<-chan *common.Result),
+		notifier:          notifier,
 	}
 
-	// init components
-	if enable, exists := cfg.Components[consts.ComponentNameNvidia]; exists && enable {
-		if !utils.IsNvidiaGPUExist() {
-			logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
-		}
-		component, err := nvidia.NewComponent(componentConfig, nil)
-		daemon_service.components[consts.ComponentNameNvidia] = component
-		if err != nil {
-			return nil, err
-		}
-	}
-	for component_name, enabled := range cfg.Components {
-		if !enabled || component_name == consts.ComponentNameNvidia {
+	for componentName, enabled := range usedComponentsMap {
+		if !enabled {
 			continue
 		}
-
 		var component common.Component
 		var err error
-		switch component_name {
+		switch componentName {
 		case consts.ComponentNameGpfs:
-			component, err = gpfs.NewGpfsComponent(componentConfig)
+			component, err = gpfs.NewGpfsComponent(cfgFile)
 		case consts.ComponentNameCPU:
-			component, err = cpu.NewComponent(componentConfig)
+			component, err = cpu.NewComponent(cfgFile)
 		case consts.ComponentNameInfiniband:
-			component, err = infiniband.NewInfinibandComponent(componentConfig, nil)
+			component, err = infiniband.NewInfinibandComponent(cfgFile, specFile)
 		case consts.ComponentNameDmesg:
-			component, err = dmesg.NewComponent(componentConfig)
+			component, err = dmesg.NewComponent(cfgFile)
+		case consts.ComponentNameNvidia:
+			if !utils.IsNvidiaGPUExist() {
+				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
+				continue
+			}
+			component, err = nvidia.NewComponent(cfgFile, specFile)
 		case consts.ComponentNameHang:
-			component, err = hang.NewComponent(componentConfig)
+			if !utils.IsNvidiaGPUExist() {
+				logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+				continue
+			}
+			_, err = nvidia.NewComponent(cfgFile, specFile)
+			if err != nil {
+				logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
+				continue
+			}
+			component, err = hang.NewComponent(cfgFile)
 		case consts.ComponentNameNCCL:
-			component, err = nccl.NewComponent(componentConfig)
+			component, err = nccl.NewComponent(cfgFile)
 		default:
-			err = fmt.Errorf("invalid component_name: %s", component_name)
+			err = fmt.Errorf("invalid component_name: %s", componentName)
 			return nil, err
 		}
 		if err != nil {
 			return nil, err
 		}
-		daemon_service.components[component_name] = component
+		daemon_service.components[componentName] = component
 	}
 
 	return daemon_service, nil
 }
 
 func (d *DaemonService) Run() {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Printf("[DaemonService|Run] panic err is %s\n", err)
-		}
-	}()
 	d.componentsLock.Lock()
 
-	for component_name := range d.cfg.Components {
-		component, exist := d.components[component_name]
+	for componentName := range d.usedComponentsMap {
+		component, exist := d.components[componentName]
 		if !exist {
 			continue
 		}
 		resultChan := component.Start(d.ctx)
-		d.componentResults[component_name] = resultChan
+		d.componentResults[componentName] = resultChan
 	}
 	d.componentsLock.Unlock()
 
@@ -182,7 +187,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			timeoutCheckerResult := &common.CheckerResult{
 				Name:        fmt.Sprintf("%sTimeout", componentName),
 				Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
-				Status:      "",
+				Status:      consts.StatusAbnormal,
 				Level:       consts.LevelCritical,
 				Detail:      "",
 				ErrorName:   fmt.Sprintf("%sTimeout", componentName),
@@ -197,7 +202,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			}
 			logrus.WithField("daemon", "run").Warnf("component %s timed out", componentName)
 
-			err := d.notifier.SetNodeAnnotation(d.ctx, timeoutResult)
+			err := d.notifier.AppendNodeAnnotation(d.ctx, timeoutResult)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set %s timeout annotation failed: %v", componentName, err)
 			}

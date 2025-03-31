@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type SRAMVolatileUncorrectableChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewSRAMVolatileUncorrectableChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewSRAMVolatileUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &SRAMVolatileUncorrectableChecker{
-		name: nvidia.SRAMVolatileUncorrectableCheckerName,
+		name: config.SRAMVolatileUncorrectableCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.SRAMVolatileUncorrectableCheckerName]
+	result := config.GPUCheckItems[config.SRAMVolatileUncorrectableCheckerName]
 
 	var falied_gpuid_podnames []string
 	var memory_error_events map[int]string

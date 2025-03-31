@@ -24,8 +24,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nccl/checker"
 	"github.com/scitix/sichek/components/nccl/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/nccl"
+	"github.com/scitix/sichek/components/nccl/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *nccl.NCCLConfig
+	cfg      *config.NCCLUserConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -55,9 +54,9 @@ var (
 	ncclComponentOnce sync.Once
 )
 
-func NewComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func NewComponent(cfgFile string) (comp common.Component, err error) {
 	ncclComponentOnce.Do(func() {
-		ncclComponent, err = newComponent(componentConfig)
+		ncclComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -65,7 +64,7 @@ func NewComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 	return ncclComponent, nil
 }
 
-func newComponent(componentConfig *config.ComponentConfig) (comp common.Component, err error) {
+func newComponent(cfgFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -73,14 +72,11 @@ func newComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 		}
 	}()
 
-	cfg, _ := componentConfig.GetConfigByComponentName(consts.ComponentNameNCCL)
-	if cfg == nil {
-		logrus.WithField("component", "nccl").Errorf("NewComponent get config failed: %v", err)
+	ncclCfg := &config.NCCLUserConfig{}
+	err = ncclCfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "nccl").WithError(err).Error("failed to load NCCL config")
 		return nil, err
-	}
-	ncclCfg, ok := cfg.(*nccl.NCCLConfig)
-	if !ok || ncclCfg == nil {
-		return nil, fmt.Errorf("invalid config type for nccl")
 	}
 	ncclCollector, err := collector.NewNCCLCollector(ctx, ncclCfg)
 	if err != nil {
@@ -99,10 +95,10 @@ func newComponent(componentConfig *config.ComponentConfig) (comp common.Componen
 		collector: ncclCollector,
 		checker:   ncclChecker,
 
-		cacheResultBuffer: make([]*common.Result, ncclCfg.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, ncclCfg.CacheSize),
+		cacheResultBuffer: make([]*common.Result, ncclCfg.NCCL.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, ncclCfg.NCCL.CacheSize),
 		currIndex:         0,
-		cacheSize:         ncclCfg.CacheSize,
+		cacheSize:         ncclCfg.NCCL.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, ncclCfg, component.HealthCheck)
 	return component, nil
@@ -195,9 +191,9 @@ func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*nccl.NCCLConfig)
+	config, ok := cfg.(*config.NCCLUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nccl")
 	}

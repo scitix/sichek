@@ -21,52 +21,35 @@ import (
 	"os"
 	"testing"
 
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	sram "github.com/scitix/sichek/components/nvidia/checker/check_ecc_sram"
 	remap "github.com/scitix/sichek/components/nvidia/checker/check_remmaped_rows"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/nvidia"
-	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/components/nvidia/config"
+
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 // define the shared NvidiaInfo
 var nvidiaInfo *collector.NvidiaInfo
 var nvmlInst nvml.Interface
-var nvidiaCfg *nvidia.NvidiaConfig
-var nvidiaSpecCfg *nvidia.NvidiaSpecItem
-
-func GetConfig(componentConfig *config.ComponentConfig) (*nvidia.NvidiaConfig, *nvidia.NvidiaSpecItem, error) {
-	cfg, specCfg := componentConfig.GetConfigByComponentName(consts.ComponentNameNvidia)
-	if cfg == nil || specCfg == nil {
-
-		return nil, nil, fmt.Errorf("NewComponent get config failed")
-	}
-	nvidiaCfg, ok := cfg.(*nvidia.NvidiaConfig)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid basic config type for nvidia component")
-	}
-	nvidiaSpecCfgs, ok := specCfg.(*nvidia.NvidiaSpec)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid spec config type for nvidia component")
-	}
-	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec()
-	return nvidiaCfg, nvidiaSpecCfg, nil
-}
+var cfg *config.NvidiaUserConfig
+var nvidiaSpecCfg *config.NvidiaSpecItem
 
 // setup function to initialize shared resources
 func setup() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cfg, err := config.LoadComponentConfig("", "")
+	var nvidiaCfg *config.NvidiaUserConfig
+	err := nvidiaCfg.LoadUserConfigFromYaml("")
 	if err != nil {
-		return fmt.Errorf("load component config failed: %v", err)
+		return fmt.Errorf("NewComponent load user config failed: %v", err)
 	}
-	nvidiaCfg, nvidiaSpecCfg, err = GetConfig(cfg)
+	var nvidiaSpecCfgs *config.NvidiaSpecConfig
+	err = nvidiaSpecCfgs.LoadSpecConfigFromYaml("")
 	if err != nil {
-		return fmt.Errorf("failed to get nvidia config: %v", err)
+		return fmt.Errorf("NewComponent load spec config failed: %v", err)
 	}
-
+	nvidiaSpecCfg = nvidiaSpecCfgs.GetSpec()
 	// Initialize NVML
 	nvmlInst = nvml.New()
 	ret := nvmlInst.Init()
@@ -350,7 +333,7 @@ func TestSoftwareChecker_Check(t *testing.T) {
 
 func TestChecker_Check(t *testing.T) {
 	// Create a new SoftwareChecker
-	checkers, err := NewCheckers(nvidiaCfg, nvidiaSpecCfg, nvmlInst)
+	checkers, err := NewCheckers(cfg, nvidiaSpecCfg, nvmlInst)
 	if err != nil {
 		t.Fatalf("failed to create Checkers: %v", err)
 	}

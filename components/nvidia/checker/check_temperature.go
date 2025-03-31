@@ -23,18 +23,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type GpuTemperatureChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewGpuTemperatureChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewGpuTemperatureChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPStateChecker{
-		name: nvidia.GpuTemperatureCheckerName,
+		name: config.GpuTemperatureCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -55,7 +55,7 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.GpuTemperatureCheckerName]
+	result := config.GPUCheckItems[config.GpuTemperatureCheckerName]
 
 	var unexpected_gpus_temp map[int]string
 	var falied_gpuid_podnames []string

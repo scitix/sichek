@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/memory"
+	"github.com/scitix/sichek/components/memory/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
 	"github.com/sirupsen/logrus"
@@ -30,11 +30,11 @@ import (
 
 type MemoryChecker struct {
 	name string
-	cfg  *memory.MemoryEventConfig
+	cfg  *config.MemoryEventConfig
 }
 
 func NewMemoryChecker(ctx context.Context, cfg common.CheckerSpec) (common.Checker, error) {
-	gpfsCfg, ok := cfg.(*memory.MemoryEventConfig)
+	gpfsCfg, ok := cfg.(*config.MemoryEventConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid MemoryChecker config type")
 	}

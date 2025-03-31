@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/config/cpu"
+	"github.com/scitix/sichek/components/cpu/config"
 )
 
 func TestCollector_Collect(t *testing.T) {
@@ -30,19 +30,20 @@ func TestCollector_Collect(t *testing.T) {
 	defer cancel()
 
 	// Mock configuration
-	cfg := &cpu.CPUConfig{
-		EventCheckers: map[string]*cpu.CPUEventConfig{
-			"testChecker": {
-				Name:        "testChecker",
-				Description: "Test checker",
-				LogFile:     "/var/log/test.log",
-				Regexp:      "test",
-				Level:       "warning",
-				Suggestion:  "test suggestion",
+	cfg := &config.CpuUserConfig{
+		CPU: &config.CPUConfig{
+			EventCheckers: map[string]*config.CPUEventConfig{
+				"testChecker": {
+					Name:        "testChecker",
+					Description: "Test checker",
+					LogFile:     "/var/log/test.log",
+					Regexp:      "test",
+					Level:       "warning",
+					Suggestion:  "test suggestion",
+				},
 			},
 		},
 	}
-
 	// Create a temporary log file for testing in a goroutine
 	var logFile *os.File
 	var err error
@@ -84,8 +85,8 @@ func TestCollector_Collect(t *testing.T) {
 	}()
 
 	// Update the log file path in the configuration
-	cfg.EventCheckers["testChecker"].LogFile = logFile.Name()
-	t.Logf("Event checkers: %+v", cfg.EventCheckers["testChecker"])
+	cfg.CPU.EventCheckers["testChecker"].LogFile = logFile.Name()
+	t.Logf("Event checkers: %+v", cfg.CPU.EventCheckers["testChecker"])
 	// Create a new collector instance
 	collector, err := NewCpuCollector(ctx, cfg)
 	if err != nil {

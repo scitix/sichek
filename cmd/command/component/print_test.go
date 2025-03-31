@@ -22,18 +22,14 @@ import (
 
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/config"
+
 	"github.com/sirupsen/logrus"
 )
 
 func TestCPU_HealthCheckPrint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cfg, err := config.LoadComponentConfig("", "")
-	if err != nil {
-		t.Fatalf("failed to create component: %v", err)
-	}
-	component, err := cpu.NewComponent(cfg)
+	component, err := cpu.NewComponent("")
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}
@@ -53,11 +49,7 @@ func TestCPU_HealthCheckPrint(t *testing.T) {
 func TestNvidia_HealthCheckPrint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cfg, err := config.LoadComponentConfig("", "")
-	if err != nil {
-		t.Fatalf("failed to create component: %v", err)
-	}
-	component, err := nvidia.NewComponent(cfg, nil)
+	component, err := nvidia.NewComponent("", "")
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}

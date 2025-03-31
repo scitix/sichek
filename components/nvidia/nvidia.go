@@ -25,8 +25,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -37,7 +36,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *nvidia.NvidiaConfig
+	cfg      *config.NvidiaUserConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
 
 	nvmlInst  nvml.Interface
@@ -134,14 +133,14 @@ func GetComponent() common.Component {
 	return nvidiaComponent
 }
 
-func NewComponent(componentConfig *config.ComponentConfig, ignoredCheckers []string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
-		nvidiaComponent, err = newNvidia(componentConfig, ignoredCheckers)
+		nvidiaComponent, err = newNvidia(cfgFile, specFile)
 	})
 	return nvidiaComponent, err
 }
 
-func newNvidia(componentConfig *config.ComponentConfig, ignoredCheckers []string) (comp *component, err error) {
+func newNvidia(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -154,17 +153,19 @@ func newNvidia(componentConfig *config.ComponentConfig, ignoredCheckers []string
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
 		return nil, err
 	}
-
-	nvidiaCfg, nvidiaSpecCfg, err := GetConfig(componentConfig)
+	nvidiaCfg := &config.NvidiaUserConfig{}
+	err = nvidiaCfg.LoadUserConfigFromYaml(cfgFile)
 	if err != nil {
-		logrus.WithField("component", "nvidia").Errorf("NewComponent get config failed: %v", err)
+		logrus.WithField("component", "nvidia").Errorf("NewComponent load user config failed: %v", err)
 		return nil, err
 	}
-
-	if len(ignoredCheckers) > 0 {
-		nvidiaCfg.IgnoredCheckers = ignoredCheckers
+	nvidiaSpecCfgs := &config.NvidiaSpecConfig{}
+	err = nvidiaSpecCfgs.LoadSpecConfigFromYaml(specFile)
+	if err != nil {
+		logrus.WithField("component", "nvidia").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
 	}
-
+	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec()
 	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidiaCollector failed: %v", err)
@@ -194,34 +195,16 @@ func newNvidia(componentConfig *config.ComponentConfig, ignoredCheckers []string
 		collector:     collector,
 		checkers:      checkers,
 		cacheMtx:      sync.RWMutex{},
-		cacheBuffer:   make([]*common.Result, nvidiaCfg.CacheSize),
-		cacheInfo:     make([]common.Info, nvidiaCfg.CacheSize),
+		cacheBuffer:   make([]*common.Result, nvidiaCfg.Nvidia.CacheSize),
+		cacheInfo:     make([]common.Info, nvidiaCfg.Nvidia.CacheSize),
 		currIndex:     0,
-		cacheSize:     nvidiaCfg.CacheSize,
+		cacheSize:     nvidiaCfg.Nvidia.CacheSize,
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
 	}
 
 	return component, nil
-}
-
-func GetConfig(componentConfig *config.ComponentConfig) (*nvidia.NvidiaConfig, *nvidia.NvidiaSpecItem, error) {
-	cfg, specCfg := componentConfig.GetConfigByComponentName(consts.ComponentNameNvidia)
-	if cfg == nil || specCfg == nil {
-		logrus.WithField("component", "nvidia").Errorf("NewComponent get config cfg: %v, specCfg: %v", cfg, specCfg)
-		return nil, nil, fmt.Errorf("NewComponent get config failed")
-	}
-	nvidiaCfg, ok := cfg.(*nvidia.NvidiaConfig)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid basic config type for nvidia component")
-	}
-	nvidiaSpecCfgs, ok := specCfg.(*nvidia.NvidiaSpec)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid spec config type for nvidia component")
-	}
-	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec()
-	return nvidiaCfg, nvidiaSpecCfg, nil
 }
 
 func (c *component) Name() string {
@@ -391,9 +374,9 @@ func (c *component) Stop() error {
 	return nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*nvidia.NvidiaConfig)
+	config, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nvidia")
 	}

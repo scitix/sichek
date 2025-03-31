@@ -21,37 +21,26 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config"
-	"github.com/scitix/sichek/config/hca"
-	"github.com/scitix/sichek/config/infiniband"
-	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/components/infiniband/config"
 )
 
 func TestIbChecker_Check(t *testing.T) {
-	cfg := &infiniband.InfinibandConfig{}
-	err := config.DefaultComponentConfig(consts.ComponentNameInfiniband, cfg, consts.DefaultBasicCfgName)
+	cfg := &config.InfinibandUserConfig{}
+	err := cfg.LoadUserConfigFromYaml("")
 	if err != nil {
 		t.Fatalf("failed to load default config: %v", err)
 	}
-	specCfg := &infiniband.InfinibandSpec{}
-	err = config.DefaultComponentConfig(consts.ComponentNameInfiniband, specCfg, consts.DefaultSpecCfgName)
+	specCfg := &config.InfinibandSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml("")
 	if err != nil {
-		t.Fatalf("failed to load default sepc config: %v", err)
-	}
-	hcaSpec := &hca.HCASpec{}
-	err = config.DefaultComponentConfig(consts.ComponentNameHCA, hcaSpec, consts.DefaultSpecCfgName)
-	if err != nil {
-		t.Fatalf("failed to load default hca spec config: %v", err)
-	}
-	err = specCfg.LoadHCASpec(hcaSpec)
-	if err != nil {
-		t.Fatalf("failed to load hca spec config: %v", err)
+		t.Fatalf("failed to load default spec config: %v", err)
 	}
 	clusterSpec, err := specCfg.GetClusterInfinibandSpec()
 	if err != nil {
-		t.Fatalf("failed to load default config: %v", err)
+		t.Fatalf("failed to get cluster spec config: %v", err)
 	}
-
+	jsonData, err := json.MarshalIndent(clusterSpec, "", "  ")
+	t.Logf("clusterSpec: %v", string(jsonData))
 	// Create a new AppClocksChecker
 	checkers, err := NewCheckers(cfg, clusterSpec)
 	if err != nil {

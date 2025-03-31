@@ -19,8 +19,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"github.com/scitix/sichek/config"
 )
 
 func TestDmesg(t *testing.T) {
@@ -28,13 +26,7 @@ func TestDmesg(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	cfg, err := config.LoadComponentConfig("", "")
-	if err != nil {
-		t.Log(err)
-		return
-	}
-
-	component, err := NewComponent(cfg)
+	component, err := NewComponent("")
 	if err != nil {
 		t.Log(err)
 		return

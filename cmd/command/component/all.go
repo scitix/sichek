@@ -29,7 +29,6 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -112,11 +111,7 @@ func NewAllCmd() *cobra.Command {
 			if len(ignoreComponentStr) > 0 {
 				ignoredComponents = strings.Split(ignoreComponentStr, ",")
 			}
-			cfg, err := config.LoadComponentConfig(cfgFile, specFile)
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("create cpu component failed: %v", err)
-				return
-			}
+
 			var wg sync.WaitGroup
 			for _, componentName := range consts.DefaultComponents {
 				if slices.Contains(ignoredComponents, componentName) {
@@ -131,38 +126,38 @@ func NewAllCmd() *cobra.Command {
 				var printFunc func(common.Info, *common.Result, bool) bool
 				switch componentName {
 				case consts.ComponentNameGpfs:
-					component, err = gpfs.NewGpfsComponent(cfg)
+					component, err = gpfs.NewGpfsComponent(cfgFile)
 					printFunc = PrintGPFSInfo
 				case consts.ComponentNameCPU:
-					component, err = cpu.NewComponent(cfg)
+					component, err = cpu.NewComponent(cfgFile)
 					printFunc = PrintSystemInfo
 				case consts.ComponentNameInfiniband:
-					component, err = infiniband.NewInfinibandComponent(cfg, nil)
+					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile)
 					printFunc = PrintInfinibandInfo
 				case consts.ComponentNameDmesg:
-					component, err = dmesg.NewComponent(cfg)
+					component, err = dmesg.NewComponent(cfgFile)
 					printFunc = PrintDmesgInfo
 				case consts.ComponentNameHang:
 					if !utils.IsNvidiaGPUExist() {
 						logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
 						continue
 					}
-					_, err = nvidia.NewComponent(cfg, nil)
+					_, err = nvidia.NewComponent(cfgFile, specFile)
 					if err != nil {
 						logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
 						continue
 					}
-					component, err = hang.NewComponent(cfg)
+					component, err = hang.NewComponent(cfgFile)
 					printFunc = PrintHangInfo
 				case consts.ComponentNameNvidia:
 					if !utils.IsNvidiaGPUExist() {
 						logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 						continue
 					}
-					component, err = nvidia.NewComponent(cfg, nil)
+					component, err = nvidia.NewComponent(cfgFile, specFile)
 					printFunc = PrintNvidiaInfo
 				case consts.ComponentNameNCCL:
-					component, err = nccl.NewComponent(cfg)
+					component, err = nccl.NewComponent(cfgFile)
 					printFunc = PrintNCCLInfo
 				default:
 					logrus.WithField("component", "all").Errorf("invalid component_name: %s", componentName)

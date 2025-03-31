@@ -20,19 +20,19 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/systemd"
 )
 
 type NVFabricManagerChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewNVFabricManagerChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewNVFabricManagerChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &NVFabricManagerChecker{
-		name: nvidia.NVFabricManagerCheckerName,
+		name: config.NVFabricManagerCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -46,7 +46,7 @@ func (c *NVFabricManagerChecker) Name() string {
 // }
 
 func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	result := nvidia.GPUCheckItems[nvidia.NVFabricManagerCheckerName]
+	result := config.GPUCheckItems[config.NVFabricManagerCheckerName]
 	if c.cfg.Dependence.FabricManager == "Not Required" {
 		result.Status = consts.StatusNormal
 		result.Curr = "Not Required"

@@ -22,7 +22,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -30,14 +30,14 @@ import (
 type IBKmodChecker struct {
 	id          string
 	name        string
-	spec        *infiniband.InfinibandSpecItem
+	spec        *config.InfinibandSpecItem
 	description string
 }
 
-func NewIBKmodChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
+func NewIBKmodChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBKmodChecker{
 		id:   consts.CheckerIDInfinibandFW,
-		name: infiniband.CheckIBKmod,
+		name: config.CheckIBKmod,
 		spec: specCfg,
 	}, nil
 }
@@ -63,15 +63,15 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	var (
 		spec, curr, suggestions string
 		notInstalled            []string
-		detail                  string = infiniband.InfinibandCheckItems[c.name].Detail
+		detail                  string = config.InfinibandCheckItems[c.name].Detail
 	)
 
-	result := infiniband.InfinibandCheckItems[c.name]
+	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = infiniband.NOIBFOUND
+		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 

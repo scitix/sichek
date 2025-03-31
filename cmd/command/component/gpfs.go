@@ -22,8 +22,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/gpfs"
 	"github.com/scitix/sichek/components/gpfs/collector"
-	"github.com/scitix/sichek/config"
-	gpfsconfig "github.com/scitix/sichek/config/gpfs"
+	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -60,13 +59,7 @@ func NewGpfsCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
-
-			cfg, err := config.LoadComponentConfig(cfgFile, "")
-			if err != nil {
-				logrus.WithField("component", "Gpfs").Errorf("create gpfs component failed: %v", err)
-				return
-			}
-			component, err := gpfs.NewGpfsComponent(cfg)
+			component, err := gpfs.NewGpfsComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "Gpfs").Errorf("create gpfs component failed: %v", err)
 				return
@@ -116,7 +109,7 @@ func PrintGPFSInfo(info common.Info, result *common.Result, summaryPrint bool) b
 		}
 
 		switch result.Name {
-		case gpfsconfig.FilesystemUnmountCheckerName:
+		case config.FilesystemUnmountCheckerName:
 			mountPrint = fmt.Sprintf("GPFS: %sMounted%s", statusColor, Reset)
 		}
 	}

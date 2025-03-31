@@ -22,7 +22,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
-	"github.com/scitix/sichek/config/infiniband"
+	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
@@ -30,14 +30,14 @@ import (
 type IBFirmwareChecker struct {
 	id          string
 	name        string
-	spec        infiniband.InfinibandSpecItem
+	spec        config.InfinibandSpecItem
 	description string
 }
 
-func NewFirmwareChecker(specCfg *infiniband.InfinibandSpecItem) (common.Checker, error) {
+func NewFirmwareChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBFirmwareChecker{
 		id:          consts.CheckerIDInfinibandFW,
-		name:        infiniband.ChekIBFW,
+		name:        config.ChekIBFW,
 		spec:        *specCfg,
 		description: "check the nic fw",
 	}, nil
@@ -62,12 +62,12 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
 	}
 
-	result := infiniband.InfinibandCheckItems[c.name]
+	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = infiniband.NOIBFOUND
+		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 

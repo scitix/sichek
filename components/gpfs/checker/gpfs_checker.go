@@ -22,15 +22,15 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/gpfs"
+	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(ctx context.Context, cfg common.ComponentConfig) ([]common.Checker, error) {
-	gpfs_cfg, ok := cfg.(*gpfs.GpfsConfig)
+func NewCheckers(ctx context.Context, cfg common.ComponentUserConfig) ([]common.Checker, error) {
+	gpfsCfg, ok := cfg.(*config.GpfsUserConfig)
 	if !ok {
 		err := fmt.Errorf("invalid config type for gpfs checker")
 		logrus.WithField("component", "gpfs").Error(err)
@@ -38,7 +38,7 @@ func NewCheckers(ctx context.Context, cfg common.ComponentConfig) ([]common.Chec
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, config := range gpfs_cfg.EventCheckers {
+	for name, config := range gpfsCfg.Gpfs.EventCheckers {
 		checker, err := NewEventChecker(ctx, config)
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("create event checker %s failed: %v", name, err)
@@ -52,11 +52,11 @@ func NewCheckers(ctx context.Context, cfg common.ComponentConfig) ([]common.Chec
 
 type EventChecker struct {
 	name string
-	cfg  *gpfs.GPFSEventConfig
+	cfg  *config.GPFSEventConfig
 }
 
 func NewEventChecker(ctx context.Context, cfg common.CheckerSpec) (common.Checker, error) {
-	gpfsCfg, ok := cfg.(*gpfs.GPFSEventConfig)
+	gpfsCfg, ok := cfg.(*config.GPFSEventConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid EventChecker config type")
 	}
@@ -91,7 +91,7 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	if total_num > 0 {
 		status = consts.StatusAbnormal
 	}
-	result := gpfs.GPFSCheckItems[c.name]
+	result := config.GPFSCheckItems[c.name]
 	result.Curr = strconv.Itoa(total_num)
 	result.Status = status
 	result.Detail = string(raw)

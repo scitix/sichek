@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type ClockEventsChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewClockEventsChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewClockEventsChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &ClockEventsChecker{
-		name: nvidia.ClockEventsCheckerName,
+		name: config.ClockEventsCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.ClockEventsCheckerName]
+	result := config.GPUCheckItems[config.ClockEventsCheckerName]
 
 	// Check if any critical clock event is engaged in any Nvidia GPU
 	var dev_clock_events map[int]string

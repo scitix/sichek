@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/cpu"
+	"github.com/scitix/sichek/components/cpu/config"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -56,7 +56,7 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("fail to check cpu performance: %v", err)
 	}
 
-	result := cpu.CPUCheckItems[CPUPerfCheckerName]
+	result := config.CPUCheckItems[CPUPerfCheckerName]
 
 	if !cpu_performance_enable {
 		err := setCPUMode("performance")

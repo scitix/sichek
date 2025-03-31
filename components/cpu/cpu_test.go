@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -29,12 +28,8 @@ import (
 func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cfg, err := config.LoadComponentConfig("", "")
-	if err != nil {
-		logrus.WithField("component", "cpu").Errorf("load component config failed: %v", err)
-		return
-	}
-	component, err := NewComponent(cfg)
+
+	component, err := NewComponent("")
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
 		return

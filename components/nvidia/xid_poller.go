@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
@@ -35,10 +35,10 @@ type XidEventPoller struct {
 	Cancel         context.CancelFunc
 	NvmlInst       nvml.Interface
 	EventChan      chan *common.Result
-	Cfg            *nvidia.NvidiaConfig
+	Cfg            *config.NvidiaUserConfig
 }
 
-func NewXidEventPoller(ctx context.Context, cfg *nvidia.NvidiaConfig, nvmlInst nvml.Interface, eventChan chan *common.Result) (*XidEventPoller, error) {
+func NewXidEventPoller(ctx context.Context, cfg *config.NvidiaUserConfig, nvmlInst nvml.Interface, eventChan chan *common.Result) (*XidEventPoller, error) {
 	// it is ok to create and register the same/shared event set across multiple devices
 	xidEventSet, err := nvml.EventSetCreate()
 	if err != nvml.SUCCESS {
@@ -125,7 +125,7 @@ func (x *XidEventPoller) Start() error {
 
 		xid := e.EventData
 
-		if !nvidia.IsCriticalXidEvent(xid) {
+		if !config.IsCriticalXidEvent(xid) {
 			if xid != 0 {
 				logrus.WithField("component", "Nvidia").Warningf("received a xid event %d which is not a critical XidEvent -- skipping\n", xid)
 			}
@@ -139,7 +139,7 @@ func (x *XidEventPoller) Start() error {
 			deviceID = -1
 		}
 
-		event := nvidia.CriticalXidEvent[xid]
+		event := config.CriticalXidEvent[xid]
 		event.Detail = fmt.Sprintf("GPU device %d detect critical xid event %d", deviceID, xid)
 		event.Status = "abnormal"
 		logrus.WithField("component", "Nvidia").Errorf("%v\n", event.Detail)

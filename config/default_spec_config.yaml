@@ -1,5 +1,5 @@
 nvidia:
-  nvidia_specs:
+  nvidia_spec:
     0x233010de:
       name: NVIDIA H100 80GB HBM3
       gpu_nums: 8
@@ -15,10 +15,6 @@ nvidia:
         nv_peermem: enable
         nv_fabricmanager: active
         cpu_performance: enable
-      MaxClock:
-        Graphics: 1980 # MHz
-        SM: 1980 # MHz
-        Memory: 2619 # MHz
       nvlink:
         nvlink_supported: true
         active_nvlink_num: 18
@@ -38,7 +34,7 @@ nvidia:
         gpu: 75
         memory: 95
 infiniband:
-  infiniband_cluster_specs:
+  clusters:
     default:
       ib_devs:
         - mlx5_0

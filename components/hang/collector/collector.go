@@ -24,7 +24,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang/checker"
-	"github.com/scitix/sichek/config/hang"
+	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -32,7 +32,7 @@ import (
 
 type HangCollector struct {
 	name string
-	cfg  *hang.HangConfig
+	cfg  *config.HangUserConfig
 
 	items         []string
 	threshold     map[string]int64
@@ -42,21 +42,21 @@ type HangCollector struct {
 	hangInfo      checker.HangInfo
 }
 
-func NewHangCollector(ctx context.Context, cfg common.ComponentConfig) (*HangCollector, error) {
-	config, ok := cfg.(*hang.HangConfig)
+func NewHangCollector(ctx context.Context, cfg common.ComponentUserConfig) (*HangCollector, error) {
+	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
 	}
 
 	var res HangCollector
-	res.name = config.Name
-	res.cfg = config
+	res.name = hangCfg.Hang.Name
+	res.cfg = hangCfg
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
 	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		collectorConfig, ok := tmpCfg.(*hang.HangErrorConfig)
+		collectorConfig, ok := tmpCfg.(*config.HangErrorConfig)
 		if !ok {
 			return nil, fmt.Errorf("invalid config type for Hang collector")
 		}
@@ -92,7 +92,7 @@ func (c *HangCollector) Name() string {
 	return c.name
 }
 
-func (c *HangCollector) GetCfg() common.ComponentConfig {
+func (c *HangCollector) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 
@@ -162,12 +162,5 @@ func getGPUInfo() []map[string]string {
 		}
 		results = append(results, rowMap)
 	}
-	// fmt.Println("Parsed GPU Data:")
-	// for i, result := range results {
-	// 	fmt.Printf("Row %d:\n", i)
-	// 	for k, v := range result {
-	// 		fmt.Printf("  %s: %s\n", k, v)
-	// 	}
-	// }
 	return results
 }

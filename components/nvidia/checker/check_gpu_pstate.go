@@ -23,18 +23,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type GpuPStateChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewGpuPStateChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewGpuPStateChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPStateChecker{
-		name: nvidia.GpuPStateCheckerName,
+		name: config.GpuPStateCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -55,7 +55,7 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.GpuPStateCheckerName]
+	result := config.GPUCheckItems[config.GpuPStateCheckerName]
 
 	// Check if all the Nvidia GPUs are in pstate 0
 	var info string

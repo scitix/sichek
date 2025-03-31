@@ -22,18 +22,18 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/config/nvidia"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 )
 
 type PCIeChecker struct {
 	name string
-	cfg  *nvidia.NvidiaSpecItem
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewPCIeChecker(cfg *nvidia.NvidiaSpecItem) (common.Checker, error) {
+func NewPCIeChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &PCIeChecker{
-		name: nvidia.PCIeCheckerName,
+		name: config.PCIeCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := nvidia.GPUCheckItems[nvidia.PCIeCheckerName]
+	result := config.GPUCheckItems[config.PCIeCheckerName]
 
 	// Check if any degraded PCIe link is detected
 	info := ""

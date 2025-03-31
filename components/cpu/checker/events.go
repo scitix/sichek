@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/cpu"
+	"github.com/scitix/sichek/components/cpu/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
@@ -31,10 +31,10 @@ import (
 
 type EventChecker struct {
 	name string
-	cfg  *cpu.CPUEventConfig
+	cfg  *config.CPUEventConfig
 }
 
-func NewEventChecker(cpuEventCfg *cpu.CPUEventConfig) (common.Checker, error) {
+func NewEventChecker(cpuEventCfg *config.CPUEventConfig) (common.Checker, error) {
 	return &EventChecker{
 		name: cpuEventCfg.Name,
 		cfg:  cpuEventCfg,

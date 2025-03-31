@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/memory"
+	"github.com/scitix/sichek/components/memory/config"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -42,13 +42,13 @@ func (o *Output) JSON() (string, error) {
 
 type MemoryCollector struct {
 	name string
-	cfg  *memory.MemoryConfig
+	cfg  *config.MemoryUserConfig
 
 	filter *filter.FileFilter
 }
 
-func NewCollector(ctx context.Context, cfg common.ComponentConfig) (*MemoryCollector, error) {
-	config, ok := cfg.(*memory.MemoryConfig)
+func NewCollector(ctx context.Context, cfg common.ComponentUserConfig) (*MemoryCollector, error) {
+	config, ok := cfg.(*config.MemoryUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Memory")
 	}
@@ -56,7 +56,7 @@ func NewCollector(ctx context.Context, cfg common.ComponentConfig) (*MemoryColle
 	regexps := make([]string, 0)
 	files_map := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.Checkers {
+	for _, checker_cfg := range config.Memory.Checkers {
 		_, err := os.Stat(checker_cfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "Memory").Errorf("log file %s not exist for Memory collector", checker_cfg.LogFile)
@@ -86,7 +86,7 @@ func (c *MemoryCollector) Name() string {
 	return c.name
 }
 
-func (c *MemoryCollector) GetCfg() common.ComponentConfig {
+func (c *MemoryCollector) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 

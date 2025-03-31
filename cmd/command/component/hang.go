@@ -23,8 +23,6 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang"
-	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -67,19 +65,9 @@ func NewHangCommand() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
 			}
-			cfg, err := config.LoadComponentConfig(cfgFile, specFile)
+			component, err := hang.NewComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
-				return
-			}
-			_, err = nvidia.NewComponent(cfg, nil)
-			if err != nil {
-				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
-				return
-			}
-			component, err := hang.NewComponent(cfg)
-			if err != nil {
-				logrus.WithField("component", "Hang").Errorf("create hang component failed: %v", err)
 				return
 			}
 

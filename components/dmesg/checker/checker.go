@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config/dmesg"
+	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -49,10 +49,10 @@ func (d *DmesgInfo) JSON() (string, error) {
 type DmesgChecker struct {
 	id   string
 	name string
-	cfg  *dmesg.DmesgConfig
+	cfg  *config.DmesgUserConfig
 }
 
-func NewDmesgChecker(cfg *dmesg.DmesgConfig) common.Checker {
+func NewDmesgChecker(cfg *config.DmesgUserConfig) common.Checker {
 	return &DmesgChecker{
 		id:   consts.CheckerIDDmesg,
 		name: "DmesgErrorChecker",
