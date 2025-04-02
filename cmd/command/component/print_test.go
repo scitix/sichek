@@ -49,7 +49,7 @@ func TestCPU_HealthCheckPrint(t *testing.T) {
 func TestNvidia_HealthCheckPrint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	component, err := nvidia.NewComponent("", "")
+	component, err := nvidia.NewComponent("", "", nil)
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}

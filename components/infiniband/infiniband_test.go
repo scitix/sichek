@@ -20,5 +20,5 @@ import (
 )
 
 func TestNewInfinibandComponent(t *testing.T) {
-	NewInfinibandComponent("", "")
+	NewInfinibandComponent("", "", nil)
 }

@@ -112,6 +112,16 @@ func NewAllCmd() *cobra.Command {
 				ignoredComponents = strings.Split(ignoreComponentStr, ",")
 			}
 
+			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
+			if err != nil {
+				logrus.WithField("component", "all").Error(err)
+			} else {
+				logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckersStr)
+			}
+			var ignoredCheckers []string
+			if len(ignoredCheckersStr) > 0 {
+				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
+			}
 			var wg sync.WaitGroup
 			for _, componentName := range consts.DefaultComponents {
 				if slices.Contains(ignoredComponents, componentName) {
@@ -132,7 +142,7 @@ func NewAllCmd() *cobra.Command {
 					component, err = cpu.NewComponent(cfgFile)
 					printFunc = PrintSystemInfo
 				case consts.ComponentNameInfiniband:
-					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile)
+					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 					printFunc = PrintInfinibandInfo
 				case consts.ComponentNameDmesg:
 					component, err = dmesg.NewComponent(cfgFile)
@@ -142,7 +152,7 @@ func NewAllCmd() *cobra.Command {
 						logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
 						continue
 					}
-					_, err = nvidia.NewComponent(cfgFile, specFile)
+					_, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 					if err != nil {
 						logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
 						continue
@@ -154,7 +164,7 @@ func NewAllCmd() *cobra.Command {
 						logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 						continue
 					}
-					component, err = nvidia.NewComponent(cfgFile, specFile)
+					component, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 					printFunc = PrintNvidiaInfo
 				case consts.ComponentNameNCCL:
 					component, err = nccl.NewComponent(cfgFile)
@@ -192,6 +202,7 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
 	allCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by ','")
 	allCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
+	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
 }

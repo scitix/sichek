@@ -57,9 +57,9 @@ type component struct {
 	service *common.CommonService
 }
 
-func NewInfinibandComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	infinibandComponentOnce.Do(func() {
-		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile)
+		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +67,7 @@ func NewInfinibandComponent(cfgFile string, specFile string) (comp common.Compon
 	return infinibandComponent, nil
 }
 
-func newInfinibandComponent(cfgFile string, specFile string) (comp *component, err error) {
+func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -79,6 +79,9 @@ func newInfinibandComponent(cfgFile string, specFile string) (comp *component, e
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewComponent load user config failed: %v", err)
 		return nil, err
+	}
+	if len(ignoredCheckers) > 0 {
+		cfg.Infiniband.IgnoredCheckers = ignoredCheckers
 	}
 	ibSpecs := &config.InfinibandSpecConfig{}
 	err = ibSpecs.LoadSpecConfigFromYaml(specFile)

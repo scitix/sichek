@@ -18,11 +18,12 @@ package component
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	 "github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -78,7 +79,14 @@ func NewNvidiaCmd() *cobra.Command {
 					logrus.WithField("components", "Nvidia").Info("load default specFile...")
 				}
 			}
-			component, err := nvidia.NewComponent(cfgFile, specFile)
+			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
+			if err != nil {
+				logrus.WithField("components", "Nvidia").Error(err)
+			} else {
+				logrus.WithField("components", "Nvidia").Info("ignore checkers", ignoredCheckersStr)
+			}
+			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
+			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components, err = ", err)
 				return
@@ -104,6 +112,7 @@ func NewNvidiaCmd() *cobra.Command {
 	NvidaCmd.Flags().StringP("cfg", "c", "", "Path to the Nvidia Cfg")
 	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the Nvidia specification")
 	NvidaCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
+	NvidaCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 
 	return NvidaCmd
 }

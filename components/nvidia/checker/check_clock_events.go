@@ -42,10 +42,6 @@ func (c *ClockEventsChecker) Name() string {
 	return c.name
 }
 
-// func (c *ClockEventsChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)

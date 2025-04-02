@@ -133,14 +133,14 @@ func GetComponent() common.Component {
 	return nvidiaComponent
 }
 
-func NewComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
-		nvidiaComponent, err = newNvidia(cfgFile, specFile)
+		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
 	})
 	return nvidiaComponent, err
 }
 
-func newNvidia(cfgFile string, specFile string) (comp *component, err error) {
+func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -158,6 +158,9 @@ func newNvidia(cfgFile string, specFile string) (comp *component, err error) {
 	if err != nil {
 		logrus.WithField("component", "nvidia").Errorf("NewComponent load user config failed: %v", err)
 		return nil, err
+	}
+	if len(ignoredCheckers) > 0 {
+		nvidiaCfg.Nvidia.IgnoredCheckers = ignoredCheckers
 	}
 	nvidiaSpecCfgs := &config.NvidiaSpecConfig{}
 	err = nvidiaSpecCfgs.LoadSpecConfigFromYaml(specFile)

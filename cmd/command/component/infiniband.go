@@ -74,7 +74,17 @@ func NewInfinibandCmd() *cobra.Command {
 				}
 			}
 
-			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile)
+			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
+			if err != nil {
+				logrus.WithField("components", "infiniband").Error(err)
+			} else {
+				logrus.WithField("components", "infiniband").Info("ignore checkers", ignoredCheckersStr)
+			}
+			var ignoredCheckers []string
+			if len(ignoredCheckersStr) > 0 {
+				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
+			}
+			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error("fail to Create New Infiniband Components")
 				return
@@ -101,7 +111,7 @@ func NewInfinibandCmd() *cobra.Command {
 	infinibandCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
 	infinibandCmd.Flags().StringP("spec", "s", "", "Path to the Infinibnad Spec")
 	infinibandCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
-
+	infinibandCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 	return infinibandCmd
 }
 
