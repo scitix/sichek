@@ -44,10 +44,6 @@ func (c *GpuPersistenceChecker) Name() string {
 	return c.name
 }
 
-// func (c *GpuPersistenceChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 // Check verifies if the Nvidia GPU persistence mode is enabled and working correctly.
 // It takes a context and data of type NvidiaInfo, and returns a CheckerResult and an error.
 // The data parameter is expected to be of type collector.NvidiaInfo, which contains information about Nvidia devices.
@@ -64,35 +60,35 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 	result := config.GPUCheckItems[config.GpuPersistenceCheckerName]
 
 	// Check if all the Nvidia GPUs have persistence mode enabled
-	var disable_gpus []string
-	var falied_gpuid_podnames []string
+	var disableGpus []string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
-		if device.States.GpuPersistenced != c.cfg.State.GpuPersistenced {
-			var device_pod_name string
+		if device.States.GpuPersistenceM != c.cfg.State.GpuPersistenceM {
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			disable_gpus = append(disable_gpus, fmt.Sprintf("GPU %d", device.Index))
+			disableGpus = append(disableGpus, fmt.Sprintf("GPU %d", device.Index))
 			_, err := utils.ExecCommand(ctx, "nvidia-smi", "-i", fmt.Sprintf("%d", device.Index), "-pm", "1")
 			if err != nil {
 				result.Detail += fmt.Sprintf("GPU %d:  Failed to enable persistence mode: %s\n", device.Index, err.Error())
-				falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+				failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			} else {
 				result.Detail += fmt.Sprintf("GPU %d:  Persistence mode has been enabled\n", device.Index)
 			}
 		}
 	}
 	result.Status = consts.StatusNormal
-	if len(disable_gpus) == 0 {
+	if len(disableGpus) == 0 {
 		result.Status = consts.StatusNormal
 		result.Detail = "All Nvidia GPUs have persistence mode enabled"
 		result.Curr = "Enabled"
 		result.Suggestion = ""
 		result.ErrorName = ""
 	} else {
-		if len(falied_gpuid_podnames) == 0 {
+		if len(failedGpuidPodnames) == 0 {
 			result.Status = consts.StatusNormal
 			result.Curr = "EnabledOnline"
 			result.Suggestion = ""
@@ -100,7 +96,7 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 		} else {
 			result.Status = consts.StatusAbnormal
 			result.Curr = "Disabled"
-			result.Device = fmt.Sprintf("%v", strings.Join(falied_gpuid_podnames, ","))
+			result.Device = fmt.Sprintf("%v", strings.Join(failedGpuidPodnames, ","))
 		}
 	}
 	return &result, nil

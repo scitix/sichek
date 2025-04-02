@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewMemoryCmd创建并返回用于代表memory相关操作的子命令实例，配置命令的基本属性
+// NewMemoryCmd 创建并返回用于代表memory相关操作的子命令实例，配置命令的基本属性
 func NewMemoryCmd() *cobra.Command {
 	memoryCmd := &cobra.Command{
 		Use:     "memory",

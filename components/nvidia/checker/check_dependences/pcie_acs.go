@@ -42,11 +42,7 @@ func (c *PCIeACSChecker) Name() string {
 	return c.name
 }
 
-// func (c *PCIeACSChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
-// checks if PCIe ACS is disabled for all NVIDIA GPU
+// Check checks if PCIe ACS is disabled for all NVIDIA GPU
 func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	enabledACS, err := utils.GetACSEnabledDevices(ctx)
 	if err != nil {

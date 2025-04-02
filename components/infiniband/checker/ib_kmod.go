@@ -63,9 +63,9 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	var (
 		spec, curr, suggestions string
 		notInstalled            []string
-		detail                  string = config.InfinibandCheckItems[c.name].Detail
 	)
 
+	detail := config.InfinibandCheckItems[c.name].Detail
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 

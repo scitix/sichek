@@ -301,7 +301,7 @@ var CriticalXidEvent = map[uint64]common.CheckerResult{
 	},
 }
 
-// checks if a given XID is a LevelCritical XID event
+// IsCriticalXidEvent checks if a given XID is a LevelCritical XID event
 func IsCriticalXidEvent(xid uint64) bool {
 	_, exists := CriticalXidEvent[xid]
 	return exists

@@ -37,7 +37,7 @@ func (s *SoftwareInfo) JSON() ([]byte, error) {
 	return common.JSON(s)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (s *SoftwareInfo) ToString() string {
 	return common.ToString(s)
 }

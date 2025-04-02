@@ -42,10 +42,6 @@ func (c *AppClocksChecker) Name() string {
 	return c.name
 }
 
-// func (c *AppClocksChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -56,15 +52,15 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 	result := config.GPUCheckItems[config.AppClocksCheckerName]
 
 	// Check if all the Nvidia GPUs have set application clocks to max
-	var gpus_app_clocks_status map[int]string
-	var falied_gpuid_podnames []string
+	var gpusAppClocksStatus map[int]string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.Clock.AppGraphicsClk != device.Clock.MaxGraphicsClk || device.Clock.AppMemoryClk != device.Clock.MaxMemoryClk ||
 			device.Clock.AppSMClk != device.Clock.MaxSMClk {
-			if gpus_app_clocks_status == nil {
-				gpus_app_clocks_status = make(map[int]string)
+			if gpusAppClocksStatus == nil {
+				gpusAppClocksStatus = make(map[int]string)
 			}
-			gpus_app_clocks_status[device.Index] = fmt.Sprintf(
+			gpusAppClocksStatus[device.Index] = fmt.Sprintf(
 				"GPU %d:%s AppSMClk: %s, MaxAppSMClk: %s, AppGraphicsClk: %s, MaxGraphicsClk: %s, AppMemoryClk: %s, MaxMemoryClk: %s\n",
 				device.Index, device.UUID,
 				device.Clock.AppSMClk,
@@ -74,19 +70,19 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 				device.Clock.AppMemoryClk,
 				device.Clock.MaxMemoryClk,
 			)
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if len(gpus_app_clocks_status) > 0 {
+	if len(gpusAppClocksStatus) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("Not all GPU application clocks are set to max: \n %v", gpus_app_clocks_status)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Detail = fmt.Sprintf("Not all GPU application clocks are set to max: \n %v", gpusAppClocksStatus)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""

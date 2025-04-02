@@ -43,11 +43,7 @@ func (c *GpuTemperatureChecker) Name() string {
 	return c.name
 }
 
-// func (c *GpuTemperatureChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
-// Check verifies if the Nvidia GPU temperature is > specified C, e.g 75 C .
+// Check verifies if the Nvidia GPU temperature is > specified C, e.g. 75 C .
 func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -57,15 +53,15 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 
 	result := config.GPUCheckItems[config.GpuTemperatureCheckerName]
 
-	var unexpected_gpus_temp map[int]string
-	var falied_gpuid_podnames []string
+	var unexpectedGpusTemp map[int]string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.Temperature.GPUCurTemperature > uint32(c.cfg.TemperatureThreshold.Gpu) ||
 			device.Temperature.MemoryCurTemperature > uint32(c.cfg.TemperatureThreshold.Memory) {
-			if unexpected_gpus_temp == nil {
-				unexpected_gpus_temp = make(map[int]string)
+			if unexpectedGpusTemp == nil {
+				unexpectedGpusTemp = make(map[int]string)
 			}
-			unexpected_gpus_temp[device.Index] = fmt.Sprintf(
+			unexpectedGpusTemp[device.Index] = fmt.Sprintf(
 				"GPU %d:%s has high Temperature: GPUCurTemperature = %d C (expected < %d), MemoryCurTemperature = %d C (expected < %d)\n",
 				device.Index, device.UUID,
 				device.Temperature.GPUCurTemperature,
@@ -73,19 +69,19 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 				device.Temperature.MemoryCurTemperature,
 				c.cfg.TemperatureThreshold.Memory,
 			)
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if len(unexpected_gpus_temp) > 0 {
+	if len(unexpectedGpusTemp) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("%v", unexpected_gpus_temp)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Detail = fmt.Sprintf("%v", unexpectedGpusTemp)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""

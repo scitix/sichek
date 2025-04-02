@@ -82,7 +82,7 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 		usedComponentsMap[componentName] = false
 	}
 
-	daemon_service := &DaemonService{
+	daemonService := &DaemonService{
 		ctx:               cctx,
 		cancel:            ccancel,
 		usedComponentsMap: usedComponentsMap,
@@ -104,7 +104,7 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 		case consts.ComponentNameCPU:
 			component, err = cpu.NewComponent(cfgFile)
 		case consts.ComponentNameInfiniband:
-			component, err = infiniband.NewInfinibandComponent(cfgFile, specFile)
+			component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, nil)
 		case consts.ComponentNameDmesg:
 			component, err = dmesg.NewComponent(cfgFile)
 		case consts.ComponentNameNvidia:
@@ -112,13 +112,13 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 				continue
 			}
-			component, err = nvidia.NewComponent(cfgFile, specFile)
+			component, err = nvidia.NewComponent(cfgFile, specFile, nil)
 		case consts.ComponentNameHang:
 			if !utils.IsNvidiaGPUExist() {
 				logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
 				continue
 			}
-			_, err = nvidia.NewComponent(cfgFile, specFile)
+			_, err = nvidia.NewComponent(cfgFile, specFile, nil)
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
 				continue
@@ -133,10 +133,10 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 		if err != nil {
 			return nil, err
 		}
-		daemon_service.components[componentName] = component
+		daemonService.components[componentName] = component
 	}
 
-	return daemon_service, nil
+	return daemonService, nil
 }
 
 func (d *DaemonService) Run() {

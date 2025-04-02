@@ -45,7 +45,7 @@ func (o *CPUOutput) JSON() (string, error) {
 	return string(data), err
 }
 
-type collector struct {
+type Collector struct {
 	name        string
 	cfg         *config.CpuUserConfig
 	CPUArchInfo *CPUArchInfo `json:"cpu_arch_info"`
@@ -53,34 +53,34 @@ type collector struct {
 	filter      *filter.FileFilter
 }
 
-func NewCpuCollector(ctx context.Context, config *config.CpuUserConfig) (*collector, error) {
+func NewCpuCollector(ctx context.Context, cfg *config.CpuUserConfig) (*Collector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
-	files_map := make(map[string]bool)
+	filesMap := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checkerCfg := range config.CPU.EventCheckers {
+	for _, checkerCfg := range cfg.CPU.EventCheckers {
 		_, err := os.Stat(checkerCfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "CPU").Errorf("log file %s not exist for CPU collector", checkerCfg.LogFile)
 			continue
 		}
 		filterNames = append(filterNames, checkerCfg.Name)
-		if _, exist := files_map[checkerCfg.LogFile]; !exist {
+		if _, exist := filesMap[checkerCfg.LogFile]; !exist {
 			files = append(files, checkerCfg.LogFile)
-			files_map[checkerCfg.LogFile] = true
+			filesMap[checkerCfg.LogFile] = true
 		}
 		regexps = append(regexps, checkerCfg.Regexp)
 	}
 
-	filter, err := filter.NewFileFilter(filterNames, regexps, files, 1)
+	filterPointer, err := filter.NewFileFilter(filterNames, regexps, files, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	collector := &collector{
+	collector := &Collector{
 		name:   "CPUCollector",
-		cfg:    config,
-		filter: filter,
+		cfg:    cfg,
+		filter: filterPointer,
 	}
 	collector.CPUArchInfo = &CPUArchInfo{}
 	if err := collector.CPUArchInfo.Get(ctx); err != nil {
@@ -93,15 +93,15 @@ func NewCpuCollector(ctx context.Context, config *config.CpuUserConfig) (*collec
 	return collector, nil
 }
 
-func (c *collector) Name() string {
+func (c *Collector) Name() string {
 	return c.name
 }
 
-func (c *collector) GetCfg() common.ComponentUserConfig {
+func (c *Collector) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 
-func (c *collector) Collect(ctx context.Context) (common.Info, error) {
+func (c *Collector) Collect(ctx context.Context) (common.Info, error) {
 	cpuOutput := &CPUOutput{
 		Time:        time.Now(),
 		CPUArchInfo: *c.CPUArchInfo,

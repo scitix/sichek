@@ -48,37 +48,37 @@ type MemoryCollector struct {
 }
 
 func NewCollector(ctx context.Context, cfg common.ComponentUserConfig) (*MemoryCollector, error) {
-	config, ok := cfg.(*config.MemoryUserConfig)
+	configPointer, ok := cfg.(*config.MemoryUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Memory")
 	}
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
-	files_map := make(map[string]bool)
+	filesMap := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checker_cfg := range config.Memory.Checkers {
-		_, err := os.Stat(checker_cfg.LogFile)
+	for _, checkerCfg := range configPointer.Memory.Checkers {
+		_, err := os.Stat(checkerCfg.LogFile)
 		if err != nil {
-			logrus.WithField("collector", "Memory").Errorf("log file %s not exist for Memory collector", checker_cfg.LogFile)
+			logrus.WithField("collector", "Memory").Errorf("log file %s not exist for Memory collector", checkerCfg.LogFile)
 			continue
 		}
-		filterNames = append(filterNames, checker_cfg.Name)
-		if _, exist := files_map[checker_cfg.LogFile]; !exist {
-			files = append(files, checker_cfg.LogFile)
-			files_map[checker_cfg.LogFile] = true
+		filterNames = append(filterNames, checkerCfg.Name)
+		if _, exist := filesMap[checkerCfg.LogFile]; !exist {
+			files = append(files, checkerCfg.LogFile)
+			filesMap[checkerCfg.LogFile] = true
 		}
-		regexps = append(regexps, checker_cfg.Regexp)
+		regexps = append(regexps, checkerCfg.Regexp)
 	}
 
-	filter, err := filter.NewFileFilter(filterNames, regexps, files, 1)
+	filterPointer, err := filter.NewFileFilter(filterNames, regexps, files, 1)
 	if err != nil {
 		return nil, err
 	}
 
 	return &MemoryCollector{
 		name:   "MemoryCollector",
-		cfg:    config,
-		filter: filter,
+		cfg:    configPointer,
+		filter: filterPointer,
 	}, nil
 }
 

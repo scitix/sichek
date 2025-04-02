@@ -42,10 +42,6 @@ func (c *SRAMHighcorrectableChecker) Name() string {
 	return c.name
 }
 
-// func (c *SRAMHighcorrectableChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -55,40 +51,40 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 
 	result := config.GPUCheckItems[config.SRAMHighcorrectableCheckerName]
 
-	var memory_error_events map[string]string
-	var falied_gpuid_podnames []string
+	var memoryErrorEvents map[string]string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.MemoryErrors.AggregateECC.SRAM.Corrected > c.cfg.MemoryErrorThreshold.SRAMAggregateCorrectableErrors ||
 			device.MemoryErrors.VolatileECC.SRAM.Corrected > c.cfg.MemoryErrorThreshold.SRAMVolatileCorrectableErrors {
-			if memory_error_events == nil {
-				memory_error_events = make(map[string]string)
+			if memoryErrorEvents == nil {
+				memoryErrorEvents = make(map[string]string)
 			}
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 
 		if device.MemoryErrors.AggregateECC.SRAM.Corrected > c.cfg.MemoryErrorThreshold.SRAMAggregateCorrectableErrors {
-			memory_error_events[device.UUID] = fmt.Sprintf(
+			memoryErrorEvents[device.UUID] = fmt.Sprintf(
 				"GPU %d:%s SRAM High AggregateECC Correctable error count detected: %d, Threshold: %d",
 				device.Index, device.UUID,
 				device.MemoryErrors.AggregateECC.SRAM.Corrected, c.cfg.MemoryErrorThreshold.SRAMAggregateCorrectableErrors)
 		}
 		if device.MemoryErrors.VolatileECC.SRAM.Corrected > c.cfg.MemoryErrorThreshold.SRAMVolatileCorrectableErrors {
-			memory_error_events[device.UUID] = fmt.Sprintf(
+			memoryErrorEvents[device.UUID] = fmt.Sprintf(
 				"GPU %d:%s SRAM High VolitileECC Correctable error count detected: %d, Threshold: %d",
 				device.Index, device.UUID,
 				device.MemoryErrors.VolatileECC.SRAM.Corrected, c.cfg.MemoryErrorThreshold.SRAMVolatileCorrectableErrors)
 		}
 	}
-	if len(memory_error_events) > 0 {
+	if len(memoryErrorEvents) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("%v", memory_error_events)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Detail = fmt.Sprintf("%v", memoryErrorEvents)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""

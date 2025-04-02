@@ -79,7 +79,7 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 
-	collector, err := collector.NewGPFSCollector(ctx, cfg)
+	collectorPointer, err := collector.NewGPFSCollector(ctx, cfg)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
 		return nil, err
@@ -94,7 +94,7 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 	component := &component{
 		ctx:         ctx,
 		cancel:      cancel,
-		collector:   collector,
+		collector:   collectorPointer,
 		checkers:    checkers,
 		cfg:         cfg,
 		cacheBuffer: make([]*common.Result, cfg.Gpfs.CacheSize),
@@ -119,7 +119,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "gpfs").Errorf("failed to collect gpfs info: %v", err)
 		return nil, err
 	}
-	gpfs_info, ok := info.(*collector.GPFSInfo)
+	gpfsInfo, ok := info.(*collector.GPFSInfo)
 	if !ok {
 		logrus.WithField("component", "gpfs").Errorf("wrong gpfs collector info type")
 		return nil, err
@@ -127,17 +127,17 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	status := consts.StatusNormal
 	level := consts.LevelInfo
-	checker_results := make([]*common.CheckerResult, 0)
-	for _, checker := range c.checkers {
-		check_result, err := checker.Check(cctx, gpfs_info.FilterResults[checker.Name()])
+	checkerResults := make([]*common.CheckerResult, 0)
+	for _, each := range c.checkers {
+		checkResult, err := each.Check(cctx, gpfsInfo.FilterResults[each.Name()])
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("failed to check: %v", err)
 			continue
 		}
-		checker_results = append(checker_results, check_result)
-		if check_result.Level == consts.LevelCritical && check_result.Status == consts.StatusAbnormal {
+		checkerResults = append(checkerResults, checkResult)
+		if checkResult.Level == consts.LevelCritical && checkResult.Status == consts.StatusAbnormal {
 			status = consts.StatusAbnormal
-			level = check_result.Level
+			level = checkResult.Level
 		}
 	}
 
@@ -145,8 +145,8 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		Item:       consts.ComponentNameGpfs,
 		Status:     status,
 		Level:      level,
-		Suggestion: string("Repaire and Reboot the system"),
-		Checkers:   checker_results,
+		Suggestion: "Repair and Reboot the system",
+		Checkers:   checkerResults,
 		Time:       time.Now(),
 	}
 
@@ -212,11 +212,11 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.GpfsUserConfig)
+	configPointer, ok := cfg.(*config.GpfsUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for gpfs")
 	}
-	c.cfg = config
+	c.cfg = configPointer
 	c.cfgMutex.Unlock()
 	return c.service.Update(ctx, cfg)
 }

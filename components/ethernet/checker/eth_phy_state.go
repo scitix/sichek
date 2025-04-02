@@ -70,8 +70,8 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	var (
 		errDevice []string
 		spec      string
-		level     string = consts.LevelInfo
-		detail    string = config.EthCheckItems[c.name].Detail
+		level     = consts.LevelInfo
+		detail    = config.EthCheckItems[c.name].Detail
 	)
 
 	status := consts.StatusNormal

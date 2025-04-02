@@ -41,10 +41,6 @@ func (c *NvPeerMemChecker) Name() string {
 	return c.name
 }
 
-// func (c *NvPeerMemChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Check if ib_core and nvidia_peermem, and ib_core is using nvidia_peermem
 	// Note: for Driver Version 470.199.02, nvidia_peermem is holder by ib_uverbs

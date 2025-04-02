@@ -19,25 +19,25 @@ import (
 	"os"
 
 	"github.com/scitix/sichek/consts"
-	pkg_systemd "github.com/scitix/sichek/pkg/systemd"
-	pkg_utils "github.com/scitix/sichek/pkg/utils"
+	pkgsystemd "github.com/scitix/sichek/pkg/systemd"
+	pkgutils "github.com/scitix/sichek/pkg/utils"
 	"github.com/scitix/sichek/systemd"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-// NewDaemonStartCmd创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
+// NewDaemonStartCmd 创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
 func NewDaemonStartCmd() *cobra.Command {
 	daemonStartCmd := &cobra.Command{
 		Use:   "start",
 		Short: "Startup sichek daemon process in the background",
 		Run: func(cmd *cobra.Command, args []string) {
-			if exist, _ := pkg_systemd.SystemctlExists(); !exist {
+			if exist, _ := pkgsystemd.SystemctlExists(); !exist {
 				logrus.WithField("daemon", "start").Error("sichek start requires systemd")
 				return
 			}
-			if !pkg_utils.IsRoot() {
+			if !pkgutils.IsRoot() {
 				logrus.WithField("daemon", "start").Error("sichek start requires root to run with systemd")
 				return
 			}
@@ -60,11 +60,11 @@ func NewDaemonStartCmd() *cobra.Command {
 				return
 			}
 
-			if err := pkg_systemd.EnableSystemdService(consts.ServiceName); err != nil {
+			if err := pkgsystemd.EnableSystemdService(consts.ServiceName); err != nil {
 				logrus.WithField("daemon", "start").Error("failed to enable systemd unit 'sichek.service'")
 				return
 			}
-			if err := pkg_systemd.RestartSystemdService(consts.ServiceName); err != nil {
+			if err := pkgsystemd.RestartSystemdService(consts.ServiceName); err != nil {
 				logrus.WithField("daemon", "start").Error("failed to restart systemd unit 'sichek.service'")
 				return
 			}

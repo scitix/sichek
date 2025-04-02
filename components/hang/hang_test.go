@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,7 @@ package hang
 
 import (
 	"context"
+	"github.com/scitix/sichek/components/nvidia"
 	"testing"
 	"time"
 )
@@ -26,6 +27,10 @@ func TestHang(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
+	_, err := nvidia.NewComponent("", "", nil)
+	if err != nil {
+		t.Fatalf("Failed too New Nvidia component, Bypassing HealthCheck")
+	}
 	component, err := NewComponent("./config/config_mock_test.yaml")
 	if err != nil {
 		t.Log(err)
@@ -33,16 +38,19 @@ func TestHang(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		component.HealthCheck(ctx)
+		_, err := component.HealthCheck(ctx)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 	result, err := component.HealthCheck(ctx)
 
 	if err != nil {
 		t.Log(err)
 	}
-	js, errr := result.JSON()
-	if errr != nil {
-		t.Log(errr)
+	js, err := result.JSON()
+	if err != nil {
+		t.Log(err)
 	}
 	t.Logf("test hang analysis result: %s", js)
 	t.Logf("Running time: %ds", time.Since(start))

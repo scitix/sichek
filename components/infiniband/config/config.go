@@ -28,7 +28,7 @@ type InfinibandUserConfig struct {
 	Infiniband *InfinibandConfig `json:"infiniband" yaml:"infiniband"`
 }
 
-// 实现ComponentsConfig 接口
+// InfinibandConfig 实现ComponentsConfig 接口
 type InfinibandConfig struct {
 	Name            string        `json:"name" yaml:"name"`
 	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`

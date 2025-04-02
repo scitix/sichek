@@ -31,7 +31,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewGpuCmd创建并返回用于代表GPU相关操作的子命令实例，配置命令的基本属性
+// NewNvidiaCmd 创建并返回用于代表GPU相关操作的子命令实例，配置命令的基本属性
 func NewNvidiaCmd() *cobra.Command {
 
 	NvidaCmd := &cobra.Command{

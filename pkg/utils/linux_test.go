@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +36,7 @@ func TestExecCommandWithContext_Timeout(t *testing.T) {
 		t.Fatal("expected an error, got nil")
 	}
 
-	if ctx.Err() != context.DeadlineExceeded {
+	if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		t.Fatalf("expected context.DeadlineExceeded, got %v", ctx.Err())
 	}
 }
@@ -67,7 +68,7 @@ func TestExecCommandWithContext_fm(t *testing.T) {
 	output, err := ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
 	if err != nil {
 		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
-			 strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
+			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
 			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
 			return
 		} else {

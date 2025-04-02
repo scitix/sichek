@@ -40,19 +40,19 @@ type NCCLCollector struct {
 }
 
 func NewNCCLCollector(ctx context.Context, cfg common.ComponentUserConfig) (*NCCLCollector, error) {
-	config, ok := cfg.(*config.NCCLUserConfig)
+	configPointer, ok := cfg.(*config.NCCLUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for GPFS")
 	}
-	if len(config.NCCL.CheckerConfigs) == 0 {
-		return nil, fmt.Errorf("No NCCL Collector indicate in yaml config")
+	if len(configPointer.NCCL.CheckerConfigs) == 0 {
+		return nil, fmt.Errorf("no NCCL Collector indicate in yaml config")
 	}
 
 	var regexpName []string
 	var regexp []string
-	for _, checkers_cfg := range config.NCCL.CheckerConfigs {
-		regexpName = append(regexpName, checkers_cfg.Name)
-		regexp = append(regexp, checkers_cfg.Regexp)
+	for _, checkersCfg := range configPointer.NCCL.CheckerConfigs {
+		regexpName = append(regexpName, checkersCfg.Name)
+		regexp = append(regexp, checkersCfg.Regexp)
 	}
 
 	// filter, err := filter.NewFilter(
@@ -69,7 +69,7 @@ func NewNCCLCollector(ctx context.Context, cfg common.ComponentUserConfig) (*NCC
 
 	return &NCCLCollector{
 		name:       "NCCLCollector",
-		cfg:        config,
+		cfg:        configPointer,
 		RegexpName: regexpName,
 		Regexp:     regexp,
 	}, nil
@@ -92,7 +92,7 @@ func (c *NCCLCollector) Collect(ctx context.Context) (common.Info, error) {
 
 	allFiles = filtLogFiles(allFiles)
 
-	filter, err := filter.NewFilter(
+	filterPointer, err := filter.NewFilter(
 		c.RegexpName,
 		c.Regexp,
 		allFiles,
@@ -103,9 +103,9 @@ func (c *NCCLCollector) Collect(ctx context.Context) (common.Info, error) {
 		logrus.WithError(err).Error("failed to create filter in NCCLCollector")
 		return nil, err
 	}
-	defer filter.Close()
+	defer filterPointer.Close()
 
-	filterRes := filter.Check()
+	filterRes := filterPointer.Check()
 
 	var res checker.NCCLInfo
 	res.Time = time.Now()

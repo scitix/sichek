@@ -53,10 +53,11 @@ func (c *GpfsUserConfig) LoadUserConfigFromYaml(file string) error {
 		if err != nil || c.Gpfs == nil {
 			return fmt.Errorf("failed to load gpfs config from YAML file %s: %v", file, err)
 		}
-	}
-	err := common.DefaultComponentConfig(consts.ComponentNameGpfs, c, consts.DefaultUserCfgName)
-	if err != nil || c.Gpfs == nil {
-		return fmt.Errorf("failed to load default gpfs config: %v", err)
+	} else {
+		err := common.DefaultComponentConfig(consts.ComponentNameGpfs, c, consts.DefaultUserCfgName)
+		if err != nil || c.Gpfs == nil {
+			return fmt.Errorf("failed to load default gpfs config: %v", err)
+		}
 	}
 	return nil
 }

@@ -56,9 +56,9 @@ var (
 	nvidiaComponentOnce sync.Once
 )
 
-func NewMockNvidiaComponent(cfgFile string, ignored_checkers []string) (comp common.Component, err error) {
+func NewMockNvidiaComponent(cfgFile string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
-		nvidiaComponent, err = newMockNvidia(cfgFile, ignored_checkers)
+		nvidiaComponent, err = newMockNvidia(cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -67,14 +67,14 @@ func NewMockNvidiaComponent(cfgFile string, ignored_checkers []string) (comp com
 	return nvidiaComponent, nil
 }
 
-func newMockNvidia(cfgFile string, ignored_checkers []string) (comp *component, err error) {
+func newMockNvidia(cfgFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-	var cfg *config.NvidiaUserConfig
+	cfg := &config.NvidiaUserConfig{}
 	err = cfg.LoadUserConfigFromYaml(cfgFile)
 	if err != nil {
 		return nil, err

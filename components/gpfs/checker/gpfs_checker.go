@@ -38,8 +38,8 @@ func NewCheckers(ctx context.Context, cfg common.ComponentUserConfig) ([]common.
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, config := range gpfsCfg.Gpfs.EventCheckers {
-		checker, err := NewEventChecker(ctx, config)
+	for name, cfg := range gpfsCfg.Gpfs.EventCheckers {
+		checker, err := NewEventChecker(ctx, cfg)
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("create event checker %s failed: %v", name, err)
 			return nil, err
@@ -86,13 +86,13 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		return nil, err
 	}
 
-	total_num := len(info)
+	totalNum := len(info)
 	status := consts.StatusNormal
-	if total_num > 0 {
+	if totalNum > 0 {
 		status = consts.StatusAbnormal
 	}
 	result := config.GPFSCheckItems[c.name]
-	result.Curr = strconv.Itoa(total_num)
+	result.Curr = strconv.Itoa(totalNum)
 	result.Status = status
 	result.Detail = string(raw)
 

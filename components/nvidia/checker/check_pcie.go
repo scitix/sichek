@@ -42,10 +42,6 @@ func (c *PCIeChecker) Name() string {
 	return c.name
 }
 
-// func (c *PCIeChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -57,7 +53,7 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 
 	// Check if any degraded PCIe link is detected
 	info := ""
-	var falied_gpuid_podnames []string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		// For device `NVIDIA L40`, PCIe link generation may not be its maximum when pstate is not P0
 		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX &&
@@ -73,18 +69,18 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		}
 
 		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX || device.PCIeInfo.PCILinkWidth != device.PCIeInfo.PCILinkWidthMAX {
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
 	if result.Status == consts.StatusAbnormal {
 		result.Detail = info
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""

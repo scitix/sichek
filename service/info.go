@@ -25,7 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type nodeAnnotation struct {
+type NodeAnnotation struct {
 	NCCL       map[string][]*annotation `json:"nccl"`
 	Hang       map[string][]*annotation `json:"hang"`
 	NVIDIA     map[string][]*annotation `json:"nvidia"`
@@ -37,8 +37,8 @@ type nodeAnnotation struct {
 	Dmesg      map[string][]*annotation `json:"dmesg"`
 }
 
-func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
-	var anno nodeAnnotation
+func GetAnnotationFromJson(jsonStr string) (*NodeAnnotation, error) {
+	var anno NodeAnnotation
 	if len(jsonStr) == 0 {
 		return &anno, nil
 	}
@@ -49,12 +49,12 @@ func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
 	return &anno, nil
 }
 
-func (a *nodeAnnotation) JSON() (string, error) {
+func (a *NodeAnnotation) JSON() (string, error) {
 	data, err := json.Marshal(a)
 	return string(data), err
 }
 
-func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
+func (a *NodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
 	if item == "" {
 		return nil, fmt.Errorf("input item is empty")
 	}
@@ -79,7 +79,7 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 	return nil, fmt.Errorf("input item %s is not supported", item)
 }
 
-func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[string][]*annotation) error {
+func (a *NodeAnnotation) setAnnotationsByItem(item string, annotations map[string][]*annotation) error {
 	if item == "" {
 		return fmt.Errorf("input item is empty")
 	}
@@ -104,11 +104,11 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 	return nil
 }
 
-func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation, result *common.Result) error {
+func (a *NodeAnnotation) updateAnnotations(annotations map[string][]*annotation, result *common.Result) error {
 	if result == nil {
 		return fmt.Errorf("input result is empty")
 	}
-	pre_anno_str, err := a.JSON()
+	preAnnoStr, err := a.JSON()
 	if err != nil {
 		return fmt.Errorf("error marshaling pre_anno_str: %v", err)
 	}
@@ -117,17 +117,17 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 		return fmt.Errorf("error marshaling result: %v", err)
 	}
 	if result.Status == consts.StatusAbnormal {
-		for _, check_result := range result.Checkers {
-			if check_result.Status == consts.StatusAbnormal {
+		for _, checkResult := range result.Checkers {
+			if checkResult.Status == consts.StatusAbnormal {
 				anno := &annotation{
-					ErrorName: check_result.ErrorName,
-					Devcie:    check_result.Device,
+					ErrorName: checkResult.ErrorName,
+					Devcie:    checkResult.Device,
 				}
-				_, exist := annotations[check_result.Level]
+				_, exist := annotations[checkResult.Level]
 				if !exist {
-					annotations[check_result.Level] = make([]*annotation, 0)
+					annotations[checkResult.Level] = make([]*annotation, 0)
 				}
-				annotations[check_result.Level] = append(annotations[check_result.Level], anno)
+				annotations[checkResult.Level] = append(annotations[checkResult.Level], anno)
 			}
 		}
 	}
@@ -141,14 +141,14 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 	}
 	if result.Status == consts.StatusAbnormal && (result.Level == consts.LevelCritical || result.Level == consts.LevelFatal) {
 		logrus.Infof("set node annotation for check result %s", jsonData)
-		logrus.Infof("update node annotataion from %s to %s", pre_anno_str, annoStr)
+		logrus.Infof("update node annotataion from %s to %s", preAnnoStr, annoStr)
 	}
 
 	return nil
 
 }
 
-func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
+func (a *NodeAnnotation) ParseFromResult(result *common.Result) error {
 	annotations := make(map[string][]*annotation)
 	err := a.updateAnnotations(annotations, result)
 	if err != nil {
@@ -157,7 +157,7 @@ func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 	return nil
 }
 
-func (a *nodeAnnotation) AppendFromResult(result *common.Result) error {
+func (a *NodeAnnotation) AppendFromResult(result *common.Result) error {
 	annotations, err := a.getAnnotationsByItem(result.Item)
 	if err != nil {
 		return fmt.Errorf("error getting annotations by item %v: %v", result.Item, err)

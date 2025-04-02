@@ -16,6 +16,7 @@ limitations under the License.
 package config
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -30,11 +31,11 @@ import (
 
 type NvidiaSpecConfig struct {
 	NvidiaSpec *NvidiaSpec `json:"nvidia" yaml:"nvidia"`
+	// Other fields like `infiniband` can be added here if needed
 }
 
 type NvidiaSpec struct {
 	NvidiaSpecMap map[int32]*NvidiaSpecItem `json:"nvidia_spec" yaml:"nvidia_spec"`
-	// Other fileds like `infiniband` can be added here if needed
 }
 
 type NvidiaSpecItem struct {
@@ -70,19 +71,25 @@ type MemoryErrorThreshold struct {
 
 type TemperatureThreshold struct {
 	Gpu    int `json:"gpu" yaml:"gpu"`
-	Memory int `json:"memory" yaml:"memory"	`
+	Memory int `json:"memory" yaml:"memory"`
 }
 
-func (s *NvidiaSpecConfig) GetSpec() *NvidiaSpecItem {
+func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
+	err := s.LoadSpecConfigFromYaml(specFile)
+	if err != nil {
+		logrus.WithField("component", "NVIDIA").Errorf("Failed to load Nvidia config from %s: %v", specFile, err)
+		return nil
+	}
 	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
-	for gpu_id, nvidiaSpec := range s.NvidiaSpec.NvidiaSpecMap {
-		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
-		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
-		formatedNvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
+	for gpuId, nvidiaSpec := range s.NvidiaSpec.NvidiaSpecMap {
+		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpuId)
+		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
+		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
 	}
 	deviceID := getDeviceID()
 	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
-		panic("failed to find spec file for deviceID: " + deviceID)
+		logrus.WithField("component", "NVIDIA").Errorf("failed to find spec file for deviceID: %s", deviceID)
+		return nil
 	}
 	return formatedNvidiaSpecsMap[deviceID]
 }
@@ -120,9 +127,9 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 			if err != nil || nvidiaSpec.NvidiaSpec == nil {
 				return fmt.Errorf("failed to load nvidia spec from YAML file %s: %v", filePath, err)
 			}
-			for gpu_id, nvidiaSpec := range nvidiaSpec.NvidiaSpec.NvidiaSpecMap {
-				if _, ok := s.NvidiaSpec.NvidiaSpecMap[gpu_id]; !ok {
-					s.NvidiaSpec.NvidiaSpecMap[gpu_id] = nvidiaSpec
+			for gpuId, nvidiaSpec := range nvidiaSpec.NvidiaSpec.NvidiaSpecMap {
+				if _, ok := s.NvidiaSpec.NvidiaSpecMap[gpuId]; !ok {
+					s.NvidiaSpec.NvidiaSpecMap[gpuId] = nvidiaSpec
 				}
 			}
 
@@ -133,7 +140,7 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 
 func getDeviceID() string {
 	nvmlInst := nvml.New()
-	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
+	if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
 		panic(fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
 
 	}
@@ -141,18 +148,18 @@ func getDeviceID() string {
 
 	// In case of GPU error, iterate through all GPUs to find the first valid one
 	deviceCount, err := nvmlInst.DeviceGetCount()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		panic(fmt.Errorf("Failed to get device count: %s\n", nvml.ErrorString(err)))
 	}
 	var deviceID string
 	for i := 0; i < deviceCount; i++ {
 		device, err := nvmlInst.DeviceGetHandleByIndex(i)
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}
 		pciInfo, err := device.GetPciInfo()
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to get PCIe Info  for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}

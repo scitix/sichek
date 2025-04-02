@@ -94,7 +94,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		}
 	}
 
-	checker := checker.NewHangChecker(hangCfg)
+	hangChecker := checker.NewHangChecker(hangCfg)
 
 	component := &component{
 		ctx:    ctx,
@@ -103,7 +103,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		cfg: hangCfg,
 
 		collector: hangCollector,
-		checker:   checker,
+		checker:   hangChecker,
 
 		cacheResultBuffer: make([]*common.Result, hangCfg.Hang.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),

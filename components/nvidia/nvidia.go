@@ -17,6 +17,7 @@ package nvidia
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -76,7 +77,7 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 			close(done)
 		}()
 		nvmlInst = nvml.New()
-		if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
+		if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
 			initError = fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 		}
 	}()
@@ -103,7 +104,7 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 */
 func ReNewNvml(c *component) error {
 	shutdownRet := c.nvmlInst.Shutdown()
-	if shutdownRet != nvml.SUCCESS {
+	if !errors.Is(shutdownRet, nvml.SUCCESS) {
 		logrus.WithField("component", "nvidia").Errorf("failed to shutdown NVML: %v", shutdownRet.Error())
 		return fmt.Errorf("shutdownRet:%s", shutdownRet.Error())
 	}
@@ -119,7 +120,7 @@ func ReNewNvml(c *component) error {
 
 func StopNvml(nvmlInst nvml.Interface) error {
 	ret := nvmlInst.Shutdown()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to shutdown NVML: %v", nvml.ErrorString(ret))
 		return ret
 	}
@@ -163,13 +164,11 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		nvidiaCfg.Nvidia.IgnoredCheckers = ignoredCheckers
 	}
 	nvidiaSpecCfgs := &config.NvidiaSpecConfig{}
-	err = nvidiaSpecCfgs.LoadSpecConfigFromYaml(specFile)
-	if err != nil {
-		logrus.WithField("component", "nvidia").Errorf("NewComponent load spec config failed: %v", err)
-		return nil, err
+	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec(specFile)
+	if nvidiaSpecCfg == nil {
+		return nil, fmt.Errorf("get nvidia spec failed")
 	}
-	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec()
-	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
+	collectorPointer, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidiaCollector failed: %v", err)
 		return nil, err
@@ -195,7 +194,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		cfg:           nvidiaCfg,
 		cfgMutex:      sync.RWMutex{},
 		nvmlInst:      nvmlInst,
-		collector:     collector,
+		collector:     collectorPointer,
 		checkers:      checkers,
 		cacheMtx:      sync.RWMutex{},
 		cacheBuffer:   make([]*common.Result, nvidiaCfg.Nvidia.CacheSize),
@@ -227,8 +226,8 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	status := consts.StatusNormal
 	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)
-	for _, checker := range c.checkers {
-		checkResult, err := checker.Check(cctx, nvidiaInfo)
+	for _, each := range c.checkers {
+		checkResult, err := each.Check(cctx, nvidiaInfo)
 		if err != nil {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to check: %v", err)
 			// continue
@@ -379,11 +378,11 @@ func (c *component) Stop() error {
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.NvidiaUserConfig)
+	configPointer, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nvidia")
 	}
-	c.cfg = config
+	c.cfg = configPointer
 	c.cfgMutex.Unlock()
 	return nil
 }

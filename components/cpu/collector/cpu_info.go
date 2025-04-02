@@ -115,30 +115,30 @@ func (cpuArchInfo *CPUArchInfo) getCPUArchInfo(ctx context.Context) error {
 	}
 	cpuArchInfo.Architecture = arch
 
-	cpu_info, err := cpu.InfoWithContext(ctx)
+	cpuInfo, err := cpu.InfoWithContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	if len(cpu_info) == 0 {
+	if len(cpuInfo) == 0 {
 		return fmt.Errorf("no cpu info found")
 	}
-	cpuArchInfo.ModelName = cpu_info[0].ModelName
-	cpuArchInfo.VendorID = cpu_info[0].VendorID
-	cpuArchInfo.Family = cpu_info[0].Family
+	cpuArchInfo.ModelName = cpuInfo[0].ModelName
+	cpuArchInfo.VendorID = cpuInfo[0].VendorID
+	cpuArchInfo.Family = cpuInfo[0].Family
 	cpuArchInfo.Sockets = 0
-	cpuArchInfo.CoresPerSocket = int(cpu_info[0].Cores)
+	cpuArchInfo.CoresPerSocket = int(cpuInfo[0].Cores)
 	// cpuInfo.Details = make([]*Detail, 0)
 	seenSockets := make(map[string]bool)
-	for _, detail := range cpu_info {
+	for _, detail := range cpuInfo {
 		if !seenSockets[detail.PhysicalID] {
 			seenSockets[detail.PhysicalID] = true
 			cpuArchInfo.Sockets++
 		}
 	}
-	logical_cores, err := cpu.CountsWithContext(ctx, true)
+	logicalCores, err := cpu.CountsWithContext(ctx, true)
 	if err == nil && cpuArchInfo.Sockets > 0 && cpuArchInfo.CoresPerSocket > 0 {
-		cpuArchInfo.ThreadPerCore = logical_cores / (cpuArchInfo.Sockets * cpuArchInfo.CoresPerSocket)
+		cpuArchInfo.ThreadPerCore = logicalCores / (cpuArchInfo.Sockets * cpuArchInfo.CoresPerSocket)
 	}
 
 	if err != nil {

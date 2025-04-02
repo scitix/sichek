@@ -32,8 +32,8 @@ func TestCPUPerfChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to set CPU governor to powersave: %v", err)
 	}
-	cpu_performance_enable, _ := checkCPUPerformance()
-	if cpu_performance_enable {
+	cpuPerformanceEnable, _ := checkCPUPerformance()
+	if cpuPerformanceEnable {
 		t.Fatalf("unexpected cpu_performance_enable")
 	}
 

@@ -22,11 +22,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scitix/sichek/consts"
-	pkg_systemd "github.com/scitix/sichek/pkg/systemd"
+	pkgsystemd "github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
-// NewDaemonStopCmd创建并返回用于停止daemon 进程的子命令实例，配置命令的基本属性
+// NewDaemonStopCmd 创建并返回用于停止daemon 进程的子命令实例，配置命令的基本属性
 func NewDaemonStopCmd() *cobra.Command {
 
 	daemonStopCmd := &cobra.Command{
@@ -37,12 +37,12 @@ func NewDaemonStopCmd() *cobra.Command {
 				logrus.WithField("daemon", "stop").Errorf("current user is not root")
 				os.Exit(1)
 			}
-			if exist, _ := pkg_systemd.SystemctlExists(); !exist {
+			if exist, _ := pkgsystemd.SystemctlExists(); !exist {
 				logrus.WithField("daemon", "stop").Errorf("systemd not exist")
 				os.Exit(1)
 			}
 
-			active, err := pkg_systemd.IsActive("sichek.service")
+			active, err := pkgsystemd.IsActive("sichek.service")
 			if err != nil {
 				logrus.WithField("daemon", "stop").Error(err)
 				os.Exit(1)
@@ -52,12 +52,12 @@ func NewDaemonStopCmd() *cobra.Command {
 				return
 			}
 
-			err = pkg_systemd.StopSystemdService(consts.ServiceName)
+			err = pkgsystemd.StopSystemdService(consts.ServiceName)
 			if err != nil {
 				logrus.WithField("daemon", "stop").Error(err)
 				return
 			}
-			err = pkg_systemd.DisableSystemdService(consts.ServiceName)
+			err = pkgsystemd.DisableSystemdService(consts.ServiceName)
 			if err != nil {
 				logrus.WithField("daemon", "stop").Error(err)
 				return

@@ -17,6 +17,7 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -32,28 +33,26 @@ import (
 // define the shared NvidiaInfo
 var nvidiaInfo *collector.NvidiaInfo
 var nvmlInst nvml.Interface
-var cfg *config.NvidiaUserConfig
+var nvidiaUserCfg config.NvidiaUserConfig
 var nvidiaSpecCfg *config.NvidiaSpecItem
 
 // setup function to initialize shared resources
 func setup() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	var nvidiaCfg *config.NvidiaUserConfig
-	err := nvidiaCfg.LoadUserConfigFromYaml("")
+	err := nvidiaUserCfg.LoadUserConfigFromYaml("")
 	if err != nil {
 		return fmt.Errorf("NewComponent load user config failed: %v", err)
 	}
-	var nvidiaSpecCfgs *config.NvidiaSpecConfig
-	err = nvidiaSpecCfgs.LoadSpecConfigFromYaml("")
-	if err != nil {
-		return fmt.Errorf("NewComponent load spec config failed: %v", err)
+	var nvidiaSpecCfgs config.NvidiaSpecConfig
+	nvidiaSpecCfg = nvidiaSpecCfgs.GetSpec("")
+	if nvidiaSpecCfg == nil {
+		return fmt.Errorf("failed to get NvidiaSpecConfig")
 	}
-	nvidiaSpecCfg = nvidiaSpecCfgs.GetSpec()
 	// Initialize NVML
 	nvmlInst = nvml.New()
 	ret := nvmlInst.Init()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	// Call the Get method
@@ -333,7 +332,7 @@ func TestSoftwareChecker_Check(t *testing.T) {
 
 func TestChecker_Check(t *testing.T) {
 	// Create a new SoftwareChecker
-	checkers, err := NewCheckers(cfg, nvidiaSpecCfg, nvmlInst)
+	checkers, err := NewCheckers(&nvidiaUserCfg, nvidiaSpecCfg, nvmlInst)
 	if err != nil {
 		t.Fatalf("failed to create Checkers: %v", err)
 	}

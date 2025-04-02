@@ -75,7 +75,10 @@ func HandleSignals(cancel context.CancelFunc, signals chan os.Signal, serverC ch
 						return
 					}
 
-					server.Stop()
+					err := server.Stop()
+					if err != nil {
+						logrus.Errorf("server.Stop: %v", err)
+					}
 					close(done)
 					return
 				}
@@ -85,12 +88,12 @@ func HandleSignals(cancel context.CancelFunc, signals chan os.Signal, serverC ch
 	return done
 }
 
-// notifyReady notifies systemd that the daemon is ready to serve requests
+// NotifyReady notifies systemd that the daemon is ready to serve requests
 func NotifyReady() error {
 	return sdNotify(sd.SdNotifyReady)
 }
 
-// notifyStopping notifies systemd that the daemon is about to be stopped
+// NotifyStopping notifies systemd that the daemon is about to be stopped
 func NotifyStopping() error {
 	return sdNotify(sd.SdNotifyStopping)
 }
@@ -122,7 +125,12 @@ func dumpStacks(writeToFile bool) {
 		if err != nil {
 			return
 		}
-		defer f.Close()
+		defer func(f *os.File) {
+			err := f.Close()
+			if err != nil {
+				logrus.Errorf("failed to close file %s", name)
+			}
+		}(f)
 		_, _ = f.WriteString(string(buf))
 		logrus.Debugf("goroutine stack dump written to %s", name)
 	}

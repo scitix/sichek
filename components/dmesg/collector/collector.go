@@ -38,17 +38,17 @@ type DmesgCollector struct {
 func NewDmesgCollector(ctx context.Context, cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
 
 	if len(cfg.Dmesg.CheckerConfigs) == 0 {
-		return nil, fmt.Errorf("No Dmesg Collector indicate in yaml config")
+		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
 	regexpName := make([]string, 0, len(cfg.Dmesg.CheckerConfigs))
 	regexp := make([]string, 0, len(cfg.Dmesg.CheckerConfigs))
 
-	for _, checkers_cfg := range cfg.Dmesg.CheckerConfigs {
-		regexpName = append(regexpName, checkers_cfg.Name)
-		regexp = append(regexp, checkers_cfg.Regexp)
+	for _, checkersCfg := range cfg.Dmesg.CheckerConfigs {
+		regexpName = append(regexpName, checkersCfg.Name)
+		regexp = append(regexp, checkersCfg.Regexp)
 	}
 
-	filter, err := filter.NewFilter(
+	filterPointer, err := filter.NewFilter(
 		regexpName,
 		regexp,
 		cfg.Dmesg.DmesgFileName,
@@ -63,7 +63,7 @@ func NewDmesgCollector(ctx context.Context, cfg *config.DmesgUserConfig) (*Dmesg
 	return &DmesgCollector{
 		name:   "DmesgCollector",
 		cfg:    cfg,
-		filter: filter,
+		filter: filterPointer,
 	}, nil
 }
 

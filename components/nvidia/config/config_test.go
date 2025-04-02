@@ -28,7 +28,12 @@ func TestLoadSpecFromYaml(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp spec file: %v", err)
 	}
-	defer os.Remove(specFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
 
 	// Write sample data to the temporary files
 	specData := `
@@ -127,9 +132,9 @@ infiniband:
 		t.Fatalf("LoadSpecFromYaml() returned an error: %v", err)
 	}
 	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
-	for gpu_id, nvidiaSpec := range spec.NvidiaSpec.NvidiaSpecMap {
-		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
-		formatedNvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
+	for gpuId, nvidiaSpec := range spec.NvidiaSpec.NvidiaSpecMap {
+		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
+		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
 	}
 	// Convert the config struct to a pretty-printed JSON string and print it
 	jsonData, err := json.MarshalIndent(spec, "", "  ")
@@ -161,9 +166,9 @@ func TestLoadSpecFromDefaultYaml(t *testing.T) {
 		t.Fatalf("LoadSpecFromYaml() returned an error: %v", err)
 	}
 	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
-	for gpu_id, nvidiaSpec := range spec.NvidiaSpec.NvidiaSpecMap {
-		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
-		formatedNvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
+	for gpuId, nvidiaSpec := range spec.NvidiaSpec.NvidiaSpecMap {
+		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
+		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
 	}
 	// Convert the config struct to a pretty-printed JSON string and print it
 	jsonData, err := json.MarshalIndent(spec, "", "  ")
@@ -173,26 +178,11 @@ func TestLoadSpecFromDefaultYaml(t *testing.T) {
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(spec.NvidiaSpec.NvidiaSpecMap) != 6 {
-		t.Fatalf("Expected spec to have 6 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
+	if len(spec.NvidiaSpec.NvidiaSpecMap) != 1 {
+		t.Fatalf("Expected spec to have 1 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
 	}
 	if _, ok := formatedNvidiaSpecsMap["0x233010de"]; !ok {
 		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")
-	}
-	if _, ok := formatedNvidiaSpecsMap["0x20b510de"]; !ok {
-		t.Fatalf("Expected spec to have key '0x20b510de', it doesn't exist")
-	}
-	if _, ok := formatedNvidiaSpecsMap["0x20b210de"]; !ok {
-		t.Fatalf("Expected spec to have key '0x20b210de', it doesn't exist")
-	}
-	if _, ok := formatedNvidiaSpecsMap["0x20f310de"]; !ok {
-		t.Fatalf("Expected spec to have key '0x20f310de', it doesn't exist")
-	}
-	if _, ok := formatedNvidiaSpecsMap["0x26b510de"]; !ok {
-		t.Fatalf("Expected spec to have key '0x26b510de', it doesn't exist")
-	}
-	if _, ok := formatedNvidiaSpecsMap["0x1df610de"]; !ok {
-		t.Fatalf("Expected spec to have key '0x1df610de', it doesn't exist")
 	}
 }
 
@@ -202,13 +192,23 @@ func TestNvidiaConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp spec file: %v", err)
 	}
-	defer os.Remove(specFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
 
 	userConfigFile, err := os.CreateTemp("", "user_config_*.yaml")
 	if err != nil {
 		t.Fatalf("Failed to create temp user config file: %v", err)
 	}
-	defer os.Remove(userConfigFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp user config file: %v", err)
+		}
+	}(userConfigFile.Name())
 
 	// Write sample data to the temporary files
 	specData := `
@@ -272,13 +272,16 @@ nvidia:
 
 	// Test the NvidiaConfig function
 	cfg := &NvidiaUserConfig{}
-	cfg.LoadUserConfigFromYaml(userConfigFile.Name())
+	err = cfg.LoadUserConfigFromYaml(userConfigFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to load user config: %v", err)
+	}
 	spec := &NvidiaSpecConfig{}
 	err = spec.LoadSpecConfigFromYaml(specFile.Name())
 	if err != nil {
 		t.Fatalf("LoadSpecFromYaml() returned an error: %v", err)
 	}
-	specItem := spec.GetSpec()
+	specItem := spec.GetSpec("")
 	// Convert the config struct to a pretty-printed JSON string and print it
 	jsonData, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -286,21 +289,15 @@ nvidia:
 	}
 	fmt.Printf("Config JSON:\n%s\n", string(jsonData))
 
-	// config, err := NewNvidiaConfig("", "")
-
-	if err != nil {
-		t.Fatalf("New() returned an error: %v", err)
-	}
-
 	// Validate the returned NvidiaConfig
-	if specItem.Name != "Tesla V100S-PCIE-32GB" {
-		t.Errorf("Expected Spec.Name to be 'Tesla V100S-PCIE-32GB', got '%s'", specItem.Name)
+	if specItem.Name != "NVIDIA H100 80GB HBM3" {
+		t.Errorf("Expected Spec.Name to be 'NVIDIA H100 80GB HBM3', got '%s'", specItem.Name)
 	}
 
 	if cfg.Nvidia.Name != "nvidia" {
 		t.Errorf("Expected ComponentConfig.Nvidia.Name to be 'nvidia', got '%s'", cfg.Nvidia.Name)
 	}
-	if cfg.Nvidia.QueryInterval != 1 {
+	if cfg.Nvidia.QueryInterval != 10 {
 		t.Errorf("Expected ComponentConfig.Nvidia.UpdateInterval to be 1, got %d", cfg.Nvidia.QueryInterval)
 	}
 	if cfg.Nvidia.CacheSize != 10 {

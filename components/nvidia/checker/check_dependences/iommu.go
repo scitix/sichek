@@ -41,11 +41,7 @@ func (c *IOMMUChecker) Name() string {
 	return c.name
 }
 
-// func (c *IOMMUChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
-// Checks if IOMMU is closed
+// Check Checks if IOMMU is closed
 func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// checks if IOMMU groups are present in /sys/kernel/iommu_groups
 	const iommuPath = "/sys/kernel/iommu_groups"

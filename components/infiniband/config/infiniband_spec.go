@@ -32,11 +32,11 @@ import (
 
 type InfinibandSpecConfig struct {
 	InfinibandSpec *InfinibandSpec `json:"infiniband" yaml:"infiniband"`
+	// Other fileds like `nvidia` can be added here if needed
 }
 
 type InfinibandSpec struct {
 	Clusters map[string]*InfinibandSpecItem `json:"clusters" yaml:"clusters"`
-	// Other fileds like `nvidia` can be added here if needed
 }
 
 type InfinibandSpecItem struct {
@@ -88,17 +88,6 @@ func (s *InfinibandSpecConfig) LoadHCASpec(hcaSpecs *config.HCASpecConfig) error
 	return nil
 }
 
-func (s *InfinibandSpecConfig) GetClusterInfinibandSpec() (*InfinibandSpecItem, error) {
-
-	clustetName := extractClusterName()
-	if _, ok := s.InfinibandSpec.Clusters[clustetName]; ok {
-		return s.InfinibandSpec.Clusters[clustetName], nil
-	} else {
-		logrus.WithField("infiniband", "Spec").Warnf("no valid cluster specification found for cluster %s, using default spec", clustetName)
-		return s.InfinibandSpec.Clusters["default"], nil
-	}
-}
-
 func (s *InfinibandSpecConfig) LoadDefaultSpec() error {
 	if s.InfinibandSpec == nil {
 		s.InfinibandSpec = &InfinibandSpec{
@@ -126,6 +115,16 @@ func (s *InfinibandSpecConfig) LoadDefaultSpec() error {
 		}
 	}
 	return nil
+}
+
+func (s *InfinibandSpecConfig) GetClusterInfinibandSpec() (*InfinibandSpecItem, error) {
+	clustetName := extractClusterName()
+	if _, ok := s.InfinibandSpec.Clusters[clustetName]; ok {
+		return s.InfinibandSpec.Clusters[clustetName], nil
+	} else {
+		logrus.WithField("infiniband", "Spec").Warnf("no valid cluster specification found for cluster %s, using default spec", clustetName)
+		return s.InfinibandSpec.Clusters["default"], nil
+	}
 }
 
 func extractClusterName() string {

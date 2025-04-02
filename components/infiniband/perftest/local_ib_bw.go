@@ -86,7 +86,7 @@ func RunLocalIBBW(ibBwPerfType string, ibDevice string, msgSize int, testDuring 
 func getActiveIBDevices() ([]string, error) {
 	var info collector.InfinibandInfo
 	ibDevs := info.GetIBdevs()
-	activeDevices := []string{}
+	var activeDevices []string
 	for _, IBDev := range ibDevs {
 		var hwInfo collector.IBHardWareInfo
 		if len(info.GetPhyStat(IBDev)) >= 1 {
@@ -152,6 +152,6 @@ func CheckNodeIBPerfHealth(ibBwPerfType string, expectedBandwidthGbps float64, i
 		return nil
 	} else {
 		fmt.Println("❌ Node IB Health Check FAILED: One or more IB devices did not meet the required bandwidth.")
-		return fmt.Errorf("Node IB Health Check FAILED: One or more IB devices did not meet the required bandwidth")
+		return fmt.Errorf("node IB Health Check FAILED: One or more IB devices did not meet the required bandwidth")
 	}
 }

@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -39,7 +40,7 @@ func (clk *ClockInfo) JSON() ([]byte, error) {
 	return common.JSON(clk)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (clk *ClockInfo) ToString() string {
 	return common.ToString(clk)
 }
@@ -62,19 +63,19 @@ func (clk *ClockInfo) Get(device nvml.Device, uuid string) error {
 
 func (clk *ClockInfo) getGraphicsClocks(device nvml.Device, uuid string) error {
 	curGraphicsClk, err := device.GetClockInfo(nvml.CLOCK_GRAPHICS)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current graphics clock for GPU %v: %v", uuid, err)
 	}
 	clk.CurGraphicsClk = fmt.Sprintf("%d MHz", curGraphicsClk)
 
 	graphicsClkSet, err := device.GetApplicationsClock(nvml.CLOCK_GRAPHICS)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get application graphics clock setting for GPU %v: %v", uuid, err)
 	}
 	clk.AppGraphicsClk = fmt.Sprintf("%d MHz", graphicsClkSet)
 
 	maxGraphicsClk, err := device.GetMaxClockInfo(nvml.CLOCK_GRAPHICS)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get max graphics clock for GPU %v: %v", uuid, err)
 	}
 	clk.MaxGraphicsClk = fmt.Sprintf("%d MHz", maxGraphicsClk)
@@ -84,19 +85,19 @@ func (clk *ClockInfo) getGraphicsClocks(device nvml.Device, uuid string) error {
 
 func (clk *ClockInfo) getMemoryClocks(device nvml.Device, uuid string) error {
 	curMemClock, err := device.GetClockInfo(nvml.CLOCK_MEM)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current memory clock for GPU %v: %v", uuid, err)
 	}
 	clk.CurMemoryClk = fmt.Sprintf("%d MHz", curMemClock)
 
 	memClockSet, err := device.GetApplicationsClock(nvml.CLOCK_MEM)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get application memory clock setting for GPU %v: %v", uuid, err)
 	}
 	clk.AppMemoryClk = fmt.Sprintf("%d MHz", memClockSet)
 
 	maxMemClock, err := device.GetMaxClockInfo(nvml.CLOCK_MEM)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get max memory clock for GPU %v: %v", uuid, err)
 	}
 	clk.MaxMemoryClk = fmt.Sprintf("%d MHz", maxMemClock)
@@ -105,19 +106,19 @@ func (clk *ClockInfo) getMemoryClocks(device nvml.Device, uuid string) error {
 
 func (clk *ClockInfo) getSMClocks(device nvml.Device, uuid string) error {
 	curSMClock, err := device.GetClockInfo(nvml.CLOCK_SM)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current SM clock for GPU %v: %v", uuid, err)
 	}
 	clk.CurSMClk = fmt.Sprintf("%d MHz", curSMClock)
 
 	smClockSet, err := device.GetApplicationsClock(nvml.CLOCK_SM)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get application SM clock setting for GPU %v: %v", uuid, err)
 	}
 	clk.AppSMClk = fmt.Sprintf("%d MHz", smClockSet)
 
 	maxSMClock, err := device.GetMaxClockInfo(nvml.CLOCK_SM)
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get max SM clock for GPU %v: %v", uuid, err)
 	}
 	clk.MaxSMClk = fmt.Sprintf("%d MHz", maxSMClock)

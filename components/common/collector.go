@@ -34,7 +34,7 @@ type Info interface {
 	// Get() error
 }
 
-// Base function to convert any struct to JSON
+// JSON Base function to convert any struct to JSON
 func JSON(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }

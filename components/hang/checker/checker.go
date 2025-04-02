@@ -87,7 +87,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	}
 	status := consts.StatusNormal
 	var suggest string
-	var gpuAbNum int = 0
+	var gpuAbNum = 0
 	devices := make([]string, 0)
 	var deviceToPodMap map[string]string
 	var err error
@@ -102,13 +102,13 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 			gpuAbNum++
 			status = consts.StatusAbnormal
 			suggest = fmt.Sprintf("%ssuggest check gpu device=%s which probably hang\n", suggest, name)
-			var device_pod string
+			var devicePod string
 			if _, found := deviceToPodMap[name]; found {
-				device_pod = fmt.Sprintf("%s:%s", name, deviceToPodMap[name])
+				devicePod = fmt.Sprintf("%s:%s", name, deviceToPodMap[name])
 			} else {
-				device_pod = fmt.Sprintf("%s:", name)
+				devicePod = fmt.Sprintf("%s:", name)
 			}
-			devices = append(devices, device_pod)
+			devices = append(devices, devicePod)
 		}
 	}
 

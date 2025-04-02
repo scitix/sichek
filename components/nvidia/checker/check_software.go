@@ -41,10 +41,6 @@ func (c *SoftwareChecker) Name() string {
 	return c.name
 }
 
-// func (c *SoftwareChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *SoftwareChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)

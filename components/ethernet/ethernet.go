@@ -93,11 +93,11 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		switch checkItem {
 		case "phy_state":
 			checkerIndex = checkerIndex + 1
-			checker, err := checker.NewEthPhyStateChecker(ethernetSpec)
+			ethPhyStateChecker, err := checker.NewEthPhyStateChecker(ethernetSpec)
 			if err != nil {
 				logrus.WithField("component", "ethernet").Errorf("Fail to create the checker: %d, err: %v", checkerIndex, err)
 			}
-			checkers = append(checkers, checker)
+			checkers = append(checkers, ethPhyStateChecker)
 			logrus.WithField("component", "ethernet").Infof("create the checker %d: %s", checkerIndex, checkItem)
 		}
 	}
@@ -139,11 +139,11 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	var err error
-	var level string = consts.LevelInfo
+	var level = consts.LevelInfo
 
-	for _, cherker := range c.checkers {
-		logrus.WithField("component", "ethernet").Debugf("do the check: %s", cherker.Name())
-		result, err := cherker.Check(cctx, ethernetInfo)
+	for _, each := range c.checkers {
+		logrus.WithField("component", "ethernet").Debugf("do the check: %s", each.Name())
+		result, err := each.Check(cctx, ethernetInfo)
 		if err != nil {
 			logrus.WithField("component", "ethernet").Errorf("failed to check: %v", err)
 			continue
@@ -235,11 +235,11 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 
 func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.EthernetUserConfig)
+	configPointer, ok := cfg.(*config.EthernetUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for ethernet")
 	}
-	c.cfg = config
+	c.cfg = configPointer
 	c.cfgMutex.Unlock()
 	return c.service.Update(ctx, cfg)
 }

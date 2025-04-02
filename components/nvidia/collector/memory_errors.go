@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -87,7 +88,7 @@ func (memErrors *MemoryErrors) JSON() ([]byte, error) {
 	return common.JSON(memErrors)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (memErrors *MemoryErrors) ToString() string {
 	return common.ToString(memErrors)
 }
@@ -110,7 +111,7 @@ func (memErrors *MemoryErrors) Get(device nvml.Device, uuid string) error {
 
 func (memErrors *MemoryErrors) getECCMode(device nvml.Device) error {
 	current, pending, ret := device.GetEccMode()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current/pending ecc mode: %s", nvml.ErrorString(ret))
 	}
 
@@ -123,8 +124,8 @@ func (memErrors *MemoryErrors) getECCMode(device nvml.Device) error {
 // Get Remapped Rows
 func (memErrors *MemoryErrors) getRemappedRows(device nvml.Device, uuid string) error {
 	remappedRowsCorrectable, remappedRowsUncorrectable, remappingPending, remappingFailureOccurred, err := device.GetRemappedRows()
-	if err != nvml.SUCCESS {
-		if err == nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) {
+		if errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 			return nil
 		}
 		return fmt.Errorf("failed to get remapped rows for GPU %v due to : %v", uuid, err)
@@ -144,14 +145,14 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.MEMORY_ERROR_TYPE_CORRECTED,
 		nvml.AGGREGATE_ECC,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(Total, Aggregate, Corrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 	memErrors.AggregateECC.Total.Uncorrected, err = device.GetTotalEccErrors(
 		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
 		nvml.AGGREGATE_ECC,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(Total, Aggregate, uncorrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
@@ -159,7 +160,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.MEMORY_ERROR_TYPE_CORRECTED,
 		nvml.VOLATILE_ECC,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(Total, Volatile, Corrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
@@ -167,7 +168,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
 		nvml.VOLATILE_ECC,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(Total, Volatile, Uncorrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
@@ -181,7 +182,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.AGGREGATE_ECC,
 		nvml.MEMORY_LOCATION_DRAM,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(DRAM, Aggregate, Corrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
@@ -190,7 +191,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.AGGREGATE_ECC,
 		nvml.MEMORY_LOCATION_DRAM,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(DRAM, Aggregate, Uncorrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
@@ -199,7 +200,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.AGGREGATE_ECC,
 		nvml.MEMORY_LOCATION_SRAM,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(SRAM, Volatile, Corrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
@@ -208,7 +209,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.AGGREGATE_ECC,
 		nvml.MEMORY_LOCATION_SRAM,
 	)
-	if err != nvml.SUCCESS && err != nvml.ERROR_NOT_SUPPORTED {
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(SRAM, Volatile, UnCorrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 	return result

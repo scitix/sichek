@@ -50,8 +50,8 @@ func TestIbChecker_Check(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Run the Check method
-	var collector collector.InfinibandInfo
-	ibInfo := collector.GetIBInfo()
+	var ibCollector collector.InfinibandInfo
+	ibInfo := ibCollector.GetIBInfo()
 	for _, checker := range checkers {
 		result, err := checker.Check(ctx, ibInfo)
 		if err != nil {

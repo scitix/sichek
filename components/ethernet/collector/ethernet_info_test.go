@@ -23,8 +23,8 @@ import (
 
 func TestGetIBInfo(t *testing.T) {
 
-	ethInfo_0 := &EthernetInfo{}
-	ethInfo := ethInfo_0.GetEthInfo()
+	ethInfo0 := &EthernetInfo{}
+	ethInfo := ethInfo0.GetEthInfo()
 
 	t.Logf("EthInfo: %s", common.ToString(ethInfo))
 

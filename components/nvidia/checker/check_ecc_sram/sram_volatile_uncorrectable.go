@@ -42,10 +42,6 @@ func (c *SRAMVolatileUncorrectableChecker) Name() string {
 	return c.name
 }
 
-// func (c *SRAMVolatileUncorrectableChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -55,31 +51,31 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 
 	result := config.GPUCheckItems[config.SRAMVolatileUncorrectableCheckerName]
 
-	var falied_gpuid_podnames []string
-	var memory_error_events map[int]string
+	var failedGpuidPodnames []string
+	var memoryErrorEvents map[int]string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.MemoryErrors.VolatileECC.SRAM.Uncorrected > c.cfg.MemoryErrorThreshold.SRAMVolatileUncorrectableErrors {
-			if memory_error_events == nil {
-				memory_error_events = make(map[int]string)
+			if memoryErrorEvents == nil {
+				memoryErrorEvents = make(map[int]string)
 			}
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
-			memory_error_events[device.Index] = fmt.Sprintf(
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
+			memoryErrorEvents[device.Index] = fmt.Sprintf(
 				"GPU %d:%s SRAM Volatile Uncorrectable Detected: %d, Threshold: %d\n",
 				device.Index, device.UUID,
 				device.MemoryErrors.VolatileECC.SRAM.Uncorrected,
 				c.cfg.MemoryErrorThreshold.SRAMVolatileUncorrectableErrors)
 		}
 	}
-	if len(falied_gpuid_podnames) > 0 {
+	if len(failedGpuidPodnames) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("%v", memory_error_events)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Detail = fmt.Sprintf("%v", memoryErrorEvents)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""

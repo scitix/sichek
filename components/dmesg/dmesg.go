@@ -78,12 +78,12 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		return nil, err
 	}
 
-	collector, err := collector.NewDmesgCollector(ctx, dmsgCfg)
+	collectorPointer, err := collector.NewDmesgCollector(ctx, dmsgCfg)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
 
-	checker := checker.NewDmesgChecker(dmsgCfg)
+	dmesgChecker := checker.NewDmesgChecker(dmsgCfg)
 
 	component := &component{
 		ctx:    ctx,
@@ -91,8 +91,8 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 		cfg: dmsgCfg,
 
-		collector: collector,
-		checker:   checker,
+		collector: collectorPointer,
+		checker:   dmesgChecker,
 
 		cacheResultBuffer: make([]*common.Result, dmsgCfg.Dmesg.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, dmsgCfg.Dmesg.CacheSize),

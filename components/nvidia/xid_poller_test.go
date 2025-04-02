@@ -17,6 +17,7 @@ package nvidia
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func TestNewXidEventPoller(t *testing.T) {
 	// Initialize NVML
 	nvmlInst := nvml.New()
 	ret := nvmlInst.Init()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	defer nvmlInst.Shutdown()
@@ -52,7 +53,7 @@ func TestXidEventPoller_Start(t *testing.T) {
 	// Initialize NVML
 	nvmlInst := nvml.New()
 	ret := nvmlInst.Init()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	defer nvmlInst.Shutdown()

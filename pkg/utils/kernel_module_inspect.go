@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// checks if a specific kernel module is loaded
+// IsKernalModuleLoaded checks if a specific kernel module is loaded
 func IsKernalModuleLoaded(moduleName string) (bool, error) {
 	data, err := os.ReadFile("/proc/modules")
 	if err != nil {
@@ -16,7 +16,7 @@ func IsKernalModuleLoaded(moduleName string) (bool, error) {
 	return strings.Contains(string(data), moduleName), nil
 }
 
-// checks if a specific module is holding another module
+// IsKernalModuleHolder checks if a specific module is holding another module
 func IsKernalModuleHolder(holder, module string) (bool, error) {
 	path := fmt.Sprintf("/sys/module/%s/holders", holder)
 	files, err := os.ReadDir(path)
@@ -38,7 +38,7 @@ func IsKernalModuleHolder(holder, module string) (bool, error) {
 	return false, nil
 }
 
-// checks if IOMMU groups are present in /sys/kernel/iommu_groups
+// HasIOMMUGroups checks if IOMMU groups are present in /sys/kernel/iommu_groups
 func HasIOMMUGroups() (bool, error) {
 	const iommuPath = "/sys/kernel/iommu_groups"
 

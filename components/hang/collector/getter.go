@@ -24,9 +24,9 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang/checker"
+	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	"github.com/scitix/sichek/components/hang/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -62,7 +62,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGet
 	if !hangCfg.Hang.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
 	} else {
-		if res.nvidiaComponent, err = NewMockNvidiaComponent("", []string{}); err != nil {
+		if res.nvidiaComponent, err = NewMockNvidiaComponent(""); err != nil {
 			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to NewNvidia")
 			return nil, err
 		}

@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -25,7 +26,7 @@ import (
 
 type PowerInfo struct {
 	PowerUsage         uint32  `json:"power_usage"`
-	CurPowerLimit      float32 `json:"seted_power_limit_W"`
+	CurPowerLimit      float32 `json:"cur_power_limit_W"`
 	DefaultPowerLimit  float32 `json:"default_power_limit_W"`
 	EnforcedPowerLimit float32 `json:"enforced_power_limit_W"`
 	MinPowerLimit      float32 `json:"min_power_limit_W"`
@@ -34,47 +35,47 @@ type PowerInfo struct {
 	ThermalViolations  uint64  `json:"thermal_violations"`
 }
 
-func (p *PowerInfo) JSON() ([]byte, error) {
-	return common.JSON(p)
+func (info *PowerInfo) JSON() ([]byte, error) {
+	return common.JSON(info)
 }
 
-// Convert struct to JSON (pretty-printed)
-func (p *PowerInfo) ToString() string {
-	return common.ToString(p)
+// ToString Convert struct to JSON (pretty-printed)
+func (info *PowerInfo) ToString() string {
+	return common.ToString(info)
 }
 
 func (info *PowerInfo) Get(device nvml.Device, uuid string) error {
 
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g7ef7dff0ff14238d08a19ad7fb23fc87
 	powerUsage, ret := device.GetPowerUsage()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get device power usage: %v", nvml.ErrorString(ret))
 	}
 	info.PowerUsage = powerUsage
 
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1gf754f109beca3a4a8c8c1cd650d7d66c
 	curPowerLimit, ret := device.GetPowerManagementLimit()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get device power limit: %v", nvml.ErrorString(ret))
 	}
 	info.CurPowerLimit = float32(curPowerLimit) / 1000.0
 
 	defaultPowerLimit, ret := device.GetPowerManagementDefaultLimit()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get device default power limit: %v", nvml.ErrorString(ret))
 	}
 	info.DefaultPowerLimit = float32(defaultPowerLimit) / 1000.0
 
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g263b5bf552d5ec7fcd29a088264d10ad
 	enforcedPowerLimit, ret := device.GetEnforcedPowerLimit()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get device power limit: %v", nvml.ErrorString(ret))
 	}
 	info.EnforcedPowerLimit = float32(enforcedPowerLimit) / 1000.0
 
 	// Get power limit constraints
 	minPowerLimit, maxPowerLimit, ret := device.GetPowerManagementLimitConstraints()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get power limit constraints for GPU %v: %v", uuid, nvml.ErrorString(ret))
 	}
 	info.MinPowerLimit = float32(minPowerLimit) / 1000.0
@@ -82,14 +83,14 @@ func (info *PowerInfo) Get(device nvml.Device, uuid string) error {
 
 	// Get power violations
 	pviol, ret := device.GetViolationStatus(nvml.PERF_POLICY_POWER)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get power violation status: %v", nvml.ErrorString(ret))
 	}
 	info.PowerViolations = pviol.ViolationTime
 
 	// Get Thermal violations
 	tviol, ret := device.GetViolationStatus(nvml.PERF_POLICY_THERMAL)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get thermal violation status: %v", nvml.ErrorString(ret))
 	}
 	info.PowerViolations = tviol.ViolationTime

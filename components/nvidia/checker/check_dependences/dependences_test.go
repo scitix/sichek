@@ -31,7 +31,7 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// disable perfomance mode for testing
+	// disable performance mode for testing
 	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
 	output, err := utils.ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
 	if err != nil {
@@ -44,8 +44,8 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	}
 
 	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
-	is_active, _ := systemd.IsActive("nvidia-fabricmanager")
-	if is_active {
+	isActive, _ := systemd.IsActive("nvidia-fabricmanager")
+	if isActive {
 		t.Fatalf("unexpected active nvidia-fabricmanager")
 	}
 

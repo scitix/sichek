@@ -30,7 +30,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewGpfsCmd创建并返回用于代表Gpfs相关操作的子命令实例，配置命令的基本属性
+// NewGpfsCmd 创建并返回用于代表Gpfs相关操作的子命令实例，配置命令的基本属性
 func NewGpfsCmd() *cobra.Command {
 	gpfsCmd := &cobra.Command{
 		Use:     "gpfs",

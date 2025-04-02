@@ -67,8 +67,8 @@ func parseOFEDVersion(ofed string) (major string, minor string, err error) {
 	if len(matches) < 7 {
 		return "", "", fmt.Errorf("invalid OFED version format: %s", ofed)
 	}
-	major = (matches[1] + "." + matches[2])
-	minor = (matches[3] + "." + matches[4] + "." + matches[5] + "." + matches[6])
+	major = matches[1] + "." + matches[2]
+	minor = matches[3] + "." + matches[4] + "." + matches[5] + "." + matches[6]
 	return major, minor, nil
 }
 func checkOFEDFormat(spec string, curr string) (bool, error) {

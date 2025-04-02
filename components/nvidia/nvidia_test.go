@@ -29,9 +29,6 @@ func TestHealthCheck(t *testing.T) {
 	defer cancel()
 	component, err := NewComponent("", "", nil)
 	if err != nil {
-		t.Fatalf("failed to create component: %v", err)
-	}
-	if err != nil {
 		t.Fatalf("failed to create Nvidia component: %v", err)
 	}
 	result, err := component.HealthCheck(ctx)

@@ -60,10 +60,10 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		return nil, err
 	}
 
-	total_num := len(info)
+	totalNum := len(info)
 	status := consts.StatusNormal
 	suggestion := ""
-	if total_num > 0 {
+	if totalNum > 0 {
 		status = consts.StatusAbnormal
 		suggestion = c.cfg.Suggestion
 	}
@@ -72,7 +72,7 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		Name:        c.cfg.Name,
 		Description: c.cfg.Description,
 		Spec:        "0",
-		Curr:        strconv.Itoa(total_num),
+		Curr:        strconv.Itoa(totalNum),
 		Status:      status,
 		Level:       c.cfg.Level,
 		Suggestion:  suggestion,

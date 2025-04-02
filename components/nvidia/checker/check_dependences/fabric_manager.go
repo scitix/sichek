@@ -41,10 +41,6 @@ func (c *NVFabricManagerChecker) Name() string {
 	return c.name
 }
 
-// func (c *NVFabricManagerChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	result := config.GPUCheckItems[config.NVFabricManagerCheckerName]
 	if c.cfg.Dependence.FabricManager == "Not Required" {

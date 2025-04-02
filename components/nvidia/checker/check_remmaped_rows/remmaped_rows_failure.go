@@ -42,10 +42,6 @@ func (c *RemmapedRowsFailureChecker) Name() string {
 	return c.name
 }
 
-// func (c *RemmapedRowsFailureChecker) GetSpec() common.CheckerSpec {
-// 	return c.cfg
-// }
-
 func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	// Perform type assertion to convert data to NvidiaInfo
 	nvidiaInfo, ok := data.(*collector.NvidiaInfo)
@@ -55,24 +51,24 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 
 	result := config.GPUCheckItems[config.RemmapedRowsFailureCheckerName]
 
-	var falied_gpus []string
-	var falied_gpuid_podnames []string
+	var failedGpus []string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.MemoryErrors.RemappedRows.RemappingFailureOccurred {
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
-			falied_gpus = append(falied_gpus, fmt.Sprintf("%d:%s", device.Index, device.UUID))
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
+			failedGpus = append(failedGpus, fmt.Sprintf("%d:%s", device.Index, device.UUID))
 		}
 	}
-	if len(falied_gpuid_podnames) > 0 {
+	if len(failedGpuidPodnames) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("Row Remap Failure occurred on GPUs: %v", falied_gpus)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Detail = fmt.Sprintf("Row Remap Failure occurred on GPUs: %v", failedGpus)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""

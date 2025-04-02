@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -43,7 +44,7 @@ func execCommandWithContext(ctx context.Context, command string, args ...string)
 	output, err := exec.CommandContext(ctx, command, args...).CombinedOutput()
 	if err != nil {
 		// Check if the context was canceled or timed out
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, fmt.Errorf("command `%s %v` timed out", command, args)
 		}
 		return output, fmt.Errorf("failed to execute command `%s %v`: err=%s", command, args, err.Error())
@@ -65,7 +66,7 @@ func execOnHost(ctx context.Context, command string, args ...string) ([]byte, []
 		"--mount=" + "/proc/1/ns/mnt",
 		"--",
 		command,
-}
+	}
 
 	nsenterArgs = append(nsenterArgs, args...)
 
@@ -83,7 +84,7 @@ func execOnHost(ctx context.Context, command string, args ...string) ([]byte, []
 	err := cmd.Run()
 	if err != nil {
 		// Check if the context was canceled or timed out
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, nil, fmt.Errorf("command `%s %v` on host timed out", command, args)
 		}
 		return out.Bytes(), stderr.Bytes(), fmt.Errorf("failed to execute command `%s %v` on host: err=%s", command, args, err.Error())
@@ -91,14 +92,14 @@ func execOnHost(ctx context.Context, command string, args ...string) ([]byte, []
 	return out.Bytes(), stderr.Bytes(), nil
 }
 
-// Measure execution time of a function
+// TimeTrack Measure execution time of a function
 func TimeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	fmt.Printf("%s took %d ns\n", name, elapsed.Nanoseconds())
 }
 
 func IsNvidiaGPUExist() bool {
-  // Check if the server is GPU server
+	// Check if the server is GPU server
 	matches, err := filepath.Glob("/dev/nvidia*")
 	if err != nil {
 		logrus.WithField("component", "utils").Infof("Fail to run the cmd: filepath.Glob, err = %v; treat as not GPU server", err)
