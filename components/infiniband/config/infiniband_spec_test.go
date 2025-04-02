@@ -18,9 +18,10 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	hcacfg "github.com/scitix/sichek/components/hca/config"
 	"os"
 	"testing"
+
+	"github.com/scitix/sichek/components/hca/config"
 )
 
 func TestGetHCASpec(t *testing.T) {
@@ -80,7 +81,7 @@ hca:
 	}
 
 	// Test the GetHCASpec function
-	hcaSpecs := &hcacfg.HCASpecConfig{}
+	hcaSpecs := &config.HCASpecConfig{}
 	t.Logf("Reading from %s", specFile.Name())
 	err = hcaSpecs.LoadSpecConfigFromYaml(specFile.Name())
 	if err != nil {

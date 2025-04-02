@@ -18,13 +18,13 @@ package gpfs
 import (
 	"context"
 	"fmt"
-	"github.com/scitix/sichek/consts"
 	"os"
 	"path"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/components/common"
 )
 

@@ -17,11 +17,9 @@ package collector
 
 import (
 	"encoding/json"
-	// "fmt"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	// "github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 type NvidiaInfo struct {

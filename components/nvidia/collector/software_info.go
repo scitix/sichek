@@ -16,8 +16,6 @@ limitations under the License.
 package collector
 
 import (
-	// "context"
-
 	"context"
 	"fmt"
 	"regexp"

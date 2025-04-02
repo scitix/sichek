@@ -17,9 +17,10 @@ package hang
 
 import (
 	"context"
-	"github.com/scitix/sichek/components/nvidia"
 	"testing"
 	"time"
+
+	"github.com/scitix/sichek/components/nvidia"
 )
 
 func TestHang(t *testing.T) {

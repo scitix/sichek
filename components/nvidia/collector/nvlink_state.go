@@ -16,7 +16,6 @@ limitations under the License.
 package collector
 
 import (
-	// "encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
