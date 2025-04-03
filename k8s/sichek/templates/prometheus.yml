@@ -1,0 +1,35 @@
+---
+apiVersion: v1  
+kind: Service  
+metadata:  
+  labels:
+    app: {{ .Values.name }}
+  name: {{ .Values.name }} 
+  namespace: {{ .Values.namespace }}
+spec:  
+  ports:  
+    - name: web  
+      port: 9091   # 指标端口  
+      targetPort: web  # 容器中暴露的端口  
+  selector:  
+    app: {{ .Values.name }}  # 选择标签与 DaemonSet 中应用相匹配的 Pods  
+
+---
+apiVersion: monitoring.coreos.com/v1  
+kind: ServiceMonitor  
+metadata:  
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:  
+    app: {{ .Values.name }}  
+spec:  
+  endpoints:  
+    - interval: 15s  # 抓取间隔  
+      path: /metrics  # 指标路径  
+      port: web  # 服务中定义的端口名称  
+  namespaceSelector:  
+    matchNames:  
+      - {{ .Values.namespace }}  # 匹配命名空间  
+  selector:  
+    matchLabels:  
+      app: {{ .Values.name }}  # 选择与 Service 中标签匹配的 Pods  

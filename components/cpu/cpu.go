@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/cpu/checker"
 	"github.com/scitix/sichek/components/cpu/collector"
 	"github.com/scitix/sichek/components/cpu/config"
+	"github.com/scitix/sichek/components/cpu/metrics"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
@@ -55,6 +56,7 @@ var (
 
 func NewComponent(cfgFile string) (comp common.Component, err error) {
 	cpuComponentOnce.Do(func() {
+		metrics.InitCpuMetrics()
 		cpuComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -122,7 +124,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "cpu").Errorf("wrong cpu info type")
 		return nil, err
 	}
-
+	metrics.ExportCPUMetrics(cpuInfo)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {

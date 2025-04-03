@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband/checker"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
+	"github.com/scitix/sichek/components/infiniband/metrics"
 
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
@@ -59,6 +60,7 @@ type component struct {
 
 func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	infinibandComponentOnce.Do(func() {
+		metrics.InitInfinibandMetrics()
 		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 		if err != nil {
 			panic(err)
@@ -89,8 +91,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-	var ibSpec *config.InfinibandSpecItem
-	ibSpec, err = ibSpecs.GetClusterInfinibandSpec()
+	ibSpec, err := ibSpecs.GetClusterInfinibandSpec()
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
@@ -135,6 +136,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
+	metrics.ExportInfinibandMetrics(InfinibandInfo)
 	status := consts.StatusNormal
 
 	checkerResults := make([]*common.CheckerResult, 0)

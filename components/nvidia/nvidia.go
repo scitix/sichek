@@ -27,6 +27,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/components/nvidia/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -136,6 +137,7 @@ func GetComponent() common.Component {
 
 func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
+		metrics.InitNvidiaMetrics()
 		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
 	})
 	return nvidiaComponent, err
@@ -222,7 +224,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-
+	metrics.ExportNvidiaMetrics(nvidiaInfo)
 	status := consts.StatusNormal
 	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)

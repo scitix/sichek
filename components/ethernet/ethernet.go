@@ -23,6 +23,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/checker"
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
+	"github.com/scitix/sichek/components/ethernet/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"sync"
@@ -59,6 +60,7 @@ type component struct {
 
 func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
 	ethernetComponentOnce.Do(func() {
+		metrics.InitEthernetMetrics()
 		ethernetComponent, err = newEthernetComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -135,7 +137,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
-
+	metrics.ExportEthernetMetrics(ethernetInfo)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	var err error
