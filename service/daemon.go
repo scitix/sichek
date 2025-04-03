@@ -30,6 +30,7 @@ import (
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/metrics"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -179,6 +180,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			} else {
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
+			metrics.ExportCheckerResultsMetrics(result)
 			err := d.notifier.SetNodeAnnotation(d.ctx, result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
@@ -201,7 +203,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				Time:     time.Now(),
 			}
 			logrus.WithField("daemon", "run").Warnf("component %s timed out", componentName)
-
+			metrics.ExportCheckerResultsMetrics(timeoutResult)
 			err := d.notifier.AppendNodeAnnotation(d.ctx, timeoutResult)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set %s timeout annotation failed: %v", componentName, err)

@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/memory/checker"
 	"github.com/scitix/sichek/components/memory/collector"
 	"github.com/scitix/sichek/components/memory/config"
+	"github.com/scitix/sichek/components/memory/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -56,6 +57,7 @@ var (
 
 func NewComponent(cfgFile string) (comp common.Component, err error) {
 	memComponentOnce.Do(func() {
+		metrics.InitMemoryMetrics()
 		memComponent, err = newMemoryComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -128,7 +130,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "memory").Errorf("wrong memory collector info type")
 		return nil, err
 	}
-
+	metrics.ExportMemoryMetrics(memInfo.Info)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {

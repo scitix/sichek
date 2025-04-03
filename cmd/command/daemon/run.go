@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/scitix/sichek/metrics"
 	"github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/service"
 )
@@ -92,7 +93,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			serviceChan := make(chan service.Service, 1)
 
 			logrus.WithField("daemon", "run").Info("starting sichek daemon service")
-
+			go metrics.InitPrometheus()
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
 			daemonService, err := service.NewService(ctx, cfgFile, specFile, usedComponents, ignoredComponents, annoKey)

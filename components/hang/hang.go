@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/hang/checker"
 	"github.com/scitix/sichek/components/hang/collector"
 	"github.com/scitix/sichek/components/hang/config"
+	"github.com/scitix/sichek/components/hang/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -56,6 +57,7 @@ var (
 
 func NewComponent(cfgFile string) (comp common.Component, err error) {
 	hangComponentOnce.Do(func() {
+		metrics.InitHangMetrics()
 		hangComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -126,7 +128,11 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect()")
 		return &common.Result{}, err
 	}
-
+	checkerInfo, ok := info.(*checker.HangInfo)
+	if !ok {
+		return nil, fmt.Errorf("wrong input of HangChecker")
+	}
+	metrics.ExportHangMetrics(checkerInfo)
 	checkRes, err := c.checker.Check(c.ctx, info)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check()")
