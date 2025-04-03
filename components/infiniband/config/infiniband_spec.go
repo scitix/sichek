@@ -16,175 +16,115 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
+	"strings"
 
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/hca/config"
 	"github.com/scitix/sichek/components/infiniband/collector"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
 )
 
-type ClusterSpec struct {
-	Clusters map[string]InfinibandSpec `json:"infiniband"`
+type InfinibandSpecConfig struct {
+	InfinibandSpec *InfinibandSpec `json:"infiniband" yaml:"infiniband"`
 	// Other fileds like `nvidia` can be added here if needed
 }
 
-type HCASpec struct {
-	HCAs map[string]collector.IBHardWareInfo `json:"hca_specs"`
-}
-
 type InfinibandSpec struct {
-	IBDevs         []string                            `json:"ib_devs"`
-	NetDevs        []string                            `json:"net_devs"`
-	IBSoftWareInfo collector.IBSoftWareInfo            `json:"sw_deps"`
-	PCIeACS        string                              `json:"pcie_acs"`
-	HCAs           map[string]collector.IBHardWareInfo `json:"hca_specs"`
+	Clusters map[string]*InfinibandSpecItem `json:"clusters" yaml:"clusters"`
 }
 
-func LoadFromYaml(file string, out interface{}) error {
-	data, err := os.ReadFile(file)
+type InfinibandSpecItem struct {
+	IBDevs         []string                             `json:"ib_devs"`
+	NetDevs        []string                             `json:"net_devs"`
+	IBSoftWareInfo *collector.IBSoftWareInfo            `json:"sw_deps"`
+	PCIeACS        string                               `json:"pcie_acs"`
+	HCAs           map[string]*collector.IBHardWareInfo `json:"hca_specs"`
+}
+
+func (s *InfinibandSpecConfig) LoadSpecConfigFromYaml(file string) error {
+	hcaSpecs := &config.HCASpecConfig{}
+	err := hcaSpecs.LoadSpecConfigFromYaml(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load hca spec from YAML file %s: %v", file, err)
 	}
-
-	return yaml.Unmarshal(data, out)
-}
-
-func (c *ClusterSpec) JSON() (string, error) {
-	data, err := json.Marshal(c)
+	if file != "" {
+		err := utils.LoadFromYaml(file, s)
+		if err != nil {
+			return fmt.Errorf("failed to load IB spec from YAML file %s: %v", file, err)
+		}
+	}
+	err = s.LoadDefaultSpec()
+	if err != nil || s.InfinibandSpec == nil {
+		return fmt.Errorf("failed to load default IB spec: %v", err)
+	}
+	err = s.LoadHCASpec(hcaSpecs)
 	if err != nil {
-		return "", fmt.Errorf("JSON marshal failed: %w", err)
+		return fmt.Errorf("failed to load hca spec to IB spec: %v", err)
 	}
-	return string(data), nil
+	return nil
 }
 
-func (c *ClusterSpec) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	if err != nil {
-		return "", fmt.Errorf("YAML marshal failed: %w", err)
+func (s *InfinibandSpecConfig) LoadHCASpec(hcaSpecs *config.HCASpecConfig) error {
+	if len(s.InfinibandSpec.Clusters) == 0 {
+		return fmt.Errorf("no valid cluster specification found")
 	}
-	return string(data), nil
-}
-
-func resolveSpecPath(relPath string) (string, error) {
-	const fallbackBasePath = "/var/sichek/infiniband"
-	absPath := filepath.Join(fallbackBasePath, relPath)
-
-	if _, err := os.Stat(absPath); err == nil {
-		return absPath, nil
-	}
-
-	_, curFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("failed to get caller info")
-	}
-	return filepath.Join(filepath.Dir(curFile), relPath), nil
-}
-
-func GetHCASpec(specFile string) (*HCASpec, error) {
-	log := logrus.WithField("component", "infiniband")
-
-	var specFiles []string
-	if specFile != "" {
-		// Parse from the specified file
-		specFiles = append(specFiles, specFile)
-	} else {
-		// Parse from the default files
-		defaultSpecFiles := []string{
-			"/default_hca_spec.yaml",
-		}
-
-		for _, relPath := range defaultSpecFiles {
-			absPath, err := resolveSpecPath(relPath)
-			if err != nil {
-				log.Errorf("fail to resolve spec path: %v", err)
-				return nil, fmt.Errorf("resolve path for %s failed: %w", relPath, err)
-			}
-			specFiles = append(specFiles, absPath)
-		}
-	}
-
-	var hcaSpecs HCASpec
-	hcaSpecs.HCAs = make(map[string]collector.IBHardWareInfo)
-	for _, absPath := range specFiles {
-		spec := ClusterSpec{}
-		var hcaSpec HCASpec
-		if err := LoadFromYaml(absPath, &hcaSpec); err != nil {
-			log.Errorf("fail to load yaml: %s (err: %v)", absPath, err)
-			continue
-		}
-		log.Infof("success load the hca spec: %s, spec:%v", absPath, spec)
-
-		for devPSID, detail := range hcaSpec.HCAs {
-			if _, exists := hcaSpecs.HCAs[devPSID]; !exists {
-				hcaSpecs.HCAs[devPSID] = detail
-			}
-		}
-	}
-
-	if len(hcaSpecs.HCAs) == 0 {
-		log.Warn("check the hca_spec yaml file, no valid format yaml found")
-	}
-	return &hcaSpecs, nil
-}
-
-func GetInfinibandSpec(specFile string) (*ClusterSpec, error) {
-	log := logrus.WithField("component", "infiniband")
-
-	hcaSpecs, _ := GetHCASpec("")
-
-	var specFiles []string
-	if specFile != "" {
-		// Parse from the specified file
-		specFiles = append(specFiles, specFile)
-	} else {
-		// Parse from the default files
-		defaultSpecFiles := []string{
-			"/default_infiniband_spec.yaml",
-		}
-
-		for _, relPath := range defaultSpecFiles {
-			absPath, err := resolveSpecPath(relPath)
-			if err != nil {
-				return nil, fmt.Errorf("resolve path for %s failed: %w", relPath, err)
-			}
-			specFiles = append(specFiles, absPath)
-		}
-	}
-
-	var infinibandSpec ClusterSpec
-	infinibandSpec.Clusters = make(map[string]InfinibandSpec)
-	for _, absPath := range specFiles {
-		var clusterSpecs ClusterSpec
-		if err := LoadFromYaml(absPath, &clusterSpecs); err != nil {
-			log.Errorf("fail to load yaml: %s (err: %v)", absPath, err)
-			continue
-		}
-
-		for clusterName, detail := range clusterSpecs.Clusters {
-			if _, exists := infinibandSpec.Clusters[clusterName]; !exists {
-				infinibandSpec.Clusters[clusterName] = detail
-				for psid, hcaSpec := range detail.HCAs {
-					if hcaSpec.BoardID == "" {
-						if _, ok := hcaSpecs.HCAs[psid]; ok {
-							infinibandSpec.Clusters[clusterName].HCAs[psid] = hcaSpecs.HCAs[psid]
-						} else {
-							log.Errorf("hca %s in cluster %s is not found in hca_spec or cluster spec yaml file", psid, clusterName)
-						}
-					}
+	for clusterName, detail := range s.InfinibandSpec.Clusters {
+		for psid, hcaSpec := range detail.HCAs {
+			if hcaSpec.BoardID == "" {
+				if _, ok := hcaSpecs.HcaSpec.HCAHardwares[psid]; ok {
+					s.InfinibandSpec.Clusters[clusterName].HCAs[psid] = hcaSpecs.HcaSpec.HCAHardwares[psid]
+				} else {
+					return fmt.Errorf("hca %s in cluster %s is not found in hca_spec or cluster spec yaml file", psid, clusterName)
 				}
 			}
 		}
 	}
+	return nil
+}
 
-	if len(infinibandSpec.Clusters) == 0 {
-		return nil, fmt.Errorf("no valid cluster specification found")
+func (s *InfinibandSpecConfig) LoadDefaultSpec() error {
+	if s.InfinibandSpec == nil {
+		s.InfinibandSpec = &InfinibandSpec{
+			Clusters: make(map[string]*InfinibandSpecItem),
+		}
 	}
-	return &infinibandSpec, nil
+	defaultCfgDirPath, files, err := common.GetDefaultConfigFiles(consts.ComponentNameInfiniband)
+	if err != nil {
+		return fmt.Errorf("failed to get default infiniband config files: %v", err)
+	}
+	// 遍历文件并加载符合条件的 YAML 文件
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			infinibandSpec := &InfinibandSpecConfig{}
+			filePath := filepath.Join(defaultCfgDirPath, file.Name())
+			err := utils.LoadFromYaml(filePath, infinibandSpec)
+			if err != nil {
+				return fmt.Errorf("failed to load from YAML file %s: %v", filePath, err)
+			}
+			for clusterName, infinibandSpec := range infinibandSpec.InfinibandSpec.Clusters {
+				if _, ok := s.InfinibandSpec.Clusters[clusterName]; !ok {
+					s.InfinibandSpec.Clusters[clusterName] = infinibandSpec
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (s *InfinibandSpecConfig) GetClusterInfinibandSpec() (*InfinibandSpecItem, error) {
+	clustetName := extractClusterName()
+	if _, ok := s.InfinibandSpec.Clusters[clustetName]; ok {
+		return s.InfinibandSpec.Clusters[clustetName], nil
+	} else {
+		logrus.WithField("infiniband", "Spec").Warnf("no valid cluster specification found for cluster %s, using default spec", clustetName)
+		return s.InfinibandSpec.Clusters["default"], nil
+	}
 }
 
 func extractClusterName() string {
@@ -198,19 +138,4 @@ func extractClusterName() string {
 		return matches[1]
 	}
 	return "default"
-}
-
-func GetClusterInfinibandSpec(specFile string) InfinibandSpec {
-	infinibandSpec, err := GetInfinibandSpec(specFile)
-	if err != nil {
-		panic(err)
-	}
-
-	clusterName := extractClusterName()
-	if _, ok := infinibandSpec.Clusters[clusterName]; ok {
-		return infinibandSpec.Clusters[clusterName]
-	} else {
-		logrus.WithField("infiniband", "Spec").Warnf("no valid cluster specification found for cluster %s, using default spec", clusterName)
-		return infinibandSpec.Clusters["default"]
-	}
 }

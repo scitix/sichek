@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -29,7 +30,7 @@ type ClockEvent struct {
 	Description        string `json:"description"`
 }
 
-// ref. https://github.com/NVIDIA/go-nvml/blob/main/pkg/nvml/nvml.h#L2276
+// WarningClockEvents ref. https://github.com/NVIDIA/go-nvml/blob/main/pkg/nvml/nvml.h#L2276
 var WarningClockEvents = map[uint64]ClockEvent{
 	/** SwPowerCap
 	*
@@ -42,15 +43,15 @@ var WarningClockEvents = map[uint64]ClockEvent{
 
 	/** SW Thermal Slowdown
 	*
-	* The current clocks have been optimized to ensure the the following is true:
+	* The current clocks have been optimized to ensure the following is true:
 	*  - Current GPU temperature does not exceed GPU Max Operating Temperature
-	*  - Current memory temperature does not exceeed Memory Max Operating Temperature
+	*  - Current memory temperature does not exceed Memory Max Operating Temperature
 	*
 	 */
 	0x00000000000000020: {"SW Thermal Slowdown", 0x00000000000000020, "SW Thermal Slowdown is engaged due to high temperature"},
 }
 
-// ref. https://github.com/NVIDIA/go-nvml/blob/main/pkg/nvml/nvml.h#L2322
+// CriticalClockEvents ref. https://github.com/NVIDIA/go-nvml/blob/main/pkg/nvml/nvml.h#L2322
 var CriticalClockEvents = map[uint64]ClockEvent{
 
 	/** HW Thermal Slowdown (reducing the core clocks by a factor of 2 or more) is engaged
@@ -79,7 +80,7 @@ var CriticalClockEvents = map[uint64]ClockEvent{
 var gpuIdleId uint64 = 0x0000000000000001
 
 type ClockEvents struct {
-	IsSupported 		bool 		 `json:"is_supported"`
+	IsSupported         bool         `json:"is_supported"`
 	GpuIdle             bool         `json:"gpu_idle"`
 	CriticalClockEvents []ClockEvent `json:"critical_clock_events"`
 	WarningClockEvents  []ClockEvent `json:"warning_clock_events"`
@@ -89,23 +90,23 @@ func (clk *ClockEvents) JSON() ([]byte, error) {
 	return common.JSON(clk)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (clk *ClockEvents) ToString() string {
 	return common.ToString(clk)
 }
 
-// https://docs.nvidia.com/deploy/nvml-api/group__nvmlClocksEventReasons.html#group__nvmlClocksEventReasons
+// Get https://docs.nvidia.com/deploy/nvml-api/group__nvmlClocksEventReasons.html#group__nvmlClocksEventReasons
 func (clk *ClockEvents) Get(device nvml.Device, uuid string) error {
 	// clock events are supported in version 535 and above
 	// otherwise, the function GetCurrentClocksEventReasons() will exits with undefined symbol: nvmlGetCurrentClocksEventReasons
 	reasons, ret := device.GetCurrentClocksEventReasons()
-	if ret == nvml.ERROR_NOT_SUPPORTED {
+	if errors.Is(ret, nvml.ERROR_NOT_SUPPORTED) {
 		clk.IsSupported = false
 		return nil
 	}
 	clk.IsSupported = true
-	if ret != nvml.SUCCESS {
-		return fmt.Errorf("failed to get device clock event reasons: %v", nvml.ErrorString(ret))
+	if !errors.Is(ret, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get GPU %s 's clock event reasons: %v", uuid, nvml.ErrorString(ret))
 	}
 
 	clk.GpuIdle = reasons&gpuIdleId != 0

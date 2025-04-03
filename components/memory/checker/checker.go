@@ -23,9 +23,8 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/memory/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -65,10 +64,10 @@ func (c *MemoryChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, err
 	}
 
-	total_num := len(info)
-	status := commonCfg.StatusNormal
-	if total_num > 0 {
-		status = commonCfg.StatusAbnormal
+	totalNum := len(info)
+	status := consts.StatusNormal
+	if totalNum > 0 {
+		status = consts.StatusAbnormal
 	}
 
 	return &common.CheckerResult{
@@ -76,7 +75,7 @@ func (c *MemoryChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		Description: c.cfg.Description,
 		Device:      "memory",
 		Spec:        "0",
-		Curr:        strconv.Itoa(total_num),
+		Curr:        strconv.Itoa(totalNum),
 		Status:      status,
 		Level:       c.cfg.Level,
 		Detail:      string(raw),

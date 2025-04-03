@@ -8,7 +8,7 @@ hang:
     GPU:
       name: "GPUHang"
       description: "GPU Hang"
-      hang_threshold: 60
+      hang_threshold: 90
       level: warn
       check_items:
         power:

@@ -18,24 +18,26 @@ package checker
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
 type IBOFEDChecker struct {
 	id          string
 	name        string
-	spec        config.InfinibandSpec
+	spec        config.InfinibandSpecItem
 	description string
 }
 
-func NewIBOFEDChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBOFEDChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBOFEDChecker{
-		id:          commonCfg.CheckerIDInfinibandOFED,
+		id:          consts.CheckerIDInfinibandOFED,
 		name:        config.ChekIBOFED,
 		spec:        *specCfg,
 		description: "check the rdma ofed",
@@ -54,6 +56,81 @@ func (c *IBOFEDChecker) GetSpec() common.CheckerSpec {
 	return nil
 }
 
+// parseOFEDVersion extracts major and minor versions from an OFED version string.
+func parseOFEDVersion(ofed string) (major string, minor string, err error) {
+
+	// logrus.Infof("parseOFEDVersion: %s %d %d", ofed,len(ofed),len("MLNX_OFED_LINUX-5.9-0.5.6.0"))
+	// Regex to extract the version part: "MLNX_OFED_LINUX-X.Y-A.B.C.D"
+	re := regexp.MustCompile(`MLNX_OFED_LINUX-(\d+|\*)\.(\d+|\*)-(\d+|\*)\.(\d+|\*)\.(\d+|\*)\.(\d+|\*)`)
+	matches := re.FindStringSubmatch(ofed)
+	// logrus.Infof("parseOFEDVersion: %s %d", ofed, len(matches))
+	if len(matches) < 7 {
+		return "", "", fmt.Errorf("invalid OFED version format: %s", ofed)
+	}
+	major = matches[1] + "." + matches[2]
+	minor = matches[3] + "." + matches[4] + "." + matches[5] + "." + matches[6]
+	return major, minor, nil
+}
+func checkOFEDFormat(spec string, curr string) (bool, error) {
+	specsplit := strings.Split(spec, "-")
+	currsplit := strings.Split(curr, "-")
+	if len(specsplit) != 3 || len(currsplit) != 3 {
+		return false, fmt.Errorf("invalid OFED version format: %s %s", spec, curr)
+	}
+	specMajor := strings.Split(specsplit[1], ".")
+	specMinor := strings.Split(specsplit[2], ".")
+	currMajor := strings.Split(currsplit[1], ".")
+	currMinor := strings.Split(currsplit[2], ".")
+	if len(specMajor) != 2 || len(specMinor) != 4 || len(currMajor) != 2 || len(currMinor) != 4 {
+		return false, fmt.Errorf("invalid OFED version format: %s %s", spec, curr)
+	}
+	return true, nil
+}
+
+// checkOFEDVersion validates if the given OFED version meets the requirements.
+func checkOFEDVersion(spec string, curr string) (bool, error) {
+	var operator string
+	var specVersion string
+	// Extract operator and version from the spec string
+	if strings.HasPrefix(spec, ">=") {
+		operator = ">="
+		specVersion = strings.TrimPrefix(spec, ">=")
+	} else if strings.HasPrefix(spec, ">") {
+		operator = ">"
+		specVersion = strings.TrimPrefix(spec, ">")
+	} else if strings.HasPrefix(spec, "==") {
+		operator = "=="
+		specVersion = strings.TrimPrefix(spec, "==")
+	} else {
+		operator = "==" // Default to "==" if no operator is specified
+		specVersion = spec
+	}
+	pass, err := checkOFEDFormat(spec, curr)
+	if !pass || err != nil {
+		return false, err
+	}
+	specMajor, specMinor, err := parseOFEDVersion(specVersion)
+	if err != nil {
+		return false, err
+	}
+	currMajor, currMinor, err := parseOFEDVersion(curr)
+	if err != nil {
+		return false, err
+	}
+
+	// Condition 1: Major version
+	if !common.CompareVersion(operator+specMajor, currMajor) {
+		return false, nil
+	}
+
+	// Condition 2: Minor version
+	if !common.CompareVersion(operator+specMinor, currMinor) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	infinibandInfo, ok := data.(*collector.InfinibandInfo)
 	if !ok {
@@ -61,10 +138,10 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
@@ -79,9 +156,14 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			logrus.Warnf("use the IB device's OFED spec to check the system OFED version")
 		}
 	}
-	if curr != spec {
-		result.Status = commonCfg.StatusAbnormal
-		result.Detail = fmt.Sprintf("OFED version mismatch, expected:%s  current:%s", spec, curr)
+	pass, err := checkOFEDVersion(spec, curr)
+	if !pass || err != nil {
+		result.Status = consts.StatusAbnormal
+		if err == nil {
+			result.Detail = fmt.Sprintf("OFED version mismatch, expected:%s  current:%s", spec, curr)
+		} else {
+			result.Detail = fmt.Sprintf("%s, expected:%s  current:%s", err, spec, curr)
+		}
 		result.Suggestion = "update the OFED version"
 	}
 

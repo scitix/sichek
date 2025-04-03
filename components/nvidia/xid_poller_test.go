@@ -17,6 +17,7 @@ package nvidia
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -30,16 +31,16 @@ func TestNewXidEventPoller(t *testing.T) {
 	// Initialize NVML
 	nvmlInst := nvml.New()
 	ret := nvmlInst.Init()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	defer nvmlInst.Shutdown()
 
 	ctx := context.Background()
-	cfg := config.NvidiaConfig{}
+	cfg := &config.NvidiaUserConfig{}
 	eventChan := make(chan *common.Result, 1)
 
-	poller, err := NewXidEventPoller(ctx, cfg.ComponentConfig, nvmlInst, eventChan)
+	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
 	if err != nil {
 		t.Errorf("failed to create XidEventPoller: %v", err)
 	}
@@ -52,16 +53,16 @@ func TestXidEventPoller_Start(t *testing.T) {
 	// Initialize NVML
 	nvmlInst := nvml.New()
 	ret := nvmlInst.Init()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	defer nvmlInst.Shutdown()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := config.NvidiaConfig{}
+	cfg := &config.NvidiaUserConfig{}
 	eventChan := make(chan *common.Result, 1)
 
-	poller, err := NewXidEventPoller(ctx, cfg.ComponentConfig, nvmlInst, eventChan)
+	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
 	if err != nil {
 		t.Errorf("failed to create XidEventPoller: %v", err)
 	}

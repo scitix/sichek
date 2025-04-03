@@ -22,7 +22,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/dmesg/checker"
-	DmesgCfg "github.com/scitix/sichek/components/dmesg/config"
+	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -30,33 +30,29 @@ import (
 
 type DmesgCollector struct {
 	name string
-	cfg  common.ComponentConfig
+	cfg  common.ComponentUserConfig
 
 	filter *filter.Filter
 }
 
-func NewDmesgCollector(ctx context.Context, cfg common.ComponentConfig) (*DmesgCollector, error) {
-	config, ok := cfg.(*DmesgCfg.DmesgConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for GPFS")
+func NewDmesgCollector(ctx context.Context, cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
+
+	if len(cfg.Dmesg.CheckerConfigs) == 0 {
+		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
+	}
+	regexpName := make([]string, 0, len(cfg.Dmesg.CheckerConfigs))
+	regexp := make([]string, 0, len(cfg.Dmesg.CheckerConfigs))
+
+	for _, checkersCfg := range cfg.Dmesg.CheckerConfigs {
+		regexpName = append(regexpName, checkersCfg.Name)
+		regexp = append(regexp, checkersCfg.Regexp)
 	}
 
-	if len(config.Dmesg.CheckerConfigs) == 0 {
-		return nil, fmt.Errorf("No Dmesg Collector indicate in yaml config")
-	}
-	regexpName := make([]string, 0, len(config.Dmesg.CheckerConfigs))
-	regexp := make([]string, 0, len(config.Dmesg.CheckerConfigs))
-
-	for _, checkers_cfg := range config.Dmesg.CheckerConfigs {
-		regexpName = append(regexpName, checkers_cfg.Name)
-		regexp = append(regexp, checkers_cfg.Regexp)
-	}
-
-	filter, err := filter.NewFilter(
+	filterPointer, err := filter.NewFilter(
 		regexpName,
 		regexp,
-		config.Dmesg.DmesgFileName,
-		config.Dmesg.DmesgCmd,
+		cfg.Dmesg.DmesgFileName,
+		cfg.Dmesg.DmesgCmd,
 		5000,
 	)
 	if err != nil {
@@ -67,7 +63,7 @@ func NewDmesgCollector(ctx context.Context, cfg common.ComponentConfig) (*DmesgC
 	return &DmesgCollector{
 		name:   "DmesgCollector",
 		cfg:    cfg,
-		filter: filter,
+		filter: filterPointer,
 	}, nil
 }
 
@@ -75,7 +71,7 @@ func (c *DmesgCollector) Name() string {
 	return c.name
 }
 
-func (c *DmesgCollector) GetCfg() common.ComponentConfig {
+func (c *DmesgCollector) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 

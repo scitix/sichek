@@ -26,8 +26,8 @@ import (
 	"github.com/scitix/sichek/components/infiniband/checker"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
 
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,10 +39,10 @@ var (
 type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	spec   *config.InfinibandSpec
+	spec   *config.InfinibandSpecItem
 	info   common.Info
 
-	cfg      *config.InfinibandConfig
+	cfg      *config.InfinibandUserConfig
 	cfgMutex sync.RWMutex
 
 	// collector common.Collector
@@ -74,29 +74,29 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 			cancel()
 		}
 	}()
-
-	// step1: load user define check item
-	cfg := &config.InfinibandConfig{}
-	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig()
-		if err != nil {
-			logrus.WithField("component", "infiniband").Error("Infiniband use default config failed ", err)
-			return nil, err
-		}
-		if len(ignoredCheckers) > 0 {
-			cfg.Infiniband.IgnoredCheckers = ignoredCheckers
-		}
-	} else {
-		err = cfg.LoadFromYaml(cfgFile)
-		if err != nil {
-			logrus.WithField("component", "infiniband").Error(err)
-		}
+	cfg := &config.InfinibandUserConfig{}
+	err = cfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent load user config failed: %v", err)
+		return nil, err
 	}
-	logrus.WithField("component", "infiniband").Infof("checker items:%v", cfg.Infiniband.IgnoredCheckers)
+	if len(ignoredCheckers) > 0 {
+		cfg.Infiniband.IgnoredCheckers = ignoredCheckers
+	}
+	ibSpecs := &config.InfinibandSpecConfig{}
+	err = ibSpecs.LoadSpecConfigFromYaml(specFile)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	var ibSpec *config.InfinibandSpecItem
+	ibSpec, err = ibSpecs.GetClusterInfinibandSpec()
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
 
-	// step2: load ib spec
-	ibSpec := config.GetClusterInfinibandSpec(specFile)
-	checkers, err := checker.NewCheckers(cfg, &ibSpec)
+	checkers, err := checker.NewCheckers(cfg, ibSpec)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
 		return nil, err
@@ -107,14 +107,14 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	component := &component{
 		ctx:         ctx,
 		cancel:      cancel,
-		spec:        &ibSpec,
+		spec:        ibSpec,
 		info:        info.GetIBInfo(),
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
+		cacheBuffer: make([]*common.Result, cfg.Infiniband.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.Infiniband.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.GetCacheSize(),
+		cacheSize:   cfg.Infiniband.CacheSize,
 	}
 	// step4: start the service
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
@@ -124,7 +124,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameInfiniband
+	return consts.ComponentNameInfiniband
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -135,10 +135,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
-	status := commonCfg.StatusNormal
+	status := consts.StatusNormal
 
 	checkerResults := make([]*common.CheckerResult, 0)
-	var level string = commonCfg.LevelInfo
+	var level string = consts.LevelInfo
 	var err error
 
 	for _, cherker := range c.checkers {
@@ -152,14 +152,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		if checkItem.Status == commonCfg.StatusAbnormal {
+		if checkItem.Status == consts.StatusAbnormal {
 			logrus.WithField("component", "infiniband").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 		}
 	}
 
 	for _, checkItem := range checkerResults {
-		if checkItem.Status == commonCfg.StatusAbnormal {
-			status = commonCfg.StatusAbnormal
+		if checkItem.Status == consts.StatusAbnormal {
+			status = consts.StatusAbnormal
 			level = config.InfinibandCheckItems[checkItem.Name].Level
 			logrus.WithField("component", "infiniband").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
@@ -177,7 +177,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:     commonCfg.ComponentNameInfiniband,
+		Item:     consts.ComponentNameInfiniband,
 		Node:     hostname,
 		Status:   status,
 		Level:    level,
@@ -189,10 +189,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = InfinibandInfo
 	c.cacheBuffer[c.currIndex] = resResult
-	c.currIndex = (c.currIndex + 1) % c.cfg.GetCacheSize()
+	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
 
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "Infiniband").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "Infiniband").Infof("Health Check PASSED")
@@ -241,9 +241,9 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 }
 
 // 更新组件的配置信息，同时更新service
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.InfinibandConfig)
+	config, ok := cfg.(*config.InfinibandUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for infiniband")
 	}

@@ -25,7 +25,7 @@ import (
 	"github.com/scitix/sichek/components/memory/checker"
 	"github.com/scitix/sichek/components/memory/collector"
 	"github.com/scitix/sichek/components/memory/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +34,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *config.MemoryConfig
+	cfg      *config.MemoryUserConfig
 	cfgMutex sync.Mutex
 
 	collector common.Collector
@@ -72,54 +72,47 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		}
 	}()
 
-	cfg := &config.MemoryConfig{}
-	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig(ctx)
-		if err != nil {
-			logrus.WithField("component", "memory").Errorf("NewMemoryComponent get default config failed: %v", err)
-			return nil, err
-		}
-	} else {
-		err = cfg.LoadFromYaml(cfgFile)
-		if err != nil {
-			logrus.WithField("component", "memory").Errorf("NewMemoryComponent load config yaml %s failed: %v", cfgFile, err)
-			return nil, err
-		}
+	memoryCfg := &config.MemoryUserConfig{}
+	err = memoryCfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
+		return nil, err
 	}
-	collector, err := collector.NewCollector(ctx, cfg)
+
+	collectorPointer, err := collector.NewCollector(ctx, memoryCfg)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, config := range cfg.GetCheckerSpec() {
-		checker, err := checker.NewMemoryChecker(ctx, config)
+	for name, spec := range memoryCfg.GetCheckerSpec() {
+		memChecker, err := checker.NewMemoryChecker(ctx, spec)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)
 			return nil, err
 		}
-		checkers = append(checkers, checker)
+		checkers = append(checkers, memChecker)
 	}
 
 	component := &component{
 		ctx:         ctx,
 		cancel:      cancel,
-		collector:   collector,
+		collector:   collectorPointer,
 		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
-		cacheSize:   cfg.GetCacheSize(),
+		cfg:         memoryCfg,
+		cacheBuffer: make([]*common.Result, memoryCfg.Memory.CacheSize),
+		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
+		cacheSize:   memoryCfg.Memory.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, component.HealthCheck)
+	service := common.NewCommonService(ctx, memoryCfg, component.HealthCheck)
 	component.service = service
 
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameMemory
+	return consts.ComponentNameMemory
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -130,33 +123,33 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "memory").Errorf("failed to collect memory info: %v", err)
 		return nil, err
 	}
-	mem_info, ok := info.(*collector.Output)
+	memInfo, ok := info.(*collector.Output)
 	if !ok {
 		logrus.WithField("component", "memory").Errorf("wrong memory collector info type")
 		return nil, err
 	}
 
-	status := commonCfg.StatusNormal
-	checker_results := make([]*common.CheckerResult, 0)
-	for _, checker := range c.checkers {
-		check_result, err := checker.Check(cctx, mem_info.EventResults[checker.Name()])
+	status := consts.StatusNormal
+	checkerResults := make([]*common.CheckerResult, 0)
+	for _, each := range c.checkers {
+		checkResult, err := each.Check(cctx, memInfo.EventResults[each.Name()])
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("failed to check: %v", err)
 			continue
 		}
-		checker_results = append(checker_results, check_result)
+		checkerResults = append(checkerResults, checkResult)
 
-		checker_cfg := c.cfg.Memory.Checkers[checker.Name()]
-		if checker_cfg.Level == commonCfg.LevelCritical && check_result.Status == commonCfg.StatusAbnormal {
-			status = commonCfg.StatusAbnormal
+		checkerCfg := c.cfg.Memory.Checkers[each.Name()]
+		if checkerCfg.Level == consts.LevelCritical && checkResult.Status == consts.StatusAbnormal {
+			status = consts.StatusAbnormal
 		}
 	}
 
 	resResult := &common.Result{
-		Item:     commonCfg.ComponentNameMemory,
+		Item:     consts.ComponentNameMemory,
 		Status:   status,
-		Level:    commonCfg.LevelCritical,
-		Checkers: checker_results,
+		Level:    consts.LevelCritical,
+		Checkers: checkerResults,
 		Time:     time.Now(),
 	}
 
@@ -165,7 +158,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheBuffer[c.currIndex] = resResult
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "memory").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "memory").Infof("Health Check PASSED")
@@ -218,13 +211,13 @@ func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.MemoryConfig)
+	configPointer, ok := cfg.(*config.MemoryUserConfig)
 	if !ok {
-		return fmt.Errorf("update wrong config type for storage")
+		return fmt.Errorf("update wrong config type for memory")
 	}
-	c.cfg = config
+	c.cfg = configPointer
 	c.cfgMutex.Unlock()
 	return c.service.Update(ctx, cfg)
 }

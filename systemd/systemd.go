@@ -50,7 +50,12 @@ func CreateDefaultEnvFile() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Printf("failed to close file %s : %v", DefaultEnvFile, err)
+		}
+	}(f)
 
 	_, err = f.WriteString(`# sichek environment variables are set here FLAGS="--enable-components=gpfs"`)
 	return err

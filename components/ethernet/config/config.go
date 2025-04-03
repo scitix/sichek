@@ -17,77 +17,42 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"gopkg.in/yaml.v2"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
+type EthernetUserConfig struct {
+	Ethernet *EthernetConfig `json:"ethernet" yaml:"ethernet"`
+}
+
 type EthernetConfig struct {
-	Ethernet struct {
-		Name          string        `json:"name" yaml:"name"`
-		QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-		CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-		Cherkers      []string      `json:"checkers" yaml:"checkers"`
-	} `json:"ethernet"`
+	Name          string        `json:"name" yaml:"name"`
+	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+	Cherkers      []string      `json:"checkers" yaml:"checkers"`
 }
 
-func (c *EthernetConfig) ComponentName() string {
-	return c.Ethernet.Name
-}
-
-func (c *EthernetConfig) GetCheckerSpec() map[string]common.CheckerSpec {
+func (c *EthernetUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return nil
 }
 
-func (c *EthernetConfig) GetQueryInterval() time.Duration {
+func (c *EthernetUserConfig) GetQueryInterval() time.Duration {
 	return c.Ethernet.QueryInterval
 }
 
-func (c *EthernetConfig) GetCacheSize() int64 {
-	return c.Ethernet.CacheSize
-}
-
-func (c *EthernetConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *EthernetConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DefaultConfig() (*EthernetConfig, error) {
-	var ethernetConfig EthernetConfig
-	defaultCfgPath := "/userDefaultChecker.yaml"
-	_, err := os.Stat("/var/sichek/ethernet" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/ethernet/userDefaultChecker.yaml
-		defaultCfgPath = "/var/sichek/ethernet" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
+func (c *EthernetUserConfig) LoadUserConfigFromYaml(file string) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.Ethernet == nil {
+			return fmt.Errorf("failed to load ethernet config from YAML file %s: %v", file, err)
 		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
 	}
-
-	err = ethernetConfig.LoadFromYaml(defaultCfgPath)
-	return &ethernetConfig, err
+	err := common.DefaultComponentConfig(consts.ComponentNameEthernet, c, consts.DefaultUserCfgName)
+	if err != nil || c.Ethernet == nil {
+		return fmt.Errorf("failed to load default ethernet config: %v", err)
+	}
+	return nil
 }

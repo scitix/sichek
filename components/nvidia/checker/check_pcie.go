@@ -23,15 +23,15 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type PCIeChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewPCIeChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewPCIeChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &PCIeChecker{
 		name: config.PCIeCheckerName,
 		cfg:  cfg,
@@ -40,10 +40,6 @@ func NewPCIeChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 
 func (c *PCIeChecker) Name() string {
 	return c.name
-}
-
-func (c *PCIeChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -57,36 +53,36 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 
 	// Check if any degraded PCIe link is detected
 	info := ""
-	var falied_gpuid_podnames []string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		// For device `NVIDIA L40`, PCIe link generation may not be its maximum when pstate is not P0
-		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX && 
-		   (!device.ClockEvents.IsSupported || (device.ClockEvents.IsSupported && !device.ClockEvents.GpuIdle)) {
+		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX &&
+			(!device.ClockEvents.IsSupported || (device.ClockEvents.IsSupported && !device.ClockEvents.GpuIdle)) {
 			info += fmt.Sprintf("GPU %d: %v PCIe link gen is %v, expected gen is %d\n",
 				device.Index, device.PCIeInfo.BDFID, device.PCIeInfo.PCILinkGen, device.PCIeInfo.PCILinkGenMAX)
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 		}
 		if device.PCIeInfo.PCILinkWidth != device.PCIeInfo.PCILinkWidthMAX {
 			info += fmt.Sprintf("GPU %d: %v PCIe link width is %d, expected width is %d\n",
 				device.Index, device.PCIeInfo.BDFID, device.PCIeInfo.PCILinkWidth, device.PCIeInfo.PCILinkWidthMAX)
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 		}
 
 		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX || device.PCIeInfo.PCILinkWidth != device.PCIeInfo.PCILinkWidthMAX {
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if result.Status == commonCfg.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		result.Detail = info
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/sirupsen/logrus"
@@ -32,11 +32,12 @@ import (
 type Notifier interface {
 	SendAlert(ctx context.Context, data interface{}) (*http.Response, error)
 	SetNodeAnnotation(ctx context.Context, data *common.Result) error
+	AppendNodeAnnotation(ctx context.Context, data *common.Result) error
 }
 
 type notifier struct {
-	client     *http.Client
-	k8s_client *k8s.K8sClient
+	client    *http.Client
+	k8sClient *k8s.K8sClient
 
 	endpoint        string
 	port            int
@@ -45,20 +46,20 @@ type notifier struct {
 }
 
 func NewNotifier(annoKey string) (Notifier, error) {
-	k8s_client, err := k8s.NewClient()
+	k8sClient, err := k8s.NewClient()
 	if err != nil {
 		return nil, err
 	}
 	if len(annoKey) == 0 {
-		annoKey = config.DefaultAnnoKey
+		annoKey = consts.DefaultAnnoKey
 	}
 
 	return &notifier{
-		client:     &http.Client{},
-		k8s_client: k8s_client,
-		endpoint:   config.TaskGuardEndpoint,
-		port:       config.TaskGuardPort,
-		annoKey:    annoKey,
+		client:    &http.Client{},
+		k8sClient: k8sClient,
+		endpoint:  consts.TaskGuardEndpoint,
+		port:      consts.TaskGuardPort,
+		annoKey:   annoKey,
 	}, nil
 }
 
@@ -69,29 +70,13 @@ func (n *notifier) SendAlert(ctx context.Context, data interface{}) (*http.Respo
 		return nil, err
 	}
 	fmt.Println(string(jsonData))
-
-	// resp, err := n.client.Post(n.endpoint, "application/json", bytes.NewBuffer(jsonData))
-	// if err != nil {
-	// 	logrus.Error("Error send alert request: %v", err)
-	// 	return nil, err
-	// }
-	// defer resp.Body.Close()
-
-	// body := make([]byte, 1024)
-	// _, err = resp.Body.Read(body)
-	// if err != nil {
-	// 	logrus.Error("Error reading reponse body: %v", err)
-	// 	return nil, err
-	// }
-
-	// logrus.Info("Send alert succeed: response status %s, response body %s\n", resp.Status, body)
 	return nil, nil
 }
 
 func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) error {
 	n.AnnotationMutex.Lock()
 	defer n.AnnotationMutex.Unlock()
-	node, err := n.k8s_client.GetCurrNode(ctx)
+	node, err := n.k8sClient.GetCurrNode(ctx)
 	if err != nil {
 		logrus.Errorf("get current node failed: %v", err)
 		return err
@@ -111,7 +96,37 @@ func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) e
 		logrus.Errorf("marshal annotation failed: %v", err)
 		return err
 	}
-	err = n.k8s_client.UpdateNodeAnnotation(ctx, map[string]string{n.annoKey: annoStr})
+	err = n.k8sClient.UpdateNodeAnnotation(ctx, map[string]string{n.annoKey: annoStr})
+	if err != nil {
+		logrus.Errorf("update node annotation to %s failed: %v", annoStr, err)
+	}
+	return err
+}
+
+func (n *notifier) AppendNodeAnnotation(ctx context.Context, data *common.Result) error {
+	n.AnnotationMutex.Lock()
+	defer n.AnnotationMutex.Unlock()
+	node, err := n.k8sClient.GetCurrNode(ctx)
+	if err != nil {
+		logrus.Errorf("get current node failed: %v", err)
+		return err
+	}
+	anno, err := GetAnnotationFromJson(node.Annotations[n.annoKey])
+	if err != nil {
+		logrus.Errorf("parse annotation %s failed: %v", node.Annotations[n.annoKey], err)
+		return err
+	}
+	err = anno.AppendFromResult(data)
+	if err != nil {
+		logrus.Errorf("parse annotation from %s result failed: %v", data.Item, err)
+		return err
+	}
+	annoStr, err := anno.JSON()
+	if err != nil {
+		logrus.Errorf("marshal annotation failed: %v", err)
+		return err
+	}
+	err = n.k8sClient.UpdateNodeAnnotation(ctx, map[string]string{n.annoKey: annoStr})
 	if err != nil {
 		logrus.Errorf("update node annotation to %s failed: %v", annoStr, err)
 	}

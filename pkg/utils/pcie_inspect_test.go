@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
 )
 
 func TestGetAllPCIeBDF(t *testing.T) {
@@ -140,4 +139,3 @@ func TestDisableBatchACS(t *testing.T) {
 		}
 	}
 }
-

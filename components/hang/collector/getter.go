@@ -24,7 +24,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang/checker"
-	HangCfg "github.com/scitix/sichek/components/hang/config"
+	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
 
@@ -33,7 +33,7 @@ import (
 
 type HangGetter struct {
 	name string
-	cfg  *HangCfg.HangConfig
+	cfg  *config.HangUserConfig
 
 	items         []string
 	threshold     map[string]int64
@@ -46,30 +46,30 @@ type HangGetter struct {
 	nvidiaComponent common.Component
 }
 
-func NewHangGetter(ctx context.Context, cfg common.ComponentConfig) (hangGetter *HangGetter, err error) {
-	config, ok := cfg.(*HangCfg.HangConfig)
+func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
+	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
 	}
 
 	var res HangGetter
-	res.name = config.Hang.Name
-	res.cfg = config
+	res.name = hangCfg.Hang.Name
+	res.cfg = hangCfg
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
-	if !config.Hang.Mock {
+	if !hangCfg.Hang.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
 	} else {
-		if res.nvidiaComponent, err = NewMockNvidiaComponent("", []string{}); err != nil {
+		if res.nvidiaComponent, err = NewMockNvidiaComponent(""); err != nil {
 			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to NewNvidia")
 			return nil, err
 		}
 	}
 
 	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		getterConfig, ok := tmpCfg.(*HangCfg.HangErrorConfig)
+		getterConfig, ok := tmpCfg.(*config.HangErrorConfig)
 		if !ok {
 			return nil, fmt.Errorf("invalid config type for Hang getter")
 		}
@@ -106,7 +106,7 @@ func (c *HangGetter) Name() string {
 	return c.name
 }
 
-func (c *HangGetter) GetCfg() common.ComponentConfig {
+func (c *HangGetter) GetCfg() common.ComponentUserConfig {
 	return c.cfg
 }
 

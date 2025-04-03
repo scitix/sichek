@@ -21,27 +21,27 @@ type FileFilter struct {
 }
 
 func NewFileFilter(regexpName []string, regexps []string, filesName []string, cacheLine int64) (*FileFilter, error) {
-	return NewFileFilterSkip(regexpName, regexpName, filesName, cacheLine, 100)
+	return NewFileFilterSkip(regexpName, regexps, filesName, cacheLine, 100)
 }
 
 func NewFileFilterWithReg(regexs []*RegexFilter, filesName []string, cacheLineN int64) (*FileFilter, error) {
 	return NewFileFilterWithRegSkip(regexs, filesName, cacheLineN, 100)
 }
 
-func NewFileFilterSkip(regexpName []string, regexps []string, filesName []string, cacheLine int64, skip_percent int64) (*FileFilter, error) {
+func NewFileFilterSkip(regexpName []string, regexps []string, filesName []string, cacheLine int64, skipPercent int64) (*FileFilter, error) {
 	if len(regexpName) != len(regexps) {
 		logrus.Error("wrong input, u need spesify a name for each regexps")
-		return nil, fmt.Errorf("No Name specified for regexp")
+		return nil, fmt.Errorf("no Name specified for regexp")
 	}
 
 	var regexs []*RegexFilter
 	for i := 0; i < len(regexps); i++ {
 		regexs = append(regexs, NewRegexFilter(regexpName[i], regexps[i]))
 	}
-	return NewFileFilterWithRegSkip(regexs, filesName, cacheLine, skip_percent)
+	return NewFileFilterWithRegSkip(regexs, filesName, cacheLine, skipPercent)
 }
 
-func NewFileFilterWithRegSkip(regexs []*RegexFilter, filesName []string, cacheLineN int64, skip_percent int64) (*FileFilter, error) {
+func NewFileFilterWithRegSkip(regexs []*RegexFilter, filesName []string, cacheLineN int64, skipPercent int64) (*FileFilter, error) {
 	var res FileFilter
 	res.CacheLineN = cacheLineN
 	res.Regex = regexs
@@ -52,7 +52,7 @@ func NewFileFilterWithRegSkip(regexs []*RegexFilter, filesName []string, cacheLi
 	}
 
 	for i := 0; i < len(filesName); i++ {
-		res.AppendFile(filesName[i], res.CacheLineN, skip_percent)
+		res.AppendFile(filesName[i], res.CacheLineN, skipPercent)
 	}
 	return &res, nil
 }
@@ -60,7 +60,10 @@ func NewFileFilterWithRegSkip(regexs []*RegexFilter, filesName []string, cacheLi
 func (f *FileFilter) CheckFileCache() []FilterResult {
 	var res []FilterResult
 	for i := 0; i < len(f.FileLoaders); i++ {
-		f.FileLoaders[i].Load()
+		_, err := f.FileLoaders[i].Load()
+		if err != nil {
+			logrus.WithField("FileFilter", "CheckFileCache").WithField("f.FileLoaders[i].Load() err: ", err)
+		}
 	}
 
 	for i := 0; i < len(f.FileLoaders); i++ {
@@ -94,26 +97,26 @@ func (f *FileFilter) Check() []FilterResult {
 		fileLoader := f.FileLoaders[i]
 
 		for {
-			new_lines, err := fileLoader.GetLines(f.FileCheckPos[i])
+			newLines, err := fileLoader.GetLines(f.FileCheckPos[i])
 			if err != nil {
 				logrus.WithField("FileFilter", fileLoader.Name).WithError(err).Error("failed to get file's new line")
 			}
-			if len(new_lines) == 0 {
+			if len(newLines) == 0 {
 				break
 			}
 
-			for k := 0; k < len(new_lines); k++ {
+			for k := 0; k < len(newLines); k++ {
 				for j := 0; j < len(f.Regex); j++ {
-					if f.Regex[j].MatchOneLine(new_lines[k]) {
+					if f.Regex[j].MatchOneLine(newLines[k]) {
 						res = append(res, FilterResult{
 							Regex:    f.Regex[j].RegexExpression,
 							Name:     f.Regex[j].Name,
 							FileName: fileLoader.Name,
-							Line:     new_lines[k],
+							Line:     newLines[k],
 						})
 					}
 				}
-				f.FileCheckPos[i] += int64(len(new_lines[k]))
+				f.FileCheckPos[i] += int64(len(newLines[k]))
 				f.FileCheckLinePos[i]++
 			}
 		}
@@ -122,14 +125,14 @@ func (f *FileFilter) Check() []FilterResult {
 	return res
 }
 
-func (f *FileFilter) AppendFile(fileName string, cacheNum int64, skip_percent int64) bool {
-	file_loader := NewFileLoader(fileName, cacheNum, skip_percent)
-	if file_loader == nil {
+func (f *FileFilter) AppendFile(fileName string, cacheNum int64, skipPercent int64) bool {
+	fileLoader := NewFileLoader(fileName, cacheNum, skipPercent)
+	if fileLoader == nil {
 		return false
 	}
 
 	f.FileNames = append(f.FileNames, fileName)
-	f.FileLoaders = append(f.FileLoaders, file_loader)
+	f.FileLoaders = append(f.FileLoaders, fileLoader)
 	f.FileCheckPos = append(f.FileCheckPos, f.FileLoaders[len(f.FileLoaders)-1].Pos)
 	f.FileCheckLinePos = append(f.FileCheckLinePos, 0)
 	return true

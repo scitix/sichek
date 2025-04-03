@@ -36,12 +36,12 @@ type EthernetInfo struct {
 }
 
 type EthHardWareInfo struct {
-	EthDev  string `json:"eth_dev"`
+	EthDev   string `json:"eth_dev"`
 	PhyState string `json:"phy_stat"`
 }
 
 var (
-	EthSYSPathPre string = "/sys/class/net/"
+	EthSYSPathPre = "/sys/class/net/"
 )
 
 func (i *EthernetInfo) GetPhyState(ethDev string) []string {

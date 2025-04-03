@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -54,65 +54,118 @@ func (a *nodeAnnotation) JSON() (string, error) {
 	return string(data), err
 }
 
-func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
+func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
+	if item == "" {
+		return nil, fmt.Errorf("input item is empty")
+	}
+	switch item {
+	case consts.ComponentNameCPU:
+		return a.CPU, nil
+	case consts.ComponentNameDmesg:
+		return a.Dmesg, nil
+	case consts.ComponentNameEthernet:
+		return a.Ethernet, nil
+	case consts.ComponentNameGpfs:
+		return a.GPFS, nil
+	case consts.ComponentNameHang:
+		return a.Hang, nil
+	case consts.ComponentNameInfiniband:
+		return a.Infiniband, nil
+	case consts.ComponentNameNCCL:
+		return a.NCCL, nil
+	case consts.ComponentNameNvidia:
+		return a.NVIDIA, nil
+	}
+	return nil, fmt.Errorf("input item %s is not supported", item)
+}
+
+func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[string][]*annotation) error {
+	if item == "" {
+		return fmt.Errorf("input item is empty")
+	}
+	switch item {
+	case consts.ComponentNameCPU:
+		a.CPU = annotations
+	case consts.ComponentNameDmesg:
+		a.Dmesg = annotations
+	case consts.ComponentNameEthernet:
+		a.Ethernet = annotations
+	case consts.ComponentNameGpfs:
+		a.GPFS = annotations
+	case consts.ComponentNameHang:
+		a.Hang = annotations
+	case consts.ComponentNameInfiniband:
+		a.Infiniband = annotations
+	case consts.ComponentNameNCCL:
+		a.NCCL = annotations
+	case consts.ComponentNameNvidia:
+		a.NVIDIA = annotations
+	}
+	return nil
+}
+
+func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation, result *common.Result) error {
 	if result == nil {
 		return fmt.Errorf("input result is empty")
 	}
+	preAnnoStr, err := a.JSON()
+	if err != nil {
+		return fmt.Errorf("error marshaling pre_anno_str: %v", err)
+	}
 	jsonData, err := json.Marshal(result)
 	if err != nil {
-		logrus.Errorf("Error marshaling JSON: %v", err)
-		return err
+		return fmt.Errorf("error marshaling result: %v", err)
 	}
-	pre_anno_str, err := a.JSON()
-	if err != nil {
-		logrus.Errorf("Error marshaling annotation: %v", err)
-		return err
-	}
-	var annotations map[string][]*annotation
-	if result.Status == config.StatusAbnormal {
-		annotations = make(map[string][]*annotation)
-		for _, check_result := range result.Checkers {
-			if check_result.Status == config.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
+		for _, checkResult := range result.Checkers {
+			if checkResult.Status == consts.StatusAbnormal {
 				anno := &annotation{
-					ErrorName: check_result.ErrorName,
-					Devcie:    check_result.Device,
+					ErrorName: checkResult.ErrorName,
+					Devcie:    checkResult.Device,
 				}
-				_, exist := annotations[check_result.Level]
+				_, exist := annotations[checkResult.Level]
 				if !exist {
-					annotations[check_result.Level] = make([]*annotation, 0)
+					annotations[checkResult.Level] = make([]*annotation, 0)
 				}
-				annotations[check_result.Level] = append(annotations[check_result.Level], anno)
+				annotations[checkResult.Level] = append(annotations[checkResult.Level], anno)
 			}
 		}
 	}
-	switch result.Item {
-	case config.ComponentNameCPU:
-		a.CPU = annotations
-	case config.ComponentNameDmesg:
-		a.Dmesg = annotations
-	case config.ComponentNameEthernet:
-		a.Ethernet = annotations
-	case config.ComponentNameGpfs:
-		a.GPFS = annotations
-	case config.ComponentNameHang:
-		a.Hang = annotations
-	case config.ComponentNameInfiniband:
-		a.Infiniband = annotations
-	case config.ComponentNameNCCL:
-		a.NCCL = annotations
-	case config.ComponentNameNvidia:
-		a.NVIDIA = annotations
+	err = a.setAnnotationsByItem(result.Item, annotations)
+	if err != nil {
+		return fmt.Errorf("error setting annotations by item %v: %v", result.Item, err)
 	}
 	annoStr, err := a.JSON()
 	if err != nil {
-		logrus.Errorf("Error marshaling annotation: %v", err)
-		return err
+		return fmt.Errorf("error marshaling updated annotation: %v", err)
 	}
-	if result.Status == config.StatusAbnormal && (result.Level == config.LevelCritical || result.Level == config.LevelFatal) {
+	if result.Status == consts.StatusAbnormal && (result.Level == consts.LevelCritical || result.Level == consts.LevelFatal) {
 		logrus.Infof("set node annotation for check result %s", jsonData)
-		logrus.Infof("update node annotataion from %s to %s", pre_anno_str, annoStr)
+		logrus.Infof("update node annotataion from %s to %s", preAnnoStr, annoStr)
 	}
 
+	return nil
+
+}
+
+func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
+	annotations := make(map[string][]*annotation)
+	err := a.updateAnnotations(annotations, result)
+	if err != nil {
+		return fmt.Errorf("error updating annotations: %v", err)
+	}
+	return nil
+}
+
+func (a *nodeAnnotation) AppendFromResult(result *common.Result) error {
+	annotations, err := a.getAnnotationsByItem(result.Item)
+	if err != nil {
+		return fmt.Errorf("error getting annotations by item %v: %v", result.Item, err)
+	}
+	err = a.updateAnnotations(annotations, result)
+	if err != nil {
+		return fmt.Errorf("error updating annotations: %v", err)
+	}
 	return nil
 }
 

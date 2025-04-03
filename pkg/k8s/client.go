@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -41,7 +41,7 @@ func NewClient() (*K8sClient, error) {
 				panic(err)
 			}
 		} else {
-			cfg, err = clientcmd.BuildConfigFromFlags("", config.KubeConfigPath)
+			cfg, err = clientcmd.BuildConfigFromFlags("", consts.KubeConfigPath)
 			if err != nil {
 				logrus.Warnf("get kubeconfig faield, build in-cluster config: %v", err)
 				panic(err)
@@ -54,7 +54,7 @@ func NewClient() (*K8sClient, error) {
 		}
 
 		k8sClient = &K8sClient{
-			kubeconfig: config.KubeConfigPath,
+			kubeconfig: consts.KubeConfigPath,
 			client:     cli,
 		}
 	})

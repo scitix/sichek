@@ -23,12 +23,11 @@ import (
 	"strings"
 	"time"
 
-	hangCfg "github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/config"
-
+	"github.com/scitix/sichek/components/hang/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,14 +49,14 @@ func (d *HangInfo) JSON() (string, error) {
 type HangChecker struct {
 	id                string
 	name              string
-	cfg               common.CheckerSpec
+	cfg               *config.HangUserConfig
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewHangChecker(cfg common.CheckerSpec) common.Checker {
+func NewHangChecker(cfg *config.HangUserConfig) common.Checker {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	return &HangChecker{
-		id:                config.CheckerIDHang,
+		id:                consts.CheckerIDHang,
 		name:              "GPUHangChecker",
 		cfg:               cfg,
 		podResourceMapper: podResourceMapper,
@@ -66,10 +65,6 @@ func NewHangChecker(cfg common.CheckerSpec) common.Checker {
 
 func (c *HangChecker) Name() string {
 	return c.name
-}
-
-func (c *HangChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -90,9 +85,9 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 			}
 		}
 	}
-	status := config.StatusNormal
+	status := consts.StatusNormal
 	var suggest string
-	var gpuAbNum int = 0
+	var gpuAbNum = 0
 	devices := make([]string, 0)
 	var deviceToPodMap map[string]string
 	var err error
@@ -105,15 +100,15 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	for name, num := range hangNum {
 		if num == int64(len(info.Items)) {
 			gpuAbNum++
-			status = config.StatusAbnormal
+			status = consts.StatusAbnormal
 			suggest = fmt.Sprintf("%ssuggest check gpu device=%s which probably hang\n", suggest, name)
-			var device_pod string
+			var devicePod string
 			if _, found := deviceToPodMap[name]; found {
-				device_pod = fmt.Sprintf("%s:%s", name, deviceToPodMap[name])
+				devicePod = fmt.Sprintf("%s:%s", name, deviceToPodMap[name])
 			} else {
-				device_pod = fmt.Sprintf("%s:", name)
+				devicePod = fmt.Sprintf("%s:", name)
 			}
-			devices = append(devices, device_pod)
+			devices = append(devices, devicePod)
 		}
 	}
 
@@ -124,7 +119,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		logrus.Debugf("devices=%v\n", devices)
 	}
 
-	result := hangCfg.HangCheckItems["GPUHang"]
+	result := config.HangCheckItems["GPUHang"]
 	result.Device = strings.Join(devices, ",")
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status

@@ -16,102 +16,43 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
+type NvidiaUserConfig struct {
+	Nvidia *NvidiaConfig `json:"nvidia" yaml:"nvidia"`
+}
+
 type NvidiaConfig struct {
-	Spec            NvidiaSpec
-	ComponentConfig ComponentConfig
+	Name            string        `json:"name"`
+	QueryInterval   time.Duration `json:"query_interval"`
+	CacheSize       int64         `json:"cache_size"`
+	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
 }
 
-func (c *NvidiaConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *NvidiaConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *NvidiaConfig) LoadFromYaml(userConfig string, specFile string) {
-	c.Spec = GetSpec(specFile)
-	err := c.ComponentConfig.LoadFromYaml(userConfig)
-	if err != nil {
-		c.ComponentConfig.SetDefault()
-	}
-}
-
-type ComponentConfig struct {
-	Nvidia struct {
-		Name            string        `json:"name"`
-		QueryInterval   time.Duration `json:"query_interval"`
-		CacheSize       int64         `json:"cache_size"`
-		IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
-	} `json:"nvidia"`
-}
-
-func (c *ComponentConfig) GetCheckerSpec() map[string]common.CheckerSpec {
+func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	// for _, name := range c.IgnoredCheckers {
 	// 	commonCfgMap[name] = {}
 	// }
 	return commonCfgMap
 }
-
-func (c *ComponentConfig) GetQueryInterval() time.Duration {
+func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {
 	return c.Nvidia.QueryInterval
 }
 
-func (c *ComponentConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *ComponentConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *ComponentConfig) LoadFromYaml(filename string) error {
-	if filename == "" {
-		_, err := os.Stat("/var/sichek/nvidia/default_user_config.yaml")
-		if err == nil {
-			// run in pod use /var/sichek/nvidia/default_user_config.yaml
-			filename = "/var/sichek/nvidia/default_user_config.yaml"
-		} else {
-			// run on host use local config
-			_, curFile, _, ok := runtime.Caller(0)
-			if !ok {
-				return fmt.Errorf("get curr file path failed")
-			}
-
-			filename = filepath.Dir(curFile) + "/default_user_config.yaml"
-		}
+func (c *NvidiaUserConfig) LoadUserConfigFromYaml(file string) error {
+	if file == "" {
+		return common.DefaultComponentConfig(consts.ComponentNameNvidia, c, consts.DefaultUserCfgName)
 	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal YAML: %w", err)
+	err := utils.LoadFromYaml(file, c)
+	if err != nil || c.Nvidia == nil {
+		return fmt.Errorf("failed to load nvidia config: %v", err)
 	}
 	return nil
-}
-
-func (c *ComponentConfig) SetDefault() {
-	c.Nvidia.Name = "nvidia"
-	c.Nvidia.QueryInterval = 10 * time.Second
-	c.Nvidia.CacheSize = 10
-	c.Nvidia.IgnoredCheckers = []string{}
 }

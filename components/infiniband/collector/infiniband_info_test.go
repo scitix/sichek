@@ -23,8 +23,8 @@ import (
 
 func TestGetIBInfo(t *testing.T) {
 
-	ibInfo_0 := &InfinibandInfo{}
-	ibInfo := ibInfo_0.GetIBInfo()
+	ibInfo0 := &InfinibandInfo{}
+	ibInfo := ibInfo0.GetIBInfo()
 
 	t.Logf("ibInfo: %s", common.ToString(ibInfo))
 

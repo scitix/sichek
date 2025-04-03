@@ -23,11 +23,10 @@ import (
 	"github.com/scitix/sichek/components/ethernet/checker"
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
+	"github.com/scitix/sichek/consts"
 
 	"sync"
 	"time"
-
-	commonCfg "github.com/scitix/sichek/config"
 
 	"github.com/sirupsen/logrus"
 )
@@ -40,10 +39,10 @@ var (
 type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	spec   *config.EthernetSpec
+	spec   *config.EthernetSpecConfig
 	info   common.Info
 
-	cfg      *config.EthernetConfig
+	cfg      *config.EthernetUserConfig
 	cfgMutex sync.RWMutex
 
 	// collector common.Collector
@@ -75,46 +74,35 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 			cancel()
 		}
 	}()
-
-	cfg := &config.EthernetConfig{}
-	if len(cfgFile) == 0 {
-		cfg, err = config.DefaultConfig()
-		if err != nil {
-			logrus.WithField("component", "ethernet").Error("ethernet use default config failed ", err)
-			return nil, err
-		}
-	} else {
-		err = cfg.LoadFromYaml(cfgFile)
-		if err != nil {
-			logrus.WithField("component", "ethernet").Error(err)
-		}
-	}
-	logrus.WithField("component", "ethernet").Infof("checker items:%v", cfg.Ethernet.Cherkers)
-
-	var EthSpecCfg config.EthernetSpec
-	specCfg, err := EthSpecCfg.GetEthSpec()
+	cfg := &config.EthernetUserConfig{}
+	err = cfg.LoadUserConfigFromYaml(cfgFile)
 	if err != nil {
-		logrus.WithField("component", "ethernet").Errorf("fail to get the ib spec cfg, err:%v", err)
+		logrus.WithField("component", "ethernet").Errorf("NewComponent load user config failed: %v", err)
+		return nil, err
 	}
-
+	specCfg := &config.EthernetSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "ethernet").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	ethernetSpec := specCfg.EthernetSpec
 	checkers := make([]common.Checker, 0)
 	checkerIndex := 0
 	for _, checkItem := range cfg.Ethernet.Cherkers {
 		switch checkItem {
 		case "phy_state":
 			checkerIndex = checkerIndex + 1
-			checker, err := checker.NewEthPhyStateChecker(specCfg)
+			ethPhyStateChecker, err := checker.NewEthPhyStateChecker(ethernetSpec)
 			if err != nil {
 				logrus.WithField("component", "ethernet").Errorf("Fail to create the checker: %d, err: %v", checkerIndex, err)
 			}
-			checkers = append(checkers, checker)
+			checkers = append(checkers, ethPhyStateChecker)
 			logrus.WithField("component", "ethernet").Infof("create the checker %d: %s", checkerIndex, checkItem)
 		}
 	}
 
 	var info collector.EthernetInfo
-	var spec config.EthernetSpec
-	ethSpec, err := spec.GetEthSpec()
 	if err != nil {
 		logrus.WithField("component", "ethernet").Infof("fail to get the ib spec err %v", err)
 	}
@@ -122,21 +110,21 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 	component := &component{
 		ctx:         ctx,
 		cancel:      cancel,
-		spec:        ethSpec,
+		spec:        specCfg,
 		info:        info.GetEthInfo(),
 		checkers:    checkers,
 		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.GetCacheSize()),
-		cacheInfo:   make([]common.Info, cfg.GetCacheSize()),
+		cacheBuffer: make([]*common.Result, cfg.Ethernet.CacheSize),
+		cacheInfo:   make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:   0,
-		cacheSize:   cfg.GetCacheSize(),
+		cacheSize:   cfg.Ethernet.CacheSize,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return commonCfg.ComponentNameInfiniband
+	return consts.ComponentNameEthernet
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -148,14 +136,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
 
-	status := commonCfg.StatusNormal
+	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	var err error
-	var level string = commonCfg.LevelInfo
+	var level = consts.LevelInfo
 
-	for _, cherker := range c.checkers {
-		logrus.WithField("component", "ethernet").Debugf("do the check: %s", cherker.Name())
-		result, err := cherker.Check(cctx, ethernetInfo)
+	for _, each := range c.checkers {
+		logrus.WithField("component", "ethernet").Debugf("do the check: %s", each.Name())
+		result, err := each.Check(cctx, ethernetInfo)
 		if err != nil {
 			logrus.WithField("component", "ethernet").Errorf("failed to check: %v", err)
 			continue
@@ -164,14 +152,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		if checkItem.Status == commonCfg.StatusAbnormal {
+		if checkItem.Status == consts.StatusAbnormal {
 			logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 		}
 	}
 
 	for _, checkItem := range checkerResults {
-		if checkItem.Status == commonCfg.StatusAbnormal {
-			status = commonCfg.StatusAbnormal
+		if checkItem.Status == consts.StatusAbnormal {
+			status = consts.StatusAbnormal
 			level = config.EthCheckItems[checkItem.Name].Level
 			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
 			break
@@ -184,7 +172,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	resResult := &common.Result{
-		Item:     commonCfg.ComponentNameInfiniband,
+		Item:     consts.ComponentNameEthernet,
 		Status:   status,
 		Level:    level,
 		RawData:  info,
@@ -195,9 +183,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = ethernetInfo
 	c.cacheBuffer[c.currIndex] = resResult
-	c.currIndex = (c.currIndex + 1) % c.cfg.GetCacheSize()
+	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "ethernet").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "ethernet").Infof("Health Check PASSED")
@@ -245,13 +233,13 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.EthernetConfig)
+	configPointer, ok := cfg.(*config.EthernetUserConfig)
 	if !ok {
-		return fmt.Errorf("update wrong config type for infiniband")
+		return fmt.Errorf("update wrong config type for ethernet")
 	}
-	c.cfg = config
+	c.cfg = configPointer
 	c.cfgMutex.Unlock()
 	return c.service.Update(ctx, cfg)
 }

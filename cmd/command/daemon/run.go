@@ -25,12 +25,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/scitix/sichek/config"
-	pkg_systemd "github.com/scitix/sichek/pkg/systemd"
+	"github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/service"
 )
 
-// NewDaemonRunCmd创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
+// NewDaemonRunCmd 创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
 func NewDaemonRunCmd() *cobra.Command {
 	daemonRunCmd := &cobra.Command{
 		Use:   "run",
@@ -61,40 +60,25 @@ func NewDaemonRunCmd() *cobra.Command {
 				}
 			}
 
-			used_component_str, err := cmd.Flags().GetString("enable-components")
+			usedComponentStr, err := cmd.Flags().GetString("enable-components")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				logrus.WithField("daemon", "run").Infof("enable components = %v", used_component_str)
+				logrus.WithField("daemon", "run").Infof("enable components = %v", usedComponentStr)
 			}
-			used_components := make([]string, 0)
-			if len(used_component_str) > 0 {
-				used_components = strings.Split(used_component_str, ",")
+			usedComponents := make([]string, 0)
+			if len(usedComponentStr) > 0 {
+				usedComponents = strings.Split(usedComponentStr, ",")
 			}
-			ignore_component_str, err := cmd.Flags().GetString("ignore-components")
+			ignoreComponentStr, err := cmd.Flags().GetString("ignore-components")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				logrus.WithField("daemon", "run").Infof("ignore-components = %v", ignore_component_str)
+				logrus.WithField("daemon", "run").Infof("ignore-components = %v", ignoreComponentStr)
 			}
-			ignored_components := make([]string, 0)
-			if len(ignore_component_str) > 0 {
-				ignored_components = strings.Split(ignore_component_str, ",")
-			}
-
-			var cfg *config.Config
-			if cfgFile != "" {
-				cfg, err = config.LoadConfigFromYaml(cfgFile)
-				if err != nil {
-					logrus.WithField("components", "infiniband").Error(err)
-				}
-			} else {
-				// 默认配置
-				cfg, err = config.GetDefaultConfig(used_components, ignored_components)
-				if err != nil {
-					logrus.WithField("daemon", "run").Error("Daemon create default config failed", err)
-					return
-				}
+			ignoredComponents := make([]string, 0)
+			if len(ignoreComponentStr) > 0 {
+				ignoredComponents = strings.Split(ignoreComponentStr, ",")
 			}
 			annoKey, err := cmd.Flags().GetString("annotation-key")
 			if err != nil {
@@ -111,8 +95,7 @@ func NewDaemonRunCmd() *cobra.Command {
 
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
-
-			daemonService, err := service.NewService(ctx, cfg, specFile, annoKey)
+			daemonService, err := service.NewService(ctx, cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return
@@ -120,7 +103,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			serviceChan <- daemonService
 			go daemonService.Run()
 
-			if exist, _ := pkg_systemd.SystemctlExists(); exist {
+			if exist, _ := systemd.SystemctlExists(); exist {
 				if err := service.NotifyReady(); err != nil {
 					logrus.WithField("daemon", "run").Warn("notify is not ready")
 				}

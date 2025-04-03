@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -24,7 +25,7 @@ import (
 )
 
 type StatesInfo struct {
-	GpuPersistenced string `json:"persistence"`
+	GpuPersistenceM string `json:"persistence"`
 	// TODO
 	// GpuRstState     string `json:"gpu_reset_required"`
 	GpuPstate uint32 `json:"pstate"`
@@ -34,7 +35,7 @@ func (s *StatesInfo) JSON() ([]byte, error) {
 	return common.JSON(s)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (s *StatesInfo) ToString() string {
 	return common.ToString(s)
 }
@@ -42,13 +43,13 @@ func (s *StatesInfo) ToString() string {
 func (s *StatesInfo) Get(device nvml.Device, uuid string) error {
 	// Get GPU Persistence Mode
 	persistenceMode, err := device.GetPersistenceMode()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get GPU persistence mode for GPU %v: %v", uuid, err)
 	}
 	if persistenceMode == nvml.FEATURE_ENABLED {
-		s.GpuPersistenced = "enable"
+		s.GpuPersistenceM = "enable"
 	} else {
-		s.GpuPersistenced = "disable"
+		s.GpuPersistenceM = "disable"
 	}
 
 	// Get GPU Reset State
@@ -64,7 +65,7 @@ func (s *StatesInfo) Get(device nvml.Device, uuid string) error {
 
 	// Get GPU Performance State (P-State)
 	pstate, err := device.GetPerformanceState()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get GPU performance state for GPU %v: %v", uuid, err)
 	}
 	s.GpuPstate = uint32(pstate)

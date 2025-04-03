@@ -23,8 +23,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang"
-	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -66,15 +65,9 @@ func NewHangCommand() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
 			}
-
-			_, err = nvidia.NewComponent("", specFile, nil)
-			if err != nil {
-				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
-				return
-			}
 			component, err := hang.NewComponent(cfgFile)
 			if err != nil {
-				logrus.WithField("component", "Hang").Errorf("create hang component failed: %v", err)
+				logrus.WithField("components", "Hang").Error("fail to Create Hang Components")
 				return
 			}
 
@@ -116,14 +109,14 @@ func NewHangCommand() *cobra.Command {
 				return
 			}
 
-			logrus.WithField("component", "Gpfs").Infof("Gpfs analysis result: %s\n", common.ToString(result))
+			logrus.WithField("component", "Hang").Infof("Hang analysis result: %s\n", common.ToString(result))
 			info, err := component.LastInfo(ctx)
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 			}
 			pass := PrintHangInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[config.ComponentNameHang] = pass
+			ComponentStatuses[consts.ComponentNameHang] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -140,7 +133,7 @@ func PrintHangInfo(info common.Info, result *common.Result, summaryPrint bool) b
 	checkerResults := result.Checkers
 	utils.PrintTitle("Hang Error", "-")
 	for _, result := range checkerResults {
-		if result.Status == config.StatusAbnormal {
+		if result.Status == consts.StatusAbnormal {
 			checkAllPassed = false
 			fmt.Printf("\t%s%s%s\n", Red, result.Detail, Reset)
 		}

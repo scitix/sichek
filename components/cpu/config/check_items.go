@@ -17,7 +17,7 @@ package config
 
 import (
 	"github.com/scitix/sichek/components/common"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 // CPUCheckItems is a map of check items for System
@@ -27,7 +27,7 @@ var CPUCheckItems = map[string]common.CheckerResult{
 		Description: "Check if all cpus are in performance mode",
 		Spec:        "Enabled",
 		Status:      "",
-		Level:       commonCfg.LevelWarning,
+		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "CPUPerfModeNotEnabled",
 		Suggestion:  "run `echo performance > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor` to set all cpus to performance mode. Ideally this will be done automatically online",

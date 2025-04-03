@@ -23,19 +23,19 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type IBPCIEWidthChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *config.InfinibandSpecItem
 	description string
 }
 
-func NewIBPCIEWidthChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBPCIEWidthChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBPCIEWidthChecker{
-		id:   commonCfg.CheckerIDInfinibandFW,
+		id:   consts.CheckerIDInfinibandFW,
 		name: config.CheckPCIEWidth,
 		spec: specCfg,
 	}, nil
@@ -60,10 +60,10 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
@@ -79,7 +79,7 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 		spec = append(spec, hcaSpec.PCIEWidth)
 		curr = append(curr, hwInfo.PCIEWidth)
 		if hwInfo.PCIEWidth != hcaSpec.PCIEWidth {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIEWidth)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEWidth)

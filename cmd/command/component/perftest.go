@@ -27,8 +27,8 @@ import (
 func NewIBPerftestCmd() *cobra.Command {
 
 	ibPerftestCmd := &cobra.Command{
-		Use:     "ib",
-		Short:   "Perform Infiniband performance tests",
+		Use:   "ib",
+		Short: "Perform Infiniband performance tests",
 		Run: func(cmd *cobra.Command, args []string) {
 			_, cancel := context.WithTimeout(context.Background(), CmdTimeout)
 
