@@ -3,3 +3,4 @@ build
 dist/
 cmd/cmd
 cmd/sichek
+vendor/

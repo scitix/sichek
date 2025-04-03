@@ -17,6 +17,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -86,12 +87,12 @@ func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDe
 func (collector *NvidiaCollector) getUUID() {
 	for i := 0; i < collector.ExpectedDeviceCount; i++ {
 		device, err := collector.nvmlInst.DeviceGetHandleByIndex(i)
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA-Collector-getUUID").Errorf("failed to get Nvidia GPU device %d: %v", i, err)
 			return
 		}
 		uuid, err := device.GetUUID()
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA-Collector-getUUID").Errorf("failed to get UUID for GPU %d: %v", i, nvml.ErrorString(err))
 			collector.UUIDAllValidFlag = false
 		}
@@ -107,7 +108,7 @@ func (collector *NvidiaCollector) Name() string {
 	return "NvidiaCollector"
 }
 
-func (collector *NvidiaCollector) GetCfg() common.ComponentConfig {
+func (collector *NvidiaCollector) GetCfg() common.ComponentUserConfig {
 	return nil
 }
 
@@ -125,7 +126,7 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 
 	// Get the number of devices
 	numDevices, err := collector.nvmlInst.DeviceGetCount()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return nil, fmt.Errorf("failed to get Nvidia GPU device count: %v", err)
 	}
 	nvidia.DeviceCount = numDevices
@@ -134,7 +135,7 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 	nvidia.DevicesInfo = make([]DeviceInfo, numDevices)
 	for i := 0; i < numDevices; i++ {
 		device, err := collector.nvmlInst.DeviceGetHandleByIndex(i)
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 			// return nil, fmt.Errorf("failed to get Nvidia GPU device %d: %v", i, err)

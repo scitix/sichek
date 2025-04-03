@@ -17,7 +17,7 @@ package config
 
 import (
 	"github.com/scitix/sichek/components/common"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 // HangCheckItems is a map of check items for NCCL
@@ -28,7 +28,7 @@ var HangCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelFatal,
+		Level:       consts.LevelFatal,
 		Detail:      "",
 		ErrorName:   "GPUHang",
 		Suggestion:  "",

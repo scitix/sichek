@@ -23,15 +23,15 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type ClockEventsChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewClockEventsChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewClockEventsChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &ClockEventsChecker{
 		name: config.ClockEventsCheckerName,
 		cfg:  cfg,
@@ -40,10 +40,6 @@ func NewClockEventsChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 
 func (c *ClockEventsChecker) Name() string {
 	return c.name
-}
-
-func (c *ClockEventsChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -56,32 +52,32 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 	result := config.GPUCheckItems[config.ClockEventsCheckerName]
 
 	// Check if any critical clock event is engaged in any Nvidia GPU
-	var dev_clock_events map[int]string
-	var falied_gpuid_podnames []string
+	var devClockEvents map[int]string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if !device.ClockEvents.IsSupported {
 			return nil, nil
 		}
 		if len(device.ClockEvents.CriticalClockEvents) > 0 {
-			if dev_clock_events == nil {
-				dev_clock_events = make(map[int]string)
+			if devClockEvents == nil {
+				devClockEvents = make(map[int]string)
 			}
-			dev_clock_events[device.Index] = device.ClockEvents.ToString()
-			var device_pod_name string
+			devClockEvents[device.Index] = device.ClockEvents.ToString()
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if len(dev_clock_events) > 0 {
-		result.Status = commonCfg.StatusAbnormal
-		result.Detail = fmt.Sprintf("Critical clock events engaged: \n%v", dev_clock_events)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+	if len(devClockEvents) > 0 {
+		result.Status = consts.StatusAbnormal
+		result.Detail = fmt.Sprintf("Critical clock events engaged: \n%v", devClockEvents)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

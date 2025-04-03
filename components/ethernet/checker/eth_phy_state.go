@@ -23,7 +23,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type EthPhyStateChecker struct {
@@ -35,7 +35,7 @@ type EthPhyStateChecker struct {
 
 func NewEthPhyStateChecker(specCfg *config.EthernetSpec) (common.Checker, error) {
 	return &EthPhyStateChecker{
-		id:   commonCfg.CheckerIDEthPhyState,
+		id:   consts.CheckerIDEthPhyState,
 		name: config.ChekEthPhyState,
 		spec: specCfg,
 	}, nil
@@ -61,7 +61,7 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 
 	if len(ethernetInfo.EthDevs) == 0 {
 		result := config.EthCheckItems[c.name]
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Level = config.EthCheckItems[c.name].Level
 		result.Detail = "No eth device found"
 		return &result, fmt.Errorf("fail to get the eth device")
@@ -70,11 +70,11 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	var (
 		errDevice []string
 		spec      string
-		level     string = commonCfg.LevelInfo
-		detail    string = config.EthCheckItems[c.name].Detail
+		level     = consts.LevelInfo
+		detail    = config.EthCheckItems[c.name].Detail
 	)
 
-	status := commonCfg.StatusNormal
+	status := consts.StatusNormal
 	suggestions := " "
 
 	curr := make([]string, 0, len(ethernetInfo.EthHardWareInfo))
@@ -97,7 +97,7 @@ func (c *EthPhyStateChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	if len(errDevice) != 0 {
-		status = commonCfg.StatusAbnormal
+		status = consts.StatusAbnormal
 		level = config.EthCheckItems[c.name].Level
 		detail = fmt.Sprintf("%s status is not right status", strings.Join(errDevice, ","))
 		suggestions = fmt.Sprintf("check nic to up %s link status", strings.Join(errDevice, ","))

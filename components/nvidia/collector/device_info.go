@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -47,7 +48,7 @@ func (deviceInfo *DeviceInfo) JSON() ([]byte, error) {
 	return common.JSON(deviceInfo)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (deviceInfo *DeviceInfo) ToString() string {
 	return common.ToString(deviceInfo)
 }
@@ -55,7 +56,7 @@ func (deviceInfo *DeviceInfo) ToString() string {
 func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion string) error {
 	// Get GPU Name
 	name, err := device.GetName()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get name for GPU %d: %v", index, nvml.ErrorString(err))
 	}
 	deviceInfo.Name = name
@@ -63,28 +64,28 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	// Get GPU Index
 	// moduleId, err := device.GetModuleId()
 	minorNumber, err := device.GetMinorNumber()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get index for GPU %d: %v", index, nvml.ErrorString(err))
 	}
 	deviceInfo.Index = minorNumber
 
 	// Get GPU UUID
 	uuid, err := device.GetUUID()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get UUID for GPU %d: %v", index, nvml.ErrorString(err))
 	}
 	deviceInfo.UUID = uuid
 
 	// Get GPU Serial
 	serial, err := device.GetSerial()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get serial for GPU %v: %v", uuid, nvml.ErrorString(err))
 	}
 	deviceInfo.Serial = serial
 
 	// Get the VBIOS version, may differ between GPUs
 	vbiosVersion, err := device.GetVbiosVersion()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get VBIOS version for device 0: %v", nvml.ErrorString(err))
 	}
 	deviceInfo.VBIOSVersion = vbiosVersion
@@ -149,13 +150,13 @@ func isDriverVersionSupportedClkEvents(driverVersion string, requiredMajor int) 
 	// Split the driver version string by "."
 	parts := strings.Split(driverVersion, ".")
 	if len(parts) < 1 {
-			return false, fmt.Errorf("invalid driver version format: %s", driverVersion)
+		return false, fmt.Errorf("invalid driver version format: %s", driverVersion)
 	}
 
 	// Parse the major version (first part of the string)
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-			return false, fmt.Errorf("invalid major version in driver version: %s", driverVersion)
+		return false, fmt.Errorf("invalid major version in driver version: %s", driverVersion)
 	}
 
 	// Compare the major version

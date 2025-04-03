@@ -23,14 +23,14 @@ import (
 	"github.com/scitix/sichek/components/gpfs"
 	"github.com/scitix/sichek/components/gpfs/collector"
 	"github.com/scitix/sichek/components/gpfs/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-// NewGpfsCmd创建并返回用于代表Gpfs相关操作的子命令实例，配置命令的基本属性
+// NewGpfsCmd 创建并返回用于代表Gpfs相关操作的子命令实例，配置命令的基本属性
 func NewGpfsCmd() *cobra.Command {
 	gpfsCmd := &cobra.Command{
 		Use:     "gpfs",
@@ -59,7 +59,6 @@ func NewGpfsCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
-
 			component, err := gpfs.NewGpfsComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "Gpfs").Errorf("create gpfs component failed: %v", err)
@@ -79,7 +78,7 @@ func NewGpfsCmd() *cobra.Command {
 			}
 			pass := PrintGPFSInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameGpfs] = pass
+			ComponentStatuses[consts.ComponentNameGpfs] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -103,7 +102,7 @@ func PrintGPFSInfo(info common.Info, result *common.Result, summaryPrint bool) b
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		statusColor := Green
-		if result.Status != commonCfg.StatusNormal {
+		if result.Status != consts.StatusNormal {
 			statusColor = Red
 			checkAllPassed = false
 			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", Red, result.ErrorName, Reset)

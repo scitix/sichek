@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewRootCmd创建并返回根命令（sichek命令）实例，配置基本使用信息以及添加子命令
+// NewRootCmd 创建并返回根命令（sichek命令）实例，配置基本使用信息以及添加子命令
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "sichek",

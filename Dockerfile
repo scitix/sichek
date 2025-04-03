@@ -23,12 +23,12 @@ COPY . .
 RUN go mod download
 RUN goreleaser release --snapshot --clean
 
-FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.0-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    vim build-essential tzdata curl git sudo ca-certificates libgcc1 \
+    vim build-essential tzdata curl git sudo ca-certificates libgcc1 perftest\
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=UTC

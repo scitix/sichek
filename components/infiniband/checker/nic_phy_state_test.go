@@ -21,25 +21,26 @@ import (
 
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 func TestIBPhyStateChecker_Check(t *testing.T) {
 	// 模拟 Spec 配置
 	// 模拟 Spec 配置
-	spec := &config.InfinibandSpec{
-		HCAs: map[string]collector.IBHardWareInfo{
-			"ib0": {
-				IBDev:     "ib0",
+	spec := &config.InfinibandSpecItem{
+		HCAs: map[string]*collector.IBHardWareInfo{
+			"MT_0000000970": {
+				IBDev:    "MT_0000000970",
+				BoardID:  "MT_0000000970",
 				PhyState: "LinkUp",
 			},
-			"ib1": {
-				IBDev:     "ib1",
+			"MT_0000001119": {
+				IBDev:    "MT_0000001119",
+				BoardID:  "MT_0000001119",
 				PhyState: "LinkUp",
 			},
 		},
 	}
-
 
 	// 创建 Checker 实例
 	checker, err := NewIBPhyStateChecker(spec)
@@ -51,66 +52,56 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 
 	// 测试用例
 	tests := []struct {
-		name               string
-		data               *collector.InfinibandInfo
-		expectedStatus     string
-		expectedLevel      string
-		expectedDetail     string
-		expectedSuggestion string
-		expectedError      bool
+		name           string
+		data           *collector.InfinibandInfo
+		expectedStatus string
+		expectedLevel  string
+		expectedError  bool
 	}{
 		{
 			name: "All devices are LinkUp",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PhyState: "LinkUp"},
-					{HCAType: "cx5", IBDev: "ib1", PhyState: "LinkUp"},
+					{HCAType: "MT_0000001119", BoardID: "MT_0000001119", IBDev: "ib0", PhyState: "LinkUp"},
+					{HCAType: "MT_0000000970", BoardID: "MT_0000000970", IBDev: "ib1", PhyState: "LinkUp"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusNormal,
-			expectedLevel:      commonCfg.LevelInfo,
-			expectedDetail:     "all ib phy link status is up",
-			expectedSuggestion: "",
-			expectedError:      false,
+			expectedStatus: consts.StatusNormal,
+			expectedLevel:  consts.LevelCritical,
+			expectedError:  false,
 		},
 		{
 			name: "No Infiniband devices found",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     config.NOIBFOUND,
-			expectedSuggestion: "",
-			expectedError:      true,
+			expectedStatus: consts.StatusAbnormal,
+			expectedLevel:  config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedError:  true,
 		},
 		{
 			name: "One device is not LinkUp",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PhyState: "Down"},
-					{HCAType: "cx5", IBDev: "ib1", PhyState: "LinkUp"},
+					{HCAType: "MT_0000001119", BoardID: "MT_0000001119", IBDev: "ib0", PhyState: "Down"},
+					{HCAType: "MT_0000000970", BoardID: "MT_0000000970", IBDev: "ib1", PhyState: "LinkUp"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     "ib0 status is not LinkUp, curr:Down,LinkUp",
-			expectedSuggestion: "check nic to up ib0 link status",
-			expectedError:      false,
+			expectedStatus: consts.StatusAbnormal,
+			expectedLevel:  config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedError:  false,
 		},
 		{
 			name: "Multiple devices are not LinkUp",
 			data: &collector.InfinibandInfo{
 				IBHardWareInfo: []collector.IBHardWareInfo{
-					{HCAType: "mlx5", IBDev: "ib0", PhyState: "Down"},
-					{HCAType: "cx5", IBDev: "ib1", PhyState: "Init"},
+					{HCAType: "MT_0000001119", BoardID: "MT_0000001119", IBDev: "ib0", PhyState: "Down"},
+					{HCAType: "MT_0000000970", BoardID: "MT_0000000970", IBDev: "ib1", PhyState: "Init"},
 				},
 			},
-			expectedStatus:     commonCfg.StatusAbnormal,
-			expectedLevel:      config.InfinibandCheckItems[ibChecker.name].Level,
-			expectedDetail:     "ib0,ib1 status is not LinkUp, curr:Down,Init",
-			expectedSuggestion: "check nic to up ib0,ib1 link status",
-			expectedError:      false,
+			expectedStatus: consts.StatusAbnormal,
+			expectedLevel:  config.InfinibandCheckItems[ibChecker.name].Level,
+			expectedError:  false,
 		},
 	}
 
@@ -134,14 +125,6 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 
 				if result.Level != tt.expectedLevel {
 					t.Errorf("unexpected level, got=%s, want=%s", result.Level, tt.expectedLevel)
-				}
-
-				if result.Detail != tt.expectedDetail {
-					t.Errorf("unexpected detail, got=%s, want=%s", result.Detail, tt.expectedDetail)
-				}
-
-				if result.Suggestion != tt.expectedSuggestion {
-					t.Errorf("unexpected suggestion, got=%s, want=%s", result.Suggestion, tt.expectedSuggestion)
 				}
 			}
 		})

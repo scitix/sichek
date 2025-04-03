@@ -17,79 +17,40 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
-// 实现ComponentsConfig 接口
+type InfinibandUserConfig struct {
+	Infiniband *InfinibandConfig `json:"infiniband" yaml:"infiniband"`
+}
+
+// InfinibandConfig 实现ComponentsConfig 接口
 type InfinibandConfig struct {
-	Infiniband struct {
-		Name            string        `json:"name" yaml:"name"`
-		QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
-		CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
-		IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
-	} `json:"infiniband"`
+	Name            string        `json:"name" yaml:"name"`
+	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
+	IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
-func (c *InfinibandConfig) ComponentName() string {
-	return c.Infiniband.Name
-}
-
-func (c *InfinibandConfig) GetCheckerSpec() map[string]common.CheckerSpec {
+func (c *InfinibandUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return nil
 }
 
-func (c *InfinibandConfig) GetQueryInterval() time.Duration {
+func (c *InfinibandUserConfig) GetQueryInterval() time.Duration {
 	return c.Infiniband.QueryInterval
 }
 
-func (c *InfinibandConfig) GetCacheSize() int64 {
-	return c.Infiniband.CacheSize
-}
-
-func (c *InfinibandConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *InfinibandConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
+func (c *InfinibandUserConfig) LoadUserConfigFromYaml(file string) error {
+	if file == "" {
+		return common.DefaultComponentConfig(consts.ComponentNameInfiniband, c, consts.DefaultUserCfgName)
 	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
+	err := utils.LoadFromYaml(file, c)
+	if err != nil || c.Infiniband == nil {
+		return fmt.Errorf("failed to load infiniband config: %v", err)
 	}
-
 	return nil
-}
-
-func DefaultConfig() (*InfinibandConfig, error) {
-	var InfinbandConfig InfinibandConfig
-	// 读取用户定义的检查项目
-	defaultCfgPath := "/userDefaultChecker.yaml"
-	_, err := os.Stat("/var/sichek/infiniband" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/infiniband/userDefaultChecker1.yaml
-		defaultCfgPath = "/var/sichek/infiniband" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = InfinbandConfig.LoadFromYaml(defaultCfgPath)
-	return &InfinbandConfig, err
 }

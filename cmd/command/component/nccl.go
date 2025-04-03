@@ -21,7 +21,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nccl"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -71,7 +71,7 @@ func NewNCCLCmd() *cobra.Command {
 			logrus.WithField("component", "NCCL").Infof("NCCL analysis result: \n%s", common.ToString(result))
 			pass := PrintNCCLInfo(nil, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameNCCL] = pass
+			ComponentStatuses[consts.ComponentNameNCCL] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -89,7 +89,7 @@ func PrintNCCLInfo(info common.Info, result *common.Result, summaryPrint bool) b
 	for _, result := range checkerResults {
 		switch result.Name {
 		case "NCCLTimeoutChecker":
-			if result.Status == commonCfg.StatusAbnormal {
+			if result.Status == consts.StatusAbnormal {
 				ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		}

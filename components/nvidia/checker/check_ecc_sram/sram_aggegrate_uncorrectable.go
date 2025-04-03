@@ -23,15 +23,15 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type SRAMAggUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &SRAMAggUncorrectableChecker{
 		name: config.SRAMAggUncorrectableCheckerName,
 		cfg:  cfg,
@@ -40,10 +40,6 @@ func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, err
 
 func (c *SRAMAggUncorrectableChecker) Name() string {
 	return c.name
-}
-
-func (c *SRAMAggUncorrectableChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -55,34 +51,34 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 
 	result := config.GPUCheckItems[config.SRAMAggUncorrectableCheckerName]
 
-	var falied_gpuid_podnames []string
-	var memory_error_events map[int]string
+	var failedGpuidPodnames []string
+	var memoryErrorEvents map[int]string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		// suggestion action : replace GPU
 		if device.MemoryErrors.AggregateECC.SRAM.Uncorrected > c.cfg.MemoryErrorThreshold.SRAMAggregateUncorrectableErrors {
-			if memory_error_events == nil {
-				memory_error_events = make(map[int]string)
+			if memoryErrorEvents == nil {
+				memoryErrorEvents = make(map[int]string)
 			}
-			memory_error_events[device.Index] = fmt.Sprintf(
+			memoryErrorEvents[device.Index] = fmt.Sprintf(
 				"GPU %d:%s SRAM Aggregate Uncorrectable Detected: %d, Threshold: %d\n",
 				device.Index, device.UUID,
 				device.MemoryErrors.AggregateECC.SRAM.Uncorrected,
 				c.cfg.MemoryErrorThreshold.SRAMAggregateUncorrectableErrors)
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
-		result.Detail = fmt.Sprintf("%v", memory_error_events)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+	if len(failedGpuidPodnames) > 0 {
+		result.Status = consts.StatusAbnormal
+		result.Detail = fmt.Sprintf("%v", memoryErrorEvents)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

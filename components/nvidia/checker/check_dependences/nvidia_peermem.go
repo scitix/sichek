@@ -21,16 +21,16 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 type NvPeerMemChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewNvPeerMemChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewNvPeerMemChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &NvPeerMemChecker{
 		name: config.NvPeerMemCheckerName,
 		cfg:  cfg,
@@ -39,10 +39,6 @@ func NewNvPeerMemChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 
 func (c *NvPeerMemChecker) Name() string {
 	return c.name
-}
-
-func (c *NvPeerMemChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -64,18 +60,18 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 	if !usingPeermem {
 		_, err := utils.ExecCommand(ctx, "modprobe", "nvidia_peermem")
 		if err == nil {
-			result.Status = commonCfg.StatusNormal
+			result.Status = consts.StatusNormal
 			result.Curr = "LoadedOnline"
 			result.Detail = "nvidia_peermem is not loaded. It has been loaded online successfully"
 			result.Suggestion = ""
 			result.ErrorName = ""
 		} else {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "NotLoaded"
 			result.Detail = fmt.Sprintf("nvidia_peermem is not loaded correctly. Failed to load nvidia_peermem online: %v", err)
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Loaded"
 		result.Detail = "nvidia_peermem is loaded correctly"
 		result.Suggestion = ""

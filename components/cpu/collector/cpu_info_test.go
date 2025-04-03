@@ -42,7 +42,6 @@ func TestUsage_Get(t *testing.T) {
 	t.Logf("CPU Usage: %v", common.ToString(usage))
 }
 
-
 func TestGetTotalThreads(t *testing.T) {
 	threadCount, err := GetTotalThreads()
 	if err != nil {
@@ -90,4 +89,3 @@ func TestUsage_getProcStats(t *testing.T) {
 	}
 	t.Logf("ProcStats: Running=%d, Blocked=%d, Interrupts=%d", usage.SystemProcsRunning, usage.SystemProcsBlocked, usage.SystemInterruptsTotal)
 }
-

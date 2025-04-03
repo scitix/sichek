@@ -21,16 +21,16 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/systemd"
 )
 
 type NVFabricManagerChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewNVFabricManagerChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewNVFabricManagerChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &NVFabricManagerChecker{
 		name: config.NVFabricManagerCheckerName,
 		cfg:  cfg,
@@ -41,14 +41,10 @@ func (c *NVFabricManagerChecker) Name() string {
 	return c.name
 }
 
-func (c *NVFabricManagerChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
-
 func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	result := config.GPUCheckItems[config.NVFabricManagerCheckerName]
 	if c.cfg.Dependence.FabricManager == "Not Required" {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Not Required"
 		result.Suggestion = ""
 		result.ErrorName = ""
@@ -61,16 +57,16 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 		result.Detail = "Nvidia FabricManager is not active"
 		err := systemd.RestartSystemdService("nvidia-fabricmanager")
 		if err == nil {
-			result.Status = commonCfg.StatusNormal
+			result.Status = consts.StatusNormal
 			result.Curr = "Restarted"
 			result.Detail = "Nvidia FabricManager is not active. It has been restarted successfully"
 		} else {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "NotActive"
 			result.Detail = fmt.Sprintf("Nvidia FabricManager is not active. Failed to try to restart Nvidia FabricManager: %v", err)
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Active"
 		result.Detail = "Nvidia FabricManager is active"
 		result.Suggestion = ""

@@ -24,7 +24,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -49,37 +49,37 @@ func (c *CPUPerfChecker) GetSpec() common.CheckerSpec {
 	return nil
 }
 
-// Checks if all CPUs are in "performance" mode
+// Check Checks if all CPUs are in "performance" mode
 func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	cpu_performance_enable, err := checkCPUPerformance()
+	cpuPerformanceEnable, err := checkCPUPerformance()
 	if err != nil {
 		return nil, fmt.Errorf("fail to check cpu performance: %v", err)
 	}
 
 	result := config.CPUCheckItems[CPUPerfCheckerName]
 
-	if !cpu_performance_enable {
+	if !cpuPerformanceEnable {
 		err := setCPUMode("performance")
 		if err == nil {
-			cpu_performance_enable, err := checkCPUPerformance()
+			cpuPerformanceEnable, err := checkCPUPerformance()
 			if err != nil {
 				return nil, fmt.Errorf("fail to check cpu performance2: %v", err)
 			}
-			if cpu_performance_enable {
-				result.Status = commonCfg.StatusNormal
+			if cpuPerformanceEnable {
+				result.Status = consts.StatusNormal
 				result.Detail = "Not all CPUs are in \"performance\" mode. Already set all CPUs to \"performance\" mode successfully"
 				result.Suggestion = ""
 			} else {
-				result.Status = commonCfg.StatusAbnormal
+				result.Status = consts.StatusAbnormal
 				result.Detail = "Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode"
 			}
 		} else {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			result.Curr = "NotAllEnabled"
 			result.Detail = fmt.Sprintf("Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode: %v", err)
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = "Enabled"
 		result.Detail = "All CPUs are in \"performance\" mode"
 		result.Suggestion = ""
@@ -88,53 +88,53 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 }
 
 func checkCPUPerformance() (bool, error) {
-	cpu_performance_enable := true
+	cpuPerformanceEnable := true
 	// Path pattern to check CPU governor
 	pattern := "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
 
 	// Get all files matching the pattern
 	files, err := filepath.Glob(pattern)
 	if err != nil {
-		cpu_performance_enable = false
+		cpuPerformanceEnable = false
 		err = fmt.Errorf("failed to list CPU governor files: %w", err)
-		return cpu_performance_enable, err
+		return cpuPerformanceEnable, err
 	}
 
 	// If no governor files are found, return an error
 	if len(files) == 0 {
-		cpu_performance_enable = false
+		cpuPerformanceEnable = false
 		err = fmt.Errorf("no CPU governor files found")
-		return cpu_performance_enable, err
+		return cpuPerformanceEnable, err
 	}
 
 	// Check each CPU's governor
-	var err_cpus []string
+	var errCpus []string
 	for _, file := range files {
 		data, err := os.ReadFile(file)
 		if err != nil {
 			err = fmt.Errorf("failed to read %s: %w", file, err)
-			if err_cpus == nil {
-				err_cpus = make([]string, 0, len(files))
+			if errCpus == nil {
+				errCpus = make([]string, 0, len(files))
 			}
-			cpu_performance_enable = false
-			err_cpus = append(err_cpus, file)
+			cpuPerformanceEnable = false
+			errCpus = append(errCpus, file)
 			fmt.Println(err)
 			continue
 		}
 
 		// Trim whitespace and check the mode
-		cpu_mode := strings.TrimSpace(string(data))
-		if cpu_mode != "performance" {
-			if err_cpus == nil {
-				err_cpus = make([]string, 0, len(files))
+		cpuMode := strings.TrimSpace(string(data))
+		if cpuMode != "performance" {
+			if errCpus == nil {
+				errCpus = make([]string, 0, len(files))
 			}
-			cpu_performance_enable = false
-			err_cpus = append(err_cpus, file)
+			cpuPerformanceEnable = false
+			errCpus = append(errCpus, file)
 			// logrus.WithField("component", "Nvidia").Errorf("CPU %s is in %s mode", file, cpu_mode)
 		}
 	}
 	// ret := fmt.Errorf("the following CPUs is not in performance mode: %v", err_cpus)
-	return cpu_performance_enable, nil
+	return cpuPerformanceEnable, nil
 }
 
 func setCPUMode(mode string) error {

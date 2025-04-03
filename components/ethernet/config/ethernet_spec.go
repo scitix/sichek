@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,14 +16,16 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 
-	"gopkg.in/yaml.v2"
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
+
+type EthernetSpecConfig struct {
+	EthernetSpec *EthernetSpec `yaml:"ethernet" json:"ethernet"`
+}
 
 type EthernetSpec struct {
 	// SoftwareDependencies SoftwareDependencies `yaml:"software_dependencies" json:"software_dependencies"`
@@ -41,46 +43,16 @@ type Specifications struct {
 	PortSpeed string `yaml:"port_speed" json:"port_speed"`
 }
 
-func (c *EthernetSpec) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *EthernetSpec) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *EthernetSpec) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
+func (c *EthernetSpecConfig) LoadSpecConfigFromYaml(file string) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.EthernetSpec == nil {
+			return fmt.Errorf("failed to load ethernet spec from YAML file %s: %v", file, err)
+		}
 	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
+	err := common.DefaultComponentConfig(consts.ComponentNameEthernet, c, consts.DefaultSpecCfgName)
+	if err != nil || c.EthernetSpec == nil {
+		return fmt.Errorf("failed to load default ethernet spec: %v", err)
 	}
 	return nil
-}
-
-func (c *EthernetSpec) GetEthSpec() (*EthernetSpec, error) {
-	var ethernetConfig EthernetSpec
-	defaultCfgPath := "/ethernetSpec.yaml"
-	_, err := os.Stat("/var/sichek/ethernet" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/ethernet/ethernetSpec.yaml
-		defaultCfgPath = "/var/sichek/ethernet" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = ethernetConfig.LoadFromYaml(defaultCfgPath)
-	return &ethernetConfig, err
 }

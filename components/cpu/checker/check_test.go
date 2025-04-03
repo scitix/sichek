@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 func TestCPUPerfChecker_Check(t *testing.T) {
@@ -32,8 +32,8 @@ func TestCPUPerfChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to set CPU governor to powersave: %v", err)
 	}
-	cpu_performance_enable, _ := checkCPUPerformance()
-	if cpu_performance_enable {
+	cpuPerformanceEnable, _ := checkCPUPerformance()
+	if cpuPerformanceEnable {
 		t.Fatalf("unexpected cpu_performance_enable")
 	}
 
@@ -46,8 +46,8 @@ func TestCPUPerfChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to check cpu performance: %v", err)
 	}
-	if result.Status != config.StatusNormal {
-		t.Fatalf("unexpected result status: %v, expected: %v\n", result.Status, config.StatusNormal)
+	if result.Status != consts.StatusNormal {
+		t.Fatalf("unexpected result status: %v, expected: %v\n", result.Status, consts.StatusNormal)
 	}
 	t.Logf("result: %+v", result)
 }

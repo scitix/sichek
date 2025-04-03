@@ -33,9 +33,6 @@ func TestCPU_HealthCheckPrint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}
-	if err != nil {
-		logrus.WithField("components", "cpu").Error("fail to Create cpu Components")
-	}
 	result, err := component.HealthCheck(ctx)
 	if err != nil {
 		logrus.WithField("component", component.Name()).Error(err)
@@ -52,9 +49,6 @@ func TestNvidia_HealthCheckPrint(t *testing.T) {
 	component, err := nvidia.NewComponent("", "", nil)
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
-	}
-	if err != nil {
-		logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components")
 	}
 	result, err := component.HealthCheck(ctx)
 	if err != nil {

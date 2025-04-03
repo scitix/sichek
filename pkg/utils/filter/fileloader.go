@@ -22,7 +22,7 @@ type FileLoader struct {
 	LogLineNum  int64
 }
 
-func NewFileLoader(fileName string, cacheNum int64, skip_percent int64) *FileLoader {
+func NewFileLoader(fileName string, cacheNum int64, skipPercent int64) *FileLoader {
 	value, exists := Name2FileLoader.Load(fileName)
 	if exists {
 		logrus.WithField("FileLoader", fileName).Warn("failed to new file loader, because it has existed")
@@ -44,11 +44,11 @@ func NewFileLoader(fileName string, cacheNum int64, skip_percent int64) *FileLoa
 		logrus.WithField("FileLoader", fileName).Warn("failed to open file in file loader")
 		return nil
 	}
-	if skip_percent >= 0 && skip_percent <= 100 {
-		file_size, _ := res.GetFileSize()
-		res.Pos = file_size * skip_percent / 100
+	if skipPercent >= 0 && skipPercent <= 100 {
+		fileSize, _ := res.GetFileSize()
+		res.Pos = fileSize * skipPercent / 100
 	} else {
-		logrus.WithField("FileLoader", fileName).Warnf("failed to skip %d file content in file loader", skip_percent)
+		logrus.WithField("FileLoader", fileName).Warnf("failed to skip %d file content in file loader", skipPercent)
 	}
 
 	Name2FileLoader.Store(fileName, res)
@@ -144,8 +144,8 @@ func (f *FileLoader) GetLines(beginPos int64) ([]string, error) {
 		return res, err
 	}
 
-	file_size := stat.Size()
-	if beginPos > file_size {
+	fileSize := stat.Size()
+	if beginPos > fileSize {
 		return res, nil
 	}
 
@@ -160,7 +160,7 @@ func (f *FileLoader) GetLines(beginPos int64) ([]string, error) {
 	if oneLoadNum < 1000000 {
 		oneLoadNum = 1000000
 	}
-	for len(res) < oneLoadNum && beginPos < file_size {
+	for len(res) < oneLoadNum && beginPos < fileSize {
 		line, err := loader.ReadString('\n')
 		if err != nil && err != io.EOF {
 			logrus.WithField("FileLoader", f.Name).WithError(err).Error("failed to read file at %ld", beginPos)

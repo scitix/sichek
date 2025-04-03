@@ -16,125 +16,150 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
-
-	"sigs.k8s.io/yaml"
 )
 
-
-type Spec struct {
-	NvidiaSpec map[int32]NvidiaSpec `json:"nvidia"`
-	// Other fileds like `infiniband` can be added here if needed
+type NvidiaSpecConfig struct {
+	NvidiaSpec *NvidiaSpec `json:"nvidia" yaml:"nvidia"`
+	// Other fields like `infiniband` can be added here if needed
 }
 
 type NvidiaSpec struct {
-	Name                 string                 `json:"name"`
-	GpuNums              int                    `json:"gpu_nums"`
-	GpuMemory            int                    `json:"gpu_memory"`
-	GpuMemoryBandwidth   int                    `json:"gpu_memory_bandwidth,omitempty"`
-	PCIe                 collector.PCIeInfo     `json:"pcie,omitempty"`
-	Dependence           Dependence             `json:"dependence"`
-	Software             collector.SoftwareInfo `json:"software"`
-	Nvlink               collector.NVLinkStates `json:"nvlink"`
-	State                collector.StatesInfo   `json:"state"`
-	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold"`
-	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold"`
-	CriticalXidEvents    map[int]string         `json:"critical_xid_events"`
+	NvidiaSpecMap map[int32]*NvidiaSpecItem `json:"nvidia_spec" yaml:"nvidia_spec"`
 }
 
-func (s NvidiaSpec) JSON() (string, error) {
-	data, err := json.Marshal(s)
-	return string(data), err
+type NvidiaSpecItem struct {
+	Name                 string                 `json:"name" yaml:"name"`
+	GpuNums              int                    `json:"gpu_nums" yaml:"gpu_nums"`
+	GpuMemory            int                    `json:"gpu_memory" yaml:"gpu_memory"`
+	GpuMemoryBandwidth   int                    `json:"gpu_memory_bandwidth,omitempty" yaml:"gpu_memory_bandwidth,omitempty"`
+	PCIe                 collector.PCIeInfo     `json:"pcie,omitempty" yaml:"pcie,omitempty"`
+	Dependence           Dependence             `json:"dependence" yaml:"dependence"`
+	Software             collector.SoftwareInfo `json:"software" yaml:"software"`
+	Nvlink               collector.NVLinkStates `json:"nvlink" yaml:"nvlink"`
+	State                collector.StatesInfo   `json:"state" yaml:"state"`
+	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold" yaml:"memory_errors_threshold"`
+	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold" yaml:"temperature_threshold"`
+	CriticalXidEvents    map[int]string         `json:"critical_xid_events" yaml:"critical_xid_events"`
 }
 
-func (s NvidiaSpec) Yaml() (string, error) {
-	data, err := yaml.Marshal(s)
-	return string(data), err
+type Dependence struct {
+	PcieAcs        string `json:"pcie-acs" yaml:"pcie-acs"`
+	Iommu          string `json:"iommu" yaml:"iommu"`
+	NvidiaPeermem  string `json:"nv-peermem" yaml:"nv-peermem"`
+	FabricManager  string `json:"nv_fabricmanager" yaml:"nv_fabricmanager"`
+	CpuPerformance string `json:"cpu_performance" yaml:"cpu_performance"`
 }
 
-func (s NvidiaSpec) LoadFromYaml(file string) error {
-	_, err := LoadSpecFromYaml("")
+type MemoryErrorThreshold struct {
+	RemappedUncorrectableErrors      uint64 `json:"remapped_uncorrectable_errors" yaml:"remapped_uncorrectable_errors"`
+	SRAMVolatileUncorrectableErrors  uint64 `json:"sram_volatile_uncorrectable_errors" yaml:"sram_volatile_uncorrectable_errors"`
+	SRAMAggregateUncorrectableErrors uint64 `json:"sram_aggregate_uncorrectable_errors" yaml:"sram_aggregate_uncorrectable_errors"`
+	SRAMVolatileCorrectableErrors    uint64 `json:"sram_volatile_correctable_errors" yaml:"sram_volatile_correctable_errors"`
+	SRAMAggregateCorrectableErrors   uint64 `json:"sram_aggregate_correctable_errors" yaml:"sram_aggregate_correctable_errors"`
+}
+
+type TemperatureThreshold struct {
+	Gpu    int `json:"gpu" yaml:"gpu"`
+	Memory int `json:"memory" yaml:"memory"`
+}
+
+func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
+	err := s.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
-		return err
+		logrus.WithField("component", "NVIDIA").Errorf("Failed to load Nvidia config from %s: %v", specFile, err)
+		return nil
+	}
+	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
+	for gpuId, nvidiaSpec := range s.NvidiaSpec.NvidiaSpecMap {
+		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpuId)
+		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
+		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
+	}
+	deviceID := getDeviceID()
+	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
+		logrus.WithField("component", "NVIDIA").Errorf("failed to find spec file for deviceID: %s", deviceID)
+		return nil
+	}
+	return formatedNvidiaSpecsMap[deviceID]
+}
+
+func (s *NvidiaSpecConfig) LoadSpecConfigFromYaml(file string) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, s)
+		if err != nil {
+			return fmt.Errorf("failed to load nvidia spec from YAML file %s: %v", file, err)
+		}
+	}
+	err := s.LoadDefaultSpec()
+	if err != nil || s.NvidiaSpec == nil {
+		return fmt.Errorf("failed to load default nvidia spec: %v", err)
 	}
 	return nil
 }
 
-type Dependence struct {
-	PcieAcs        string `json:"pcie-acs"`
-	Iommu          string `json:"iommu"`
-	NvidiaPeermem  string `json:"nv-peermem"`
-	FabricManager  string `json:"nv_fabricmanager"`
-	CpuPerformance string `json:"cpu_performance"`
-}
-
-type MemoryErrorThreshold struct {
-	RemappedUncorrectableErrors      uint64 `json:"remapped_uncorrectable_errors"`
-	SRAMVolatileUncorrectableErrors  uint64 `json:"sram_volatile_uncorrectable_errors"`
-	SRAMAggregateUncorrectableErrors uint64 `json:"sram_aggregate_uncorrectable_errors"`
-	SRAMVolatileCorrectableErrors    uint64 `json:"sram_volatile_correctable_errors"`
-	SRAMAggregateCorrectableErrors   uint64 `json:"sram_aggregate_correctable_errors"`
-}
-
-type TemperatureThreshold struct {
-	Gpu    int `json:"gpu"`
-	Memory int `json:"memory"`
-}
-
-
-// Map of NVIDIA Device IDs to Product Names
-// var NvidiaDeviceNames = map[string]string{
-// 	"0x233010de": "NVIDIA H100 80GB HBM3",
-// 	"0x20b510de": "NVIDIA A100 80GB PCIe",
-// 	"0x20b210de": "NVIDIA A100-SXM4-80GB",
-// 	"0x20f310de": "NVIDIA A800-SXM4-80GB",
-// 	"0x26b510de": "NVIDIA L40",
-// 	"0x1df610de": "Tesla V100S-PCIE-32GB",
-// }
-
-func GetSpec(specFile string) NvidiaSpec {
-	deviceID := getDeviceID()
-	specs, err := LoadSpecFromYaml(specFile)
+func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
+	if s.NvidiaSpec == nil {
+		s.NvidiaSpec = &NvidiaSpec{
+			NvidiaSpecMap: make(map[int32]*NvidiaSpecItem),
+		}
+	}
+	defaultCfgDirPath, files, err := common.GetDefaultConfigFiles(consts.ComponentNameNvidia)
 	if err != nil {
-		panic(fmt.Errorf("failed to load spec file: %v", err))
+		return fmt.Errorf("failed to get default nvidia config files: %v", err)
 	}
-	if _, ok := specs[deviceID]; !ok {
-		panic("failed to find spec file for deviceID: " + deviceID)
+	// 遍历文件并加载符合条件的 YAML 文件
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			nvidiaSpec := &NvidiaSpecConfig{}
+			filePath := filepath.Join(defaultCfgDirPath, file.Name())
+			err := utils.LoadFromYaml(filePath, nvidiaSpec)
+			if err != nil || nvidiaSpec.NvidiaSpec == nil {
+				return fmt.Errorf("failed to load nvidia spec from YAML file %s: %v", filePath, err)
+			}
+			for gpuId, nvidiaSpec := range nvidiaSpec.NvidiaSpec.NvidiaSpecMap {
+				if _, ok := s.NvidiaSpec.NvidiaSpecMap[gpuId]; !ok {
+					s.NvidiaSpec.NvidiaSpecMap[gpuId] = nvidiaSpec
+				}
+			}
+
+		}
 	}
-	return specs[deviceID]
+	return nil
 }
 
 func getDeviceID() string {
 	nvmlInst := nvml.New()
-	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
+	if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
 		panic(fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
-		
+
 	}
 	defer nvmlInst.Shutdown()
 
 	// In case of GPU error, iterate through all GPUs to find the first valid one
 	deviceCount, err := nvmlInst.DeviceGetCount()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		panic(fmt.Errorf("Failed to get device count: %s\n", nvml.ErrorString(err)))
 	}
 	var deviceID string
 	for i := 0; i < deviceCount; i++ {
 		device, err := nvmlInst.DeviceGetHandleByIndex(i)
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}
 		pciInfo, err := device.GetPciInfo()
-		if err != nvml.SUCCESS {
+		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to get PCIe Info  for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}
@@ -142,72 +167,4 @@ func getDeviceID() string {
 		return deviceID
 	}
 	panic(fmt.Errorf("failed to get product name for NVIDIA GPU"))
-}
-
-// LoadSpecFromYaml loads nvidia specifications from a single yaml file or multiple yaml files in default directory.
-func LoadSpecFromYaml(specFile string) (map[string]NvidiaSpec, error) {
-	nvidiaSpecsMap := make(map[string]NvidiaSpec)
-	if specFile != "" {
-		// Parse from the specified file
-		if err := parseSpecYamlFile(specFile, nvidiaSpecsMap); err != nil {
-			return nil, err
-		}
-	} else {
-		// Parse from the default directory
-		specDirs := []string{
-			"/var/sichek/nvidia", // directory for production environment
-			getLocalSpecDir(), // Local directory relative to the source code for development
-		}
-
-		foundFile := false
-		for _, dir := range specDirs {
-			files, err := os.ReadDir(dir)
-			if err != nil {
-				continue // Skip if the directory does not exist
-			}
-			foundFile = true
-			for _, file := range files {
-				if strings.HasSuffix(file.Name(), "spec.yaml") {
-					specFile := filepath.Join(dir, file.Name())
-					if err := parseSpecYamlFile(specFile, nvidiaSpecsMap); err != nil {
-						return nil, err
-					}
-				}
-			}
-		}
-
-		if !foundFile {
-			return nil, fmt.Errorf("failed to find spec file in %v", specDirs)
-		}
-	}
-	return nvidiaSpecsMap, nil
-}
-
-// getLocalSpecDir returns the directory of the spec yaml files.
-func getLocalSpecDir() string {
-	_, curFile, _, ok := runtime.Caller(0)
-	if !ok {
-		fmt.Println("unable to determine src dirctory path, return current directory")
-		return "."
-	}
-	return filepath.Dir(curFile)
-}
-
-// parseSpecYamlFile read and parses a single YAML file into a map of NvidiaSpec.
-func parseSpecYamlFile(specFile string, nvidiaSpecsMap map[string]NvidiaSpec) (error) {
-	data, err := os.ReadFile(specFile)
-	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", specFile, err)
-	}
-	var spec Spec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
-		return fmt.Errorf("failed to unmarshal file %s: %w", specFile, err)
-	}
-	// Merge the parsed spec into the main nvidiaSpec map
-	for gpu_id, nvidiaSpec := range spec.NvidiaSpec {
-		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpu_id)
-		gpu_id_hex := fmt.Sprintf("0x%x", gpu_id)
-		nvidiaSpecsMap[gpu_id_hex] = nvidiaSpec
-	}
-	return nil
 }

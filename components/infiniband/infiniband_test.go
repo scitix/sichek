@@ -20,6 +20,8 @@ import (
 )
 
 func TestNewInfinibandComponent(t *testing.T) {
-	NewInfinibandComponent("", "", nil)
+	_, err := NewInfinibandComponent("", "", nil)
+	if err != nil {
+		t.Error(err)
+	}
 }
-

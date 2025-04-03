@@ -28,19 +28,19 @@ type Component interface {
 	Name() string
 	HealthCheck(ctx context.Context) (*Result, error)
 
-	// cached analyze results
+	// CacheResults cached analyze results
 	CacheResults(ctx context.Context) ([]*Result, error)
 	LastResult(ctx context.Context) (*Result, error)
-	// cached collector infos
+	// CacheInfos cached collector infos
 	CacheInfos(ctx context.Context) ([]Info, error)
 	LastInfo(ctx context.Context) (Info, error)
 
-	// For http service
+	// Metrics For http service
 	Metrics(ctx context.Context, since time.Time) (interface{}, error)
 
-	// For daemon service
+	// Start For daemon service
 	Start(ctx context.Context) <-chan *Result
-	Update(ctx context.Context, cfg ComponentConfig) error
+	Update(ctx context.Context, cfg ComponentUserConfig) error
 	Status() bool
 	Stop() error
 }
@@ -87,7 +87,7 @@ type CommonService struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      ComponentConfig
+	cfg      ComponentUserConfig
 	cfgMutex sync.RWMutex
 
 	analyzeFunc HealthCheckFunc
@@ -99,7 +99,7 @@ type CommonService struct {
 
 type HealthCheckFunc func(ctx context.Context) (*Result, error)
 
-func NewCommonService(ctx context.Context, cfg ComponentConfig, analyze HealthCheckFunc) *CommonService {
+func NewCommonService(ctx context.Context, cfg ComponentUserConfig, analyze HealthCheckFunc) *CommonService {
 	cctx, ccancel := context.WithCancel(ctx)
 
 	return &CommonService{
@@ -154,7 +154,7 @@ func (s *CommonService) Start(ctx context.Context) <-chan *Result {
 	return s.resultChannel
 }
 
-// 用于systemD的停止
+// Stop 用于systemD的停止
 func (s *CommonService) Stop() error {
 	s.cancel()
 	s.mutex.Lock()
@@ -165,15 +165,15 @@ func (s *CommonService) Stop() error {
 
 }
 
-// 更新组件的配置信息，比如采样周期
-func (s *CommonService) Update(ctx context.Context, cfg ComponentConfig) error {
+// Update 更新组件的配置信息，比如采样周期
+func (s *CommonService) Update(ctx context.Context, cfg ComponentUserConfig) error {
 	s.cfgMutex.Lock()
 	s.cfg = cfg
 	s.cfgMutex.Unlock()
 	return nil
 }
 
-// 返回组件的运行情况
+// Status 返回组件的运行情况
 func (s *CommonService) Status() bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

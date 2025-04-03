@@ -24,14 +24,14 @@ import (
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-// NewGpuCmd创建并返回用于代表GPU相关操作的子命令实例，配置命令的基本属性
+// NewNvidiaCmd 创建并返回用于代表GPU相关操作的子命令实例，配置命令的基本属性
 func NewNvidiaCmd() *cobra.Command {
 
 	NvidaCmd := &cobra.Command{
@@ -79,14 +79,13 @@ func NewNvidiaCmd() *cobra.Command {
 					logrus.WithField("components", "Nvidia").Info("load default specFile...")
 				}
 			}
-
-			ignored_checkers_str, err := cmd.Flags().GetString("ignored-checkers")
+			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error(err)
 			} else {
-				logrus.WithField("components", "Nvidia").Info("ignore checkers", ignored_checkers_str)
+				logrus.WithField("components", "Nvidia").Info("ignore checkers", ignoredCheckersStr)
 			}
-			ignoredCheckers := strings.Split(ignored_checkers_str, ",")
+			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
 			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components, err = ", err)
@@ -105,15 +104,15 @@ func NewNvidiaCmd() *cobra.Command {
 			}
 			pass := PrintNvidiaInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameNvidia] = pass
+			ComponentStatuses[consts.ComponentNameNvidia] = pass
 			StatusMutex.Unlock()
 		},
 	}
 
 	NvidaCmd.Flags().StringP("cfg", "c", "", "Path to the Nvidia Cfg")
 	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the Nvidia specification")
-	NvidaCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 	NvidaCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
+	NvidaCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 
 	return NvidaCmd
 }
@@ -146,12 +145,12 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 	remmapedRowsEvents := make(map[string]string)
 	// softErrorsEvents   := make(map[string]string)
 	for _, result := range checkerResults {
-		if result.Status == commonCfg.StatusAbnormal {
+		if result.Status == consts.StatusAbnormal {
 			checkAllPassed = false
 		}
 		switch result.Name {
 		case config.PCIeACSCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				acsPrint = fmt.Sprintf("PCIe ACS: %sDisabled%s", Green, Reset)
 				if result.Curr != "Disabled" {
 					systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
@@ -161,14 +160,14 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", Red, Reset)
 			}
 		case config.IOMMUCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				iommuPrint = fmt.Sprintf("IOMMU: %sOFF%s", Green, Reset)
 			} else {
 				iommuPrint = fmt.Sprintf("IOMMU: %sON%s", Red, Reset)
 				systemEvent[config.IOMMUCheckerName] = fmt.Sprintf("%sIOMMU is ON%s", Red, Reset)
 			}
 		case config.NVFabricManagerCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				fabricmanagerPrint = fmt.Sprintf("FabricManager: %s%s%s", Green, result.Curr, Reset)
 				if result.Curr != "Active" {
 					gpuStatus[config.NVFabricManagerCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
@@ -178,7 +177,7 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				gpuStatus[config.NVFabricManagerCheckerName] = fmt.Sprintf("%sNvidia FabricManager is not active%s", Red, Reset)
 			}
 		case config.NvPeerMemCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				peermemPrint = fmt.Sprintf("nvidia_peermem: %sLoaded%s", Green, Reset)
 				if result.Curr != "Loaded" {
 					gpuStatus[config.NvPeerMemCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
@@ -188,13 +187,13 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				gpuStatus[config.NvPeerMemCheckerName] = fmt.Sprintf("%snvidia_peermem module: NotLoaded%s", Red, Reset)
 			}
 		case config.PCIeCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				pcieLinkPrint = fmt.Sprintf("PCIeLink: %sOK%s", Green, Reset)
 			} else {
 				gpuStatus[config.PCIeCheckerName] = fmt.Sprintf("%sPCIe degradation detected:\n%s%s%s", Red, Yellow, result.Detail, Reset)
 			}
 		case config.HardwareCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
 					Green, nvidiaInfo.DeviceCount, Reset, Green, len(nvidiaInfo.DeviceToPodMap), Reset)
 			} else {
@@ -203,7 +202,7 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				gpuStatus[config.HardwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		case config.SoftwareCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				driverPrint = fmt.Sprintf("Driver Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.DriverVersion, Reset)
 				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", Green, nvidiaInfo.SoftwareInfo.CUDAVersion, Reset)
 			} else {
@@ -212,7 +211,7 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				gpuStatus[config.SoftwareCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		case config.GpuPersistenceCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", Green, result.Curr, Reset)
 				if result.Curr != "Enabled" {
 					gpuStatus[config.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", Yellow, result.Detail, Reset)
@@ -222,27 +221,27 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				gpuStatus[config.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		case config.GpuPStateCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				pstatePrint = fmt.Sprintf("PState: %s%s%s", Green, result.Curr, Reset)
 			} else {
 				pstatePrint = fmt.Sprintf("PState: %s%s%s", Red, result.Curr, Reset)
 				gpuStatus[config.GpuPStateCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		case config.NvlinkCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				nvlinkPrint = fmt.Sprintf("NVLink: %s%s%s", Green, result.Curr, Reset)
 			} else {
 				nvlinkPrint = fmt.Sprintf("NVLink: %s%s%s", Green, result.Curr, Reset)
 				gpuStatus[config.NvlinkCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		case config.AppClocksCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				// gpuStatus[config.AppClocksCheckerName] = fmt.Sprintf("%sGPU application clocks: Set to maximum%s", Green, Reset)
 			} else {
 				gpuStatus[config.AppClocksCheckerName] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
 			}
 		case config.ClockEventsCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				clockEvents["Thermal"] = fmt.Sprintf("%sNo HW Thermal Slowdown Found%s", Green, Reset)
 				clockEvents["PowerBrake"] = fmt.Sprintf("%sNo HW Power Brake Slowdown Found%s", Green, Reset)
 			} else {
@@ -250,40 +249,40 @@ func PrintNvidiaInfo(info common.Info, result *common.Result, summaryPrint bool)
 				clockEvents["PowerBrake"] = fmt.Sprintf("%sHW Power Brake Slowdown Found%s", Red, Reset)
 			}
 		case config.SRAMAggUncorrectableCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				eccEvents[config.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Agg Uncorrectable Found%s", Green, Reset)
 			} else {
-				eccEvents[config.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Agg Uncorrectable Found%s", Red, Reset)
+				eccEvents[config.SRAMAggUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Agg Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case config.SRAMHighcorrectableCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				eccEvents[config.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sNo SRAM High Correctable Found%s", Green, Reset)
 			} else {
-				eccEvents[config.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sSRAM High Correctable Found%s", Red, Reset)
+				eccEvents[config.SRAMHighcorrectableCheckerName] = fmt.Sprintf("%sSRAM High Correctable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case config.SRAMVolatileUncorrectableCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				eccEvents[config.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sNo SRAM Volatile Uncorrectable Found%s", Green, Reset)
 			} else {
-				eccEvents[config.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Volatile Uncorrectable Found%s", Red, Reset)
+				eccEvents[config.SRAMVolatileUncorrectableCheckerName] = fmt.Sprintf("%sSRAM Volatile Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case config.RemmapedRowsFailureCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				remmapedRowsEvents[config.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Failure Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[config.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sRemmaped Rows Failure Found%s", Red, Reset)
+				remmapedRowsEvents[config.RemmapedRowsFailureCheckerName] = fmt.Sprintf("%sRemmaped Rows Failure Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case config.RemmapedRowsUncorrectableCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				remmapedRowsEvents[config.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Uncorrectable Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[config.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sRemmaped Rows Uncorrectable Found%s", Red, Reset)
+				remmapedRowsEvents[config.RemmapedRowsUncorrectableCheckerName] = fmt.Sprintf("%sRemmaped Rows Uncorrectable Found\n%s%s", Red, result.Detail, Reset)
 			}
 		case config.RemmapedRowsPendingCheckerName:
-			if result.Status == commonCfg.StatusNormal {
+			if result.Status == consts.StatusNormal {
 				remmapedRowsEvents[config.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sNo Remmaped Rows Pending Found%s", Green, Reset)
 			} else {
-				remmapedRowsEvents[config.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found%s", Red, Reset)
+				remmapedRowsEvents[config.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found\n%s%s", Red, result.Detail, Reset)
 			}
 		}
 	}

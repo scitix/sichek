@@ -23,17 +23,17 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 var NOTSUPPORT = "Not Supported"
 
 type NvlinkChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewNvlinkChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewNvlinkChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &NvlinkChecker{
 		name: config.NvlinkCheckerName,
 		cfg:  cfg,
@@ -42,10 +42,6 @@ func NewNvlinkChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 
 func (c *NvlinkChecker) Name() string {
 	return c.name
-}
-
-func (c *NvlinkChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -58,7 +54,7 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result := config.GPUCheckItems[config.NvlinkCheckerName]
 
 	if !c.cfg.Nvlink.NVlinkSupported {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Curr = NOTSUPPORT
 		result.Detail = "Nvlink Not supported"
 		result.Suggestion = ""
@@ -66,37 +62,37 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return &result, nil
 	}
 	// Check if all the Nvidia GPUs Nvlink are active
-	var falied_gpuid_podnames []string
+	var failedGpuidPodnames []string
 	var failedReason []string
 	for _, device := range nvidiaInfo.DevicesInfo {
-		var device_pod_name string
+		var devicePodName string
 		if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-			device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+			devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 		} else {
-			device_pod_name = fmt.Sprintf("%s:", device.UUID)
+			devicePodName = fmt.Sprintf("%s:", device.UUID)
 		}
 		if device.NVLinkStates.NVlinkSupported != c.cfg.Nvlink.NVlinkSupported {
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: NVlinkSupported is `%t`, while expected `%t`\n",
 				device.Index, device.NVLinkStates.NVlinkSupported, c.cfg.Nvlink.NVlinkSupported))
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
 		if device.NVLinkStates.NvlinkNum != c.cfg.Nvlink.NvlinkNum {
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: NVlinkNum is `%d`, while expected `%d`\n",
 				device.Index, device.NVLinkStates.NvlinkNum, c.cfg.Nvlink.NvlinkNum))
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
 		if !device.NVLinkStates.AllFeatureEnabled {
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: Not All NVlink Features Are Enabled\n", device.Index))
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
 
 	}
-	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+	if len(failedGpuidPodnames) > 0 {
+		result.Status = consts.StatusAbnormal
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 		result.Detail = strings.Join(failedReason, "")
 		if c.cfg.Nvlink.NVlinkSupported {
 			result.Curr = "Error Detected"
@@ -104,7 +100,7 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			result.Curr = NOTSUPPORT
 		}
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 		if c.cfg.Nvlink.NVlinkSupported {

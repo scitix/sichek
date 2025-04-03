@@ -23,19 +23,19 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type IBPhyStateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *config.InfinibandSpecItem
 	description string
 }
 
-func NewIBPhyStateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBPhyStateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBPhyStateChecker{
-		id:   commonCfg.CheckerIDInfinibandFW,
+		id:   consts.CheckerIDInfinibandFW,
 		name: config.ChekIBPhyState,
 		spec: specCfg,
 	}, nil
@@ -61,10 +61,10 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
@@ -78,7 +78,7 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 		spec = append(spec, hcaSpec.PhyState)
 		curr = append(curr, hwInfo.PhyState)
 		if !strings.Contains(hwInfo.PhyState, hcaSpec.PhyState) {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
 	}
@@ -88,7 +88,7 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 	result.Device = strings.Join(failedHcas, ",")
 
 	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("PhyState check fail: %s NOT LinkUp",strings.Join(failedHcas, ";"))
+		result.Detail = fmt.Sprintf("PhyState check fail: %s NOT LinkUp", strings.Join(failedHcas, ";"))
 		result.Suggestion = fmt.Sprintf("Check and Up %s pyhical state", strings.Join(failedHcas, ";"))
 	}
 

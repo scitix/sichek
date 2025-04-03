@@ -29,6 +29,10 @@ func TestStartSystemdService(t *testing.T) {
 	}
 	err = EnableSystemdService("nvidia-fabricmanager")
 	if err != nil {
+		t.Errorf("failed to enable nvidia-fabricmanager: %v", err)
+	}
+	err = RestartSystemdService("nvidia-fabricmanager")
+	if err != nil {
 		t.Errorf("failed to start nvidia-fabricmanager: %v", err)
 	}
 	active, err := IsActive("nvidia-fabricmanager")

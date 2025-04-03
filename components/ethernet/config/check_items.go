@@ -17,7 +17,7 @@ package config
 
 import (
 	"github.com/scitix/sichek/components/common"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 		ChekEthPhyState: "check the eth phy state",
 	}
 	checkLevel = map[string]string{
-		ChekEthPhyState: commonCfg.LevelCritical,
+		ChekEthPhyState: consts.LevelCritical,
 	}
 	errName = map[string]string{
 		ChekEthPhyState: "EthPhySate",

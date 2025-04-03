@@ -16,29 +16,26 @@ limitations under the License.
 package config
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
-type GpfsConfig struct {
-	Gpfs struct {
-		Name          string                      `json:"name" yaml:"name"`
-		QueryInterval time.Duration               `json:"query_interval" yaml:"query_interval"`
-		CacheSize     int64                       `json:"cache_size" yaml:"cache_size"`
-		EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
-	} `json:"gpfs"`
+type GpfsUserConfig struct {
+	Gpfs *GpfsConfig `json:"gpfs" yaml:"gpfs"`
 }
 
-func (c *GpfsConfig) GetCheckerSpec() map[string]common.CheckerSpec {
+type GpfsConfig struct {
+	Name          string                      `json:"name" yaml:"name"`
+	QueryInterval time.Duration               `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64                       `json:"cache_size" yaml:"cache_size"`
+	EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
+}
+
+func (c *GpfsUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.Gpfs.EventCheckers {
 		commonCfgMap[name] = cfg
@@ -46,35 +43,22 @@ func (c *GpfsConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return commonCfgMap
 }
 
-func (c *GpfsConfig) GetQueryInterval() time.Duration {
+func (c *GpfsUserConfig) GetQueryInterval() time.Duration {
 	return c.Gpfs.QueryInterval
 }
 
-func (c *GpfsConfig) GetCacheSize() int64 {
-	return c.Gpfs.CacheSize
-}
-
-func (c *GpfsConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *GpfsConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *GpfsConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
+func (c *GpfsUserConfig) LoadUserConfigFromYaml(file string) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.Gpfs == nil {
+			return fmt.Errorf("failed to load gpfs config from YAML file %s: %v", file, err)
+		}
+	} else {
+		err := common.DefaultComponentConfig(consts.ComponentNameGpfs, c, consts.DefaultUserCfgName)
+		if err != nil || c.Gpfs == nil {
+			return fmt.Errorf("failed to load default gpfs config: %v", err)
+		}
 	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -82,48 +66,4 @@ type GPFSEventConfig struct {
 	Name    string `json:"name" yaml:"name"`
 	LogFile string `json:"log_file" yaml:"log_file"`
 	Regexp  string `json:"regexp" yaml:"regexp"`
-}
-
-func (c *GPFSEventConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *GPFSEventConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *GPFSEventConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DefaultConfig(ctx context.Context) (*GpfsConfig, error) {
-	var gpfsConfig GpfsConfig
-	defaultCfgPath := "/gpfsCfg.yaml"
-	_, err := os.Stat("/var/sichek/gpfs" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/gpfs/config.yaml
-		defaultCfgPath = "/var/sichek/gpfs" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = gpfsConfig.LoadFromYaml(defaultCfgPath)
-	return &gpfsConfig, err
 }
