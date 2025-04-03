@@ -25,7 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type NodeAnnotation struct {
+type nodeAnnotation struct {
 	NCCL       map[string][]*annotation `json:"nccl"`
 	Hang       map[string][]*annotation `json:"hang"`
 	NVIDIA     map[string][]*annotation `json:"nvidia"`
@@ -37,8 +37,8 @@ type NodeAnnotation struct {
 	Dmesg      map[string][]*annotation `json:"dmesg"`
 }
 
-func GetAnnotationFromJson(jsonStr string) (*NodeAnnotation, error) {
-	var anno NodeAnnotation
+func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
+	var anno nodeAnnotation
 	if len(jsonStr) == 0 {
 		return &anno, nil
 	}
@@ -49,12 +49,12 @@ func GetAnnotationFromJson(jsonStr string) (*NodeAnnotation, error) {
 	return &anno, nil
 }
 
-func (a *NodeAnnotation) JSON() (string, error) {
+func (a *nodeAnnotation) JSON() (string, error) {
 	data, err := json.Marshal(a)
 	return string(data), err
 }
 
-func (a *NodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
+func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
 	if item == "" {
 		return nil, fmt.Errorf("input item is empty")
 	}
@@ -79,7 +79,7 @@ func (a *NodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 	return nil, fmt.Errorf("input item %s is not supported", item)
 }
 
-func (a *NodeAnnotation) setAnnotationsByItem(item string, annotations map[string][]*annotation) error {
+func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[string][]*annotation) error {
 	if item == "" {
 		return fmt.Errorf("input item is empty")
 	}
@@ -104,7 +104,7 @@ func (a *NodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 	return nil
 }
 
-func (a *NodeAnnotation) updateAnnotations(annotations map[string][]*annotation, result *common.Result) error {
+func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation, result *common.Result) error {
 	if result == nil {
 		return fmt.Errorf("input result is empty")
 	}
@@ -148,7 +148,7 @@ func (a *NodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 
 }
 
-func (a *NodeAnnotation) ParseFromResult(result *common.Result) error {
+func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
 	annotations := make(map[string][]*annotation)
 	err := a.updateAnnotations(annotations, result)
 	if err != nil {
@@ -157,7 +157,7 @@ func (a *NodeAnnotation) ParseFromResult(result *common.Result) error {
 	return nil
 }
 
-func (a *NodeAnnotation) AppendFromResult(result *common.Result) error {
+func (a *nodeAnnotation) AppendFromResult(result *common.Result) error {
 	annotations, err := a.getAnnotationsByItem(result.Item)
 	if err != nil {
 		return fmt.Errorf("error getting annotations by item %v: %v", result.Item, err)
