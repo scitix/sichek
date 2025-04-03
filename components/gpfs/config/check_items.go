@@ -17,7 +17,7 @@ package config
 
 import (
 	"github.com/scitix/sichek/components/common"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 const (
@@ -38,7 +38,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelWarning,
+		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "TimeClockError",
 		Suggestion:  "Reset the time clock with ntp",
@@ -49,7 +49,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelWarning,
+		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "OSLockup",
 		Suggestion:  "Fix OS kernel and driver bugs",
@@ -60,7 +60,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelWarning,
+		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "RDMAStatusError",
 		Suggestion:  "Check RDMA network and device",
@@ -71,7 +71,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelCritical,
+		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "QuorumConnectionDown",
 		Suggestion:  "Check GPFS daemon network",
@@ -82,7 +82,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelWarning,
+		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "BadTcpState",
 		Suggestion:  "Check GPFS daemon network",
@@ -93,7 +93,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelCritical,
+		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "GPFSUnmount",
 		Suggestion:  "Check GPFS status",
@@ -104,7 +104,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelCritical,
+		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "ExpelledFromGPFSCluster",
 		Suggestion:  "Check GPFS daemon network and status",
@@ -115,7 +115,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       commonCfg.LevelWarning,
+		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "GPFSUnauthorized",
 		Suggestion:  "Check GPFS authorization status",

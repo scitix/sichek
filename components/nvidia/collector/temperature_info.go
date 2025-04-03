@@ -17,6 +17,7 @@ package collector
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -26,48 +27,48 @@ import (
 
 type TemperatureInfo struct {
 	GPUCurTemperature                  uint32 `json:"current_temperature_C"`
-	GPUThreadholdTemperature           uint32 `json:"threadhold_temperature_C"`
-	GPUThreadholdTemperatureShutdown   uint32 `json:"threadhold_temperature_shutdown_C"`
-	GPUThreadholdTemperatureSlowdown   uint32 `json:"threadhold_temperature_slowdown_C"`
+	GPUThresholdTemperature            uint32 `json:"threshold_temperature_C"`
+	GPUThresholdTemperatureShutdown    uint32 `json:"threshold_temperature_shutdown_C"`
+	GPUThresholdTemperatureSlowdown    uint32 `json:"threshold_temperature_slowdown_C"`
 	MemoryCurTemperature               uint32 `json:"current_memory_temperature_C"`
 	MemoryMaxOperationLimitTemperature uint32 `json:"max_memory_operation_temperature_C"`
 }
 
-func (p *TemperatureInfo) JSON() ([]byte, error) {
-	return common.JSON(p)
+func (info *TemperatureInfo) JSON() ([]byte, error) {
+	return common.JSON(info)
 }
 
-// Convert struct to JSON (pretty-printed)
-func (p *TemperatureInfo) ToString() string {
-	return common.ToString(p)
+// ToString Convert struct to JSON (pretty-printed)
+func (info *TemperatureInfo) ToString() string {
+	return common.ToString(info)
 }
 
 func (info *TemperatureInfo) Get(device nvml.Device, uuid string) error {
 	// Get the current GPU temperature
 	gpuTemp, err := device.GetTemperature(nvml.TEMPERATURE_GPU)
-	if err != nvml.SUCCESS {
-		return fmt.Errorf("failed to get GPU temperature: %v", nvml.ErrorString(err))
+	if !errors.Is(err, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get GPU %s 's temperature: %v", uuid, nvml.ErrorString(err))
 	}
 	info.GPUCurTemperature = gpuTemp
 
 	// Get the GPU temperature thresholds
 	gpuTempThreshold, err := device.GetTemperatureThreshold(nvml.TEMPERATURE_THRESHOLD_GPU_MAX)
-	if err != nvml.SUCCESS {
-		return fmt.Errorf("failed to get GPU temperature threshold: %v", nvml.ErrorString(err))
+	if !errors.Is(err, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get GPU %s 's temperature threshold: %v", uuid, nvml.ErrorString(err))
 	}
-	info.GPUThreadholdTemperature = gpuTempThreshold
+	info.GPUThresholdTemperature = gpuTempThreshold
 
 	gpuTempShutdown, err := device.GetTemperatureThreshold(nvml.TEMPERATURE_THRESHOLD_SHUTDOWN)
-	if err != nvml.SUCCESS {
-		return fmt.Errorf("failed to get GPU temperature shutdown threshold: %v", nvml.ErrorString(err))
+	if !errors.Is(err, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get GPU %s 's temperature shutdown threshold: %v", uuid, nvml.ErrorString(err))
 	}
-	info.GPUThreadholdTemperatureShutdown = gpuTempShutdown
+	info.GPUThresholdTemperatureShutdown = gpuTempShutdown
 
 	gpuTempSlowdown, err := device.GetTemperatureThreshold(nvml.TEMPERATURE_THRESHOLD_SLOWDOWN)
-	if err != nvml.SUCCESS {
-		return fmt.Errorf("failed to get GPU temperature slowdown threshold: %v", nvml.ErrorString(err))
+	if !errors.Is(err, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get GPU %s 's temperature slowdown threshold: %v", uuid, nvml.ErrorString(err))
 	}
-	info.GPUThreadholdTemperatureSlowdown = gpuTempSlowdown
+	info.GPUThresholdTemperatureSlowdown = gpuTempSlowdown
 
 	// Get the current memory temperature
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlFieldValueQueries.html#group__nvmlFieldValueQueries_1g0b02941a262ee4327eb82831f91a1bc0
@@ -76,7 +77,7 @@ func (info *TemperatureInfo) Get(device nvml.Device, uuid string) error {
 	}
 
 	err = device.GetFieldValues(values)
-	if err == nvml.SUCCESS {
+	if errors.Is(err, nvml.SUCCESS) {
 		info.MemoryCurTemperature = uint32(binary.NativeEndian.Uint64(values[0].Value[:]))
 	} else {
 		info.MemoryCurTemperature = 0 //"N/A"
@@ -84,8 +85,8 @@ func (info *TemperatureInfo) Get(device nvml.Device, uuid string) error {
 
 	// Get the maximum memory operation limit temperature
 	memMaxTemp, err := device.GetTemperatureThreshold(nvml.TEMPERATURE_THRESHOLD_MEM_MAX)
-	if err != nvml.SUCCESS {
-		return fmt.Errorf("failed to get memory max operation temperature: %v", nvml.ErrorString(err))
+	if !errors.Is(err, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get GPU  %s 's memory max operation temperature: %v", uuid, nvml.ErrorString(err))
 	}
 	info.MemoryMaxOperationLimitTemperature = memMaxTemp
 

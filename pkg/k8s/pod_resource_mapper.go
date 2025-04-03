@@ -70,7 +70,12 @@ func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]string, error) {
 		logrus.Errorf("Failed to create gRPC client: %v", err)
 		return nil, err
 	}
-	defer client.Close()
+	defer func(client *grpc.ClientConn) {
+		err := client.Close()
+		if err != nil {
+			logrus.Errorf("Failed to close gRPC client: %v", err)
+		}
+	}(client)
 
 	// Create the PodResources client
 	prClient := podresourcesapi.NewPodResourcesListerClient(client)

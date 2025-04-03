@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package config
+package consts
 
 import "time"
 
@@ -37,6 +37,8 @@ const (
 	ComponentNameHang       = "hang"
 	ComponentIDNCCL         = "12"
 	ComponentNameNCCL       = "nccl"
+	ComponentIDHCA          = "13"
+	ComponentNameHCA        = "hca"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"
@@ -94,4 +96,11 @@ const (
 	/*----------------------component status----------------------*/
 	StatusNormal   = "normal"
 	StatusAbnormal = "abnormal"
+)
+
+const (
+	DefaultUserCfgName   = "default_user_config.yaml"
+	DefaultSpecCfgName   = "default_spec.yaml"
+	DefaultSpecCfgSuffix = "_spec.yaml"
+	DefaultPodCfgPath    = "/var/sichek/"
 )

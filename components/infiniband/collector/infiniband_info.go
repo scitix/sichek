@@ -35,8 +35,8 @@ import (
 )
 
 var (
-	IBSYSPathPre string = "/sys/class/infiniband/"
-	PCIPath      string = "/sys/bus/pci/devices/"
+	IBSYSPathPre = "/sys/class/infiniband/"
+	PCIPath      = "/sys/bus/pci/devices/"
 )
 
 type InfinibandInfo struct {
@@ -135,7 +135,7 @@ func (i *InfinibandInfo) GetIBdev2NetDev(IBDev string) []string {
 	return i.GetSysCnt(IBDev, "device/net")
 }
 
-func (i *InfinibandInfo) GetNetOperstate(IBDev string) (string) {
+func (i *InfinibandInfo) GetNetOperstate(IBDev string) string {
 	netPath := filepath.Join(IBSYSPathPre, IBDev, "device", "net")
 	dirs, err := os.ReadDir(netPath)
 	if err != nil {

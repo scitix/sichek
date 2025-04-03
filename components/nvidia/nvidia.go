@@ -17,6 +17,7 @@ package nvidia
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -25,8 +26,8 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
-	nvidiaCfg "github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -36,7 +37,7 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      nvidiaCfg.ComponentConfig
+	cfg      *config.NvidiaUserConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
 
 	nvmlInst  nvml.Interface
@@ -76,7 +77,7 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 			close(done)
 		}()
 		nvmlInst = nvml.New()
-		if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
+		if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
 			initError = fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 		}
 	}()
@@ -103,7 +104,7 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 */
 func ReNewNvml(c *component) error {
 	shutdownRet := c.nvmlInst.Shutdown()
-	if shutdownRet != nvml.SUCCESS {
+	if !errors.Is(shutdownRet, nvml.SUCCESS) {
 		logrus.WithField("component", "nvidia").Errorf("failed to shutdown NVML: %v", shutdownRet.Error())
 		return fmt.Errorf("shutdownRet:%s", shutdownRet.Error())
 	}
@@ -119,7 +120,7 @@ func ReNewNvml(c *component) error {
 
 func StopNvml(nvmlInst nvml.Interface) error {
 	ret := nvmlInst.Shutdown()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to shutdown NVML: %v", nvml.ErrorString(ret))
 		return ret
 	}
@@ -153,46 +154,53 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
 		return nil, err
 	}
-
-	var nvidiaCfg nvidiaCfg.NvidiaConfig
-	nvidiaCfg.LoadFromYaml(cfgFile, specFile)
-	if len(ignoredCheckers) > 0 {
-		nvidiaCfg.ComponentConfig.Nvidia.IgnoredCheckers = ignoredCheckers
+	nvidiaCfg := &config.NvidiaUserConfig{}
+	err = nvidiaCfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "nvidia").Errorf("NewComponent load user config failed: %v", err)
+		return nil, err
 	}
-
-	collector, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaCfg.Spec.GpuNums)
+	if len(ignoredCheckers) > 0 {
+		nvidiaCfg.Nvidia.IgnoredCheckers = ignoredCheckers
+	}
+	nvidiaSpecCfgs := &config.NvidiaSpecConfig{}
+	nvidiaSpecCfg := nvidiaSpecCfgs.GetSpec(specFile)
+	if nvidiaSpecCfg == nil {
+		return nil, fmt.Errorf("get nvidia spec failed")
+	}
+	collectorPointer, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidiaCollector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(&nvidiaCfg, nvmlInst)
+	checkers, err := checker.NewCheckers(nvidiaCfg, nvidiaSpecCfg, nvmlInst)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewCheckers failed: %v", err)
 		return nil, err
 	}
 
 	resultChannel := make(chan *common.Result)
-	xidPoller, err := NewXidEventPoller(ctx, nvidiaCfg.ComponentConfig, nvmlInst, resultChannel)
+	xidPoller, err := NewXidEventPoller(ctx, nvidiaCfg, nvmlInst, resultChannel)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewXidEventPoller failed: %v", err)
 		return nil, err
 	}
 
 	component := &component{
-		name:          commonCfg.ComponentNameNvidia,
+		name:          consts.ComponentNameNvidia,
 		ctx:           ctx,
 		cancel:        cancel,
-		cfg:           nvidiaCfg.ComponentConfig,
+		cfg:           nvidiaCfg,
 		cfgMutex:      sync.RWMutex{},
 		nvmlInst:      nvmlInst,
-		collector:     collector,
+		collector:     collectorPointer,
 		checkers:      checkers,
 		cacheMtx:      sync.RWMutex{},
-		cacheBuffer:   make([]*common.Result, nvidiaCfg.ComponentConfig.Nvidia.CacheSize),
-		cacheInfo:     make([]common.Info, nvidiaCfg.ComponentConfig.Nvidia.CacheSize),
+		cacheBuffer:   make([]*common.Result, nvidiaCfg.Nvidia.CacheSize),
+		cacheInfo:     make([]common.Info, nvidiaCfg.Nvidia.CacheSize),
 		currIndex:     0,
-		cacheSize:     nvidiaCfg.ComponentConfig.Nvidia.CacheSize,
+		cacheSize:     nvidiaCfg.Nvidia.CacheSize,
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
@@ -215,11 +223,11 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 
-	status := commonCfg.StatusNormal
-	level := commonCfg.LevelInfo
+	status := consts.StatusNormal
+	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)
-	for _, checker := range c.checkers {
-		checkResult, err := checker.Check(cctx, nvidiaInfo)
+	for _, each := range c.checkers {
+		checkResult, err := each.Check(cctx, nvidiaInfo)
 		if err != nil {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to check: %v", err)
 			// continue
@@ -227,9 +235,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		if checkResult != nil {
 			checkerResults = append(checkerResults, checkResult)
 
-			if checkResult.Status == commonCfg.StatusAbnormal {
-				status = commonCfg.StatusAbnormal
-				if checkResult.Level == commonCfg.LevelCritical || level == commonCfg.LevelInfo {
+			if checkResult.Status == consts.StatusAbnormal {
+				status = consts.StatusAbnormal
+				if checkResult.Level == consts.LevelCritical || level == consts.LevelInfo {
 					level = checkResult.Level
 				}
 			}
@@ -237,9 +245,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	for _, checkItem := range checkerResults {
-		if checkItem.Status == commonCfg.StatusAbnormal {
+		if checkItem.Status == consts.StatusAbnormal {
 			logrus.WithField("component", "NVIDIA").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
-			status = commonCfg.StatusAbnormal
+			status = consts.StatusAbnormal
 			break
 		}
 	}
@@ -256,7 +264,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheInfo[c.currIndex] = nvidiaInfo
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == commonCfg.StatusAbnormal {
+	if resResult.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "NVIDIA").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "NVIDIA").Infof("Health Check PASSED")
@@ -368,13 +376,13 @@ func (c *component) Stop() error {
 	return nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentConfig) error {
+func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*nvidiaCfg.ComponentConfig)
+	configPointer, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nvidia")
 	}
-	c.cfg = *config
+	c.cfg = configPointer
 	c.cfgMutex.Unlock()
 	return nil
 }

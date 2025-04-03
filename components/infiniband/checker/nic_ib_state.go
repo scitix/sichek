@@ -23,19 +23,19 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type IBStateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *config.InfinibandSpecItem
 	description string
 }
 
-func NewIBStateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewIBStateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBStateChecker{
-		id:   commonCfg.CheckerIDInfinibandFW,
+		id:   consts.CheckerIDInfinibandFW,
 		name: config.ChekIBState,
 		spec: specCfg,
 	}, nil
@@ -60,10 +60,10 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
@@ -77,7 +77,7 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		spec = append(spec, hcaSpec.PortState)
 		curr = append(curr, hwInfo.PortState)
 		if !strings.Contains(hwInfo.PortState, hcaSpec.PortState) {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
 	}
@@ -87,7 +87,7 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	result.Device = strings.Join(failedHcas, ",")
 
 	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("PortState check fail: %s NOT ACTIVE",strings.Join(failedHcas, ";"))
+		result.Detail = fmt.Sprintf("PortState check fail: %s NOT ACTIVE", strings.Join(failedHcas, ";"))
 		result.Suggestion = fmt.Sprintf("check opensm to active %s status", strings.Join(failedHcas, ";"))
 	}
 

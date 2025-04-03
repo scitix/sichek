@@ -20,13 +20,12 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/memory"
-	"github.com/scitix/sichek/config"
-
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-// NewMemoryCmd创建并返回用于代表memory相关操作的子命令实例，配置命令的基本属性
+// NewMemoryCmd 创建并返回用于代表memory相关操作的子命令实例，配置命令的基本属性
 func NewMemoryCmd() *cobra.Command {
 	memoryCmd := &cobra.Command{
 		Use:     "memory",
@@ -55,7 +54,6 @@ func NewMemoryCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "memory").Info("load default cfg...")
 			}
-
 			component, err := memory.NewComponent(cfgFile)
 			if err != nil {
 				logrus.WithField("component", "memory").Errorf("create memory component failed: %v", err)
@@ -75,7 +73,7 @@ func NewMemoryCmd() *cobra.Command {
 			}
 			pass := PrintMemoryInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[config.ComponentNameInfiniband] = pass
+			ComponentStatuses[consts.ComponentNameMemory] = pass
 			StatusMutex.Unlock()
 		},
 	}

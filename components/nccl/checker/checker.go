@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	ncclCfg "github.com/scitix/sichek/components/nccl/config"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/components/nccl/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -49,12 +49,12 @@ func (d *NCCLInfo) JSON() (string, error) {
 type NCCLChecker struct {
 	id   string
 	name string
-	cfg  common.CheckerSpec
+	cfg  *config.NCCLUserConfig
 }
 
-func NewNCCLChecker(cfg common.CheckerSpec) common.Checker {
+func NewNCCLChecker(cfg *config.NCCLUserConfig) common.Checker {
 	return &NCCLChecker{
-		id:   config.CheckerIDNCCL,
+		id:   consts.CheckerIDNCCL,
 		name: "NCCLTimeoutChecker",
 		cfg:  cfg,
 	}
@@ -62,10 +62,6 @@ func NewNCCLChecker(cfg common.CheckerSpec) common.Checker {
 
 func (c *NCCLChecker) Name() string {
 	return c.name
-}
-
-func (c *NCCLChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *NCCLChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -95,14 +91,14 @@ func (c *NCCLChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	}
 	raw = raw + js + "\n"
 
-	status := config.StatusNormal
+	status := consts.StatusNormal
 	var suggest string
 	if len(info.Name) != 0 {
-		status = config.StatusAbnormal
+		status = consts.StatusAbnormal
 		suggest = "nccl log has timeout error"
 	}
 
-	result := ncclCfg.NCCLCheckItems["NCCLTimeout"]
+	result := config.NCCLCheckItems["NCCLTimeout"]
 	result.Device = strings.Join(devicePodNames, ",")
 	result.Curr = strconv.Itoa(len(info.Name))
 	result.Status = status

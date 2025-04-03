@@ -23,7 +23,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
@@ -34,12 +34,7 @@ type EventChecker struct {
 	cfg  *config.CPUEventConfig
 }
 
-func NewEventChecker(cfg common.CheckerSpec) (common.Checker, error) {
-	cpuEventCfg, ok := cfg.(*config.CPUEventConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid CPU event checker config type")
-	}
-
+func NewEventChecker(cpuEventCfg *config.CPUEventConfig) (common.Checker, error) {
 	return &EventChecker{
 		name: cpuEventCfg.Name,
 		cfg:  cpuEventCfg,
@@ -65,11 +60,11 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		return nil, err
 	}
 
-	total_num := len(info)
-	status := commonCfg.StatusNormal
+	totalNum := len(info)
+	status := consts.StatusNormal
 	suggestion := ""
-	if total_num > 0 {
-		status = commonCfg.StatusAbnormal
+	if totalNum > 0 {
+		status = consts.StatusAbnormal
 		suggestion = c.cfg.Suggestion
 	}
 
@@ -77,7 +72,7 @@ func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		Name:        c.cfg.Name,
 		Description: c.cfg.Description,
 		Spec:        "0",
-		Curr:        strconv.Itoa(total_num),
+		Curr:        strconv.Itoa(totalNum),
 		Status:      status,
 		Level:       c.cfg.Level,
 		Suggestion:  suggestion,

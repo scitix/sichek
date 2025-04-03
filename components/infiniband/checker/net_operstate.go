@@ -23,19 +23,19 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type NetOperstateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpec
+	spec        *config.InfinibandSpecItem
 	description string
 }
 
-func NewNetOperstateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
+func NewNetOperstateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &NetOperstateChecker{
-		id:   commonCfg.CheckerNetOperstate,
+		id:   consts.CheckerNetOperstate,
 		name: config.ChekNetOperstate,
 		spec: specCfg,
 	}, nil
@@ -60,10 +60,10 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 	}
 
 	result := config.InfinibandCheckItems[c.name]
-	result.Status = commonCfg.StatusNormal
+	result.Status = consts.StatusNormal
 
 	if len(infinibandInfo.IBHardWareInfo) == 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
@@ -77,7 +77,7 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 		spec = append(spec, hcaSpec.NetOperstate)
 		curr = append(curr, hwInfo.NetOperstate)
 		if hwInfo.NetOperstate != hcaSpec.NetOperstate {
-			result.Status = commonCfg.StatusAbnormal
+			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
 	}

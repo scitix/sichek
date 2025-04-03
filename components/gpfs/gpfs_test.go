@@ -24,10 +24,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/components/common"
 )
 
-func TestGpfs_HealthCheck(t *testing.T) {
+func TestGpfsHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -45,7 +46,10 @@ func TestGpfs_HealthCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to write to temp log file: %+v", err)
 	}
-	logFile.Close()
+	err = logFile.Close()
+	if err != nil {
+		t.Errorf("Failed to close temp log file: %v", err)
+	}
 
 	// NewGpfsComponent
 	start := time.Now()
@@ -74,10 +78,12 @@ func TestGpfs_HealthCheck(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				os.Remove(logFile.Name())
+				err := os.Remove(logFile.Name())
+				if err != nil {
+					t.Errorf("Failed to remove temp log file: %v", err)
+				}
 				return
 			default:
-
 				file, err := os.OpenFile(logFile.Name(), os.O_APPEND|os.O_WRONLY, 0600)
 				if err != nil {
 					t.Errorf("Failed to open log file: %v", err)
@@ -86,10 +92,16 @@ func TestGpfs_HealthCheck(t *testing.T) {
 				_, err = file.WriteString(fmt.Sprintf("%s\n", string(content)))
 				if err != nil {
 					t.Errorf("Failed to write to log file: %v", err)
-					file.Close()
+					err := file.Close()
+					if err != nil {
+						t.Errorf("Failed to close temp log file: %v", err)
+					}
 					return
 				}
-				file.Close()
+				err = file.Close()
+				if err != nil {
+					t.Errorf("Failed to close temp log file: %v", err)
+				}
 				time.Sleep(1 * time.Second)
 			}
 		}
@@ -100,10 +112,13 @@ func TestGpfs_HealthCheck(t *testing.T) {
 		t.Fatalf("Failed to read testLogFile: %v", err)
 	}
 	t.Logf("Current log file content: %s", string(content))
-	
+
 	result, err := component.HealthCheck(ctx)
 	if err != nil {
 		t.Log(err)
+	}
+	if result.Status != consts.StatusAbnormal {
+		t.Fatalf("Health check expected abnormal, while get normal")
 	}
 	t.Logf("test gpfs analysis result: %s", common.ToString(result))
 	t.Logf("Running time: %ds", time.Since(start))

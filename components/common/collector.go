@@ -23,7 +23,7 @@ import (
 
 type Collector interface {
 	Name() string
-	GetCfg() ComponentConfig
+	GetCfg() ComponentUserConfig
 	Collect(ctx context.Context) (Info, error)
 }
 
@@ -34,12 +34,12 @@ type Info interface {
 	// Get() error
 }
 
-// Base function to convert any struct to JSON
+// JSON Base function to convert any struct to JSON
 func JSON(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-// Base function to convert any struct to a pretty-printed JSON string
+// ToString Base function to convert any struct to a pretty-printed JSON string
 func ToString(v interface{}) string {
 	jsonData, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

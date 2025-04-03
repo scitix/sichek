@@ -30,18 +30,20 @@ func TestCollector_Collect(t *testing.T) {
 	defer cancel()
 
 	// Mock configuration
-	cfg := &config.CPUConfig{}
-	cfg.CPU.EventCheckers = map[string]*config.CPUEventConfig{
-		"testChecker": {
-			Name:        "testChecker",
-			Description: "Test checker",
-			LogFile:     "/var/log/test.log",
-			Regexp:      "test",
-			Level:       "warning",
-			Suggestion:  "test suggestion",
+	cfg := &config.CpuUserConfig{
+		CPU: &config.CPUConfig{
+			EventCheckers: map[string]*config.CPUEventConfig{
+				"testChecker": {
+					Name:        "testChecker",
+					Description: "Test checker",
+					LogFile:     "/var/log/test.log",
+					Regexp:      "test",
+					Level:       "warning",
+					Suggestion:  "test suggestion",
+				},
+			},
 		},
 	}
-
 	// Create a temporary log file for testing in a goroutine
 	var logFile *os.File
 	var err error
@@ -50,19 +52,26 @@ func TestCollector_Collect(t *testing.T) {
 		t.Fatalf("Failed to create temp log file: %v", err)
 	}
 	t.Logf("Log file: %s", logFile.Name())
+	cfg.CPU.EventCheckers["testChecker"].LogFile = logFile.Name()
 	// Write some test data to the log file
 	_, err = logFile.WriteString("test log data\n")
 	if err != nil {
 		t.Fatalf("Failed to write to temp log file: %+v", err)
 	}
-	logFile.Close()
+	err = logFile.Close()
+	if err != nil {
+		t.Errorf("Failed to close temp log file: %v", err)
+	}
 
 	// Start a goroutine to write to the log file continuously
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
-				os.Remove(logFile.Name())
+				err := os.Remove(logFile.Name())
+				if err != nil {
+					t.Errorf("Failed to remove temp log file: %v", err)
+				}
 				return
 			default:
 				file, err := os.OpenFile(logFile.Name(), os.O_APPEND|os.O_WRONLY, 0600)
@@ -73,10 +82,16 @@ func TestCollector_Collect(t *testing.T) {
 				_, err = file.WriteString("additional test log data\n")
 				if err != nil {
 					t.Errorf("Failed to write to log file: %v", err)
-					file.Close()
+					err := file.Close()
+					if err != nil {
+						t.Errorf("Failed to close temp log file: %v", err)
+					}
 					return
 				}
-				file.Close()
+				err = file.Close()
+				if err != nil {
+					t.Errorf("Failed to close temp log file: %v", err)
+				}
 				time.Sleep(1 * time.Second)
 			}
 		}
@@ -97,7 +112,10 @@ func TestCollector_Collect(t *testing.T) {
 	}
 	t.Logf("Current log file content: %s", string(content))
 
-	collector.Collect(ctx)
+	info, err := collector.Collect(ctx)
+	if err != nil {
+		t.Fatalf("Failed to collect info: %v", err)
+	}
 	time.Sleep(2 * time.Second)
 	// Read the current content of the log file
 	content, err = os.ReadFile(logFile.Name())
@@ -106,9 +124,9 @@ func TestCollector_Collect(t *testing.T) {
 	}
 	t.Logf("Current log file content: %s", string(content))
 	// Call the Collect method
-	info, err := collector.Collect(ctx)
+	info, err = collector.Collect(ctx)
 	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
+		t.Fatalf("Failed to collect info: %v", err)
 	}
 
 	// Verify the results

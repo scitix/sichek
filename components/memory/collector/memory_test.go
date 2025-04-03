@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -81,7 +81,12 @@ DirectMap1G:    1679818752 kB
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to close temp file: %v", err)
+		}
+	}(tmpFile.Name())
 
 	if _, err := tmpFile.Write([]byte(mockMemInfo)); err != nil {
 		t.Fatalf("failed to write to temp file: %v", err)

@@ -23,15 +23,15 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type RemmapedRowsUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &RemmapedRowsUncorrectableChecker{
 		name: config.RemmapedRowsUncorrectableCheckerName,
 		cfg:  cfg,
@@ -40,10 +40,6 @@ func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker
 
 func (c *RemmapedRowsUncorrectableChecker) Name() string {
 	return c.name
-}
-
-func (c *RemmapedRowsUncorrectableChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -55,33 +51,33 @@ func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) 
 
 	result := config.GPUCheckItems[config.RemmapedRowsUncorrectableCheckerName]
 
-	var falied_gpuid_podnames []string
-	var falied_gpus_info map[int]string
+	var failedGpuidPodnames []string
+	var faliedGpusInfo map[int]string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if uint64(device.MemoryErrors.RemappedRows.RemappedDueToUncorrectable) > c.cfg.MemoryErrorThreshold.RemappedUncorrectableErrors {
-			if falied_gpus_info == nil {
-				falied_gpus_info = make(map[int]string)
+			if faliedGpusInfo == nil {
+				faliedGpusInfo = make(map[int]string)
 			}
-			falied_gpus_info[device.Index] = fmt.Sprintf(
+			faliedGpusInfo[device.Index] = fmt.Sprintf(
 				"GPU %d:%s detect RemappedDueToUncorrectable: %d, Threshold: %d\n",
 				device.Index, device.UUID,
 				device.MemoryErrors.RemappedRows.RemappedDueToUncorrectable,
 				c.cfg.MemoryErrorThreshold.RemappedUncorrectableErrors)
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
-		result.Detail = fmt.Sprintf("%v", falied_gpus_info)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+	if len(failedGpuidPodnames) > 0 {
+		result.Status = consts.StatusAbnormal
+		result.Detail = fmt.Sprintf("%v", faliedGpusInfo)
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 	}

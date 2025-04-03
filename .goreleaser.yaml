@@ -72,6 +72,8 @@ nfpms:
       dst: /var/sichek/nccl/
     - src: ./components/nvidia/config/*.yaml
       dst: /var/sichek/nvidia/
+    - src: ./components/hca/config/*.yaml
+      dst: /var/sichek/hca/
     - src: ./config/*.yaml
       dst: /var/sichek/config
 

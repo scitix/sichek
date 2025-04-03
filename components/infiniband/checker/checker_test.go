@@ -25,16 +25,24 @@ import (
 )
 
 func TestIbChecker_Check(t *testing.T) {
-	cfg := &config.InfinibandConfig{}
-	cfg, err := config.DefaultConfig()
+	cfg := &config.InfinibandUserConfig{}
+	err := cfg.LoadUserConfigFromYaml("")
 	if err != nil {
 		t.Fatalf("failed to load default config: %v", err)
 	}
-	clusterSpec := config.GetClusterInfinibandSpec("")
+	specCfg := &config.InfinibandSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml("")
+	if err != nil {
+		t.Fatalf("failed to load default spec config: %v", err)
+	}
+	clusterSpec, err := specCfg.GetClusterInfinibandSpec()
+	if err != nil {
+		t.Fatalf("failed to get cluster spec config: %v", err)
+	}
 	jsonData, err := json.MarshalIndent(clusterSpec, "", "  ")
 	t.Logf("clusterSpec: %v", string(jsonData))
 	// Create a new AppClocksChecker
-	checkers, err := NewCheckers(cfg, &clusterSpec)
+	checkers, err := NewCheckers(cfg, clusterSpec)
 	if err != nil {
 		t.Fatalf("failed to NewCheckers: %v", err)
 	}
@@ -42,8 +50,8 @@ func TestIbChecker_Check(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Run the Check method
-	var collector collector.InfinibandInfo
-	ibInfo := collector.GetIBInfo()
+	var ibCollector collector.InfinibandInfo
+	ibInfo := ibCollector.GetIBInfo()
 	for _, checker := range checkers {
 		result, err := checker.Check(ctx, ibInfo)
 		if err != nil {

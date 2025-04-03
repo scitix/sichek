@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync"
 
@@ -28,9 +29,8 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -90,60 +90,96 @@ func NewAllCmd() *cobra.Command {
 				}
 			}
 
-			ignored_checkers_str, err := cmd.Flags().GetString("ignored-checkers")
+			usedComponentStr, err := cmd.Flags().GetString("enable-components")
 			if err != nil {
-				logrus.WithField("components", "all").Error(err)
+				logrus.WithField("component", "all").Error(err)
 			} else {
-				logrus.WithField("components", "all").Info("ignore checkers", ignored_checkers_str)
+				logrus.WithField("component", "all").Infof("enable components = %v", usedComponentStr)
 			}
-			ignoredCheckers := strings.Split(ignored_checkers_str, ",")
+			var usedComponents []string
+			if len(usedComponentStr) > 0 {
+				usedComponents = strings.Split(usedComponentStr, ",")
+			}
 
+			ignoreComponentStr, err := cmd.Flags().GetString("ignore-components")
+			if err != nil {
+				logrus.WithField("component", "all").Error(err)
+			} else {
+				logrus.WithField("component", "all").Infof("ignore-components = %v", ignoreComponentStr)
+			}
+			var ignoredComponents []string
+			if len(ignoreComponentStr) > 0 {
+				ignoredComponents = strings.Split(ignoreComponentStr, ",")
+			}
+
+			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
+			if err != nil {
+				logrus.WithField("component", "all").Error(err)
+			} else {
+				logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckersStr)
+			}
+			var ignoredCheckers []string
+			if len(ignoredCheckersStr) > 0 {
+				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
+			}
 			var wg sync.WaitGroup
-			for _, component_name := range config.DefaultComponents {
+			for _, componentName := range consts.DefaultComponents {
+				if slices.Contains(ignoredComponents, componentName) {
+					continue
+				}
+				if len(usedComponentStr) > 0 && !slices.Contains(usedComponents, componentName) {
+					continue
+				}
+
 				var component common.Component
 				var err error
 				var printFunc func(common.Info, *common.Result, bool) bool
-				switch component_name {
-				case config.ComponentNameGpfs:
-					component, err = gpfs.NewGpfsComponent("")
+				switch componentName {
+				case consts.ComponentNameGpfs:
+					component, err = gpfs.NewGpfsComponent(cfgFile)
 					printFunc = PrintGPFSInfo
-				case config.ComponentNameCPU:
-					component, err = cpu.NewComponent("")
+				case consts.ComponentNameCPU:
+					component, err = cpu.NewComponent(cfgFile)
 					printFunc = PrintSystemInfo
-				case config.ComponentNameInfiniband:
+				case consts.ComponentNameInfiniband:
 					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 					printFunc = PrintInfinibandInfo
-				case config.ComponentNameDmesg:
-					component, err = dmesg.NewComponent("")
+				case consts.ComponentNameDmesg:
+					component, err = dmesg.NewComponent(cfgFile)
 					printFunc = PrintDmesgInfo
-				case config.ComponentNameHang:
+				case consts.ComponentNameHang:
 					if !utils.IsNvidiaGPUExist() {
 						logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
 						continue
 					}
-					component, err = hang.NewComponent("")
+					_, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+					if err != nil {
+						logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
+						continue
+					}
+					component, err = hang.NewComponent(cfgFile)
 					printFunc = PrintHangInfo
-				case config.ComponentNameNvidia:
+				case consts.ComponentNameNvidia:
 					if !utils.IsNvidiaGPUExist() {
 						logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 						continue
 					}
 					component, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 					printFunc = PrintNvidiaInfo
-				case config.ComponentNameNCCL:
-					component, err = nccl.NewComponent("")
+				case consts.ComponentNameNCCL:
+					component, err = nccl.NewComponent(cfgFile)
 					printFunc = PrintNCCLInfo
 				default:
-					logrus.WithField("component", "all").Errorf("invalid component_name: %s", component_name)
+					logrus.WithField("component", "all").Errorf("invalid component_name: %s", componentName)
 					continue
 				}
 				if err != nil {
-					logrus.WithField("component", "all").Errorf("create component %s failed: %v", component_name, err)
+					logrus.WithField("component", "all").Errorf("create component %s failed: %v", componentName, err)
 					continue
 				}
 				result, err := component.HealthCheck(ctx)
 				if err != nil {
-					logrus.WithField("component", "all").Errorf("analyze %s failed: %v", component_name, err)
+					logrus.WithField("component", "all").Errorf("analyze %s failed: %v", componentName, err)
 					continue
 				}
 				info, err := component.LastInfo(ctx)
@@ -152,7 +188,7 @@ func NewAllCmd() *cobra.Command {
 				}
 				passed := printFunc(info, result, !eventonly)
 				StatusMutex.Lock()
-				ComponentStatuses[component_name] = passed
+				ComponentStatuses[componentName] = passed
 				StatusMutex.Unlock()
 			}
 
@@ -164,6 +200,8 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().BoolP("eventonly", "e", false, "Print events output only")
 	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
+	allCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by ','")
+	allCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
 	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd

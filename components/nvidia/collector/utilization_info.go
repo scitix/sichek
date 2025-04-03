@@ -16,13 +16,14 @@ limitations under the License.
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
 )
 
-// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g540824faa6cef45500e0d1dc2f50b321
+// UtilizationInfo ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g540824faa6cef45500e0d1dc2f50b321
 type UtilizationInfo struct {
 	// Percent of time over the past sample period during which one or more kernels was executing on the GPU.
 	GPUUsagePercent uint32 `json:"gpu_usage_percent"`
@@ -34,7 +35,7 @@ func (util *UtilizationInfo) JSON() ([]byte, error) {
 	return common.JSON(util)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (util *UtilizationInfo) ToString() string {
 	return common.ToString(util)
 }
@@ -42,7 +43,7 @@ func (util *UtilizationInfo) ToString() string {
 func (util *UtilizationInfo) Get(device nvml.Device, uuid string) error {
 	// Each sample period may be between 1 second and 1/6 second, depending on the product being queried.
 	utilization, err := device.GetUtilizationRates()
-	if err != nvml.SUCCESS {
+	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get utilization rates for GPU %v : %v", uuid, nvml.ErrorString(err))
 	}
 	util.GPUUsagePercent = utilization.Gpu

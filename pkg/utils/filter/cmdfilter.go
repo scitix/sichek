@@ -88,7 +88,12 @@ func (f *CommandFilter) Check() []FilterResult {
 		if err != nil {
 			logrus.WithField("CommandFilter", f.Regex).WithField("LogFile", f.LogFileName[k]).Error("failed to open file")
 		}
-		defer fd.Close()
+		defer func(fd *os.File) {
+			err := fd.Close()
+			if err != nil {
+				logrus.WithField("CommandFilter", f.Regex).WithField("LogFile", f.LogFileName[k]).Error(err)
+			}
+		}(fd)
 
 		command := f.Commands[k]
 		cmd := exec.Command(command.Command, command.Args...)

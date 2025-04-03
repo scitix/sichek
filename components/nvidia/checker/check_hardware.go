@@ -17,24 +17,25 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
 type HardwareChecker struct {
 	name     string
-	cfg      *config.NvidiaSpec
+	cfg      *config.NvidiaSpecItem
 	nvmlInst nvml.Interface
 }
 
-func NewHardwareChecker(cfg *config.NvidiaSpec, nvmlInst nvml.Interface) (common.Checker, error) {
+func NewHardwareChecker(cfg *config.NvidiaSpecItem, nvmlInst nvml.Interface) (common.Checker, error) {
 	return &HardwareChecker{
 		name:     config.HardwareCheckerName,
 		cfg:      cfg,
@@ -44,10 +45,6 @@ func NewHardwareChecker(cfg *config.NvidiaSpec, nvmlInst nvml.Interface) (common
 
 func (c *HardwareChecker) Name() string {
 	return c.name
-}
-
-func (c *HardwareChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
@@ -62,12 +59,12 @@ func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 	lostGPUs, lostReasons := c.checkGPUbyIndex(nvidiaInfo)
 	curGPUNums := len(lostGPUs)
 	if curGPUNums != 0 {
-		result.Status = commonCfg.StatusAbnormal
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Expected GPU number: %d, Current GPU number: %d, Lost GPU: %v\n%v",
 			c.cfg.GpuNums, curGPUNums, len(lostGPUs), strings.Join(lostReasons, "\n"))
 		result.Device = strings.Join(lostGPUs, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 
 	}
 	return &result, nil
@@ -75,25 +72,25 @@ func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 
 // ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g4cc7ff5253d53cc97b1afb606d614888
 func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]string, []string) {
-	lostDeviceIDs := []string{}
-	lostDeviceIDErrs := []string{}
+	var lostDeviceIDs []string
+	var lostDeviceIDErrs []string
 	for index := range c.cfg.GpuNums {
 		_, err := c.nvmlInst.DeviceGetHandleByIndex(index)
-		if err == nvml.ERROR_GPU_IS_LOST || err == nvml.ERROR_UNKNOWN {
+		if errors.Is(err, nvml.ERROR_GPU_IS_LOST) || errors.Is(err, nvml.ERROR_UNKNOWN) {
 			lostDeviceIDErrs = append(lostDeviceIDErrs, fmt.Sprintf("NVIDIA GPU %d Error: %s\n", index, nvml.ErrorString(err)))
-			var device_pod_name string
+			var devicePodName string
 			if nvidiaInfo.ValiddeviceUUIDFlag {
 				lostUUID := nvidiaInfo.DeviceUUIDs[index]
 				if _, found := nvidiaInfo.DeviceToPodMap[lostUUID]; found {
-					device_pod_name = fmt.Sprintf("%s:%d", lostUUID, index)
+					devicePodName = fmt.Sprintf("%s:%d", lostUUID, index)
 				} else {
-					device_pod_name = fmt.Sprintf("%s:", lostUUID)
+					devicePodName = fmt.Sprintf("%s:", lostUUID)
 				}
 			} else {
 				// if the device UUID is not valid, use the index as the device UUID
-				device_pod_name = fmt.Sprintf("%d:", index)
+				devicePodName = fmt.Sprintf("%d:", index)
 			}
-			lostDeviceIDs = append(lostDeviceIDs, device_pod_name)
+			lostDeviceIDs = append(lostDeviceIDs, devicePodName)
 		}
 	}
 	return lostDeviceIDs, lostDeviceIDErrs

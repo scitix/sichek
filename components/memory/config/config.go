@@ -16,29 +16,26 @@ limitations under the License.
 package config
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-
-	"sigs.k8s.io/yaml"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
-type MemoryConfig struct {
-	Memory struct {
-		Name          string                        `json:"name" yaml:"name"`
-		QueryInterval time.Duration                 `json:"query_interval" yaml:"query_interval"`
-		CacheSize     int64                         `json:"cache_size" yaml:"cache_size"`
-		Checkers      map[string]*MemoryEventConfig `json:"checkers" yaml:"checkers"`
-	} `json:"memory"`
+type MemoryUserConfig struct {
+	Memory *MemoryConfig `json:"memory" yaml:"memory"`
 }
 
-func (c *MemoryConfig) GetCheckerSpec() map[string]common.CheckerSpec {
+type MemoryConfig struct {
+	Name          string                        `json:"name" yaml:"name"`
+	QueryInterval time.Duration                 `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64                         `json:"cache_size" yaml:"cache_size"`
+	Checkers      map[string]*MemoryEventConfig `json:"checkers" yaml:"checkers"`
+}
+
+func (c *MemoryUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.Memory.Checkers {
 		commonCfgMap[name] = cfg
@@ -46,35 +43,21 @@ func (c *MemoryConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return commonCfgMap
 }
 
-func (c *MemoryConfig) GetQueryInterval() time.Duration {
+func (c *MemoryUserConfig) GetQueryInterval() time.Duration {
 	return c.Memory.QueryInterval
 }
 
-func (c *MemoryConfig) GetCacheSize() int64 {
-	return c.Memory.CacheSize
-}
-
-func (c *MemoryConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
+func (c *MemoryUserConfig) LoadUserConfigFromYaml(file string) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.Memory == nil {
+			return fmt.Errorf("failed to load memory config from YAML file %s: %v", file, err)
+		}
 	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
+	err := common.DefaultComponentConfig(consts.ComponentNameMemory, c, consts.DefaultUserCfgName)
+	if err != nil || c.Memory == nil {
+		return fmt.Errorf("failed to load default memory config: %v", err)
 	}
-
 	return nil
 }
 
@@ -84,48 +67,4 @@ type MemoryEventConfig struct {
 	LogFile     string `json:"log_file" yaml:"log_file"`
 	Regexp      string `json:"regexp" yaml:"regexp"`
 	Level       string `json:"level" yaml:"level"`
-}
-
-func (c *MemoryEventConfig) JSON() (string, error) {
-	data, err := json.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryEventConfig) Yaml() (string, error) {
-	data, err := yaml.Marshal(c)
-	return string(data), err
-}
-
-func (c *MemoryEventConfig) LoadFromYaml(file string) error {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(data, c)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DefaultConfig(ctx context.Context) (*MemoryConfig, error) {
-	var MemoryConfig MemoryConfig
-	defaultCfgPath := "/memory_events.yaml"
-	_, err := os.Stat("/var/sichek/memory" + defaultCfgPath)
-	if err == nil {
-		// run in pod use /var/sichek/memory/memory_events.yaml
-		defaultCfgPath = "/var/sichek/memory" + defaultCfgPath
-	} else {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return nil, fmt.Errorf("get curr file path failed")
-		}
-
-		defaultCfgPath = filepath.Dir(curFile) + defaultCfgPath
-	}
-
-	err = MemoryConfig.LoadFromYaml(defaultCfgPath)
-	return &MemoryConfig, err
 }

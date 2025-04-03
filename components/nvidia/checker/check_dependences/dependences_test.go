@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -31,7 +31,7 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// disable perfomance mode for testing
+	// disable performance mode for testing
 	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
 	output, err := utils.ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
 	if err != nil {
@@ -44,8 +44,8 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	}
 
 	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
-	is_active, _ := systemd.IsActive("nvidia-fabricmanager")
-	if is_active {
+	isActive, _ := systemd.IsActive("nvidia-fabricmanager")
+	if isActive {
 		t.Fatalf("unexpected active nvidia-fabricmanager")
 	}
 
@@ -55,8 +55,8 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 
 	// Run the Check method
 	t.Logf("======test: `do NVFabricManagerChecker and expect to start nvidia-fabricmanager`=====")
-	cfg := &config.NvidiaConfig{}
-	checker, err := NewNVFabricManagerChecker(&cfg.Spec)
+	cfg := &config.NvidiaSpecItem{}
+	checker, err := NewNVFabricManagerChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create NVFabricManagerChecker: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Status != commonCfg.StatusNormal {
+	if result.Status != consts.StatusNormal {
 		t.Fatalf("expected status 'normal', got %v", result.Status)
 	}
 	t.Logf("result: %v", result)
@@ -76,8 +76,8 @@ func TestNVFabricManagerChecker_Check(t *testing.T) {
 
 func TestIOMMUChecker_Check(t *testing.T) {
 	// Create a new IOMMUChecker
-	cfg := &config.NvidiaConfig{}
-	checker, err := NewIOMMUChecker(&cfg.Spec)
+	cfg := &config.NvidiaSpecItem{}
+	checker, err := NewIOMMUChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create IOMMUChecker: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestIOMMUChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Status != commonCfg.StatusNormal {
+	if result.Status != consts.StatusNormal {
 		t.Errorf("expected status 'normal', got %v", result.Status)
 	}
 }
@@ -114,8 +114,8 @@ func TestNvPeerMemChecker_Check(t *testing.T) {
 	// Run the Check method
 	// Create a new NvPeerMemChecker
 	t.Logf("======test: `do NvPeerMemChecker and expect to load nvidia_peermem`=====")
-	cfg := &config.NvidiaConfig{}
-	checker, err := NewNvPeerMemChecker(&cfg.Spec)
+	cfg := &config.NvidiaSpecItem{}
+	checker, err := NewNvPeerMemChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create NvPeerMemChecker: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestNvPeerMemChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Status != commonCfg.StatusNormal {
+	if result.Status != consts.StatusNormal {
 		t.Errorf("expected status 'normal', got %v", result.Status)
 	}
 	t.Logf("result: %+v", result.ToString())
@@ -167,8 +167,8 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 		// Run the Check method
 		// Create a new NvPeerMemChecker
 		t.Logf("======test: `do PCIeACSChecker and expect to disable ACS online`=====")
-		cfg := &config.NvidiaConfig{}
-		checker, err := NewPCIeACSChecker(&cfg.Spec)
+		cfg := &config.NvidiaSpecItem{}
+		checker, err := NewPCIeACSChecker(cfg)
 		if err != nil {
 			t.Fatalf("failed to create PCIeACSChecker: %v", err)
 		}
@@ -177,15 +177,15 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if result.Status != commonCfg.StatusNormal {
+		if result.Status != consts.StatusNormal {
 			t.Errorf("expected status 'normal', got %v", result.Status)
 		}
 		t.Logf("result: %+v", result.ToString())
 	}
 
 	t.Logf("======test: `do PCIeACSChecker again and expect all ACS are disabled`=====")
-	cfg := &config.NvidiaConfig{}
-	checker, err := NewPCIeACSChecker(&cfg.Spec)
+	cfg := &config.NvidiaSpecItem{}
+	checker, err := NewPCIeACSChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create PCIeACSChecker: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Status != commonCfg.StatusNormal {
+	if result.Status != consts.StatusNormal {
 		t.Fatalf("expected status 'normal', got %v", result.Status)
 	}
 }

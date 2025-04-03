@@ -47,7 +47,7 @@ func (memInfo *MemoryInfo) JSON() ([]byte, error) {
 	return common.JSON(memInfo)
 }
 
-// Convert struct to JSON (pretty-printed)
+// ToString Convert struct to JSON (pretty-printed)
 func (memInfo *MemoryInfo) ToString() string {
 	return common.ToString(memInfo)
 }

@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDaemonCmd创建并返回用于以daemon状态运行的子命令实例，配置命令的基本属性
+// NewDaemonCmd 创建并返回用于以daemon状态运行的子命令实例，配置命令的基本属性
 func NewDaemonCmd() *cobra.Command {
 	daemonCmd := &cobra.Command{
 		Use:     "daemon",

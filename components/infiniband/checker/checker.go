@@ -18,18 +18,17 @@ package checker
 import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/config"
-
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.InfinibandConfig, spec *config.InfinibandSpec) ([]common.Checker, error) {
-	checkerConstructors := map[string]func(*config.InfinibandSpec) (common.Checker, error){
+func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpecItem) ([]common.Checker, error) {
+	checkerConstructors := map[string]func(*config.InfinibandSpecItem) (common.Checker, error){
 		config.ChekIBOFED: NewIBOFEDChecker,
 		// config.ChekIBNUM:           dependence.NewIOMMUChecker,
-		config.ChekIBFW:         NewFirmwareChecker,
-		config.ChekIBState:      NewIBStateChecker,
-		config.ChekIBPhyState:   NewIBPhyStateChecker,
-		config.ChekIBPortSpeed:  NewIBPortSpeedChecker,
+		config.ChekIBFW:        NewFirmwareChecker,
+		config.ChekIBState:     NewIBStateChecker,
+		config.ChekIBPhyState:  NewIBPhyStateChecker,
+		config.ChekIBPortSpeed: NewIBPortSpeedChecker,
 		// config.ChekNetOperstate: NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
 		config.CheckPCIEMRR:   NewPCIEMRRChecker,

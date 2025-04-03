@@ -1,4 +1,4 @@
-NCCL:
+nccl:
   name: NCCL
   log_dir: "/var/log/pods"
   query_interval: 10

@@ -17,6 +17,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -33,7 +34,7 @@ func setup() error {
 	// Initialize NVML
 	nvmlInst = nvml.New()
 	ret := nvmlInst.Init()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		return fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	return nil
@@ -70,12 +71,23 @@ func TestCompareVersion(t *testing.T) {
 		version string
 		expect  bool
 	}{
-		{"spec535.129.03", "spec535.129.03", true},  // 完全匹配
-		{"spec535.129.*", "spec535.129.99", true},   // 只匹配 major.minor
-		{"spec535.129.*", "spec535.130.01", false},  // minor 不匹配
-		{"spec535.*.*", "spec535.120.01", true},     // 只匹配 major
-		{"spec535.*.*", "spec536.120.01", false},    // major 不匹配
-		{"spec535.129.03", "spec535.129.04", false}, // patch 不匹配
+		{">= 550.54.15", "550.54.16", true},  // Version is higher than spec
+		{">= 550.54.15", "550.54.15", true},  // Version is equal to spec
+		{"550.54.15", "550.54.15", true},     // Version is equal to spec
+		{">= 550.54.15", "550.54.14", false}, // Version is lower than spec
+		{"> 550.54.15", "550.54.16", true},   // Version is higher than spec
+		{">= 12.2", "12.2", true},            // Version is lower than spec
+		{"12.2", "12.2", true},               // Version is lower than spec
+		{"> 12.2", "12.8", true},             // Version is higher than spec
+		{"> 550.54.15", "550.54.15", false},  // Version is equal to spec
+		{"== 550.54.15", "550.54.15", true},  // Version matches spec
+		{"== 550.54.15", "550.54.16", false}, // Version does not match spec
+		{">= 550.*", "550.60.20", true},      // Wildcard matches
+		{">= 550.*", "549.99.99", false},     // Version is below wildcard range
+		{"== 550.*", "550.99.99", true},      // Wildcard matches
+		{"== 550.*", "551.0.0", false},       // Exceeds wildcard range
+		{">= 535.*", "535.99.99", true},      // Version is below wildcard range
+		{"535.*", "535.99.99", true},         // Version is below wildcard range
 	}
 
 	// 运行测试
@@ -98,13 +110,13 @@ func TestSoftwareInfo_Get(t *testing.T) {
 	}
 
 	// Verify the results
-	expectedDriverVersion := "535.*.*"
+	expectedDriverVersion := ">=535.*.*"
 	result := common.CompareVersion(expectedDriverVersion, softwareInfo.DriverVersion)
 	if !result {
 		t.Errorf("Incorrect driver version. Expected: %s, Got: %s", expectedDriverVersion, softwareInfo.DriverVersion)
 	}
 
-	expectedCUDAVersion := "12.*" // Update with the expected value
+	expectedCUDAVersion := ">=12.*" // Update with the expected value
 	result = common.CompareVersion(expectedCUDAVersion, softwareInfo.CUDAVersion)
 	if !result {
 		t.Errorf("Incorrect CUDA version. Expected: %s, Got: %s", expectedCUDAVersion, softwareInfo.CUDAVersion)
@@ -126,7 +138,7 @@ func TestSoftwareInfo_Get(t *testing.T) {
 func TestPCIeInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -134,7 +146,7 @@ func TestPCIeInfo_Get(t *testing.T) {
 		t.Skip("No GPUs found")
 	}
 	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 	}
 
@@ -153,7 +165,7 @@ func TestPCIeInfo_Get(t *testing.T) {
 func TestStatesInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -161,7 +173,7 @@ func TestStatesInfo_Get(t *testing.T) {
 		t.Skip("No GPUs found")
 	}
 	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 	}
 
@@ -175,9 +187,9 @@ func TestStatesInfo_Get(t *testing.T) {
 	}
 
 	// Verify the results
-	expectedPersistenced := "enable" // Update with the expected value
-	if statesInfo.GpuPersistenced != expectedPersistenced {
-		t.Errorf("Incorrect GPU persistence mode. Expected: %s, Got: %s", expectedPersistenced, statesInfo.GpuPersistenced)
+	expectedPersistenceM := "enable" // Update with the expected value
+	if statesInfo.GpuPersistenceM != expectedPersistenceM {
+		t.Errorf("Incorrect GPU persistence mode. Expected: %s, Got: %s", expectedPersistenceM, statesInfo.GpuPersistenceM)
 	}
 
 	expectedPstate := 0 // Update with the expected value
@@ -191,7 +203,7 @@ func TestStatesInfo_Get(t *testing.T) {
 func TestNVLinkStates_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -199,7 +211,7 @@ func TestNVLinkStates_Get(t *testing.T) {
 		t.Skip("No GPUs found")
 	}
 	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 	}
 
@@ -219,7 +231,7 @@ func TestNVLinkStates_Get(t *testing.T) {
 func TestMemoryErrors_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -227,7 +239,7 @@ func TestMemoryErrors_Get(t *testing.T) {
 		t.Skip("No GPUs found")
 	}
 	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 	}
 
@@ -235,7 +247,10 @@ func TestMemoryErrors_Get(t *testing.T) {
 	memoryErrors := &MemoryErrors{}
 
 	// Call the Get method
-	memoryErrors.Get(device, "mock_uuid")
+	err := memoryErrors.Get(device, "mock_uuid")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
 
 	t.Logf("MemoryErrors: %+v", memoryErrors.ToString())
 }
@@ -243,7 +258,7 @@ func TestMemoryErrors_Get(t *testing.T) {
 func TestClockInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -252,7 +267,7 @@ func TestClockInfo_Get(t *testing.T) {
 	}
 	for i := 0; i < deviceCount; i++ {
 		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
-		if ret != nvml.SUCCESS {
+		if !errors.Is(ret, nvml.SUCCESS) {
 			t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 		}
 
@@ -271,13 +286,16 @@ func TestClockInfo_Get(t *testing.T) {
 
 func TestClockEvents_Get(t *testing.T) {
 	softwareInfo := &SoftwareInfo{}
-	softwareInfo.Get(0)
+	err := softwareInfo.Get(0)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if !strings.Contains(softwareInfo.DriverVersion, "535") {
 		t.Skip("Skipping TestClockEvents_Get on driver version: ", softwareInfo.DriverVersion)
 	}
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -285,7 +303,7 @@ func TestClockEvents_Get(t *testing.T) {
 		t.Skip("No GPUs found")
 	}
 	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 	}
 
@@ -293,7 +311,7 @@ func TestClockEvents_Get(t *testing.T) {
 	clockEvents := &ClockEvents{}
 
 	// Call the Get method
-	err := clockEvents.Get(device, "mock-uuid")
+	err = clockEvents.Get(device, "mock-uuid")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -304,7 +322,7 @@ func TestClockEvents_Get(t *testing.T) {
 func TestPowerInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -313,7 +331,7 @@ func TestPowerInfo_Get(t *testing.T) {
 	}
 	for i := 0; i < deviceCount; i++ {
 		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
-		if ret != nvml.SUCCESS {
+		if !errors.Is(ret, nvml.SUCCESS) {
 			t.Errorf("Failed to get device handle for index %d: %v", i, nvml.ErrorString(ret))
 		}
 
@@ -333,7 +351,7 @@ func TestPowerInfo_Get(t *testing.T) {
 func TestTemperatureInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -342,7 +360,7 @@ func TestTemperatureInfo_Get(t *testing.T) {
 	}
 	for i := 0; i < deviceCount; i++ {
 		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
-		if ret != nvml.SUCCESS {
+		if !errors.Is(ret, nvml.SUCCESS) {
 			t.Errorf("Failed to get device handle for index %d: %v", i, nvml.ErrorString(ret))
 		}
 
@@ -362,7 +380,7 @@ func TestTemperatureInfo_Get(t *testing.T) {
 func TestUtilizationInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -371,7 +389,7 @@ func TestUtilizationInfo_Get(t *testing.T) {
 	}
 	for i := 0; i < deviceCount; i++ {
 		device, ret := nvmlInst.DeviceGetHandleByIndex(i)
-		if ret != nvml.SUCCESS {
+		if !errors.Is(ret, nvml.SUCCESS) {
 			t.Errorf("Failed to get device handle for index %d: %v", i, nvml.ErrorString(ret))
 		}
 
@@ -391,7 +409,7 @@ func TestUtilizationInfo_Get(t *testing.T) {
 func TestDeviceInfo_Get(t *testing.T) {
 	// Get the number of GPUs
 	deviceCount, ret := nvmlInst.DeviceGetCount()
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device count: %v", nvml.ErrorString(ret))
 	}
 
@@ -399,7 +417,7 @@ func TestDeviceInfo_Get(t *testing.T) {
 		t.Skip("No GPUs found")
 	}
 	device, ret := nvmlInst.DeviceGetHandleByIndex(0)
-	if ret != nvml.SUCCESS {
+	if !errors.Is(ret, nvml.SUCCESS) {
 		t.Errorf("Failed to get device handle for index 0: %v", nvml.ErrorString(ret))
 	}
 

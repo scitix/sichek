@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewInfinibandCmd创建并返回用于代表Infiniband相关操作的子命令实例，配置命令的基本属性
+// NewInfinibandCmd 创建并返回用于代表Infiniband相关操作的子命令实例，配置命令的基本属性
 func NewVersionCmd() *cobra.Command {
 	infinibandCmd := &cobra.Command{
 		Use:     "version",

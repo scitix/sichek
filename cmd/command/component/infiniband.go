@@ -24,7 +24,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -74,7 +74,17 @@ func NewInfinibandCmd() *cobra.Command {
 				}
 			}
 
-			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, nil)
+			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
+			if err != nil {
+				logrus.WithField("components", "infiniband").Error(err)
+			} else {
+				logrus.WithField("components", "infiniband").Info("ignore checkers", ignoredCheckersStr)
+			}
+			var ignoredCheckers []string
+			if len(ignoredCheckersStr) > 0 {
+				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
+			}
+			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error("fail to Create New Infiniband Components")
 				return
@@ -93,7 +103,7 @@ func NewInfinibandCmd() *cobra.Command {
 			}
 			pass := PrintInfinibandInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[commonCfg.ComponentNameInfiniband] = pass
+			ComponentStatuses[consts.ComponentNameInfiniband] = pass
 			StatusMutex.Unlock()
 		},
 	}
@@ -101,7 +111,7 @@ func NewInfinibandCmd() *cobra.Command {
 	infinibandCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
 	infinibandCmd.Flags().StringP("spec", "s", "", "Path to the Infinibnad Spec")
 	infinibandCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
-
+	infinibandCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 	return infinibandCmd
 }
 
@@ -139,7 +149,7 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 
 	for _, result := range checkerResults {
 		statusColor := Green
-		if result.Status != commonCfg.StatusNormal {
+		if result.Status != consts.StatusNormal {
 			statusColor = Red
 			infinibandEvents[result.Name] = fmt.Sprintf("%s%s%s", statusColor, result.Detail, Reset)
 			checkAllPassed = false
@@ -150,7 +160,7 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 			ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", statusColor, result.Curr, Reset)
 		case config.CheckIBKmod:
 			ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Loaded", Reset)
-			if result.Status != commonCfg.StatusNormal {
+			if result.Status != consts.StatusNormal {
 				ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Not Loaded Correctly", Reset)
 			}
 		case config.ChekIBFW:
@@ -161,13 +171,13 @@ func PrintInfinibandInfo(info common.Info, result *common.Result, summaryPrint b
 			ibPortSpeedPrint = fmt.Sprintf("IB Port Speed: %s%s%s", statusColor, portSpeed, Reset)
 		case config.ChekIBPhyState:
 			phyState := "LinkUp"
-			if result.Status != commonCfg.StatusNormal {
+			if result.Status != consts.StatusNormal {
 				phyState = "Not All LinkUp"
 			}
 			phyStatPrint = fmt.Sprintf("Phy State: %s%s%s", statusColor, phyState, Reset)
 		case config.ChekIBState:
 			ibState := "Active"
-			if result.Status != commonCfg.StatusNormal {
+			if result.Status != consts.StatusNormal {
 				ibState = "Not All Active"
 			}
 			ibStatePrint = fmt.Sprintf("IB State: %s%s%s", statusColor, ibState, Reset)

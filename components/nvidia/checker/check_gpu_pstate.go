@@ -24,15 +24,15 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
-	commonCfg "github.com/scitix/sichek/config"
+	"github.com/scitix/sichek/consts"
 )
 
 type GpuPStateChecker struct {
 	name string
-	cfg  *config.NvidiaSpec
+	cfg  *config.NvidiaSpecItem
 }
 
-func NewGpuPStateChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
+func NewGpuPStateChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPStateChecker{
 		name: config.GpuPStateCheckerName,
 		cfg:  cfg,
@@ -41,10 +41,6 @@ func NewGpuPStateChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 
 func (c *GpuPStateChecker) Name() string {
 	return c.name
-}
-
-func (c *GpuPStateChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
 }
 
 // Check if the Nvidia GPU performance state is in state 0 -- Maximum Performance.
@@ -59,26 +55,26 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 
 	// Check if all the Nvidia GPUs are in pstate 0
 	var info string
-	var falied_gpuid_podnames []string
+	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.States.GpuPstate > c.cfg.State.GpuPstate {
 			info += fmt.Sprintf("GPU %d: unexpeced pstate P%d, expected pstate P%d\n", device.Index, device.States.GpuPstate, c.cfg.State.GpuPstate)
-			var device_pod_name string
+			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				device_pod_name = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
 			} else {
-				device_pod_name = fmt.Sprintf("%s:", device.UUID)
+				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
-			falied_gpuid_podnames = append(falied_gpuid_podnames, device_pod_name)
+			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
-	if len(falied_gpuid_podnames) > 0 {
-		result.Status = commonCfg.StatusAbnormal
+	if len(failedGpuidPodnames) > 0 {
+		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("The following GPUs pstates less than P%d:\n %v", c.cfg.State.GpuPstate, info)
 		result.Curr = fmt.Sprintf("Above P%d", c.cfg.State.GpuPstate)
-		result.Device = strings.Join(falied_gpuid_podnames, ",")
+		result.Device = strings.Join(failedGpuidPodnames, ",")
 	} else {
-		result.Status = commonCfg.StatusNormal
+		result.Status = consts.StatusNormal
 		result.Suggestion = ""
 		result.ErrorName = ""
 		if c.cfg.State.GpuPstate != 0 {
