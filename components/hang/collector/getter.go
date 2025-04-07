@@ -35,11 +35,12 @@ type HangGetter struct {
 	name string
 	cfg  *config.HangUserConfig
 
-	items         []string
-	threshold     map[string]int64
-	indicates     map[string]int64
-	indicatesComp map[string]string
-	prevTS        time.Time
+	items              []string
+	threshold          map[string]int64
+	indicates          map[string]int64
+	indicatesComp      map[string]string
+	prevTS             time.Time
+	prevIndicatorValue map[string]map[string]int64
 
 	hangInfo checker.HangInfo
 
@@ -58,6 +59,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGet
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
+	res.prevIndicatorValue = make(map[string]map[string]int64)
 
 	if !hangCfg.Hang.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
@@ -97,6 +99,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGet
 	res.hangInfo.HangDuration = make(map[string]map[string]int64)
 	for j := 0; j < len(res.items); j++ {
 		res.hangInfo.HangDuration[res.items[j]] = make(map[string]int64)
+		res.prevIndicatorValue[res.items[j]] = make(map[string]int64)
 	}
 
 	return &res, nil
@@ -155,9 +158,31 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 				case "pviol":
 					infoValue = int64(deviceInfo.Power.PowerViolations)
 				case "rxpci":
-					infoValue = int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
+					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
+					if _, ok := c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]; !ok {
+						infoValue = infoValueTmp
+					} else {
+						if infoValueTmp < c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] {
+							infoValue = c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] - infoValueTmp
+						} else {
+							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
+						}
+					}
+					fmt.Printf("device %d 's current rxpci = %d, previous rxpci = %d, infoValue = %d\n", i, infoValueTmp, c.prevIndicatorValue[c.items[j]][deviceInfo.UUID], infoValue)
+					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
 				case "txpci":
-					infoValue = int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
+					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
+					if _, ok := c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]; !ok {
+						infoValue = infoValueTmp
+					} else {
+						if infoValueTmp < c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] {
+							infoValue = c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] - infoValueTmp
+						} else {
+							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
+						}
+					}
+					fmt.Printf("device %d 's current txpci = %d, previous txpci = %d, infoValue = %d\n", i, infoValueTmp, c.prevIndicatorValue[c.items[j]][deviceInfo.UUID], infoValue)
+					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
 				case "smclk":
 					smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
 					smClk, _ := strconv.Atoi(smClkInt)

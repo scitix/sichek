@@ -20,6 +20,11 @@ type PodResourceMapper struct {
 	callMtx                       sync.RWMutex
 }
 
+type PodInfo struct {
+	Namespace string
+	PodName   string
+}
+
 var (
 	podResourceMapper *PodResourceMapper
 	syncOnce          sync.Once
@@ -54,7 +59,7 @@ func newPodResourceMapper() (*PodResourceMapper, error) {
 	}, nil
 }
 
-func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]string, error) {
+func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]*PodInfo, error) {
 	p.callMtx.Lock()
 	defer p.callMtx.Unlock()
 	// Context with timeout for the request
@@ -88,7 +93,7 @@ func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]string, error) {
 	}
 
 	// Print pod resources
-	deviceToPodMap := make(map[string]string)
+	deviceToPodMap := make(map[string]*PodInfo)
 	for _, pod := range resp.PodResources {
 		// logrus.Infof("Pod: %s/%s\n", pod.Namespace, pod.Name)
 		for _, container := range pod.Containers {
@@ -97,7 +102,10 @@ func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]string, error) {
 				// logrus.Infof("    Resource Name: %s, Devices: %v\n", device.ResourceName, device.DeviceIds)
 				if device.ResourceName == "nvidia.com/gpu" {
 					for _, deviceID := range device.DeviceIds {
-						deviceToPodMap[deviceID] = pod.Name
+						deviceToPodMap[deviceID] = &PodInfo{
+							Namespace: pod.Namespace,
+							PodName:   pod.Name,
+						}
 					}
 				}
 			}

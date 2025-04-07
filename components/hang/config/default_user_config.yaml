@@ -35,13 +35,13 @@ hang:
           name: "pviol"
           threshold: 5
           compare: low
-        # rxpci:
-        #   name: "rxpci"
-        #   # MB/s
-        #   threshold: 10
-        #   compare: low
-        # txpci:
-        #   name: "txpci"
-        #   # MB/s
-        #   threshold: 10
-        #   compare: low
+        rxpci:
+          name: "rxpci"
+          # MB/s
+          threshold: 20
+          compare: low
+        txpci:
+          name: "txpci"
+          # MB/s
+          threshold: 20
+          compare: low
