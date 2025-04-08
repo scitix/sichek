@@ -62,7 +62,7 @@ func NewNCCLCmd() *cobra.Command {
 				return
 			}
 
-			result, err := component.HealthCheck(ctx)
+			result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", "NCCL").Errorf("analyze nccl failed: %v", err)
 				return

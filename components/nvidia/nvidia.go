@@ -56,6 +56,7 @@ type component struct {
 	serviceMtx    sync.RWMutex
 	running       bool
 	resultChannel chan *common.Result
+	service       *common.CommonService
 }
 
 var (
@@ -200,7 +201,8 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		running:       false,
 		resultChannel: resultChannel,
 	}
-
+	service := common.NewCommonService(ctx, nvidiaCfg, component.HealthCheck)
+	component.service = service
 	return component, nil
 }
 
@@ -234,22 +236,6 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 		logrus.WithField("component", "NVIDIA").Errorf("Reinitialize NVML successfully")
 	}
-	result, err := common.RunHealthCheckWithContext(ctx, c.cfg.GetQueryInterval()*time.Second, c.name, c.healthCheck)
-	// Check if the error message contains "Timeout"
-	if err != nil && strings.Contains(err.Error(), "Timeout") {
-		// Handle the timeout error
-		logrus.WithField("component", "NVIDIA").Errorf("Health Check TIMEOUT")
-		err := ReNewNvml(c)
-		if err != nil {
-			logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML after HealthCheck Timeout: %s", err.Error())
-		} else {
-			logrus.WithField("component", "NVIDIA").Errorf("Reinitialize NVML successfully after HealthCheck Timeout")
-		}
-	}
-	return result, err
-}
-
-func (c *component) healthCheck(ctx context.Context) (*common.Result, error) {
 	nvidiaInfo, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
@@ -306,13 +292,13 @@ func (c *component) healthCheck(ctx context.Context) (*common.Result, error) {
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.Lock()
 	defer c.cacheMtx.Unlock()
 	return c.cacheBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheBuffer[c.currIndex]
@@ -322,13 +308,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfo, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	var info common.Info
@@ -344,7 +330,7 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
+func (c *component) Start() <-chan *common.Result {
 	c.serviceMtx.Lock()
 	if c.running {
 		c.serviceMtx.Unlock()
@@ -368,7 +354,19 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 				return
 			case <-ticker.C:
 				c.serviceMtx.Lock()
-				result, err := c.HealthCheck(c.ctx)
+
+				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.cfg.GetQueryInterval()*time.Second, c.name, c.HealthCheck)
+				// Check if the error message contains "Timeout"
+				if err != nil && strings.Contains(err.Error(), "Timeout") {
+					// Handle the timeout error
+					logrus.WithField("component", "NVIDIA").Errorf("Health Check TIMEOUT")
+					err := ReNewNvml(c)
+					if err != nil {
+						logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML after HealthCheck Timeout: %s", err.Error())
+					} else {
+						logrus.WithField("component", "NVIDIA").Errorf("Reinitialize NVML successfully after HealthCheck Timeout")
+					}
+				}
 				c.serviceMtx.Unlock()
 				if err != nil {
 					fmt.Printf("%s analyze failed: %v\n", c.name, err)
@@ -409,7 +407,7 @@ func (c *component) Stop() error {
 	return nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	configPointer, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
@@ -425,4 +423,8 @@ func (c *component) Status() bool {
 	defer c.serviceMtx.RUnlock()
 
 	return c.running
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

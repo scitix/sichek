@@ -36,6 +36,13 @@ type InfinibandConfig struct {
 	IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
+func (c *InfinibandUserConfig) GetComponentName() string {
+	if c.Infiniband.Name != "" {
+		return c.Infiniband.Name
+	}
+	return consts.ComponentNameInfiniband
+}
+
 func (c *InfinibandUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return nil
 }

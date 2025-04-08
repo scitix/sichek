@@ -35,6 +35,13 @@ type CPUConfig struct {
 	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
 }
 
+func (c *CpuUserConfig) GetComponentName() string {
+	if c.CPU.Name != "" {
+		return c.CPU.Name
+	}
+	return consts.ComponentNameCPU
+}
+
 func (c *CpuUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.CPU.EventCheckers {

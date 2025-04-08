@@ -37,6 +37,13 @@ type DmesgConfig struct {
 	CheckerConfigs map[string]*DmesgErrorConfig `json:"checkers" yaml:"checkers"`
 }
 
+func (c *DmesgUserConfig) GetComponentName() string {
+	if c.Dmesg.Name != "" {
+		return c.Dmesg.Name
+	}
+	return consts.ComponentNameDmesg
+}
+
 func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
 	return c.Dmesg.QueryInterval
 }

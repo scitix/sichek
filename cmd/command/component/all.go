@@ -48,14 +48,14 @@ var (
 // - verbos: Enable verbose output (default: false)
 // - eventonly: Print events output only (default: false)
 func NewAllCmd() *cobra.Command {
-	ctx, cancel := context.WithTimeout(context.Background(), AllCmdTimeout)
-	defer cancel()
 
 	allCmd := &cobra.Command{
 		Use:   "all",
 		Short: "Perform all components check",
 		Long:  "Used to perform all configured related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
+			ctx, cancel := context.WithTimeout(context.Background(), AllCmdTimeout)
+			defer cancel()
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -177,12 +177,12 @@ func NewAllCmd() *cobra.Command {
 					logrus.WithField("component", "all").Errorf("create component %s failed: %v", componentName, err)
 					continue
 				}
-				result, err := component.HealthCheck(ctx)
+				result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 				if err != nil {
 					logrus.WithField("component", "all").Errorf("analyze %s failed: %v", componentName, err)
 					continue
 				}
-				info, err := component.LastInfo(ctx)
+				info, err := component.LastInfo()
 				if err != nil {
 					logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 				}

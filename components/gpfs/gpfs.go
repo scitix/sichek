@@ -112,9 +112,7 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
-	defer cancel()
-	info, err := c.collector.Collect(cctx)
+	info, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("failed to collect gpfs info: %v", err)
 		return nil, err
@@ -129,7 +127,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {
-		checkResult, err := each.Check(cctx, gpfsInfo.FilterResults[each.Name()])
+		checkResult, err := each.Check(ctx, gpfsInfo.FilterResults[each.Name()])
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("failed to check: %v", err)
 			continue
@@ -164,13 +162,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheBuffer[c.currIndex]
@@ -180,13 +178,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfo, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	var info common.Info
@@ -202,15 +200,15 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
-	return c.service.Start(ctx)
+func (c *component) Start() <-chan *common.Result {
+	return c.service.Start()
 }
 
 func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	configPointer, ok := cfg.(*config.GpfsUserConfig)
 	if !ok {
@@ -218,9 +216,13 @@ func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) 
 	}
 	c.cfg = configPointer
 	c.cfgMutex.Unlock()
-	return c.service.Update(ctx, cfg)
+	return c.service.Update(cfg)
 }
 
 func (c *component) Status() bool {
 	return c.service.Status()
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

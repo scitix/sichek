@@ -61,7 +61,7 @@ func NewDmesgCmd() *cobra.Command {
 				return
 			}
 
-			result, err := component.HealthCheck(ctx)
+			result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", "Dmesg").Errorf("analyze dmesg failed: %v", err)
 				return

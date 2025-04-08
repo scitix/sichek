@@ -35,6 +35,13 @@ type EthernetConfig struct {
 	Cherkers      []string      `json:"checkers" yaml:"checkers"`
 }
 
+func (c *EthernetUserConfig) GetComponentName() string {
+	if c.Ethernet.Name != "" {
+		return c.Ethernet.Name
+	}
+	return consts.ComponentNameEthernet
+}
+
 func (c *EthernetUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return nil
 }

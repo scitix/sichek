@@ -91,14 +91,14 @@ func NewNvidiaCmd() *cobra.Command {
 				logrus.WithField("components", "Nvidia").Error("fail to Create Nvidia Components, err = ", err)
 				return
 			}
-			result, err := component.HealthCheck(ctx)
+			result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error(err)
 				return
 			}
 
 			logrus.WithField("component", component.Name()).Infof("Analysis Result: %s\n", common.ToString(result))
-			info, err := component.LastInfo(ctx)
+			info, err := component.LastInfo()
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 			}

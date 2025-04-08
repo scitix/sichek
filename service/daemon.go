@@ -58,8 +58,8 @@ type DaemonService struct {
 	notifier Notifier
 }
 
-func NewService(ctx context.Context, cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
-	cctx, ccancel := context.WithCancel(context.Background())
+func NewService(cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
+	ctx, ccancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			ccancel()
@@ -83,7 +83,7 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 	}
 
 	daemonService := &DaemonService{
-		ctx:               cctx,
+		ctx:               ctx,
 		cancel:            ccancel,
 		usedComponentsMap: usedComponentsMap,
 		components:        make(map[string]common.Component),
@@ -147,7 +147,7 @@ func (d *DaemonService) Run() {
 		if !exist {
 			continue
 		}
-		resultChan := component.Start(d.ctx)
+		resultChan := component.Start()
 		d.componentResults[componentName] = resultChan
 	}
 	d.componentsLock.Unlock()
@@ -182,29 +182,6 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			err := d.notifier.SetNodeAnnotation(d.ctx, result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
-			}
-		case <-time.After(timeoutDuration):
-			timeoutCheckerResult := &common.CheckerResult{
-				Name:        fmt.Sprintf("%sTimeout", componentName),
-				Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
-				Status:      consts.StatusAbnormal,
-				Level:       consts.LevelCritical,
-				Detail:      "",
-				ErrorName:   fmt.Sprintf("%sTimeout", componentName),
-				Suggestion:  "The Nvidida GPU may be broken, please restart the node",
-			}
-			timeoutResult := &common.Result{
-				Item:     componentName,
-				Status:   consts.StatusAbnormal,
-				Level:    consts.LevelCritical,
-				Checkers: []*common.CheckerResult{timeoutCheckerResult},
-				Time:     time.Now(),
-			}
-			logrus.WithField("daemon", "run").Warnf("component %s timed out", componentName)
-
-			err := d.notifier.AppendNodeAnnotation(d.ctx, timeoutResult)
-			if err != nil {
-				logrus.WithField("daemon", "run").Errorf("set %s timeout annotation failed: %v", componentName, err)
 			}
 		}
 	}

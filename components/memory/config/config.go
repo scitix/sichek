@@ -35,6 +35,13 @@ type MemoryConfig struct {
 	Checkers      map[string]*MemoryEventConfig `json:"checkers" yaml:"checkers"`
 }
 
+func (c *MemoryUserConfig) GetComponentName() string {
+	if c.Memory.Name != "" {
+		return c.Memory.Name
+	}
+	return consts.ComponentNameMemory
+}
+
 func (c *MemoryUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.Memory.Checkers {

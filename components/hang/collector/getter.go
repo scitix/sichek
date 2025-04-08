@@ -118,7 +118,7 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	getinfo, err := c.nvidiaComponent.CacheInfos(ctx)
+	getinfo, err := c.nvidiaComponent.CacheInfos()
 	if err != nil {
 		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia infos")
 		return nil, err

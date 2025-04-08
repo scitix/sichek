@@ -128,9 +128,6 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
-	defer cancel()
-
 	ethernetInfo, ok := c.info.(*collector.EthernetInfo)
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
@@ -143,7 +140,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	for _, each := range c.checkers {
 		logrus.WithField("component", "ethernet").Debugf("do the check: %s", each.Name())
-		result, err := each.Check(cctx, ethernetInfo)
+		result, err := each.Check(ctx, ethernetInfo)
 		if err != nil {
 			logrus.WithField("component", "ethernet").Errorf("failed to check: %v", err)
 			continue
@@ -194,14 +191,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 
 	return c.cacheBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheBuffer[c.currIndex]
@@ -211,13 +208,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfo, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	var info common.Info
@@ -233,7 +230,7 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	configPointer, ok := cfg.(*config.EthernetUserConfig)
 	if !ok {
@@ -241,11 +238,11 @@ func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) 
 	}
 	c.cfg = configPointer
 	c.cfgMutex.Unlock()
-	return c.service.Update(ctx, cfg)
+	return c.service.Update(cfg)
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
-	return c.service.Start(ctx)
+func (c *component) Start() <-chan *common.Result {
+	return c.service.Start()
 }
 
 func (c *component) Status() bool {
@@ -255,4 +252,8 @@ func (c *component) Status() bool {
 func (c *component) Stop() error {
 	return c.service.Stop()
 
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

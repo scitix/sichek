@@ -35,11 +35,15 @@ type NvidiaConfig struct {
 	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
 }
 
+func (c *NvidiaUserConfig) GetComponentName() string {
+	if c.Nvidia.Name != "" {
+		return c.Nvidia.Name
+	}
+	return consts.ComponentNameNvidia
+}
+
 func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	// for _, name := range c.IgnoredCheckers {
-	// 	commonCfgMap[name] = {}
-	// }
 	return commonCfgMap
 }
 func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {

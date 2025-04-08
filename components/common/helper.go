@@ -24,46 +24,67 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-// RunHealthCheckWithContext wraps HealthCheck call and makes sure it respects the provided context timeout or cancellation
-func RunHealthCheckWithContext(ctx context.Context, timeout time.Duration, componentName string, fn func(ctx context.Context) (*Result, error)) (*Result, error) {
-	_, cancel := context.WithTimeout(ctx, timeout)
+// RunHealthCheckWithContext wraps the HealthCheck call and ensures it respects the provided context timeout or cancellation
+func RunHealthCheckWithTimeout(ctx context.Context, timeout time.Duration, componentName string, fn func(ctx context.Context) (*Result, error)) (*Result, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout) // Use the timeout context
 	defer cancel()
+	// Create channels for result and error
+	resultChan := make(chan *Result) // Channel for result
+	errorChan := make(chan error)    // Channel for error
 
-	// Create a channel to receive the result
-	done := make(chan struct {
-		result *Result
-		err    error
-	})
 	// Run the function in a goroutine
 	go func() {
 		res, err := fn(ctx)
-		done <- struct {
-			result *Result
-			err    error
-		}{result: res, err: err}
+		if err != nil {
+			errorChan <- err // Send error to the error channel
+		} else {
+			resultChan <- res // Send result to the result channel
+		}
 	}()
+
 	// Wait for either the function to finish or the context to be done
 	select {
 	case <-ctx.Done():
-		// If the context is done, return a cancellation/timed-out error
-		timeoutCheckerResult := &CheckerResult{
-			Name:        fmt.Sprintf("%sHealthCheckTimeout", componentName),
-			Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeout),
-			Status:      consts.StatusAbnormal,
-			Level:       consts.LevelCritical,
-			Detail:      "",
-			ErrorName:   fmt.Sprintf("%sHealthCheckTimeout", componentName),
-			Suggestion:  fmt.Sprintf("Please check the %s status", componentName),
-		}
-		timeoutResult := &Result{
-			Item:     componentName,
-			Status:   consts.StatusAbnormal,
-			Level:    consts.LevelCritical,
-			Checkers: []*CheckerResult{timeoutCheckerResult},
-			Time:     time.Now(),
-		}
-		return timeoutResult, fmt.Errorf("%sHealthCheckTimeout: did not return a result within %v s", componentName, timeout)
-	case result := <-done:
-		return result.result, result.err
+		return createTimeoutResult(componentName, timeout)
+	case err := <-errorChan:
+		return nil, err
+	case result := <-resultChan:
+		return handleResult(result, componentName)
 	}
+}
+
+// createTimeoutResult returns a timeout error result
+func createTimeoutResult(componentName string, timeout time.Duration) (*Result, error) {
+	timeoutCheckerResult := &CheckerResult{
+		Name:        fmt.Sprintf("%sHealthCheckTimeout", componentName),
+		Description: fmt.Sprintf("component %s did not return a result within %v", componentName, timeout),
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		ErrorName:   fmt.Sprintf("%sHealthCheckTimeout", componentName),
+		Suggestion:  fmt.Sprintf("Please check the %s status", componentName),
+	}
+
+	timeoutResult := &Result{
+		Item:     componentName,
+		Status:   consts.StatusAbnormal,
+		Level:    consts.LevelCritical,
+		Checkers: []*CheckerResult{timeoutCheckerResult},
+		Time:     time.Now(),
+	}
+
+	return timeoutResult, fmt.Errorf("%sHealthCheckTimeout: did not return a result within %v", componentName, timeout)
+}
+
+// handleResult processes the result of the health check
+func handleResult(result *Result, componentName string) (*Result, error) {
+	timeoutResolvedResult := &CheckerResult{
+		Name:        fmt.Sprintf("%sHealthCheckTimeout", componentName),
+		Description: fmt.Sprintf("component %s health check resolved", componentName),
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelInfo,
+		ErrorName:   fmt.Sprintf("%sHealthCheckTimeout", componentName),
+	}
+
+	result.Checkers = append(result.Checkers, timeoutResolvedResult)
+	return result, nil
 }

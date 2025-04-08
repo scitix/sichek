@@ -62,7 +62,7 @@ func NewEthernetCmd() *cobra.Command {
 				logrus.WithField("component", "ethernet").Error("fail to Create New Infiniband Components")
 			}
 
-			result, err := component.HealthCheck(ctx)
+			result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 
 			if err != nil {
 				logrus.WithField("component", component.Name()).Error(err)
@@ -70,7 +70,7 @@ func NewEthernetCmd() *cobra.Command {
 			}
 
 			logrus.WithField("component", "ethernet").Infof("Analysis Result: %s\n", common.ToString(result))
-			info, err := component.LastInfo(ctx)
+			info, err := component.LastInfo()
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 			}

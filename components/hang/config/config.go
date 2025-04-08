@@ -37,6 +37,13 @@ type HangConfig struct {
 	Mock           bool                        `json:"mock" yaml:"mock"`
 }
 
+func (c *HangUserConfig) GetComponentName() string {
+	if c.Hang.Name != "" {
+		return c.Hang.Name
+	}
+	return consts.ComponentNameHang
+}
+
 func (c *HangUserConfig) GetQueryInterval() time.Duration {
 	return c.Hang.QueryInterval
 }
