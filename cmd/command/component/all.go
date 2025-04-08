@@ -154,7 +154,7 @@ func NewAllCmd() *cobra.Command {
 					}
 					_, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 					if err != nil {
-						logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
+						logrus.WithField("component", "all").Errorf("Failed to Get Nvidia component, Bypassing HealthCheck")
 						continue
 					}
 					component, err = hang.NewComponent(cfgFile)

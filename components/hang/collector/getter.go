@@ -168,7 +168,6 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
 						}
 					}
-					fmt.Printf("device %d 's current rxpci = %d, previous rxpci = %d, infoValue = %d\n", i, infoValueTmp, c.prevIndicatorValue[c.items[j]][deviceInfo.UUID], infoValue)
 					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
 				case "txpci":
 					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
@@ -181,7 +180,6 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
 						}
 					}
-					fmt.Printf("device %d 's current txpci = %d, previous txpci = %d, infoValue = %d\n", i, infoValueTmp, c.prevIndicatorValue[c.items[j]][deviceInfo.UUID], infoValue)
 					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
 				case "smclk":
 					smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]

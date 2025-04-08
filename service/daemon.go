@@ -120,7 +120,7 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 			}
 			_, err = nvidia.NewComponent(cfgFile, specFile, nil)
 			if err != nil {
-				logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
+				logrus.WithField("component", "all").Errorf("Failed to Get Nvidia component, Bypassing HealthCheck")
 				continue
 			}
 			component, err = hang.NewComponent(cfgFile)
