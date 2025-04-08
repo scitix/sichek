@@ -181,6 +181,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
 			metrics.ExportCheckerResultsMetrics(result)
+			exportTimeoutResolved(result.Item)
 			err := d.notifier.SetNodeAnnotation(d.ctx, result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
@@ -210,6 +211,26 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			}
 		}
 	}
+}
+
+func exportTimeoutResolved(componentName string) {
+	timeoutResolvedCheckerResult := &common.CheckerResult{
+		Name:        fmt.Sprintf("%sTimeout", componentName),
+		Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   fmt.Sprintf("%sTimeout", componentName),
+		Suggestion:  "The Nvidida GPU may be broken, please restart the node",
+	}
+	timeoutResolvedResult := &common.Result{
+		Item:     componentName,
+		Status:   consts.StatusNormal,
+		Level:    consts.LevelCritical,
+		Checkers: []*common.CheckerResult{timeoutResolvedCheckerResult},
+		Time:     time.Now(),
+	}
+	metrics.ExportCheckerResultsMetrics(timeoutResolvedResult)
 }
 
 func (d *DaemonService) Status() (interface{}, error) {

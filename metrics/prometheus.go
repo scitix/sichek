@@ -7,14 +7,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 )
 
 var (
-	CheckerResultsCounterMetrics = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
+	CheckerResultsCounterMetrics = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Name: "sichek_results_counter_metrics",
 		},
-		[]string{"component_name", "node_name", "status", "level", "error_name", "device"},
+		[]string{"component_name", "node_name", "error_name", "device"},
 	)
 )
 
@@ -24,7 +25,11 @@ func InitCheckerResultsMetrics() {
 
 func ExportCheckerResultsMetrics(metrics *common.Result) {
 	for _, checker := range metrics.Checkers {
-		CheckerResultsCounterMetrics.WithLabelValues(metrics.Item, metrics.Node, metrics.Status, metrics.Level, checker.ErrorName, checker.Device).Inc()
+		if checker.Status == consts.StatusAbnormal {
+			CheckerResultsCounterMetrics.WithLabelValues(metrics.Item, metrics.Node, checker.ErrorName, checker.Device).Set(1.0)
+		} else {
+			CheckerResultsCounterMetrics.WithLabelValues(metrics.Item, metrics.Node, checker.ErrorName, checker.Device).Set(0.0)
+		}
 	}
 }
 

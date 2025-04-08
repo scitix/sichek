@@ -145,13 +145,12 @@ func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (co
 }
 
 func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-
 	nvmlInst, err := NewNvml(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
