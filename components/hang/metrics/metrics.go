@@ -1,30 +1,31 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/scitix/sichek/components/hang/checker"
+	common "github.com/scitix/sichek/metrics"
 )
 
-var (
-	hangGaugeMetrics = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "hang_gauge_metrics",
-		},
-		[]string{"component_name", "metric_name", "dev_name", "item_name"},
-	)
+const (
+	MetricPrefix = "sichek_hang"
+	TagPrefix    = "json"
 )
 
-func InitHangMetrics() {
-	prometheus.MustRegister(hangGaugeMetrics)
+type HangMetrics struct {
+	HangGauge *common.GaugeVecMetricExporter
 }
 
-func ExportHangMetrics(hangInfo *checker.HangInfo) {
+func NewHangMetrics() *HangMetrics {
+	HangGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"name","indicate_name"})
+	return &HangMetrics{
+		HangGauge: HangGauge,
+	}
+}
 
+func (m *HangMetrics) ExportMetrics(hangInfo *checker.HangInfo) {
 	for indicateName, name2duration := range hangInfo.HangDuration {
 		for name, duration := range name2duration {
-			hangGaugeMetrics.WithLabelValues("hang", "duration", name, indicateName).Set(float64(duration))
-			hangGaugeMetrics.WithLabelValues("hang", "threshold", name, indicateName).Set(float64(hangInfo.HangThreshold[indicateName]))
-
+			m.HangGauge.SetMetric("duration", []string{name, indicateName}, float64(duration))
+			m.HangGauge.SetMetric("threshold", []string{name, indicateName}, float64(hangInfo.HangThreshold[indicateName]))
 		}
 	}
 }

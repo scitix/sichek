@@ -48,6 +48,7 @@ type component struct {
 	cacheSize         int64
 
 	service *common.CommonService
+	metrics *metrics.HangMetrics
 }
 
 var (
@@ -57,7 +58,6 @@ var (
 
 func NewComponent(cfgFile string) (comp common.Component, err error) {
 	hangComponentOnce.Do(func() {
-		metrics.InitHangMetrics()
 		hangComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -111,6 +111,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
+		metrics:           metrics.NewHangMetrics(),
 	}
 	component.service = common.NewCommonService(ctx, hangCfg, component.HealthCheck)
 	return component, nil
@@ -132,7 +133,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("wrong input of HangChecker")
 	}
-	metrics.ExportHangMetrics(checkerInfo)
+	c.metrics.ExportMetrics(checkerInfo)
 	checkRes, err := c.checker.Check(c.ctx, info)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check()")

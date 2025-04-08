@@ -48,6 +48,7 @@ type component struct {
 	cacheSize   int64
 
 	service *common.CommonService
+	metrics *metrics.MemoryMetrics
 }
 
 var (
@@ -57,7 +58,6 @@ var (
 
 func NewComponent(cfgFile string) (comp common.Component, err error) {
 	memComponentOnce.Do(func() {
-		metrics.InitMemoryMetrics()
 		memComponent, err = newMemoryComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -106,6 +106,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer: make([]*common.Result, memoryCfg.Memory.CacheSize),
 		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
 		cacheSize:   memoryCfg.Memory.CacheSize,
+		metrics:     metrics.NewMemoryMetrics(),
 	}
 	service := common.NewCommonService(ctx, memoryCfg, component.HealthCheck)
 	component.service = service
@@ -130,7 +131,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "memory").Errorf("wrong memory collector info type")
 		return nil, err
 	}
-	metrics.ExportMemoryMetrics(memInfo.Info)
+	c.metrics.ExportMetrics(memInfo.Info)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {

@@ -16,8 +16,8 @@ func TestNewGaugeVecMetricExporter(t *testing.T) {
 	if !reflect.DeepEqual(exporter.labelKeys, labelKeys) {
 		t.Errorf("expected labelKeys %v, got %v", labelKeys, exporter.labelKeys)
 	}
-	if len(exporter.metricsMap) != 0 {
-		t.Errorf("expected empty metricsMap, got %v", exporter.metricsMap)
+	if len(exporter.MetricsMap) != 0 {
+		t.Errorf("expected empty MetricsMap, got %v", exporter.MetricsMap)
 	}
 }
 
@@ -25,7 +25,7 @@ func TestGaugeVecMetricExporter_SetMetric(t *testing.T) {
 	exporter := NewGaugeVecMetricExporter("test", []string{"label1"})
 	exporter.SetMetric("test_metric", []string{"value1"}, 42.0)
 
-	if _, exists := exporter.metricsMap["test_metric"]; !exists {
+	if _, exists := exporter.MetricsMap["test_metric"]; !exists {
 		t.Fatalf("expected metric test_metric to exist")
 	}
 }
@@ -48,7 +48,7 @@ func TestGaugeVecMetricExporter_ExportStruct(t *testing.T) {
 	}
 
 	for name := range expectedMetrics {
-		if _, exists := exporter.metricsMap[name]; !exists {
+		if _, exists := exporter.MetricsMap[name]; !exists {
 			t.Fatalf("expected metric %s to exist", name)
 		}
 	}
@@ -71,7 +71,7 @@ func TestSliceStructToMetricsMap(t *testing.T) {
 		},
 	}
 	exporter.ExportStruct(testStruct, []string{"value1"}, "json")
-	for name := range exporter.metricsMap {
+	for name := range exporter.MetricsMap {
 		t.Logf("Metric name: %s", name)
 	}
 	expectedMetrics := map[string]float64{
@@ -82,7 +82,7 @@ func TestSliceStructToMetricsMap(t *testing.T) {
 	}
 
 	for name := range expectedMetrics {
-		if _, exists := exporter.metricsMap[name]; !exists {
+		if _, exists := exporter.MetricsMap[name]; !exists {
 			t.Fatalf("expected metric %s to exist", name)
 		}
 	}
@@ -105,7 +105,7 @@ func TestMapStructToMetricsMap(t *testing.T) {
 		},
 	}
 	exporter.ExportStruct(testStruct, []string{"value1"}, "json")
-	for name := range exporter.metricsMap {
+	for name := range exporter.MetricsMap {
 		t.Logf("Metric name: %s", name)
 	}
 	expectedMetrics := map[string]float64{
@@ -116,7 +116,7 @@ func TestMapStructToMetricsMap(t *testing.T) {
 	}
 
 	for name := range expectedMetrics {
-		if _, exists := exporter.metricsMap[name]; !exists {
+		if _, exists := exporter.MetricsMap[name]; !exists {
 			t.Fatalf("expected metric %s to exist", name)
 		}
 	}
@@ -137,7 +137,7 @@ func TestStructToMetricsMap(t *testing.T) {
 		Field2: NestedStruct{InnerField1: 100, InnerField2: 200},
 	}
 
-	metrics := make(map[string]float64)
+	metrics := make(map[string]*StructMetrics)
 	StructToMetricsMap(reflect.ValueOf(testStruct), "", "json", metrics)
 
 	expectedMetrics := map[string]float64{
@@ -147,7 +147,7 @@ func TestStructToMetricsMap(t *testing.T) {
 	}
 
 	for key, expectedValue := range expectedMetrics {
-		if metrics[key] != expectedValue {
+		if metrics[key].MetricsValue != expectedValue {
 			t.Errorf("expected metric %s to have value %v, got %v", key, expectedValue, metrics[key])
 		}
 	}

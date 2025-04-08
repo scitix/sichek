@@ -56,11 +56,11 @@ type component struct {
 	cacheSize   int64
 
 	service *common.CommonService
+	metrics *metrics.EthernetMetrics
 }
 
 func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
 	ethernetComponentOnce.Do(func() {
-		metrics.InitEthernetMetrics()
 		ethernetComponent, err = newEthernetComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -120,6 +120,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:   0,
 		cacheSize:   cfg.Ethernet.CacheSize,
+		metrics:     metrics.NewEthernetMetrics(),
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
 	return component, nil
@@ -137,7 +138,8 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
-	metrics.ExportEthernetMetrics(ethernetInfo)
+	// fmt.Println(ethernetInfo)
+	c.metrics.ExportMetrics(ethernetInfo)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	var err error

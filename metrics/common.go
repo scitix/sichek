@@ -23,13 +23,19 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
+type StructMetrics struct {
+	MetricsValue float64
+	Kind         reflect.Kind
+	StrLabel     string
+}
 type GaugeVecMetricExporter struct {
 	prefix     string
 	labelKeys  []string
-	metricsMap map[string]*prometheus.GaugeVec
+	MetricsMap map[string]*prometheus.GaugeVec
 	lock       sync.Mutex
 }
 
@@ -37,18 +43,35 @@ func NewGaugeVecMetricExporter(prefix string, labelKeys []string) *GaugeVecMetri
 	return &GaugeVecMetricExporter{
 		prefix:     prefix,
 		labelKeys:  labelKeys,
-		metricsMap: make(map[string]*prometheus.GaugeVec),
+		MetricsMap: make(map[string]*prometheus.GaugeVec),
 	}
 }
 
 // ExportStruct This method receives a struct (or a nested struct) and a list of label values. It converts the struct into a map of metrics, then registers and sets values for each metric.
 func (e *GaugeVecMetricExporter) ExportStruct(v interface{}, labelVals []string, tagPrefix string) {
-	metricsValueMap := make(map[string]float64)
+	metricsValueMap := make(map[string]*StructMetrics)
 	StructToMetricsMap(reflect.ValueOf(v), "", tagPrefix, metricsValueMap)
 
 	for name, val := range metricsValueMap {
 		fullName := sanitizeMetricName(e.prefix + "_" + name)
-		e.SetMetric(fullName, labelVals, val)
+		e.SetMetric(fullName, labelVals, val.MetricsValue)
+	}
+}
+
+// ExportStringField This method receives a struct and a list of label values. It converts the struct into a map of metrics, then registers and sets values for each metric.
+func (e *GaugeVecMetricExporter) ExportStructWithStrField(v interface{}, labelVals []string, tagPrefix string) {
+	metricsValueMap := make(map[string]*StructMetrics)
+	StructToMetricsMap(reflect.ValueOf(v), "", tagPrefix, metricsValueMap)
+	for name, val := range metricsValueMap {
+		if val.Kind == reflect.String {
+			newLabelVal := make([]string, len(labelVals))
+			copy(newLabelVal, labelVals)
+			newLabelVal[len(newLabelVal)-1] = val.StrLabel
+			e.SetMetric(name, newLabelVal, val.MetricsValue)
+		} else {
+			e.SetMetric(name, labelVals, val.MetricsValue)
+		}
+
 	}
 }
 
@@ -56,24 +79,24 @@ func (e *GaugeVecMetricExporter) ExportStruct(v interface{}, labelVals []string,
 func (e *GaugeVecMetricExporter) SetMetric(name string, labelVals []string, value float64) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
-
+	fullName := sanitizeMetricName(e.prefix + "_" + name)
 	// Check if the metric already exists, if not create and register it
-	gaugeVec, exists := e.metricsMap[name]
+	gaugeVec, exists := e.MetricsMap[fullName]
 	if !exists {
 		gaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: name,
+			Name: fullName,
 		}, e.labelKeys)
 		// Register the new metric with Prometheus
 		prometheus.MustRegister(gaugeVec)
 		// Store it in the metricsMap
-		e.metricsMap[name] = gaugeVec
+		e.MetricsMap[fullName] = gaugeVec
 	}
 	// Set the metric value for the metric
 	gaugeVec.WithLabelValues(labelVals...).Set(value)
 }
 
 // StructToMetricsMap This recursively flattens the struct into a map where each field is represented by a string path and its corresponding value.
-func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[string]float64) {
+func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[string]*StructMetrics) {
 	// Dereference pointers
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -96,6 +119,7 @@ func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[str
 			if tag == "-" {
 				continue
 			}
+			tag = strings.Split(tag, ",")[0]
 			fieldName := tag
 			if fieldName == "" {
 				fieldName = fieldType.Name
@@ -119,23 +143,36 @@ func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[str
 			StructToMetricsMap(v.Index(i), fmt.Sprintf("%s_%d", path, i), tagPrefix, metrics)
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		metrics[path] = float64(v.Int())
+		metrics[path] = &StructMetrics{
+			MetricsValue: float64(v.Int()),
+			Kind:         v.Kind(),
+		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		metrics[path] = float64(v.Uint())
+		metrics[path] = &StructMetrics{
+			MetricsValue: float64(v.Uint()),
+			Kind:         v.Kind(),
+		}
 	case reflect.Float32, reflect.Float64:
-		metrics[path] = v.Float()
+		metrics[path] = &StructMetrics{
+			MetricsValue: v.Float(),
+			Kind:         v.Kind(),
+		}
 	case reflect.Bool:
-		if v.Bool() {
-			metrics[path] = 1.0
-		} else {
-			metrics[path] = 0.0
+		metrics[path] = &StructMetrics{
+			MetricsValue: utils.ParseBoolToFloat(v.Bool()),
+			Kind:         v.Kind(),
 		}
 	case reflect.String:
-		if v.String() == "enable" || v.String() == "true" {
-			metrics[path] = 1.0
-		} else {
-			metrics[path] = 0.0
+		value := 1.0
+		if v.String() == "disable" || v.String() == "false" {
+			value = 0.0
 		}
+		metrics[path] = &StructMetrics{
+			MetricsValue: value,
+			Kind:         v.Kind(),
+			StrLabel:     v.String(),
+		}
+
 	default:
 		logrus.WithField("metrics", "common").Errorf("Unsupported type %v to reflect", v.Type())
 	}
@@ -152,11 +189,4 @@ func sanitizeMetricName(name string) string {
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "")
 	return name
-}
-
-func BoolToFloat64(b bool) float64 {
-	if b {
-		return 1.0
-	}
-	return 0.0
 }
