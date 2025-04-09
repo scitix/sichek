@@ -35,18 +35,19 @@ type HangGetter struct {
 	name string
 	cfg  *config.HangUserConfig
 
-	items         []string
-	threshold     map[string]int64
-	indicates     map[string]int64
-	indicatesComp map[string]string
-	prevTS        time.Time
+	items              []string
+	threshold          map[string]int64
+	indicates          map[string]int64
+	indicatesComp      map[string]string
+	prevTS             time.Time
+	prevIndicatorValue map[string]map[string]int64
 
 	hangInfo checker.HangInfo
 
 	nvidiaComponent common.Component
 }
 
-func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
+func NewHangGetter(cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
 	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
@@ -58,6 +59,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGet
 	res.threshold = make(map[string]int64)
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
+	res.prevIndicatorValue = make(map[string]map[string]int64)
 
 	if !hangCfg.Hang.Mock {
 		res.nvidiaComponent = nvidia.GetComponent()
@@ -97,6 +99,7 @@ func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGet
 	res.hangInfo.HangDuration = make(map[string]map[string]int64)
 	for j := 0; j < len(res.items); j++ {
 		res.hangInfo.HangDuration[res.items[j]] = make(map[string]int64)
+		res.prevIndicatorValue[res.items[j]] = make(map[string]int64)
 	}
 
 	return &res, nil
@@ -112,17 +115,14 @@ func (c *HangGetter) GetCfg() common.ComponentUserConfig {
 
 func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
-
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	getinfo, err := c.nvidiaComponent.CacheInfos(ctx)
+	getinfo, err := c.nvidiaComponent.CacheInfos()
 	if err != nil {
 		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia infos")
 		return nil, err
 	}
 
 	if !c.nvidiaComponent.Status() {
-		_, err := c.nvidiaComponent.HealthCheck(ctx)
+		_, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck)
 		if err != nil {
 			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to run nvidiacomponent analyze")
 		}
@@ -155,9 +155,29 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 				case "pviol":
 					infoValue = int64(deviceInfo.Power.PowerViolations)
 				case "rxpci":
-					infoValue = int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
+					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
+					if _, ok := c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]; !ok {
+						infoValue = infoValueTmp
+					} else {
+						if infoValueTmp < c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] {
+							infoValue = c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] - infoValueTmp
+						} else {
+							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
+						}
+					}
+					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
 				case "txpci":
-					infoValue = int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
+					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
+					if _, ok := c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]; !ok {
+						infoValue = infoValueTmp
+					} else {
+						if infoValueTmp < c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] {
+							infoValue = c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] - infoValueTmp
+						} else {
+							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
+						}
+					}
+					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
 				case "smclk":
 					smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
 					smClk, _ := strconv.Atoi(smClkInt)

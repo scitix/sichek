@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 )
 
 func TestGpfsHealthCheck(t *testing.T) {
@@ -113,7 +113,7 @@ func TestGpfsHealthCheck(t *testing.T) {
 	}
 	t.Logf("Current log file content: %s", string(content))
 
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		t.Log(err)
 	}

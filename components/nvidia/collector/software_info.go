@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"time"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/pkg/utils"
@@ -40,9 +39,7 @@ func (s *SoftwareInfo) ToString() string {
 	return common.ToString(s)
 }
 
-func (s *SoftwareInfo) Get(devIndex int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *SoftwareInfo) Get(ctx context.Context, devIndex int) error {
 	// Run the nvidia-smi command
 	out, err := utils.ExecCommand(ctx, "nvidia-smi", "-q", "-i", strconv.Itoa(devIndex))
 	if err != nil {

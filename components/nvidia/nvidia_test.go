@@ -31,7 +31,7 @@ func TestHealthCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create Nvidia component: %v", err)
 	}
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		t.Fatalf("failed to Nvidia HealthCheck: %v", err)
 	}

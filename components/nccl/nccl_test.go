@@ -19,6 +19,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/scitix/sichek/components/common"
 )
 
 func TestNCCL(t *testing.T) {
@@ -32,7 +34,7 @@ func TestNCCL(t *testing.T) {
 		return
 	}
 
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		t.Log(err)
 	}

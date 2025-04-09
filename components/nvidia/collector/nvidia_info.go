@@ -20,16 +20,17 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/k8s"
 )
 
 type NvidiaInfo struct {
 	Time                time.Time
-	SoftwareInfo        SoftwareInfo      `json:"software_info"`
-	ValiddeviceUUIDFlag bool              `json:"valid_device_uuid_flag"`
-	DeviceUUIDs         map[int]string    `json:"device_uuids"`
-	DeviceCount         int               `json:"device_count"`
-	DevicesInfo         []DeviceInfo      `json:"gpu_devices"`
-	DeviceToPodMap      map[string]string `json:"device_to_pod_map"`
+	SoftwareInfo        SoftwareInfo            `json:"software_info"`
+	ValiddeviceUUIDFlag bool                    `json:"valid_device_uuid_flag"`
+	DeviceUUIDs         map[int]string          `json:"device_uuids"`
+	DeviceCount         int                     `json:"device_count"`
+	DevicesInfo         []DeviceInfo            `json:"gpu_devices"`
+	DeviceToPodMap      map[string]*k8s.PodInfo `json:"device_to_pod_map"`
 }
 
 func (nvidia *NvidiaInfo) JSON() (string, error) {

@@ -89,7 +89,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	var suggest string
 	var gpuAbNum = 0
 	devices := make([]string, 0)
-	var deviceToPodMap map[string]string
+	var deviceToPodMap map[string]*k8s.PodInfo
 	var err error
 	if len(hangNum) != 0 {
 		deviceToPodMap, err = c.podResourceMapper.GetDeviceToPodMap()
@@ -114,7 +114,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 
 	if len(devices) > 0 {
 		for dev, pod := range deviceToPodMap {
-			logrus.Debugf("device=%s, pod=%s\n", dev, pod)
+			logrus.Debugf("device=%s, pod=%+v\n", dev, pod)
 		}
 		logrus.Debugf("devices=%v\n", devices)
 	}
