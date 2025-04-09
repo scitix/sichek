@@ -34,11 +34,11 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *config.HangUserConfig
-	cfgMutex sync.Mutex
-
-	collector common.Collector
-	checker   common.Checker
+	cfg           *config.HangUserConfig
+	cfgMutex      sync.Mutex
+	componentName string
+	collector     common.Collector
+	checker       common.Checker
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -97,10 +97,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	hangChecker := checker.NewHangChecker(hangCfg)
 
 	component := &component{
-		ctx:    ctx,
-		cancel: cancel,
-
-		cfg: hangCfg,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameHang,
+		cfg:           hangCfg,
 
 		collector: hangCollector,
 		checker:   hangChecker,
@@ -110,12 +110,12 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, hangCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, hangCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameHang
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

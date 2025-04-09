@@ -30,8 +30,9 @@ import (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx           context.Context
+	cancel        context.CancelFunc
+	componentName string
 
 	cfg      *config.CpuUserConfig
 	cfgMutex sync.Mutex
@@ -44,8 +45,7 @@ type component struct {
 	cacheInfo   []common.Info
 	currIndex   int64
 	cacheSize   int64
-
-	service *common.CommonService
+	service     *common.CommonService
 }
 
 var (
@@ -89,23 +89,24 @@ func newComponent(cfgFile string) (comp *component, err error) {
 	}
 
 	comp = &component{
-		ctx:         ctx,
-		cancel:      cancel,
-		collector:   collectorPointer,
-		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.CPU.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.CPU.CacheSize),
-		cacheSize:   cfg.CPU.CacheSize,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameCPU,
+		collector:     collectorPointer,
+		checkers:      checkers,
+		cfg:           cfg,
+		cacheBuffer:   make([]*common.Result, cfg.CPU.CacheSize),
+		cacheInfo:     make([]common.Info, cfg.CPU.CacheSize),
+		cacheSize:     cfg.CPU.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, comp.Name(), comp.GetTimeout(), comp.HealthCheck)
+	service := common.NewCommonService(ctx, cfg, comp.componentName, comp.GetTimeout(), comp.HealthCheck)
 	comp.service = service
 
 	return
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameCPU
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

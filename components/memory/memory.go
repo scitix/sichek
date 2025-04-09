@@ -34,11 +34,11 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *config.MemoryUserConfig
-	cfgMutex sync.Mutex
-
-	collector common.Collector
-	checkers  []common.Checker
+	cfg           *config.MemoryUserConfig
+	cfgMutex      sync.Mutex
+	componentName string
+	collector     common.Collector
+	checkers      []common.Checker
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -96,23 +96,24 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 	}
 
 	component := &component{
-		ctx:         ctx,
-		cancel:      cancel,
-		collector:   collectorPointer,
-		checkers:    checkers,
-		cfg:         memoryCfg,
-		cacheBuffer: make([]*common.Result, memoryCfg.Memory.CacheSize),
-		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
-		cacheSize:   memoryCfg.Memory.CacheSize,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameMemory,
+		collector:     collectorPointer,
+		checkers:      checkers,
+		cfg:           memoryCfg,
+		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),
+		cacheInfo:     make([]common.Info, memoryCfg.Memory.CacheSize),
+		cacheSize:     memoryCfg.Memory.CacheSize,
 	}
-	service := common.NewCommonService(ctx, memoryCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	service := common.NewCommonService(ctx, memoryCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameMemory
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

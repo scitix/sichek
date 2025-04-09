@@ -37,13 +37,13 @@ var (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	spec   *config.InfinibandSpecItem
-	info   common.Info
-
-	cfg      *config.InfinibandUserConfig
-	cfgMutex sync.RWMutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	spec          *config.InfinibandSpecItem
+	info          common.Info
+	componentName string
+	cfg           *config.InfinibandUserConfig
+	cfgMutex      sync.RWMutex
 
 	// collector common.Collector
 	checkers []common.Checker
@@ -105,26 +105,27 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	var info collector.InfinibandInfo
 
 	component := &component{
-		ctx:         ctx,
-		cancel:      cancel,
-		spec:        ibSpec,
-		info:        info.GetIBInfo(ctx),
-		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.Infiniband.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.Infiniband.CacheSize),
-		currIndex:   0,
-		cacheSize:   cfg.Infiniband.CacheSize,
+		ctx:           ctx,
+		cancel:        cancel,
+		spec:          ibSpec,
+		componentName: consts.ComponentNameInfiniband,
+		info:          info.GetIBInfo(ctx),
+		checkers:      checkers,
+		cfg:           cfg,
+		cacheBuffer:   make([]*common.Result, cfg.Infiniband.CacheSize),
+		cacheInfo:     make([]common.Info, cfg.Infiniband.CacheSize),
+		currIndex:     0,
+		cacheSize:     cfg.Infiniband.CacheSize,
 	}
 	// step4: start the service
-	component.service = common.NewCommonService(ctx, cfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 
 	// step5: return the component
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameInfiniband
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

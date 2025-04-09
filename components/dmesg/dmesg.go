@@ -31,8 +31,9 @@ import (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx           context.Context
+	cancel        context.CancelFunc
+	componentName string
 
 	cfg      *config.DmesgUserConfig
 	cfgMutex sync.Mutex
@@ -86,10 +87,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	dmesgChecker := checker.NewDmesgChecker(dmsgCfg)
 
 	component := &component{
-		ctx:    ctx,
-		cancel: cancel,
-
-		cfg: dmsgCfg,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameDmesg,
+		cfg:           dmsgCfg,
 
 		collector: collectorPointer,
 		checker:   dmesgChecker,
@@ -99,12 +100,12 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         dmsgCfg.Dmesg.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, dmsgCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, dmsgCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameDmesg
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

@@ -34,9 +34,9 @@ import (
 )
 
 type component struct {
-	name   string
-	ctx    context.Context
-	cancel context.CancelFunc
+	componentName string
+	ctx           context.Context
+	cancel        context.CancelFunc
 
 	cfg      *config.NvidiaUserConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
@@ -183,7 +183,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	}
 
 	component := &component{
-		name:          consts.ComponentNameNvidia,
+		componentName: consts.ComponentNameNvidia,
 		ctx:           ctx,
 		cancel:        cancel,
 		cfg:           nvidiaCfg,
@@ -204,7 +204,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 }
 
 func (c *component) Name() string {
-	return c.name
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
@@ -220,7 +220,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 				Level:       consts.LevelCritical,
 				Detail:      "",
 				ErrorName:   "NVMLInitFailed",
-				Suggestion:  fmt.Sprintf("Please check the %s status", c.name),
+				Suggestion:  fmt.Sprintf("Please check the %s status", c.componentName),
 			}
 			result := &common.Result{
 				Item:     consts.ComponentNameNvidia,
@@ -268,7 +268,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 	}
 	resResult := &common.Result{
-		Item:     c.name,
+		Item:     c.componentName,
 		Status:   status,
 		Level:    level,
 		Checkers: checkerResults,
@@ -351,10 +351,10 @@ func (c *component) Start() <-chan *common.Result {
 				return
 			case <-ticker.C:
 				c.serviceMtx.Lock()
-				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.GetTimeout(), c.name, c.HealthCheck)
+				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.GetTimeout(), c.componentName, c.HealthCheck)
 				c.serviceMtx.Unlock()
 				if err != nil {
-					fmt.Printf("%s analyze failed: %v\n", c.name, err)
+					fmt.Printf("%s analyze failed: %v\n", c.componentName, err)
 					continue
 				}
 				// Check if the error message contains "Timeout"

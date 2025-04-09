@@ -37,13 +37,13 @@ var (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	spec   *config.EthernetSpecConfig
-	info   common.Info
-
-	cfg      *config.EthernetUserConfig
-	cfgMutex sync.RWMutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	spec          *config.EthernetSpecConfig
+	info          common.Info
+	componentName string
+	cfg           *config.EthernetUserConfig
+	cfgMutex      sync.RWMutex
 
 	// collector common.Collector
 	checkers []common.Checker
@@ -108,23 +108,24 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 	}
 
 	component := &component{
-		ctx:         ctx,
-		cancel:      cancel,
-		spec:        specCfg,
-		info:        info.GetEthInfo(),
-		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.Ethernet.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.Ethernet.CacheSize),
-		currIndex:   0,
-		cacheSize:   cfg.Ethernet.CacheSize,
+		ctx:           ctx,
+		cancel:        cancel,
+		spec:          specCfg,
+		info:          info.GetEthInfo(),
+		componentName: consts.ComponentNameEthernet,
+		checkers:      checkers,
+		cfg:           cfg,
+		cacheBuffer:   make([]*common.Result, cfg.Ethernet.CacheSize),
+		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
+		currIndex:     0,
+		cacheSize:     cfg.Ethernet.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, cfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameEthernet
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

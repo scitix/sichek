@@ -31,11 +31,11 @@ import (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	cfg      *config.NCCLUserConfig
-	cfgMutex sync.Mutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	componentName string
+	cfg           *config.NCCLUserConfig
+	cfgMutex      sync.Mutex
 
 	collector common.Collector
 	checker   common.Checker
@@ -87,10 +87,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	ncclChecker := checker.NewNCCLChecker(ncclCfg)
 
 	component := &component{
-		ctx:    ctx,
-		cancel: cancel,
-
-		cfg: ncclCfg,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameNCCL,
+		cfg:           ncclCfg,
 
 		collector: ncclCollector,
 		checker:   ncclChecker,
@@ -100,12 +100,12 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         ncclCfg.NCCL.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, ncclCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, ncclCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameNCCL
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {

@@ -31,11 +31,11 @@ import (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	cfg      *config.GpfsUserConfig
-	cfgMutex sync.Mutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	componentName string
+	cfg           *config.GpfsUserConfig
+	cfgMutex      sync.Mutex
 
 	collector common.Collector
 	checkers  []common.Checker
@@ -92,23 +92,24 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 	}
 
 	component := &component{
-		ctx:         ctx,
-		cancel:      cancel,
-		collector:   collectorPointer,
-		checkers:    checkers,
-		cfg:         cfg,
-		cacheBuffer: make([]*common.Result, cfg.Gpfs.CacheSize),
-		cacheInfo:   make([]common.Info, cfg.Gpfs.CacheSize),
-		cacheSize:   cfg.Gpfs.CacheSize,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameGpfs,
+		collector:     collectorPointer,
+		checkers:      checkers,
+		cfg:           cfg,
+		cacheBuffer:   make([]*common.Result, cfg.Gpfs.CacheSize),
+		cacheInfo:     make([]common.Info, cfg.Gpfs.CacheSize),
+		cacheSize:     cfg.Gpfs.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, component.Name(), component.GetTimeout(), component.HealthCheck)
+	service := common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameGpfs
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
