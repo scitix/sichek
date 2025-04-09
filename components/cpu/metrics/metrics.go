@@ -26,9 +26,9 @@ func NewCpuMetrics() *CpuMetrics {
 
 func (m *CpuMetrics) ExportMetrics(metrics *collector.CPUOutput) {
 	// cpu_arch_info
-	m.CpuGaugeWithStr.ExportStructWithStrField(metrics.CPUArchInfo, []string{""}, TagPrefix)
+	m.CpuGaugeWithStr.ExportStructWithStrField(metrics.CPUArchInfo, []string{}, TagPrefix)
 	// cpu_usage_info
 	m.CpuUsageGauge.ExportStruct(metrics.UsageInfo, nil, TagPrefix)
 	// host_info
-	m.CpuGaugeWithStr.ExportStructWithStrField(metrics.HostInfo, []string{""}, TagPrefix)
+	m.CpuGaugeWithStr.ExportStructWithStrField(metrics.HostInfo, []string{}, TagPrefix)
 }

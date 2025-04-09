@@ -22,5 +22,5 @@ func NewMemoryMetrics() *MemoryMetrics {
 }
 
 func (m *MemoryMetrics) ExportMetrics(metrics *collector.MemoryInfo) {
-	m.MemoryGauge.ExportStructWithStrField(metrics, nil, TagPrefix)
+	m.MemoryGauge.ExportStruct(metrics, nil, TagPrefix)
 }

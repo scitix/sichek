@@ -55,6 +55,7 @@ type DaemonService struct {
 	componentsStatusLock sync.RWMutex
 	componentResults     map[string]<-chan *common.Result
 	componentsResultLock sync.RWMutex
+	metrics              *metrics.HealthCheckResMetrics
 
 	notifier Notifier
 }
@@ -91,6 +92,7 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 		componentsStatus:  make(map[string]bool),
 		componentResults:  make(map[string]<-chan *common.Result),
 		notifier:          notifier,
+		metrics:           metrics.NewHealthCheckResMetrics(),
 	}
 
 	for componentName, enabled := range usedComponentsMap {
@@ -180,8 +182,8 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			} else {
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
-			metrics.ExportCheckerResultsMetrics(result)
-			exportTimeoutResolved(result.Item)
+			d.metrics.ExportMetrics(result)
+			d.exportTimeoutResolved(result.Item)
 			err := d.notifier.SetNodeAnnotation(d.ctx, result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
@@ -204,7 +206,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				Time:     time.Now(),
 			}
 			logrus.WithField("daemon", "run").Warnf("component %s timed out", componentName)
-			metrics.ExportCheckerResultsMetrics(timeoutResult)
+			d.metrics.ExportMetrics(timeoutResult)
 			err := d.notifier.AppendNodeAnnotation(d.ctx, timeoutResult)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set %s timeout annotation failed: %v", componentName, err)
@@ -213,7 +215,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 	}
 }
 
-func exportTimeoutResolved(componentName string) {
+func (d *DaemonService) exportTimeoutResolved(componentName string) {
 	timeoutResolvedCheckerResult := &common.CheckerResult{
 		Name:        fmt.Sprintf("%sTimeout", componentName),
 		Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
@@ -230,7 +232,7 @@ func exportTimeoutResolved(componentName string) {
 		Checkers: []*common.CheckerResult{timeoutResolvedCheckerResult},
 		Time:     time.Now(),
 	}
-	metrics.ExportCheckerResultsMetrics(timeoutResolvedResult)
+	d.metrics.ExportMetrics(timeoutResolvedResult)
 }
 
 func (d *DaemonService) Status() (interface{}, error) {

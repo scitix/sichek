@@ -41,7 +41,7 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 	// DeviceCount
 	m.NvidiaDevCntGauge.SetMetric("device_count", nil, float64(metrics.DeviceCount))
 	// SoftwareInfo
-	m.NvidiaSoftwareInfoGauge.ExportStructWithStrField(metrics.SoftwareInfo, []string{""}, TagPrefix)
+	m.NvidiaSoftwareInfoGauge.ExportStructWithStrField(metrics.SoftwareInfo, []string{}, TagPrefix)
 
 	for _, device := range metrics.DevicesInfo {
 		deviceIdx := fmt.Sprintf("%d", device.Index)

@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -37,41 +38,53 @@ type GaugeVecMetricExporter struct {
 	labelKeys  []string
 	MetricsMap map[string]*prometheus.GaugeVec
 	lock       sync.Mutex
+	nodeName   string
 }
 
 func NewGaugeVecMetricExporter(prefix string, labelKeys []string) *GaugeVecMetricExporter {
+	if labelKeys == nil {
+		labelKeys = []string{}
+	}
+	labelKeys = append(labelKeys, "node")
+	nodeName, err := os.Hostname()
+	if err != nil {
+		nodeName = "unknown"
+	}
 	return &GaugeVecMetricExporter{
 		prefix:     prefix,
 		labelKeys:  labelKeys,
+		nodeName:   nodeName,
 		MetricsMap: make(map[string]*prometheus.GaugeVec),
 	}
 }
 
 // ExportStruct This method receives a struct (or a nested struct) and a list of label values. It converts the struct into a map of metrics, then registers and sets values for each metric.
 func (e *GaugeVecMetricExporter) ExportStruct(v interface{}, labelVals []string, tagPrefix string) {
+	if labelVals == nil {
+		labelVals = []string{}
+	}
 	metricsValueMap := make(map[string]*StructMetrics)
 	StructToMetricsMap(reflect.ValueOf(v), "", tagPrefix, metricsValueMap)
-
 	for name, val := range metricsValueMap {
-		fullName := sanitizeMetricName(e.prefix + "_" + name)
-		e.SetMetric(fullName, labelVals, val.MetricsValue)
+		e.SetMetric(name, labelVals, val.MetricsValue)
 	}
 }
 
 // ExportStringField This method receives a struct and a list of label values. It converts the struct into a map of metrics, then registers and sets values for each metric.
 func (e *GaugeVecMetricExporter) ExportStructWithStrField(v interface{}, labelVals []string, tagPrefix string) {
+	if labelVals == nil {
+		labelVals = []string{}
+	}
 	metricsValueMap := make(map[string]*StructMetrics)
 	StructToMetricsMap(reflect.ValueOf(v), "", tagPrefix, metricsValueMap)
 	for name, val := range metricsValueMap {
 		if val.Kind == reflect.String {
-			newLabelVal := make([]string, len(labelVals))
-			copy(newLabelVal, labelVals)
-			newLabelVal[len(newLabelVal)-1] = val.StrLabel
+			newLabelVal := append(labelVals, val.StrLabel)
 			e.SetMetric(name, newLabelVal, val.MetricsValue)
 		} else {
-			e.SetMetric(name, labelVals, val.MetricsValue)
+			newLabelVal := append(labelVals, "")
+			e.SetMetric(name, newLabelVal, val.MetricsValue)
 		}
-
 	}
 }
 
@@ -79,6 +92,7 @@ func (e *GaugeVecMetricExporter) ExportStructWithStrField(v interface{}, labelVa
 func (e *GaugeVecMetricExporter) SetMetric(name string, labelVals []string, value float64) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
+	labelVals = append(labelVals, e.nodeName)
 	fullName := sanitizeMetricName(e.prefix + "_" + name)
 	// Check if the metric already exists, if not create and register it
 	gaugeVec, exists := e.MetricsMap[fullName]
