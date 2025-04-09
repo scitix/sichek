@@ -100,7 +100,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         ncclCfg.NCCL.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, ncclCfg, component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, ncclCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 

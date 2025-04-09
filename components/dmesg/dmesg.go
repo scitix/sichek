@@ -99,7 +99,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         dmsgCfg.Dmesg.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, dmsgCfg, component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, dmsgCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 

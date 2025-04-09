@@ -105,7 +105,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
 		cacheSize:   memoryCfg.Memory.CacheSize,
 	}
-	service := common.NewCommonService(ctx, memoryCfg, component.GetTimeout(), component.HealthCheck)
+	service := common.NewCommonService(ctx, memoryCfg, component.Name(), component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil

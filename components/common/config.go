@@ -29,7 +29,6 @@ import (
 type ComponentUserConfig interface {
 	GetCheckerSpec() map[string]CheckerSpec
 	GetQueryInterval() time.Duration
-	GetComponentName() string
 	LoadUserConfigFromYaml(file string) error
 }
 type ComponentSpecConfig interface {

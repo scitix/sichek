@@ -101,7 +101,7 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, cfg.Gpfs.CacheSize),
 		cacheSize:   cfg.Gpfs.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, component.GetTimeout(), component.HealthCheck)
+	service := common.NewCommonService(ctx, cfg, component.Name(), component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil

@@ -91,8 +91,9 @@ type CommonService struct {
 	cfg      ComponentUserConfig
 	cfgMutex sync.RWMutex
 
-	analyzeFunc  HealthCheckFunc
-	checkTimeout time.Duration
+	analyzeFunc   HealthCheckFunc
+	checkTimeout  time.Duration
+	componentName string
 
 	mutex         sync.RWMutex
 	running       bool
@@ -101,7 +102,7 @@ type CommonService struct {
 
 type HealthCheckFunc func(ctx context.Context) (*Result, error)
 
-func NewCommonService(ctx context.Context, cfg ComponentUserConfig, checkTimeout time.Duration, analyze HealthCheckFunc) *CommonService {
+func NewCommonService(ctx context.Context, cfg ComponentUserConfig, componentName string, checkTimeout time.Duration, analyze HealthCheckFunc) *CommonService {
 	cctx, ccancel := context.WithCancel(ctx)
 
 	return &CommonService{
@@ -110,6 +111,7 @@ func NewCommonService(ctx context.Context, cfg ComponentUserConfig, checkTimeout
 		cfg:           cfg,
 		checkTimeout:  checkTimeout,
 		analyzeFunc:   analyze,
+		componentName: componentName,
 		resultChannel: make(chan *Result),
 	}
 }
@@ -138,7 +140,7 @@ func (s *CommonService) Start() <-chan *Result {
 				return
 			case <-ticker.C:
 				s.mutex.Lock()
-				result, err := RunHealthCheckWithTimeout(s.ctx, s.checkTimeout, s.cfg.GetComponentName(), s.analyzeFunc)
+				result, err := RunHealthCheckWithTimeout(s.ctx, s.checkTimeout, s.componentName, s.analyzeFunc)
 				s.mutex.Unlock()
 				if err != nil {
 					logrus.WithField("component", "service").Errorf("Run HealthCheck func error: %v\n", err)

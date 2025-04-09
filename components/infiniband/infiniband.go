@@ -117,7 +117,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		cacheSize:   cfg.Infiniband.CacheSize,
 	}
 	// step4: start the service
-	component.service = common.NewCommonService(ctx, cfg, component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, cfg, component.Name(), component.GetTimeout(), component.HealthCheck)
 
 	// step5: return the component
 	return component, nil

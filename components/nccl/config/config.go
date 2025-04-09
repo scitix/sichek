@@ -36,13 +36,6 @@ type NCCLConfig struct {
 	CheckerConfigs map[string]*NCCLErrorConfig `json:"checkers" yaml:"checkers"`
 }
 
-func (c *NCCLUserConfig) GetComponentName() string {
-	if c.NCCL.Name != "" {
-		return c.NCCL.Name
-	}
-	return consts.ComponentNameNCCL
-}
-
 func (c *NCCLUserConfig) GetQueryInterval() time.Duration {
 	return c.NCCL.QueryInterval
 }

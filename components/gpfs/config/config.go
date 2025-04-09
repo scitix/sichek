@@ -35,13 +35,6 @@ type GpfsConfig struct {
 	EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
 }
 
-func (c *GpfsUserConfig) GetComponentName() string {
-	if c.Gpfs.Name != "" {
-		return c.Gpfs.Name
-	}
-	return consts.ComponentNameGpfs
-}
-
 func (c *GpfsUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.Gpfs.EventCheckers {

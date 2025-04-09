@@ -98,7 +98,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, cfg.CPU.CacheSize),
 		cacheSize:   cfg.CPU.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, comp.GetTimeout(), comp.HealthCheck)
+	service := common.NewCommonService(ctx, cfg, comp.Name(), comp.GetTimeout(), comp.HealthCheck)
 	comp.service = service
 
 	return
