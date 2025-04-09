@@ -78,7 +78,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		return nil, err
 	}
 
-	collectorPointer, err := collector.NewDmesgCollector(ctx, dmsgCfg)
+	collectorPointer, err := collector.NewDmesgCollector(dmsgCfg)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
@@ -99,7 +99,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         dmsgCfg.Dmesg.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, dmsgCfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, dmsgCfg, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
@@ -110,7 +110,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	info, err := c.collector.Collect(ctx)
 	if err != nil {
-		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect()")
+		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect(ctx)")
 		return &common.Result{}, err
 	}
 

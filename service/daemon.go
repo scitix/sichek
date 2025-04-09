@@ -18,6 +18,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,10 +60,10 @@ type DaemonService struct {
 }
 
 func NewService(cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
-	ctx, ccancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
-			ccancel()
+			cancel()
 		}
 	}()
 
@@ -84,7 +85,7 @@ func NewService(cfgFile string, specFile string, usedComponents []string, ignore
 
 	daemonService := &DaemonService{
 		ctx:               ctx,
-		cancel:            ccancel,
+		cancel:            cancel,
 		usedComponentsMap: usedComponentsMap,
 		components:        make(map[string]common.Component),
 		componentsStatus:  make(map[string]bool),
@@ -179,7 +180,12 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			} else {
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
-			err := d.notifier.SetNodeAnnotation(d.ctx, result)
+			var err error
+			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
+				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
+			} else {
+				err = d.notifier.SetNodeAnnotation(d.ctx, result)
+			}
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
 			}

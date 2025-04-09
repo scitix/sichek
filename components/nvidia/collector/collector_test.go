@@ -104,7 +104,7 @@ func TestSoftwareInfo_Get(t *testing.T) {
 	softwareInfo := &SoftwareInfo{}
 
 	// Call the Get method
-	err := softwareInfo.Get(0)
+	err := softwareInfo.Get(context.Background(), 0)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestClockInfo_Get(t *testing.T) {
 
 func TestClockEvents_Get(t *testing.T) {
 	softwareInfo := &SoftwareInfo{}
-	err := softwareInfo.Get(0)
+	err := softwareInfo.Get(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

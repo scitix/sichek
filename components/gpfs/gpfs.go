@@ -79,13 +79,13 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 
-	collectorPointer, err := collector.NewGPFSCollector(ctx, cfg)
+	collectorPointer, err := collector.NewGPFSCollector(cfg)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(ctx, cfg)
+	checkers, err := checker.NewCheckers(cfg)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create checkers failed: %v", err)
 		return nil, err
@@ -101,7 +101,7 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, cfg.Gpfs.CacheSize),
 		cacheSize:   cfg.Gpfs.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, component.HealthCheck)
+	service := common.NewCommonService(ctx, cfg, component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil

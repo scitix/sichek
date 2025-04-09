@@ -78,7 +78,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to load NCCL config")
 		return nil, err
 	}
-	ncclCollector, err := collector.NewNCCLCollector(ctx, ncclCfg)
+	ncclCollector, err := collector.NewNCCLCollector(ncclCfg)
 	if err != nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to create NCCLCollector")
 		return nil, err
@@ -100,7 +100,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         ncclCfg.NCCL.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, ncclCfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, ncclCfg, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
@@ -111,7 +111,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	info, err := c.collector.Collect(ctx)
 	if err != nil {
-		logrus.WithField("component", "nccl").WithError(err).Error("failed to Collect()")
+		logrus.WithField("component", "nccl").WithError(err).Error("failed to Collect(ctx)")
 		return &common.Result{}, err
 	}
 

@@ -82,7 +82,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(ctx, cfg)
+	checkers, err := checker.NewCheckers(cfg)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create checkers failed: %v", err)
 		return nil, err
@@ -98,7 +98,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, cfg.CPU.CacheSize),
 		cacheSize:   cfg.CPU.CacheSize,
 	}
-	service := common.NewCommonService(ctx, cfg, comp.HealthCheck)
+	service := common.NewCommonService(ctx, cfg, comp.GetTimeout(), comp.HealthCheck)
 	comp.service = service
 
 	return

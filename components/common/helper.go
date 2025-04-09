@@ -72,7 +72,7 @@ func createTimeoutResult(componentName string, timeout time.Duration) (*Result, 
 		Time:     time.Now(),
 	}
 
-	return timeoutResult, fmt.Errorf("%sHealthCheckTimeout: did not return a result within %v", componentName, timeout)
+	return timeoutResult, nil
 }
 
 // handleResult processes the result of the health check

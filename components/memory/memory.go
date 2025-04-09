@@ -79,7 +79,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 
-	collectorPointer, err := collector.NewCollector(ctx, memoryCfg)
+	collectorPointer, err := collector.NewCollector(memoryCfg)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
@@ -87,7 +87,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 
 	checkers := make([]common.Checker, 0)
 	for name, spec := range memoryCfg.GetCheckerSpec() {
-		memChecker, err := checker.NewMemoryChecker(ctx, spec)
+		memChecker, err := checker.NewMemoryChecker(spec)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)
 			return nil, err
@@ -105,7 +105,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
 		cacheSize:   memoryCfg.Memory.CacheSize,
 	}
-	service := common.NewCommonService(ctx, memoryCfg, component.HealthCheck)
+	service := common.NewCommonService(ctx, memoryCfg, component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil

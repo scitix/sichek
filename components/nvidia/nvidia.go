@@ -56,7 +56,6 @@ type component struct {
 	serviceMtx    sync.RWMutex
 	running       bool
 	resultChannel chan *common.Result
-	service       *common.CommonService
 }
 
 var (
@@ -85,7 +84,7 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 	}()
 	select {
 	case <-ctx_.Done():
-		return nil, fmt.Errorf("TIMEOUT")
+		return nil, fmt.Errorf("NewNvml TIMEOUT")
 	case <-done:
 		if initError != nil {
 			return nil, initError
@@ -201,8 +200,6 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		running:       false,
 		resultChannel: resultChannel,
 	}
-	service := common.NewCommonService(ctx, nvidiaCfg, component.HealthCheck)
-	component.service = service
 	return component, nil
 }
 
@@ -354,24 +351,24 @@ func (c *component) Start() <-chan *common.Result {
 				return
 			case <-ticker.C:
 				c.serviceMtx.Lock()
-
-				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.cfg.GetQueryInterval()*time.Second, c.name, c.HealthCheck)
+				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.GetTimeout(), c.name, c.HealthCheck)
+				c.serviceMtx.Unlock()
+				if err != nil {
+					fmt.Printf("%s analyze failed: %v\n", c.name, err)
+					continue
+				}
 				// Check if the error message contains "Timeout"
-				if err != nil && strings.Contains(err.Error(), "Timeout") {
+				if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
 					// Handle the timeout error
 					logrus.WithField("component", "NVIDIA").Errorf("Health Check TIMEOUT")
 					err := ReNewNvml(c)
 					if err != nil {
 						logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML after HealthCheck Timeout: %s", err.Error())
 					} else {
-						logrus.WithField("component", "NVIDIA").Errorf("Reinitialize NVML successfully after HealthCheck Timeout")
+						logrus.WithField("component", "NVIDIA").Warnf("Reinitialize NVML successfully after HealthCheck Timeout")
 					}
 				}
-				c.serviceMtx.Unlock()
-				if err != nil {
-					fmt.Printf("%s analyze failed: %v\n", c.name, err)
-					continue
-				}
+
 				c.serviceMtx.Lock()
 				c.resultChannel <- result
 				c.serviceMtx.Unlock()

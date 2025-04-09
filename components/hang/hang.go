@@ -81,13 +81,13 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 	var hangCollector common.Collector
 	if hangCfg.Hang.NVSMI {
-		hangCollector, err = collector.NewHangCollector(ctx, hangCfg)
+		hangCollector, err = collector.NewHangCollector(hangCfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 			return nil, err
 		}
 	} else {
-		hangCollector, err = collector.NewHangGetter(ctx, hangCfg)
+		hangCollector, err = collector.NewHangGetter(hangCfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 			return nil, err
@@ -110,7 +110,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, hangCfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, hangCfg, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
@@ -121,7 +121,7 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	info, err := c.collector.Collect(ctx)
 	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect()")
+		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect(ctx)")
 		return &common.Result{}, err
 	}
 

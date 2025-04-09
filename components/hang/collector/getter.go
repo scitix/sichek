@@ -47,7 +47,7 @@ type HangGetter struct {
 	nvidiaComponent common.Component
 }
 
-func NewHangGetter(ctx context.Context, cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
+func NewHangGetter(cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
 	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
@@ -115,9 +115,6 @@ func (c *HangGetter) GetCfg() common.ComponentUserConfig {
 
 func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
-
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
 	getinfo, err := c.nvidiaComponent.CacheInfos()
 	if err != nil {
 		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia infos")
@@ -125,7 +122,7 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 	}
 
 	if !c.nvidiaComponent.Status() {
-		_, err := c.nvidiaComponent.HealthCheck(ctx)
+		_, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck)
 		if err != nil {
 			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to run nvidiacomponent analyze")
 		}
