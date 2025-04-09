@@ -130,13 +130,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return nil, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.Lock()
 	defer c.cacheMtx.Unlock()
 	return c.cacheBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheBuffer[c.currIndex]
@@ -146,13 +146,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfo, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	info := c.cacheInfo[c.currIndex]
@@ -166,7 +166,7 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
+func (c *component) Start() <-chan *common.Result {
 	c.serviceMtx.Lock()
 	if c.running {
 		c.serviceMtx.Unlock()
@@ -216,7 +216,7 @@ func (c *component) Stop() error {
 	return nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	nvCfg, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
@@ -232,4 +232,8 @@ func (c *component) Status() bool {
 	defer c.serviceMtx.RUnlock()
 
 	return c.running
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

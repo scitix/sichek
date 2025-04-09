@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/nvidia"
 
@@ -33,13 +34,13 @@ func TestCPU_HealthCheckPrint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		logrus.WithField("component", component.Name()).Error(err)
 		return
 	}
 
-	info, _ := component.LastInfo(ctx)
+	info, _ := component.LastInfo()
 	PrintSystemInfo(info, result, true)
 }
 
@@ -50,12 +51,12 @@ func TestNvidia_HealthCheckPrint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		logrus.WithField("component", component.Name()).Error(err)
 		return
 	}
 
-	info, _ := component.LastInfo(ctx)
+	info, _ := component.LastInfo()
 	PrintNvidiaInfo(info, result, true)
 }

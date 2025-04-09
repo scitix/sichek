@@ -18,6 +18,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,11 +59,11 @@ type DaemonService struct {
 	notifier Notifier
 }
 
-func NewService(ctx context.Context, cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
-	cctx, ccancel := context.WithCancel(context.Background())
+func NewService(cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
-			ccancel()
+			cancel()
 		}
 	}()
 
@@ -83,8 +84,8 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 	}
 
 	daemonService := &DaemonService{
-		ctx:               cctx,
-		cancel:            ccancel,
+		ctx:               ctx,
+		cancel:            cancel,
 		usedComponentsMap: usedComponentsMap,
 		components:        make(map[string]common.Component),
 		componentsStatus:  make(map[string]bool),
@@ -120,7 +121,7 @@ func NewService(ctx context.Context, cfgFile string, specFile string, usedCompon
 			}
 			_, err = nvidia.NewComponent(cfgFile, specFile, nil)
 			if err != nil {
-				logrus.WithField("component", "all").Errorf("Failed too Get Nvidia component, Bypassing HealthCheck")
+				logrus.WithField("component", "all").Errorf("Failed to Get Nvidia component, Bypassing HealthCheck")
 				continue
 			}
 			component, err = hang.NewComponent(cfgFile)
@@ -147,7 +148,7 @@ func (d *DaemonService) Run() {
 		if !exist {
 			continue
 		}
-		resultChan := component.Start(d.ctx)
+		resultChan := component.Start()
 		d.componentResults[componentName] = resultChan
 	}
 	d.componentsLock.Unlock()
@@ -179,32 +180,14 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			} else {
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
-			err := d.notifier.SetNodeAnnotation(d.ctx, result)
+			var err error
+			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
+				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
+			} else {
+				err = d.notifier.SetNodeAnnotation(d.ctx, result)
+			}
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
-			}
-		case <-time.After(timeoutDuration):
-			timeoutCheckerResult := &common.CheckerResult{
-				Name:        fmt.Sprintf("%sTimeout", componentName),
-				Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
-				Status:      consts.StatusAbnormal,
-				Level:       consts.LevelCritical,
-				Detail:      "",
-				ErrorName:   fmt.Sprintf("%sTimeout", componentName),
-				Suggestion:  "The Nvidida GPU may be broken, please restart the node",
-			}
-			timeoutResult := &common.Result{
-				Item:     componentName,
-				Status:   consts.StatusAbnormal,
-				Level:    consts.LevelCritical,
-				Checkers: []*common.CheckerResult{timeoutCheckerResult},
-				Time:     time.Now(),
-			}
-			logrus.WithField("daemon", "run").Warnf("component %s timed out", componentName)
-
-			err := d.notifier.AppendNodeAnnotation(d.ctx, timeoutResult)
-			if err != nil {
-				logrus.WithField("daemon", "run").Errorf("set %s timeout annotation failed: %v", componentName, err)
 			}
 		}
 	}

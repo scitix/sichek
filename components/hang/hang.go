@@ -34,11 +34,11 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *config.HangUserConfig
-	cfgMutex sync.Mutex
-
-	collector common.Collector
-	checker   common.Checker
+	cfg           *config.HangUserConfig
+	cfgMutex      sync.Mutex
+	componentName string
+	collector     common.Collector
+	checker       common.Checker
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -81,13 +81,13 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 	var hangCollector common.Collector
 	if hangCfg.Hang.NVSMI {
-		hangCollector, err = collector.NewHangCollector(ctx, hangCfg)
+		hangCollector, err = collector.NewHangCollector(hangCfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 			return nil, err
 		}
 	} else {
-		hangCollector, err = collector.NewHangGetter(ctx, hangCfg)
+		hangCollector, err = collector.NewHangGetter(hangCfg)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 			return nil, err
@@ -97,10 +97,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	hangChecker := checker.NewHangChecker(hangCfg)
 
 	component := &component{
-		ctx:    ctx,
-		cancel: cancel,
-
-		cfg: hangCfg,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameHang,
+		cfg:           hangCfg,
 
 		collector: hangCollector,
 		checker:   hangChecker,
@@ -110,24 +110,22 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, hangCfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, hangCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameHang
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
-	defer cancel()
-	info, err := c.collector.Collect(cctx)
+	info, err := c.collector.Collect(ctx)
 	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect()")
+		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect(ctx)")
 		return &common.Result{}, err
 	}
 
-	checkRes, err := c.checker.Check(c.ctx, info)
+	checkRes, err := c.checker.Check(ctx, info)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check()")
 		return &common.Result{}, err
@@ -157,13 +155,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.Lock()
 	defer c.cacheMtx.Unlock()
 	return c.cacheResultBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheResultBuffer[c.currIndex]
@@ -173,13 +171,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfoBuffer, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	info := c.cacheInfoBuffer[c.currIndex]
@@ -193,15 +191,15 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
-	return c.service.Start(ctx)
+func (c *component) Start() <-chan *common.Result {
+	return c.service.Start()
 }
 
 func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
@@ -209,9 +207,13 @@ func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) 
 	}
 	c.cfg = hangCfg
 	c.cfgMutex.Unlock()
-	return c.service.Update(ctx, cfg)
+	return c.service.Update(cfg)
 }
 
 func (c *component) Status() bool {
 	return c.service.Status()
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

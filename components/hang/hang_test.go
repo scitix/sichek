@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia"
 )
 
@@ -44,7 +45,7 @@ func TestHang(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 
 	if err != nil {
 		t.Log(err)

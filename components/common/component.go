@@ -27,20 +27,21 @@ import (
 type Component interface {
 	Name() string
 	HealthCheck(ctx context.Context) (*Result, error)
+	GetTimeout() time.Duration
 
 	// CacheResults cached analyze results
-	CacheResults(ctx context.Context) ([]*Result, error)
-	LastResult(ctx context.Context) (*Result, error)
+	CacheResults() ([]*Result, error)
+	LastResult() (*Result, error)
 	// CacheInfos cached collector infos
-	CacheInfos(ctx context.Context) ([]Info, error)
-	LastInfo(ctx context.Context) (Info, error)
+	CacheInfos() ([]Info, error)
+	LastInfo() (Info, error)
 
 	// Metrics For http service
 	Metrics(ctx context.Context, since time.Time) (interface{}, error)
 
 	// Start For daemon service
-	Start(ctx context.Context) <-chan *Result
-	Update(ctx context.Context, cfg ComponentUserConfig) error
+	Start() <-chan *Result
+	Update(cfg ComponentUserConfig) error
 	Status() bool
 	Stop() error
 }
@@ -90,7 +91,9 @@ type CommonService struct {
 	cfg      ComponentUserConfig
 	cfgMutex sync.RWMutex
 
-	analyzeFunc HealthCheckFunc
+	healthCheckFunc HealthCheckFunc
+	checkTimeout    time.Duration
+	componentName   string
 
 	mutex         sync.RWMutex
 	running       bool
@@ -99,19 +102,21 @@ type CommonService struct {
 
 type HealthCheckFunc func(ctx context.Context) (*Result, error)
 
-func NewCommonService(ctx context.Context, cfg ComponentUserConfig, analyze HealthCheckFunc) *CommonService {
+func NewCommonService(ctx context.Context, cfg ComponentUserConfig, componentName string, checkTimeout time.Duration, analyze HealthCheckFunc) *CommonService {
 	cctx, ccancel := context.WithCancel(ctx)
 
 	return &CommonService{
-		ctx:           cctx,
-		cancel:        ccancel,
-		cfg:           cfg,
-		analyzeFunc:   analyze,
-		resultChannel: make(chan *Result),
+		ctx:             cctx,
+		cancel:          ccancel,
+		cfg:             cfg,
+		checkTimeout:    checkTimeout,
+		healthCheckFunc: analyze,
+		componentName:   componentName,
+		resultChannel:   make(chan *Result),
 	}
 }
 
-func (s *CommonService) Start(ctx context.Context) <-chan *Result {
+func (s *CommonService) Start() <-chan *Result {
 	s.mutex.Lock()
 	if s.running {
 		s.mutex.Unlock()
@@ -135,7 +140,7 @@ func (s *CommonService) Start(ctx context.Context) <-chan *Result {
 				return
 			case <-ticker.C:
 				s.mutex.Lock()
-				result, err := s.analyzeFunc(s.ctx)
+				result, err := RunHealthCheckWithTimeout(s.ctx, s.checkTimeout, s.componentName, s.healthCheckFunc)
 				s.mutex.Unlock()
 				if err != nil {
 					logrus.WithField("component", "service").Errorf("Run HealthCheck func error: %v\n", err)
@@ -166,7 +171,7 @@ func (s *CommonService) Stop() error {
 }
 
 // Update 更新组件的配置信息，比如采样周期
-func (s *CommonService) Update(ctx context.Context, cfg ComponentUserConfig) error {
+func (s *CommonService) Update(cfg ComponentUserConfig) error {
 	s.cfgMutex.Lock()
 	s.cfg = cfg
 	s.cfgMutex.Unlock()

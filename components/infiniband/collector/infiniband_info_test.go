@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/scitix/sichek/components/common"
@@ -24,7 +25,7 @@ import (
 func TestGetIBInfo(t *testing.T) {
 
 	ibInfo0 := &InfinibandInfo{}
-	ibInfo := ibInfo0.GetIBInfo()
+	ibInfo := ibInfo0.GetIBInfo(context.Background())
 
 	t.Logf("ibInfo: %s", common.ToString(ibInfo))
 

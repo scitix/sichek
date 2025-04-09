@@ -33,7 +33,7 @@ type MemoryChecker struct {
 	cfg  *config.MemoryEventConfig
 }
 
-func NewMemoryChecker(ctx context.Context, cfg common.CheckerSpec) (common.Checker, error) {
+func NewMemoryChecker(cfg common.CheckerSpec) (common.Checker, error) {
 	gpfsCfg, ok := cfg.(*config.MemoryEventConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid MemoryChecker config type")
