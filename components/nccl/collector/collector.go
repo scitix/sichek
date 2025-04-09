@@ -39,7 +39,7 @@ type NCCLCollector struct {
 	Regexp     []string
 }
 
-func NewNCCLCollector(ctx context.Context, cfg common.ComponentUserConfig) (*NCCLCollector, error) {
+func NewNCCLCollector(cfg common.ComponentUserConfig) (*NCCLCollector, error) {
 	configPointer, ok := cfg.(*config.NCCLUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for GPFS")

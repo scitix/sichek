@@ -15,7 +15,7 @@ func TestNewDevicePodMapper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get device to pod map: %v", err)
 	}
-	for deviceID, podName := range deviceToPodMap {
-		logrus.Infof("Device: %s, Pod: %s\n", deviceID, podName)
+	for deviceID, podInfo := range deviceToPodMap {
+		logrus.Infof("Device: %s, Pod: %+v\n", deviceID, podInfo)
 	}
 }

@@ -33,7 +33,7 @@ func TestHealthCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create Ethernet component: %v", err)
 	}
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		t.Fatalf("failed to Ethernet HealthCheck: %v", err)
 		return

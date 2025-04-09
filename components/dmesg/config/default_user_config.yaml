@@ -3,8 +3,8 @@ dmesg:
   FileNmae: ["/var/log/dmesg"]
   Cmd:
     - ["dmesg"]
-  query_interval: 10
-  cache_size: 10
+  query_interval: 30
+  cache_size: 5
   checkers:
     OOM1:
       name: "oom"

@@ -32,7 +32,7 @@ type NvidiaCollector struct {
 	// only collect once as it is collected by `nvidia-smi -q -i 0`
 	softwareInfo        SoftwareInfo
 	ExpectedDeviceCount int
-	// collect DeviceUUIDs until all the expected num are valid, otherwise, it will be collected every Collect() call
+	// collect DeviceUUIDs until all the expected num are valid, otherwise, it will be collected every Collect(ctx) call
 	UUIDAllValidFlag bool
 	// record all the expected num of UUIDs, in case some of them are invalid later
 	DeviceUUIDs       map[int]string
@@ -41,8 +41,6 @@ type NvidiaCollector struct {
 }
 
 func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDeviceCount int) (*NvidiaCollector, error) {
-	ctx_, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
 	podResourceMapper := k8s.NewPodResourceMapper()
 	if podResourceMapper == nil {
 		err := fmt.Errorf("failed to create PodResourceMapper")
@@ -51,35 +49,20 @@ func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDe
 	}
 	collector := &NvidiaCollector{nvmlInst: nvmlInst, podResourceMapper: podResourceMapper}
 	var err error
-	done := make(chan struct{})
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Printf("[NewNvidiaCollector] panic err is %s\n", err)
-			}
-			close(done)
-		}()
-		for i := 0; i < expectedDeviceCount; i++ {
-			err = collector.softwareInfo.Get(i)
-			if err != nil {
-				logrus.WithField("component", "NVIDIA-Collector-getSWInfo").Errorf("%v", err)
-			} else {
-				break
-			}
-		}
-		if err == nil {
-			collector.ExpectedDeviceCount = expectedDeviceCount
-			collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
-			collector.getUUID()
-		}
-	}()
-	select {
-	case <-ctx_.Done():
-		return nil, fmt.Errorf("failed to NewNvidiaCollector: TIMEOUT")
-	case <-done:
+	for i := 0; i < expectedDeviceCount; i++ {
+		err = collector.softwareInfo.Get(ctx, i)
 		if err != nil {
-			return nil, fmt.Errorf("failed to NewNvidiaCollector: %v", err)
+			logrus.WithField("component", "NVIDIA-Collector-getSWInfo").Errorf("%v", err)
+		} else {
+			break
 		}
+	}
+	if err == nil {
+		collector.ExpectedDeviceCount = expectedDeviceCount
+		collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
+		collector.getUUID()
+	} else {
+		return nil, fmt.Errorf("failed to NewNvidiaCollector: %v", err)
 	}
 	return collector, nil
 }
@@ -98,10 +81,6 @@ func (collector *NvidiaCollector) getUUID() {
 		}
 		collector.DeviceUUIDs[i] = uuid
 	}
-}
-
-func (collector *NvidiaCollector) JSON() (string, error) {
-	return "", fmt.Errorf("not implemented")
 }
 
 func (collector *NvidiaCollector) Name() string {

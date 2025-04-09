@@ -35,7 +35,7 @@ func NewDaemonRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Run sichek daemon process",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
 			cfgFile, err := cmd.Flags().GetString("cfg")
@@ -95,7 +95,7 @@ func NewDaemonRunCmd() *cobra.Command {
 
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
-			daemonService, err := service.NewService(ctx, cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
+			daemonService, err := service.NewService(cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return

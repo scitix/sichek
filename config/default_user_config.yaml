@@ -1,11 +1,11 @@
 nvidia:
   name: nvidia
-  query_interval: 10
-  cache_size: 10
+  query_interval: 30
+  cache_size: 5
   ignored_checkers: []
 infiniband:
   name: "infiniband"
-  query_interval: 10
-  cache_size: 10
+  query_interval: 30
+  cache_size: 5
   ignored_checkers:
     - "net_operstate"

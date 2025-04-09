@@ -35,7 +35,7 @@ type DmesgCollector struct {
 	filter *filter.Filter
 }
 
-func NewDmesgCollector(ctx context.Context, cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
+func NewDmesgCollector(cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
 
 	if len(cfg.Dmesg.CheckerConfigs) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")

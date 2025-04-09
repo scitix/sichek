@@ -42,7 +42,7 @@ type HangCollector struct {
 	hangInfo      checker.HangInfo
 }
 
-func NewHangCollector(ctx context.Context, cfg common.ComponentUserConfig) (*HangCollector, error) {
+func NewHangCollector(cfg common.ComponentUserConfig) (*HangCollector, error) {
 	hangCfg, ok := cfg.(*config.HangUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Hang")
@@ -99,7 +99,7 @@ func (c *HangCollector) GetCfg() common.ComponentUserConfig {
 func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
 
-	gpusInfo := getGPUInfo()
+	gpusInfo := getGPUInfo(ctx)
 	now := time.Now()
 
 	for i := 0; i < len(c.items); i++ {
@@ -124,10 +124,7 @@ func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 	return &c.hangInfo, nil
 }
 
-func getGPUInfo() []map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func getGPUInfo(ctx context.Context) []map[string]string {
 	out, err := utils.ExecCommand(ctx, "nvidia-smi", "dmon", "-s", "pucvmet", "-d", "10", "-c", "1")
 	if err != nil {
 		logrus.WithField("collector", "Hang").WithError(err).Errorf("Error running command:")

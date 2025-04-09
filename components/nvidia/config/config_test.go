@@ -262,8 +262,8 @@ nvidia:
 	userConfigData := `
 nvidia:
   name: "nvidia"
-  query_interval: 10
-  cache_size: 10
+  query_interval: 30
+  cache_size: 5
   ignored_checkers: ["cpu_performance"]
 `
 	if _, err := userConfigFile.Write([]byte(userConfigData)); err != nil {
@@ -297,10 +297,10 @@ nvidia:
 	if cfg.Nvidia.Name != "nvidia" {
 		t.Errorf("Expected ComponentConfig.Nvidia.Name to be 'nvidia', got '%s'", cfg.Nvidia.Name)
 	}
-	if cfg.Nvidia.QueryInterval != 10 {
+	if cfg.Nvidia.QueryInterval != 30 {
 		t.Errorf("Expected ComponentConfig.Nvidia.UpdateInterval to be 1, got %d", cfg.Nvidia.QueryInterval)
 	}
-	if cfg.Nvidia.CacheSize != 10 {
+	if cfg.Nvidia.CacheSize != 5 {
 		t.Errorf("Expected ComponentConfig.Nvidia.CacheSize to be 10, got %d", cfg.Nvidia.CacheSize)
 	}
 	if len(cfg.Nvidia.IgnoredCheckers) != 1 {

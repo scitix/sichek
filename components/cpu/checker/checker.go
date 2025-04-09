@@ -16,14 +16,13 @@ limitations under the License.
 package checker
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu/config"
 )
 
-func NewCheckers(ctx context.Context, cfg *config.CpuUserConfig) ([]common.Checker, error) {
+func NewCheckers(cfg *config.CpuUserConfig) ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
 	checker, err := NewCPUPerfChecker()
 	if err != nil {
