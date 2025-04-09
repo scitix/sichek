@@ -64,7 +64,7 @@ func NewCPUCmd() *cobra.Command {
 				return
 			}
 
-			result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
+			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", "cpu").Errorf("analyze cpu failed: %v", err)
 				return

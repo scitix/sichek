@@ -177,7 +177,7 @@ func NewAllCmd() *cobra.Command {
 					logrus.WithField("component", "all").Errorf("create component %s failed: %v", componentName, err)
 					continue
 				}
-				result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
+				result, err := common.RunHealthCheckWithTimeout(ctx, AllCmdTimeout, component.Name(), component.HealthCheck)
 				if err != nil {
 					logrus.WithField("component", "all").Errorf("analyze %s failed: %v", componentName, err)
 					continue

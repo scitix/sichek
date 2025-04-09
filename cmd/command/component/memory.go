@@ -60,7 +60,7 @@ func NewMemoryCmd() *cobra.Command {
 				return
 			}
 
-			result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
+			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", "memory").Errorf("analyze memory failed: %v", err)
 				return
