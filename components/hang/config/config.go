@@ -41,6 +41,11 @@ func (c *HangUserConfig) GetQueryInterval() time.Duration {
 	return c.Hang.QueryInterval
 }
 
+// SetQueryInterval Update the query interval in the config
+func (c *HangUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Hang.QueryInterval = newInterval
+}
+
 func (c *HangUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.Hang.CheckerConfigs {

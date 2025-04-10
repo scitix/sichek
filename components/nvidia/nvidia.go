@@ -182,6 +182,8 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 
+	freqController := common.GetFreqController()
+	freqController.RegisterModule(consts.ComponentNameNvidia, nvidiaCfg)
 	component := &component{
 		componentName: consts.ComponentNameNvidia,
 		ctx:           ctx,
@@ -342,7 +344,9 @@ func (c *component) Start() <-chan *common.Result {
 				fmt.Printf("[NvidiaStart] panic err is %s\n", err)
 			}
 		}()
-		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
+		interval := c.cfg.GetQueryInterval()
+		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with interval: %v", interval * time.Second)
+		ticker := time.NewTicker(interval * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -350,11 +354,21 @@ func (c *component) Start() <-chan *common.Result {
 			case <-c.ctx.Done():
 				return
 			case <-ticker.C:
+				// Check if need to update ticker
+				newInterval := c.cfg.GetQueryInterval()
+				if newInterval != interval {
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval * time.Second, newInterval * time.Second)
+					ticker.Stop()
+					ticker = time.NewTicker(newInterval * time.Second)
+					interval = newInterval
+				}
 				c.serviceMtx.Lock()
+				logrus.WithField("component", "NVIDIA").Errorf("Health Check START")
 				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.GetTimeout(), c.componentName, c.HealthCheck)
+				logrus.WithField("component", "NVIDIA").Errorf("Health Check END")
 				c.serviceMtx.Unlock()
 				if err != nil {
-					fmt.Printf("%s analyze failed: %v\n", c.componentName, err)
+					fmt.Printf("%s HealthCheck failed: %v\n", c.componentName, err)
 					continue
 				}
 				// Check if the error message contains "Timeout"
