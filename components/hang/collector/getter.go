@@ -207,7 +207,7 @@ func (c *HangGetter) getLatestInfo(ctx context.Context) (*collector.NvidiaInfo, 
 			return nil, fmt.Errorf("hanggetter: wrong info type of last nvidia info")
 		}
 		if !info.Time.After(c.prevTS) {
-			return nil, fmt.Errorf("hanggetter: nvidia info not update, current time: %v, last time: %v", info.Time, c.prevTS")
+			return nil, fmt.Errorf("hanggetter: nvidia info not update, current time: %v, last time: %v", info.Time, c.prevTS)
 		} else {
 			logrus.Infof("hanggetter: get valid nvidia info, current time: %v, last time: %v", info.Time, c.prevTS)
 		}

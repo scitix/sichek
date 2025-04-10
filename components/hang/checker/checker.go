@@ -131,12 +131,12 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		if c.originalNvidiaQueryInterval == 0 {
 			c.originalNvidiaQueryInterval = 30
 		}
-		freqController.SetModuleQueryInterval(consts.ComponentNameHang, 2)
-		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, 2)
+		freqController.SetModuleQueryInterval(consts.ComponentNameHang, 10)
+		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, 10)
 		c.abnormalDetectedTimes += 1
 		status = consts.StatusNormal
-		suggest = "GPU hang suspected, increase sample rate to 2s"
-		logrus.Warn("GPU hang suspected, increase sample rate to 2s")
+		suggest = "GPU hang suspected, increase sample rate to 10s"
+		logrus.Warn("GPU hang suspected, increase sample rate to 10s")
 	case abnormalDetected && c.HighSampleRateStatus:
 		c.abnormalDetectedTimes++
 		// If the abnormal state persists for 3 consecutive checks, consider it a real GPU hang
@@ -151,7 +151,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		freqController := common.GetFreqController()
 		freqController.SetModuleQueryInterval(consts.ComponentNameHang, c.originalQueryInterval)
 		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, c.originalNvidiaQueryInterval)
-		logrus.Infof("GPU hang status resolved, restoring hang query interval to %f, nviida query interval to %f.", c.originalQueryInterval.Seconds(), c.originalNvidiaQueryInterval.Seconds())
+		logrus.Infof("GPU hang status resolved, restoring hang query interval to %d, nviida query interval to %d.", c.originalQueryInterval, c.originalNvidiaQueryInterval)
 	}
 
 	result := config.HangCheckItems["GPUHang"]

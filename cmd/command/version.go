@@ -32,7 +32,7 @@ func NewVersionCmd() *cobra.Command {
 		Short:   "Print the version number of sichek",
 		Long:    "All software has versions. This is sichek's",
 		Run: func(cmd *cobra.Command, args []string) {
-			version := "v0.2.2"
+			version := "v0.2.3"
 			gitCommit := getGitCommit()
 			goVersion := getGoVersion()
 			cmd.Printf("Version: %s\nGit Commit: %s\nGo Version: %s\n", version, gitCommit, goVersion)
