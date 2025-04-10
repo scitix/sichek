@@ -17,12 +17,8 @@ package component
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/dmesg"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,7 +30,7 @@ func NewDmesgCmd() *cobra.Command {
 		Aliases: []string{"m"},
 		Short:   "Perform Dmesg check",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -55,23 +51,11 @@ func NewDmesgCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Dmesg").Infof("load cfg file:%s", cfgFile)
 			}
-			component, err := dmesg.NewComponent(cfgFile)
+			result, err := RunComponentCheck(ctx, consts.ComponentNameDmesg, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
-				logrus.WithField("component", "Dmesg").Errorf("create dmesg component failed: %v", err)
 				return
 			}
-
-			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
-			if err != nil {
-				logrus.WithField("component", "Dmesg").Errorf("analyze dmesg failed: %v", err)
-				return
-			}
-
-			logrus.WithField("component", "Dmesg").Infof("Dmesg analysis result: \n%s", common.ToString(result))
-			pass := PrintDmesgInfo(nil, result, true)
-			StatusMutex.Lock()
-			ComponentStatuses[consts.ComponentNameDmesg] = pass
-			StatusMutex.Unlock()
+			PrintCheckResults(true, result)
 		},
 	}
 
@@ -79,29 +63,4 @@ func NewDmesgCmd() *cobra.Command {
 	dmesgCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return dmesgCmd
-}
-
-func PrintDmesgInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	dmesgEvent := make(map[string]string)
-	checkAllPassed := true
-	checkerResults := result.Checkers
-	for _, result := range checkerResults {
-		switch result.Name {
-		case "DmesgErrorChecker":
-			if result.Status == consts.StatusAbnormal {
-				checkAllPassed = false
-				dmesgEvent["DmesgErrorChecker"] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
-			}
-		}
-	}
-
-	utils.PrintTitle("Dmesg", "-")
-	if len(dmesgEvent) == 0 {
-		fmt.Printf("%sNo Dmesg event detected%s\n", Green, Reset)
-		return checkAllPassed
-	}
-	for n := range dmesgEvent {
-		fmt.Printf("\tDetected %s Event\n", n)
-	}
-	return checkAllPassed
 }

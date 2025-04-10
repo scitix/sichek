@@ -17,12 +17,8 @@ package component
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,7 +30,7 @@ func NewNCCLCmd() *cobra.Command {
 		Aliases: []string{"nc"},
 		Short:   "Perform NCCL check",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -56,23 +52,11 @@ func NewNCCLCmd() *cobra.Command {
 				logrus.WithField("component", "NCCL").Infof("load cfg file:%s", cfgFile)
 			}
 
-			component, err := nccl.NewComponent(cfgFile)
+			result, err := RunComponentCheck(ctx, consts.ComponentNameNCCL, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
-				logrus.WithField("component", "NCCL").Errorf("create nccl component failed: %v", err)
 				return
 			}
-
-			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
-			if err != nil {
-				logrus.WithField("component", "NCCL").Errorf("analyze nccl failed: %v", err)
-				return
-			}
-
-			logrus.WithField("component", "NCCL").Infof("NCCL analysis result: \n%s", common.ToString(result))
-			pass := PrintNCCLInfo(nil, result, true)
-			StatusMutex.Lock()
-			ComponentStatuses[consts.ComponentNameNCCL] = pass
-			StatusMutex.Unlock()
+			PrintCheckResults(true, result)
 		},
 	}
 
@@ -80,27 +64,4 @@ func NewNCCLCmd() *cobra.Command {
 	ncclCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return ncclCmd
-}
-
-func PrintNCCLInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	ncclEvents := make(map[string]string)
-
-	checkerResults := result.Checkers
-	for _, result := range checkerResults {
-		switch result.Name {
-		case "NCCLTimeoutChecker":
-			if result.Status == consts.StatusAbnormal {
-				ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%s%s%s", Red, result.Detail, Reset)
-			}
-		}
-	}
-	utils.PrintTitle("NCCL Error", "-")
-	if len(ncclEvents) == 0 {
-		fmt.Printf("%sNo NCCL event detected%s\n", Green, Reset)
-		return true
-	}
-	for _, v := range ncclEvents {
-		fmt.Printf("\t%s\n", v)
-	}
-	return false
 }

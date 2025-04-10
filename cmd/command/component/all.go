@@ -21,23 +21,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/cpu"
-	"github.com/scitix/sichek/components/dmesg"
-	"github.com/scitix/sichek/components/gpfs"
-	"github.com/scitix/sichek/components/hang"
-	"github.com/scitix/sichek/components/infiniband"
-	"github.com/scitix/sichek/components/nccl"
-	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-)
-
-var (
-	ComponentStatuses = make(map[string]bool) // Tracks pass/fail status for each component
-	StatusMutex       sync.Mutex              // Ensures thread-safe updates
 )
 
 // NewAllCmd creates a new cobra.Command for performing health checks on all components.
@@ -54,7 +40,7 @@ func NewAllCmd() *cobra.Command {
 		Short: "Perform all components check",
 		Long:  "Used to perform all configured related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), AllCmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.AllCmdTimeout)
 			defer cancel()
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
@@ -122,77 +108,29 @@ func NewAllCmd() *cobra.Command {
 			if len(ignoredCheckersStr) > 0 {
 				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
 			}
+			checkResults := make([]*CheckResults, len(consts.DefaultComponents))
 			var wg sync.WaitGroup
-			for _, componentName := range consts.DefaultComponents {
+			for idx, componentName := range consts.DefaultComponents {
 				if slices.Contains(ignoredComponents, componentName) {
 					continue
 				}
 				if len(usedComponentStr) > 0 && !slices.Contains(usedComponents, componentName) {
 					continue
 				}
+				wg.Add(1)
+				go func(idx int, componentName string) {
+					defer wg.Done()
+					checkResults[idx], _ = RunComponentCheck(ctx, componentName, cfgFile, specFile, ignoredCheckers, consts.AllCmdTimeout)
+				}(idx, componentName)
 
-				var component common.Component
-				var err error
-				var printFunc func(common.Info, *common.Result, bool) bool
-				switch componentName {
-				case consts.ComponentNameGpfs:
-					component, err = gpfs.NewGpfsComponent(cfgFile)
-					printFunc = PrintGPFSInfo
-				case consts.ComponentNameCPU:
-					component, err = cpu.NewComponent(cfgFile)
-					printFunc = PrintSystemInfo
-				case consts.ComponentNameInfiniband:
-					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
-					printFunc = PrintInfinibandInfo
-				case consts.ComponentNameDmesg:
-					component, err = dmesg.NewComponent(cfgFile)
-					printFunc = PrintDmesgInfo
-				case consts.ComponentNameHang:
-					if !utils.IsNvidiaGPUExist() {
-						logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
-						continue
-					}
-					_, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
-					if err != nil {
-						logrus.WithField("component", "all").Errorf("Failed to Get Nvidia component, Bypassing HealthCheck")
-						continue
-					}
-					component, err = hang.NewComponent(cfgFile)
-					printFunc = PrintHangInfo
-				case consts.ComponentNameNvidia:
-					if !utils.IsNvidiaGPUExist() {
-						logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
-						continue
-					}
-					component, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
-					printFunc = PrintNvidiaInfo
-				case consts.ComponentNameNCCL:
-					component, err = nccl.NewComponent(cfgFile)
-					printFunc = PrintNCCLInfo
-				default:
-					logrus.WithField("component", "all").Errorf("invalid component_name: %s", componentName)
-					continue
-				}
-				if err != nil {
-					logrus.WithField("component", "all").Errorf("create component %s failed: %v", componentName, err)
-					continue
-				}
-				result, err := common.RunHealthCheckWithTimeout(ctx, AllCmdTimeout, component.Name(), component.HealthCheck)
-				if err != nil {
-					logrus.WithField("component", "all").Errorf("analyze %s failed: %v", componentName, err)
-					continue
-				}
-				info, err := component.LastInfo()
-				if err != nil {
-					logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
-				}
-				passed := printFunc(info, result, !eventonly)
-				StatusMutex.Lock()
-				ComponentStatuses[componentName] = passed
-				StatusMutex.Unlock()
 			}
-
 			wg.Wait()
+			for _, checkResult := range checkResults {
+				if checkResult == nil {
+					continue
+				}
+				PrintCheckResults(!eventonly, checkResult)
+			}
 		},
 	}
 

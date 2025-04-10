@@ -22,9 +22,9 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/memory/collector"
 	"github.com/scitix/sichek/components/memory/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils/filter"
 	"github.com/sirupsen/logrus"
 )
 
@@ -54,10 +54,12 @@ func (c *MemoryChecker) GetSpec() common.CheckerSpec {
 }
 
 func (c *MemoryChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	info, ok := data.([]*filter.FilterResult)
+	memoryInfo, ok := data.(*collector.Output)
 	if !ok {
-		return nil, fmt.Errorf("wrong input of MemoryChecker")
+		return nil, fmt.Errorf("invalid memoryInfo type")
 	}
+
+	info := memoryInfo.EventResults[c.Name()]
 	raw, err := json.Marshal(info)
 	if err != nil {
 		logrus.Errorf("MemoryChecker input data cannot JSON marshal: %v", err)

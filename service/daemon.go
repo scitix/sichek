@@ -18,6 +18,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -55,8 +56,8 @@ type DaemonService struct {
 	componentsStatusLock sync.RWMutex
 	componentResults     map[string]<-chan *common.Result
 	componentsResultLock sync.RWMutex
-
-	notifier Notifier
+	node                 string
+	notifier             Notifier
 }
 
 func NewService(cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
@@ -82,7 +83,10 @@ func NewService(cfgFile string, specFile string, usedComponents []string, ignore
 	for _, componentName := range ignoredComponents {
 		usedComponentsMap[componentName] = false
 	}
-
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.WithField("daemon", "new").Errorf("get node name failed: %v", err)
+	}
 	daemonService := &DaemonService{
 		ctx:               ctx,
 		cancel:            cancel,
@@ -91,6 +95,7 @@ func NewService(cfgFile string, specFile string, usedComponents []string, ignore
 		componentsStatus:  make(map[string]bool),
 		componentResults:  make(map[string]<-chan *common.Result),
 		notifier:          notifier,
+		node:              hostname,
 	}
 
 	for componentName, enabled := range usedComponentsMap {
@@ -181,6 +186,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
 			var err error
+			result.Node = d.node
 			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
 				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 			} else {

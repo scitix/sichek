@@ -17,14 +17,8 @@ package component
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/gpfs"
-	"github.com/scitix/sichek/components/gpfs/collector"
-	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,7 +32,7 @@ func NewGpfsCmd() *cobra.Command {
 		Short:   "Perform Gpfs - related operations",
 		Long:    "Used to perform specific Gpfs - related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -59,27 +53,11 @@ func NewGpfsCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
-			component, err := gpfs.NewGpfsComponent(cfgFile)
+			result, err := RunComponentCheck(ctx, consts.ComponentNameGpfs, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
-				logrus.WithField("component", "Gpfs").Errorf("create gpfs component failed: %v", err)
 				return
 			}
-
-			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
-			if err != nil {
-				logrus.WithField("component", "Gpfs").Errorf("analyze gpfs failed: %v", err)
-				return
-			}
-
-			logrus.WithField("component", "Gpfs").Infof("Gpfs analysis result: %s\n", common.ToString(result))
-			info, err := component.LastInfo()
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
-			}
-			pass := PrintGPFSInfo(info, result, true)
-			StatusMutex.Lock()
-			ComponentStatuses[consts.ComponentNameGpfs] = pass
-			StatusMutex.Unlock()
+			PrintCheckResults(true, result)
 		},
 	}
 
@@ -87,37 +65,4 @@ func NewGpfsCmd() *cobra.Command {
 	gpfsCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return gpfsCmd
-}
-
-func PrintGPFSInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	checkAllPassed := true
-	_, ok := info.(*collector.GPFSInfo)
-	if !ok {
-		logrus.WithField("component", "Gpfs").Errorf("invalid data type, expected GPFSInfo")
-		return false
-	}
-	var mountPrint string
-	gpfsEvent := make(map[string]string)
-
-	checkerResults := result.Checkers
-	for _, result := range checkerResults {
-		statusColor := Green
-		if result.Status != consts.StatusNormal {
-			statusColor = Red
-			checkAllPassed = false
-			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", Red, result.ErrorName, Reset)
-		}
-
-		switch result.Name {
-		case config.FilesystemUnmountCheckerName:
-			mountPrint = fmt.Sprintf("GPFS: %sMounted%s", statusColor, Reset)
-		}
-	}
-
-	utils.PrintTitle("GPFS", "-")
-	fmt.Printf("%s\n", mountPrint)
-	for _, v := range gpfsEvent {
-		fmt.Printf("\t%s\n", v)
-	}
-	return checkAllPassed
 }
