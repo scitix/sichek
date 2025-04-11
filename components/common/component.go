@@ -132,7 +132,8 @@ func (s *CommonService) Start() <-chan *Result {
 				logrus.WithField("component", "service").Errorf("recover panic err: %v\n", err)
 			}
 		}()
-		ticker := time.NewTicker(s.cfg.GetQueryInterval() * time.Second)
+		interval := s.cfg.GetQueryInterval()
+		ticker := time.NewTicker(interval * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -140,6 +141,14 @@ func (s *CommonService) Start() <-chan *Result {
 			case <-s.ctx.Done():
 				return
 			case <-ticker.C:
+				// Check if need to update ticker
+				newInterval := s.cfg.GetQueryInterval()
+				if newInterval != interval {
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval * time.Second, newInterval * time.Second)
+					ticker.Stop()
+					ticker = time.NewTicker(newInterval * time.Second)
+					interval = newInterval
+				}
 				s.mutex.Lock()
 				result, err := RunHealthCheckWithTimeout(s.ctx, s.checkTimeout, s.componentName, s.healthCheckFunc)
 				s.mutex.Unlock()

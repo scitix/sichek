@@ -97,6 +97,8 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 	hangChecker := checker.NewHangChecker(hangCfg)
 
+	freqController := common.GetFreqController()
+	freqController.RegisterModule(consts.ComponentNameHang, hangCfg)
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -131,7 +133,6 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check()")
 		return &common.Result{}, err
 	}
-
 	resResult := &common.Result{
 		Item:       consts.ComponentNameHang,
 		Node:       "hang",

@@ -27,7 +27,7 @@ FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y tzdata git ca-certificates perftest && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y vim curl tzdata git ca-certificates perftest && rm -rf /var/lib/apt/lists/*
 
 ENV NVIDIA_VISIBLE_DEVICES=""
 ENV TZ=UTC

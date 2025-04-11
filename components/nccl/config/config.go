@@ -40,6 +40,10 @@ func (c *NCCLUserConfig) GetQueryInterval() time.Duration {
 	return c.NCCL.QueryInterval
 }
 
+func (c *NCCLUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.NCCL.QueryInterval = newInterval
+}
+
 func (c *NCCLUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.NCCL.CheckerConfigs {
