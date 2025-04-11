@@ -151,13 +151,9 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 				}
 				c.prevIndicatorValue[item][uuid] = infoValueTmp
 			case "smclk":
-				smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
-				smClk, _ := strconv.Atoi(smClkInt)
-				infoValue = int64(smClk)
+				infoValue = int64(deviceInfo.Clock.CurSMClk)
 			case "gclk":
-				gClkInt := strings.Split(deviceInfo.Clock.CurGraphicsClk, " ")[0]
-				gClk, _ := strconv.Atoi(gClkInt)
-				infoValue = int64(gClk)
+				infoValue = int64(deviceInfo.Clock.CurGraphicsClk)
 			default:
 				logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", item)
 			}

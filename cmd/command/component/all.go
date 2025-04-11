@@ -48,6 +48,7 @@ var (
 // - verbos: Enable verbose output (default: false)
 // - eventonly: Print events output only (default: false)
 func NewAllCmd() *cobra.Command {
+
 	allCmd := &cobra.Command{
 		Use:   "all",
 		Short: "Perform all components check",

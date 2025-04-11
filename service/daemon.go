@@ -188,7 +188,9 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 			} else {
 				err = d.notifier.SetNodeAnnotation(d.ctx, result)
+				d.exportTimeoutResolved(componentName)
 			}
+			d.metrics.ExportMetrics(result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
 			}
