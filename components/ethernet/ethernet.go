@@ -121,7 +121,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:     0,
 		cacheSize:     cfg.Ethernet.CacheSize,
-		metrics:     metrics.NewEthernetMetrics(),
+		metrics:       metrics.NewEthernetMetrics(),
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -136,7 +136,6 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
-	// fmt.Println(ethernetInfo)
 	c.metrics.ExportMetrics(ethernetInfo)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
