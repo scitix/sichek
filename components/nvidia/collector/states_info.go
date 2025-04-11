@@ -25,7 +25,7 @@ import (
 )
 
 type StatesInfo struct {
-	GpuPersistenceM string `json:"persistence"`
+	GpuPersistenceM string `json:"persistencem"`
 	// TODO
 	// GpuRstState     string `json:"gpu_reset_required"`
 	GpuPstate uint32 `json:"pstate"`

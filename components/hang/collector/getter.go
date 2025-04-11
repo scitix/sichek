@@ -18,8 +18,6 @@ package collector
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
@@ -159,13 +157,11 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 				case "txpci":
 					infoValue = int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
 				case "smclk":
-					smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
-					smClk, _ := strconv.Atoi(smClkInt)
-					infoValue = int64(smClk)
+					smClkInt := deviceInfo.Clock.CurSMClk
+					infoValue = int64(smClkInt)
 				case "gclk":
-					gClkInt := strings.Split(deviceInfo.Clock.CurGraphicsClk, " ")[0]
-					gClk, _ := strconv.Atoi(gClkInt)
-					infoValue = int64(gClk)
+					gClkInt := deviceInfo.Clock.CurGraphicsClk
+					infoValue = int64(gClkInt)
 				default:
 					logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", c.items[j])
 				}

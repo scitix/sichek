@@ -56,6 +56,8 @@ type component struct {
 	serviceMtx    sync.RWMutex
 	running       bool
 	resultChannel chan *common.Result
+
+	metrics *metrics.NvidiaMetrics
 }
 
 var (
@@ -137,20 +139,18 @@ func GetComponent() common.Component {
 
 func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	nvidiaComponentOnce.Do(func() {
-		metrics.InitNvidiaMetrics()
 		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
 	})
 	return nvidiaComponent, err
 }
 
 func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-
 	nvmlInst, err := NewNvml(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
@@ -189,6 +189,8 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 
+	metrics := metrics.NewNvidiaMetrics()
+
 	component := &component{
 		name:          consts.ComponentNameNvidia,
 		ctx:           ctx,
@@ -206,6 +208,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
+		metrics:       metrics,
 	}
 
 	return component, nil
@@ -224,7 +227,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-	metrics.ExportNvidiaMetrics(nvidiaInfo)
+	c.metrics.ExportMetrics(nvidiaInfo)
 	status := consts.StatusNormal
 	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)

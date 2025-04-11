@@ -47,6 +47,8 @@ type component struct {
 	cacheSize   int64
 
 	service *common.CommonService
+
+	metrics *metrics.CpuMetrics
 }
 
 var (
@@ -56,7 +58,6 @@ var (
 
 func NewComponent(cfgFile string) (comp common.Component, err error) {
 	cpuComponentOnce.Do(func() {
-		metrics.InitCpuMetrics()
 		cpuComponent, err = newComponent(cfgFile)
 		if err != nil {
 			panic(err)
@@ -99,6 +100,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer: make([]*common.Result, cfg.CPU.CacheSize),
 		cacheInfo:   make([]common.Info, cfg.CPU.CacheSize),
 		cacheSize:   cfg.CPU.CacheSize,
+		metrics:     metrics.NewCpuMetrics(),
 	}
 	service := common.NewCommonService(ctx, cfg, comp.HealthCheck)
 	comp.service = service
@@ -124,7 +126,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "cpu").Errorf("wrong cpu info type")
 		return nil, err
 	}
-	metrics.ExportCPUMetrics(cpuInfo)
+	c.metrics.ExportMetrics(cpuInfo)
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {

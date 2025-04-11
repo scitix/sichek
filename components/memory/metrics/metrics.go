@@ -1,30 +1,26 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/scitix/sichek/components/memory/collector"
+	common "github.com/scitix/sichek/metrics"
 )
 
-var (
-	memoryGaugeMetrics = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "memory_gauge_metrics",
-		},
-		[]string{"component_name", "metric_name"},
-	)
+const (
+	MetricPrefix = "sichek_memory"
+	TagPrefix    = "json"
 )
 
-func InitMemoryMetrics() {
-	prometheus.MustRegister(memoryGaugeMetrics)
+type MemoryMetrics struct {
+	MemoryGauge *common.GaugeVecMetricExporter
 }
 
-func ExportMemoryMetrics(metrics *collector.MemoryInfo) {
-	memoryGaugeMetrics.WithLabelValues("memory", "mem_total").Set(float64(metrics.MemTotal))
-	memoryGaugeMetrics.WithLabelValues("memory", "mem_used").Set(float64(metrics.MemUsed))
-	memoryGaugeMetrics.WithLabelValues("memory", "mem_free").Set(float64(metrics.MemFree))
-	memoryGaugeMetrics.WithLabelValues("memory", "mem_percent_used").Set(float64(metrics.MemPercentUsed))
-	memoryGaugeMetrics.WithLabelValues("memory", "mem_anonymous_used").Set(float64(metrics.MemAnonymousUsed))
-	memoryGaugeMetrics.WithLabelValues("memory", "pagecache_used").Set(float64(metrics.PageCacheUsed))
-	memoryGaugeMetrics.WithLabelValues("memory", "mem_unevictable_used").Set(float64(metrics.MemUnevictableUsed))
-	memoryGaugeMetrics.WithLabelValues("memory", "dirty_page_used").Set(float64(metrics.DirtyPageUsed))
+func NewMemoryMetrics() *MemoryMetrics {
+	MemoryGauge := common.NewGaugeVecMetricExporter(MetricPrefix, nil)
+	return &MemoryMetrics{
+		MemoryGauge: MemoryGauge,
+	}
+}
+
+func (m *MemoryMetrics) ExportMetrics(metrics *collector.MemoryInfo) {
+	m.MemoryGauge.ExportStruct(metrics, nil, TagPrefix)
 }
