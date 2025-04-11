@@ -1,0 +1,38 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.name }}-svc
+  labels:
+    app: {{ .Values.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.name }}  # 选择标签与 DaemonSet 中应用相匹配的 Pods  
+    role: leader
+  ports:
+    - name: metrics  
+      port: 9091   # 指标端口  
+      targetPort: metrics  # 容器中暴露的端口  
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Values.name }}-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}  
+spec:
+  podMetricsEndpoints:
+    - interval: 15s  # 抓取间隔  
+      path: /metrics  # 指标路径  
+      port: metrics  # 服务中定义的端口名称  
+      scrapeTimeout: 10s
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}  # 匹配命名空间  
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}  # 选择与 Service 中标签匹配的 Pods  
