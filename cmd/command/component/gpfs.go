@@ -65,14 +65,14 @@ func NewGpfsCmd() *cobra.Command {
 				return
 			}
 
-			result, err := component.HealthCheck(ctx)
+			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", "Gpfs").Errorf("analyze gpfs failed: %v", err)
 				return
 			}
 
 			logrus.WithField("component", "Gpfs").Infof("Gpfs analysis result: %s\n", common.ToString(result))
-			info, err := component.LastInfo(ctx)
+			info, err := component.LastInfo()
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 			}

@@ -1,8 +1,8 @@
 nccl:
   name: NCCL
   log_dir: "/var/log/pods"
-  query_interval: 10
-  cache_size: 10
+  query_interval: 30
+  cache_size: 5
   checkers:
     TIMEOUT:
       name: "NCCL Timeout"

@@ -31,8 +31,9 @@ import (
 )
 
 type component struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx           context.Context
+	cancel        context.CancelFunc
+	componentName string
 
 	cfg      *config.DmesgUserConfig
 	cfgMutex sync.Mutex
@@ -78,7 +79,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		return nil, err
 	}
 
-	collectorPointer, err := collector.NewDmesgCollector(ctx, dmsgCfg)
+	collectorPointer, err := collector.NewDmesgCollector(dmsgCfg)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
@@ -86,10 +87,10 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 	dmesgChecker := checker.NewDmesgChecker(dmsgCfg)
 
 	component := &component{
-		ctx:    ctx,
-		cancel: cancel,
-
-		cfg: dmsgCfg,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameDmesg,
+		cfg:           dmsgCfg,
 
 		collector: collectorPointer,
 		checker:   dmesgChecker,
@@ -99,24 +100,22 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		currIndex:         0,
 		cacheSize:         dmsgCfg.Dmesg.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, dmsgCfg, component.HealthCheck)
+	component.service = common.NewCommonService(ctx, dmsgCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameDmesg
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	_, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
-	defer cancel()
 	info, err := c.collector.Collect(ctx)
 	if err != nil {
-		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect()")
+		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect(ctx)")
 		return &common.Result{}, err
 	}
 
-	checkRes, err := c.checker.Check(c.ctx, info)
+	checkRes, err := c.checker.Check(ctx, info)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Check()")
 		return &common.Result{}, err
@@ -146,19 +145,19 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.Lock()
 	defer c.cacheMtx.Unlock()
 	return c.cacheResultBuffer, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.Lock()
 	defer c.cacheMtx.Unlock()
 	return c.cacheInfoBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheResultBuffer[c.currIndex]
@@ -168,7 +167,7 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	info := c.cacheInfoBuffer[c.currIndex]
@@ -182,15 +181,15 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
-	return c.service.Start(ctx)
+func (c *component) Start() <-chan *common.Result {
+	return c.service.Start()
 }
 
 func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	dmsgCfg, ok := cfg.(*config.DmesgUserConfig)
 	if !ok {
@@ -198,9 +197,13 @@ func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) 
 	}
 	c.cfg = dmsgCfg
 	c.cfgMutex.Unlock()
-	return c.service.Update(ctx, cfg)
+	return c.service.Update(cfg)
 }
 
 func (c *component) Status() bool {
 	return c.service.Status()
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

@@ -46,7 +46,7 @@ type GPFSCollector struct {
 	filter *filter.FileFilter
 }
 
-func NewGPFSCollector(ctx context.Context, cfg common.ComponentUserConfig) (*GPFSCollector, error) {
+func NewGPFSCollector(cfg common.ComponentUserConfig) (*GPFSCollector, error) {
 	configPointer, ok := cfg.(*config.GpfsUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for GPFS")

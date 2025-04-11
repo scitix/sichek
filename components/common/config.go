@@ -20,17 +20,23 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
+// ComponentUserConfig defines the methods for getting and setting user configuration.
 type ComponentUserConfig interface {
 	GetCheckerSpec() map[string]CheckerSpec
 	GetQueryInterval() time.Duration
+	SetQueryInterval(newInterval time.Duration)
 	LoadUserConfigFromYaml(file string) error
 }
+
+// ComponentSpecConfig defines the method for loading specification config from YAML.
 type ComponentSpecConfig interface {
 	LoadSpecConfigFromYaml(file string) error
 }
@@ -39,6 +45,7 @@ type CheckerSpec interface {
 	// LoadFromYaml(file string) error
 }
 
+// GetDefaultConfigFiles returns the default configuration directory and the files inside it.
 func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, component)
 	_, err := os.Stat(defaultCfgDirPath)
@@ -48,7 +55,7 @@ func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 		if !ok {
 			return "", nil, fmt.Errorf("get curr file path failed")
 		}
-		// 获取当前文件的目录
+		// Get the directory of the current file
 		commonDir := filepath.Dir(curFile)
 		defaultCfgDirPath = filepath.Join(filepath.Dir(commonDir), component, "config")
 	}
@@ -59,6 +66,7 @@ func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	return defaultCfgDirPath, files, nil
 }
 
+// DefaultComponentConfig loads the default configuration for a given component from a YAML file.
 func DefaultComponentConfig(component string, config interface{}, filename string) error {
 	defaultCfgDirPath, files, err := GetDefaultConfigFiles(component)
 	if err != nil {
@@ -72,4 +80,55 @@ func DefaultComponentConfig(component string, config interface{}, filename strin
 		}
 	}
 	return fmt.Errorf("failed to find default config file: %s", filename)
+}
+
+// FreqController controls the frequency of component queries.
+type FreqController struct {
+	mu      sync.Mutex
+	modules map[string]ComponentUserConfig
+}
+
+// RegisterModule registers a new module with its configuration.
+func (fc *FreqController) RegisterModule(moduleName string, moduleCfg ComponentUserConfig) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	fc.modules[moduleName] = moduleCfg
+}
+
+// SetModuleQueryInterval sets the query interval for a specific module.
+func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval time.Duration) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	if module, exists := fc.modules[moduleName]; exists {
+		module.SetQueryInterval(newInterval)
+	}
+}
+
+// GetModuleQueryInterval retrieves the query interval for a specific module.
+func (fc *FreqController) GetModuleQueryInterval(moduleName string) time.Duration {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	if module, exists := fc.modules[moduleName]; exists {
+		return module.GetQueryInterval()
+	} else {
+		// If the module is not registered, return a default value.
+		logrus.WithField("component", "FreqController").Errorf("module %s not registered", moduleName)
+		return 0
+	}
+}
+
+// Global instance for the frequency controller.
+var (
+	freqController     *FreqController
+	freqControllerOnce sync.Once
+)
+
+// GetFreqController creates and returns a singleton instance of FreqController.
+func GetFreqController() *FreqController {
+	freqControllerOnce.Do(func() {
+		freqController = &FreqController{
+			modules: make(map[string]ComponentUserConfig),
+		}
+	})
+	return freqController
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scitix/sichek/pkg/systemd"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/scitix/sichek/service"
 )
 
@@ -35,9 +36,10 @@ func NewDaemonRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Run sichek daemon process",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			_, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
+			utils.InitLogger(logrus.InfoLevel, false)
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
@@ -94,7 +96,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			logrus.WithField("daemon", "run").Info("starting sichek daemon service")
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
-			daemonService, err := service.NewService(ctx, cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
+			daemonService, err := service.NewService(cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return

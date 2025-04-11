@@ -47,7 +47,7 @@ type MemoryCollector struct {
 	filter *filter.FileFilter
 }
 
-func NewCollector(ctx context.Context, cfg common.ComponentUserConfig) (*MemoryCollector, error) {
+func NewCollector(cfg common.ComponentUserConfig) (*MemoryCollector, error) {
 	configPointer, ok := cfg.(*config.MemoryUserConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type for Memory")

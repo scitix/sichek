@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,9 +35,9 @@ import (
 )
 
 type component struct {
-	name   string
-	ctx    context.Context
-	cancel context.CancelFunc
+	componentName string
+	ctx           context.Context
+	cancel        context.CancelFunc
 
 	cfg      *config.NvidiaUserConfig
 	cfgMutex sync.RWMutex // 用于更新时的锁
@@ -81,12 +82,12 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 		}()
 		nvmlInst = nvml.New()
 		if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
-			initError = fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
+			initError = fmt.Errorf("%v", nvml.ErrorString(ret))
 		}
 	}()
 	select {
 	case <-ctx_.Done():
-		return nil, fmt.Errorf("failed to initialize NVML: TIMEOUT")
+		return nil, fmt.Errorf("NewNvml TIMEOUT")
 	case <-done:
 		if initError != nil {
 			return nil, initError
@@ -106,28 +107,22 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
     If nvmlInst becomes invalid, reinitialize it.
 */
 func ReNewNvml(c *component) error {
-	shutdownRet := c.nvmlInst.Shutdown()
-	if !errors.Is(shutdownRet, nvml.SUCCESS) {
-		logrus.WithField("component", "nvidia").Errorf("failed to shutdown NVML: %v", shutdownRet.Error())
-		return fmt.Errorf("shutdownRet:%s", shutdownRet.Error())
-	}
+	StopNvml(c.nvmlInst)
 
 	nvmlInst, ret := NewNvml(c.ctx)
 	if ret != nil {
-		logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML: %v", ret)
-		return ret
+		c.nvmlInst = nil
+	} else {
+		c.nvmlInst = nvmlInst
 	}
-	c.nvmlInst = nvmlInst
-	return nil
+	return ret
 }
 
-func StopNvml(nvmlInst nvml.Interface) error {
+func StopNvml(nvmlInst nvml.Interface) {
 	ret := nvmlInst.Shutdown()
 	if !errors.Is(ret, nvml.SUCCESS) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to shutdown NVML: %v", nvml.ErrorString(ret))
-		return ret
 	}
-	return nil
 }
 
 func GetComponent() common.Component {
@@ -189,10 +184,10 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 
-	metrics := metrics.NewNvidiaMetrics()
-
+	freqController := common.GetFreqController()
+	freqController.RegisterModule(consts.ComponentNameNvidia, nvidiaCfg)
 	component := &component{
-		name:          consts.ComponentNameNvidia,
+		componentName: consts.ComponentNameNvidia,
 		ctx:           ctx,
 		cancel:        cancel,
 		cfg:           nvidiaCfg,
@@ -208,31 +203,54 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
-		metrics:       metrics,
+		metrics:       metrics.NewNvidiaMetrics(),
 	}
-
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return c.name
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
-	defer cancel()
-
-	nvidiaInfo, err := c.collector.Collect(cctx)
+	if c.nvmlInst == nil {
+		err := ReNewNvml(c)
+		// Check again after reinitialization
+		if c.nvmlInst == nil {
+			logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML: %s", err.Error())
+			checkerResult := &common.CheckerResult{
+				Name:        "NVMLInitFailed",
+				Description: fmt.Sprintf("failed to Reinitialize NVML: %s", err.Error()),
+				Status:      consts.StatusAbnormal,
+				Level:       consts.LevelCritical,
+				Detail:      "",
+				ErrorName:   "NVMLInitFailed",
+				Suggestion:  fmt.Sprintf("Please check the %s status", c.componentName),
+			}
+			result := &common.Result{
+				Item:     consts.ComponentNameNvidia,
+				Status:   consts.StatusAbnormal,
+				Level:    consts.LevelCritical,
+				Checkers: []*common.CheckerResult{checkerResult},
+				Time:     time.Now(),
+			}
+			return result, fmt.Errorf("failed to reinitialize NVML: %s", err.Error())
+		}
+		logrus.WithField("component", "NVIDIA").Errorf("Reinitialize NVML successfully")
+	}
+	timer := common.NewTimer(fmt.Sprintf("%s-HealthCheck-Cost", c.componentName))
+	nvidiaInfo, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-	c.metrics.ExportMetrics(nvidiaInfo)
+	c.metrics.ExportMetrics(nvidiaInfo)	
+	timer.Mark("Collect")
 	status := consts.StatusNormal
 	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {
-		checkResult, err := each.Check(cctx, nvidiaInfo)
+		checkResult, err := each.Check(ctx, nvidiaInfo)
 		if err != nil {
 			logrus.WithField("component", "NVIDIA").Errorf("failed to check: %v", err)
 			// continue
@@ -248,6 +266,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			}
 		}
 	}
+	timer.Mark("check")
 
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == consts.StatusAbnormal {
@@ -257,7 +276,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 	}
 	resResult := &common.Result{
-		Item:     c.name,
+		Item:     c.componentName,
 		Status:   status,
 		Level:    level,
 		Checkers: checkerResults,
@@ -274,17 +293,18 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	} else {
 		logrus.WithField("component", "NVIDIA").Infof("Health Check PASSED")
 	}
+	timer.Mark("cache")
 
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.Lock()
 	defer c.cacheMtx.Unlock()
 	return c.cacheBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheBuffer[c.currIndex]
@@ -294,13 +314,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfo, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	var info common.Info
@@ -316,7 +336,7 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
+func (c *component) Start() <-chan *common.Result {
 	c.serviceMtx.Lock()
 	if c.running {
 		c.serviceMtx.Unlock()
@@ -328,10 +348,12 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Printf("[Nvidiastart] panic err is %s\n", err)
+				fmt.Printf("[NvidiaStart] panic err is %s\n", err)
 			}
 		}()
-		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
+		interval := c.cfg.GetQueryInterval()
+		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with interval: %v", interval*time.Second)
+		ticker := time.NewTicker(interval * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -339,13 +361,33 @@ func (c *component) Start(ctx context.Context) <-chan *common.Result {
 			case <-c.ctx.Done():
 				return
 			case <-ticker.C:
+				// Check if need to update ticker
+				newInterval := c.cfg.GetQueryInterval()
+				if newInterval != interval {
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
+					ticker.Stop()
+					ticker = time.NewTicker(newInterval * time.Second)
+					interval = newInterval
+				}
 				c.serviceMtx.Lock()
-				result, err := c.HealthCheck(c.ctx)
+				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.GetTimeout(), c.componentName, c.HealthCheck)
 				c.serviceMtx.Unlock()
 				if err != nil {
-					fmt.Printf("%s analyze failed: %v\n", c.name, err)
+					fmt.Printf("%s HealthCheck failed: %v\n", c.componentName, err)
 					continue
 				}
+				// Check if the error message contains "Timeout"
+				if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
+					// Handle the timeout error
+					logrus.WithField("component", "NVIDIA").Errorf("Health Check TIMEOUT")
+					err := ReNewNvml(c)
+					if err != nil {
+						logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML after HealthCheck Timeout: %s", err.Error())
+					} else {
+						logrus.WithField("component", "NVIDIA").Warnf("Reinitialize NVML successfully after HealthCheck Timeout")
+					}
+				}
+
 				c.serviceMtx.Lock()
 				c.resultChannel <- result
 				c.serviceMtx.Unlock()
@@ -381,7 +423,7 @@ func (c *component) Stop() error {
 	return nil
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	configPointer, ok := cfg.(*config.NvidiaUserConfig)
 	if !ok {
@@ -397,4 +439,8 @@ func (c *component) Status() bool {
 	defer c.serviceMtx.RUnlock()
 
 	return c.running
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

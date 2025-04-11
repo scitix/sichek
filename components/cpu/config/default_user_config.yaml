@@ -1,7 +1,7 @@
 cpu:
   name: cpu
-  query_interval: 10
-  cache_size: 10
+  query_interval: 30
+  cache_size: 5
   event_checkers:
     kernel_panic:
       name: "kernel_panic"

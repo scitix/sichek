@@ -265,10 +265,7 @@ func (i *InfinibandInfo) GetLinkLayer(IBDev string) []string {
 	return i.GetSysCnt(IBDev, "ports/1/link_layer")
 }
 
-func (i *InfinibandInfo) GetPCIEMRR(IBDev string) []string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (i *InfinibandInfo) GetPCIEMRR(ctx context.Context, IBDev string) []string {
 	bdf := i.GetBDF(IBDev)
 
 	// lspciCmd := exec.Command("lspci", "-s", bdf[0], "-vvv")
@@ -393,10 +390,7 @@ func (i *InfinibandInfo) GetCPUList(IBDev string) []string {
 	return CPUList
 }
 
-func (i *InfinibandInfo) GetOFEDInfo() string {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
+func (i *InfinibandInfo) GetOFEDInfo(ctx context.Context) string {
 	var ver string
 	// cmd := exec.Command("ofed_info", "-s")
 	output, err := utils.ExecCommand(ctx, "ofed_info", "-s")
@@ -450,11 +444,11 @@ func (i *InfinibandInfo) GetKernelModule() []string {
 	return installedModule
 }
 
-func (i *InfinibandInfo) GetIBInfo() *InfinibandInfo {
+func (i *InfinibandInfo) GetIBInfo(ctx context.Context) *InfinibandInfo {
 	var IBInfo InfinibandInfo
 	var IBSWInfo IBSoftWareInfo
 
-	IBSWInfo.OFEDVer = i.GetOFEDInfo()
+	IBSWInfo.OFEDVer = i.GetOFEDInfo(ctx)
 	IBSWInfo.KernelModule = i.GetKernelModule()
 
 	// IBInfo.HCAPCINum = IBInfo.GetHCANum() // ???
@@ -490,8 +484,8 @@ func (i *InfinibandInfo) GetIBInfo() *InfinibandInfo {
 		if len(i.GetBDF(IBDev)) >= 1 {
 			perIBHWInfo.PCIEBDF = i.GetBDF(IBDev)[0]
 		}
-		if len(i.GetPCIEMRR(IBDev)) >= 1 {
-			perIBHWInfo.PCIEMRR = i.GetPCIEMRR(IBDev)[0]
+		if len(i.GetPCIEMRR(ctx, IBDev)) >= 1 {
+			perIBHWInfo.PCIEMRR = i.GetPCIEMRR(ctx, IBDev)[0]
 		}
 		if len(i.GetPCIECLinkSpeed(IBDev)) >= 1 {
 			perIBHWInfo.PCIESpeed = i.GetPCIECLinkSpeed(IBDev)[0]

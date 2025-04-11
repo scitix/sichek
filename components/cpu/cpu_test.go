@@ -35,7 +35,7 @@ func TestHealthCheck(t *testing.T) {
 		return
 	}
 
-	result, err := component.HealthCheck(ctx)
+	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("analyze cpu failed: %v", err)
 		return

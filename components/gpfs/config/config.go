@@ -47,6 +47,10 @@ func (c *GpfsUserConfig) GetQueryInterval() time.Duration {
 	return c.Gpfs.QueryInterval
 }
 
+func (c *GpfsUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Gpfs.QueryInterval = newInterval
+}
+
 func (c *GpfsUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)

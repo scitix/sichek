@@ -37,13 +37,15 @@ type NvidiaConfig struct {
 
 func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
-	// for _, name := range c.IgnoredCheckers {
-	// 	commonCfgMap[name] = {}
-	// }
 	return commonCfgMap
 }
 func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {
 	return c.Nvidia.QueryInterval
+}
+
+// SetQueryInterval Update the query interval in the config
+func (c *NvidiaUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Nvidia.QueryInterval = newInterval
 }
 
 func (c *NvidiaUserConfig) LoadUserConfigFromYaml(file string) error {

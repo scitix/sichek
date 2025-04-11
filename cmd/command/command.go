@@ -37,6 +37,10 @@ func NewRootCmd() *cobra.Command {
 				"g":          true,
 				"infiniband": true,
 				"i":          true,
+				"hang":       true,
+				"h":          true,
+				"all":        true,
+				"run":        true,
 			}
 
 			if commandsRequireRoot[cmd.Use] {

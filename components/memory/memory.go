@@ -35,11 +35,11 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg      *config.MemoryUserConfig
-	cfgMutex sync.Mutex
-
-	collector common.Collector
-	checkers  []common.Checker
+	cfg           *config.MemoryUserConfig
+	cfgMutex      sync.Mutex
+	componentName string
+	collector     common.Collector
+	checkers      []common.Checker
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -81,7 +81,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 
-	collectorPointer, err := collector.NewCollector(ctx, memoryCfg)
+	collectorPointer, err := collector.NewCollector(memoryCfg)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
@@ -89,7 +89,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 
 	checkers := make([]common.Checker, 0)
 	for name, spec := range memoryCfg.GetCheckerSpec() {
-		memChecker, err := checker.NewMemoryChecker(ctx, spec)
+		memChecker, err := checker.NewMemoryChecker(spec)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)
 			return nil, err
@@ -98,30 +98,29 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 	}
 
 	component := &component{
-		ctx:         ctx,
-		cancel:      cancel,
-		collector:   collectorPointer,
-		checkers:    checkers,
-		cfg:         memoryCfg,
-		cacheBuffer: make([]*common.Result, memoryCfg.Memory.CacheSize),
-		cacheInfo:   make([]common.Info, memoryCfg.Memory.CacheSize),
-		cacheSize:   memoryCfg.Memory.CacheSize,
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameMemory,
+		collector:     collectorPointer,
+		checkers:      checkers,
+		cfg:           memoryCfg,
+		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),
+		cacheInfo:     make([]common.Info, memoryCfg.Memory.CacheSize),
+		cacheSize:     memoryCfg.Memory.CacheSize,
 		metrics:     metrics.NewMemoryMetrics(),
 	}
-	service := common.NewCommonService(ctx, memoryCfg, component.HealthCheck)
+	service := common.NewCommonService(ctx, memoryCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
 
 	return component, nil
 }
 
 func (c *component) Name() string {
-	return consts.ComponentNameMemory
+	return c.componentName
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	cctx, cancel := context.WithTimeout(ctx, c.cfg.GetQueryInterval()*time.Second)
-	defer cancel()
-	info, err := c.collector.Collect(cctx)
+	info, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("failed to collect memory info: %v", err)
 		return nil, err
@@ -135,7 +134,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	status := consts.StatusNormal
 	checkerResults := make([]*common.CheckerResult, 0)
 	for _, each := range c.checkers {
-		checkResult, err := each.Check(cctx, memInfo.EventResults[each.Name()])
+		checkResult, err := each.Check(ctx, memInfo.EventResults[each.Name()])
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("failed to check: %v", err)
 			continue
@@ -170,13 +169,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return resResult, nil
 }
 
-func (c *component) CacheResults(ctx context.Context) ([]*common.Result, error) {
+func (c *component) CacheResults() ([]*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheBuffer, nil
 }
 
-func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
+func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	result := c.cacheBuffer[c.currIndex]
@@ -186,13 +185,13 @@ func (c *component) LastResult(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) CacheInfos(ctx context.Context) ([]common.Info, error) {
+func (c *component) CacheInfos() ([]common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	return c.cacheInfo, nil
 }
 
-func (c *component) LastInfo(ctx context.Context) (common.Info, error) {
+func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
 	info := c.cacheInfo[c.currIndex]
@@ -206,15 +205,15 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-func (c *component) Start(ctx context.Context) <-chan *common.Result {
-	return c.service.Start(ctx)
+func (c *component) Start() <-chan *common.Result {
+	return c.service.Start()
 }
 
 func (c *component) Stop() error {
 	return c.service.Stop()
 }
 
-func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) error {
+func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	configPointer, ok := cfg.(*config.MemoryUserConfig)
 	if !ok {
@@ -222,9 +221,13 @@ func (c *component) Update(ctx context.Context, cfg common.ComponentUserConfig) 
 	}
 	c.cfg = configPointer
 	c.cfgMutex.Unlock()
-	return c.service.Update(ctx, cfg)
+	return c.service.Update(cfg)
 }
 
 func (c *component) Status() bool {
 	return c.service.Status()
+}
+
+func (c *component) GetTimeout() time.Duration {
+	return c.cfg.GetQueryInterval() * time.Second
 }

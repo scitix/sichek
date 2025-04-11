@@ -27,3 +27,5 @@ infiniband:
       pcie_acs: "disable"
       hca_specs:
         MT_0000000970: {}
+        MT_0000000838: {}
+        MT_0000000971: {}

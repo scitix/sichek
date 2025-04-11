@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04 AS build
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04 AS build
 
 RUN apt-get update && apt-get install -y \
     build-essential gcc g++ curl git \
@@ -23,14 +23,13 @@ COPY . .
 RUN go mod download
 RUN goreleaser release --snapshot --clean
 
-FROM nvidia/cuda:12.8.0-base-ubuntu22.04
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
-    vim build-essential tzdata curl git sudo ca-certificates libgcc1 perftest\
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y vim curl tzdata git ca-certificates perftest && rm -rf /var/lib/apt/lists/*
 
+ENV NVIDIA_VISIBLE_DEVICES=""
 ENV TZ=UTC
 RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure --frontend noninteractive tzdata
 
