@@ -140,7 +140,7 @@ func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (co
 }
 
 func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
 			cancel()
@@ -244,7 +244,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-	c.metrics.ExportMetrics(nvidiaInfo)	
+	c.metrics.ExportMetrics(nvidiaInfo)
 	timer.Mark("Collect")
 	status := consts.StatusNormal
 	level := consts.LevelInfo
