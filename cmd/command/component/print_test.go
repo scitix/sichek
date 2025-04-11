@@ -41,7 +41,7 @@ func TestCPU_HealthCheckPrint(t *testing.T) {
 	}
 
 	info, _ := component.LastInfo()
-	PrintSystemInfo(info, result, true)
+	component.PrintInfo(info, result, true)
 }
 
 func TestNvidia_HealthCheckPrint(t *testing.T) {
@@ -58,5 +58,5 @@ func TestNvidia_HealthCheckPrint(t *testing.T) {
 	}
 
 	info, _ := component.LastInfo()
-	PrintNvidiaInfo(info, result, true)
+	component.PrintInfo(info, result, true)
 }

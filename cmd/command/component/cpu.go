@@ -17,14 +17,9 @@ package component
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu"
-	"github.com/scitix/sichek/components/cpu/checker"
-	"github.com/scitix/sichek/components/cpu/collector"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -37,7 +32,7 @@ func NewCPUCmd() *cobra.Command {
 		Short:   "Perform CPU - related operations",
 		Long:    "Used to perform specific CPU - related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -60,82 +55,19 @@ func NewCPUCmd() *cobra.Command {
 			}
 			component, err := cpu.NewComponent(cfgFile)
 			if err != nil {
-				logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
+				logrus.WithField("component", "cpu").Error(err)
 				return
 			}
-
-			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
-				logrus.WithField("component", "cpu").Errorf("analyze cpu failed: %v", err)
 				return
 			}
+			PrintCheckResults(true, result)
 
-			logrus.WithField("component", component.Name()).Infof("Analysis Result: %s\n", common.ToString(result))
-			info, err := component.LastInfo()
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
-			}
-			pass := PrintSystemInfo(info, result, true)
-			StatusMutex.Lock()
-			ComponentStatuses[consts.ComponentNameCPU] = pass
-			StatusMutex.Unlock()
 		},
 	}
 
 	cpuCmd.Flags().StringP("cfg", "c", "", "Path to the cpu Cfg")
 	cpuCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 	return cpuCmd
-}
-
-func PrintSystemInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	checkAllPassed := true
-	cpuInfo, ok := info.(*collector.CPUOutput)
-	if !ok {
-		logrus.WithField("component", "cpu").Errorf("invalid data type, expected CPUOutput")
-		return false
-	}
-	osPrint := fmt.Sprintf("OS: %s%s(%s)%s", Green, cpuInfo.HostInfo.OSVersion, cpuInfo.HostInfo.KernelVersion, Reset)
-	modelNamePrint := fmt.Sprintf("ModelName: %s%s%s", Green, cpuInfo.CPUArchInfo.ModelName, Reset)
-	uptimePrint := fmt.Sprintf("Uptime: %s%s%s", Green, cpuInfo.Uptime, Reset)
-
-	nuamNodes := make([]string, 0, len(cpuInfo.CPUArchInfo.NumaNodeInfo))
-	for _, node := range cpuInfo.CPUArchInfo.NumaNodeInfo {
-		numaNode := fmt.Sprintf("NUMA node%d CPU(s): %s%s%s", node.ID, Green, node.CPUs, Reset)
-		nuamNodes = append(nuamNodes, numaNode)
-	}
-	taskPrint := fmt.Sprintf("Tasks: %d, %s%d%s thr; %d running", cpuInfo.UsageInfo.SystemProcessesTotal, Green, cpuInfo.UsageInfo.TotalThreadCount, Reset, cpuInfo.UsageInfo.RunnableTaskCount)
-	loadAvgPrint := fmt.Sprintf("Load average: %s%.2f %.2f %.2f%s", Green, cpuInfo.UsageInfo.CpuLoadAvg1m, cpuInfo.UsageInfo.CpuLoadAvg5m, cpuInfo.UsageInfo.CpuLoadAvg15m, Reset)
-	var performanceModePrint string
-	checkerResults := result.Checkers
-	for _, result := range checkerResults {
-		statusColor := Green
-		if result.Status != consts.StatusNormal {
-			statusColor = Red
-			checkAllPassed = false
-		}
-		switch result.Name {
-		case checker.CPUPerfCheckerName:
-			performanceModePrint = fmt.Sprintf("PerformanceMode: %s%s%s", statusColor, result.Curr, Reset)
-		}
-	}
-	if summaryPrint {
-		fmt.Printf("\nHostname: %s\n\n", cpuInfo.HostInfo.Hostname)
-		utils.PrintTitle("System", "-")
-		termWidth, err := utils.GetTerminalWidth()
-		printInterval := 40
-		if err == nil {
-			printInterval = termWidth / 3
-		}
-		fmt.Printf("%-*s%-*s\n", printInterval, osPrint, printInterval, modelNamePrint)
-		fmt.Printf("%-*s%-*s%-*s\n", printInterval, uptimePrint, printInterval, nuamNodes[0], printInterval, taskPrint)
-		if cpuInfo.CPUArchInfo.NumaNum > 1 {
-			fmt.Printf("%-*s%-*s%-*s\n", printInterval, Green+""+Reset, printInterval, nuamNodes[1], printInterval, loadAvgPrint)
-		} else {
-			fmt.Printf("%-*s%-*s%-*s\n", printInterval, Green+""+Reset, printInterval, Green+""+Reset, printInterval, loadAvgPrint)
-		}
-		// TODO: more numa node
-		fmt.Printf("%-*s%-*s\n", printInterval, Green+""+Reset, printInterval, performanceModePrint)
-		fmt.Println()
-	}
-	return checkAllPassed
 }

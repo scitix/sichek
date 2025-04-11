@@ -22,9 +22,9 @@ import (
 	"strconv"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/gpfs/collector"
 	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
 )
@@ -76,10 +76,12 @@ func (c *EventChecker) GetSpec() common.CheckerSpec {
 }
 
 func (c *EventChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	info, ok := data.([]*filter.FilterResult)
+	gpfsInfo, ok := data.(*collector.GPFSInfo)
 	if !ok {
-		return nil, fmt.Errorf("wrong input of EventChecker")
+		return nil, fmt.Errorf("invalid gpfsInfo type")
 	}
+
+	info := gpfsInfo.FilterResults[c.Name()]
 	raw, err := json.Marshal(info)
 	if err != nil {
 		logrus.Errorf("EventChecker input data cannot JSON marshal: %v", err)

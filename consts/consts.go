@@ -104,3 +104,17 @@ const (
 	DefaultSpecCfgSuffix = "_spec.yaml"
 	DefaultPodCfgPath    = "/var/sichek/"
 )
+
+const (
+	Reset  = "\033[0m"
+	Red    = "\033[31m"
+	Green  = "\033[32m"
+	Yellow = "\033[33m"
+	Blue   = "\033[34m"
+	Purple = "\033[35m"
+	Cyan   = "\033[36m"
+	White  = "\033[37m"
+)
+const PadLen = len(Green) + len(Reset)
+const CmdTimeout = 30 * time.Second
+const AllCmdTimeout = 60 * time.Second

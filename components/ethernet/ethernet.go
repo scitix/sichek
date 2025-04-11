@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"sync"
 	"time"
@@ -133,63 +134,26 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
-
-	status := consts.StatusNormal
-	checkerResults := make([]*common.CheckerResult, 0)
-	var err error
-	var level = consts.LevelInfo
-
-	for _, each := range c.checkers {
-		logrus.WithField("component", "ethernet").Debugf("do the check: %s", each.Name())
-		result, err := each.Check(ctx, ethernetInfo)
-		if err != nil {
-			logrus.WithField("component", "ethernet").Errorf("failed to check: %v", err)
-			continue
-		}
-		checkerResults = append(checkerResults, result)
-	}
-
-	for _, checkItem := range checkerResults {
-		if checkItem.Status == consts.StatusAbnormal {
-			logrus.WithField("component", "ethernet").Infof("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
-		}
-	}
-
-	for _, checkItem := range checkerResults {
-		if checkItem.Status == consts.StatusAbnormal {
-			status = consts.StatusAbnormal
-			level = config.EthCheckItems[checkItem.Name].Level
-			logrus.WithField("component", "ethernet").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
-			break
-		}
-	}
+	result := common.Check(ctx, c.Name(), ethernetInfo, c.checkers)
 
 	info, err := ethernetInfo.JSON()
 	if err != nil {
 		return nil, err
 	}
-
-	resResult := &common.Result{
-		Item:     consts.ComponentNameEthernet,
-		Status:   status,
-		Level:    level,
-		RawData:  info,
-		Checkers: checkerResults,
-		Time:     time.Now(),
-	}
+	result.RawData = info
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = ethernetInfo
-	c.cacheBuffer[c.currIndex] = resResult
+	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "ethernet").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "ethernet").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -257,4 +221,58 @@ func (c *component) Stop() error {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	checkAllPassed := true
+	ethInfo, ok := info.(*collector.EthernetInfo)
+	if !ok {
+		logrus.WithField("component", "ethernet").Errorf("invalid data type, expected EthernetInfo")
+		return false
+	}
+
+	ethControllersPrint := "Ethernet Nic: "
+	var phyStatPrint string
+
+	ethernetEvents := make(map[string]string)
+	for _, ethDev := range ethInfo.EthDevs {
+		ethControllersPrint += fmt.Sprintf("%s, ", ethDev)
+	}
+	ethControllersPrint = ethControllersPrint[:len(ethControllersPrint)-2]
+
+	checkerResults := result.Checkers
+	for _, result := range checkerResults {
+		switch result.Name {
+		case config.ChekEthPhyState:
+			if result.Status == consts.StatusNormal {
+				phyStatPrint = fmt.Sprintf("Phy State: %sLinkUp%s", consts.Green, consts.Reset)
+			} else {
+				phyStatPrint = fmt.Sprintf("Phy State: %sLinkDown%s", consts.Red, consts.Reset)
+				ethernetEvents["phy_state"] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+				checkAllPassed = false
+			}
+		}
+	}
+
+	if summaryPrint {
+		utils.PrintTitle("Ethernet", "-")
+		termWidth, err := utils.GetTerminalWidth()
+		printInterval := 40
+		if err == nil {
+			printInterval = termWidth / 3
+		}
+
+		fmt.Printf("%-*s%-*s\n", printInterval, ethControllersPrint, printInterval, phyStatPrint)
+		fmt.Println()
+	}
+	fmt.Println("Errors Events:")
+	if len(ethernetEvents) == 0 {
+		fmt.Println("\tNo ethernet Events Detected")
+		return checkAllPassed
+	}
+	fmt.Printf("%16s : %-10s\n", "checkItems", "checkDetail")
+	for item, v := range ethernetEvents {
+		fmt.Printf("%16s : %-10s\n", item, v)
+	}
+	return checkAllPassed
 }

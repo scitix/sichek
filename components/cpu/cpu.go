@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/cpu/collector"
 	"github.com/scitix/sichek/components/cpu/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -120,59 +121,20 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "cpu").Errorf("wrong cpu info type")
 		return nil, err
 	}
-
-	status := consts.StatusNormal
-	checkerResults := make([]*common.CheckerResult, 0)
-	for _, each := range c.checkers {
-		var checkResult *common.CheckerResult
-		eventChecker, ok := each.(*checker.EventChecker)
-		if ok {
-			checkResult, err = eventChecker.Check(ctx, cpuInfo.EventResults[eventChecker.Name()])
-			if err != nil {
-				logrus.WithField("component", "cpu").Errorf("failed to check: %v", err)
-				continue
-			}
-		} else {
-			checkResult, err = each.Check(ctx, cpuInfo)
-			if err != nil {
-				logrus.WithField("component", "cpu").Errorf("failed to check: %v", err)
-				continue
-			}
-		}
-		checkerResults = append(checkerResults, checkResult)
-
-		if checkResult.Status != consts.StatusNormal {
-			status = consts.StatusAbnormal
-			logrus.WithField("component", "cpu").Errorf("check Item:%s, status:%s, level:%s", checkResult.Name, checkResult.Status, checkResult.Level)
-		}
-	}
-
-	level := consts.LevelInfo
-	if status == consts.StatusAbnormal {
-		level = consts.LevelWarning
-	}
-
-	resResult := &common.Result{
-		Item:     consts.ComponentNameCPU,
-		Node:     cpuInfo.HostInfo.Hostname,
-		Status:   status,
-		Level:    level,
-		Checkers: checkerResults,
-		Time:     time.Now(),
-	}
+	result := common.Check(ctx, c.Name(), cpuInfo, c.checkers)
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
-	c.cacheBuffer[c.currIndex] = resResult
+	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "cpu").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "cpu").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -238,4 +200,57 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	checkAllPassed := true
+	cpuInfo, ok := info.(*collector.CPUOutput)
+	if !ok {
+		logrus.WithField("component", "cpu").Errorf("invalid data type, expected CPUOutput")
+		return false
+	}
+	osPrint := fmt.Sprintf("OS: %s%s(%s)%s", consts.Green, cpuInfo.HostInfo.OSVersion, cpuInfo.HostInfo.KernelVersion, consts.Reset)
+	modelNamePrint := fmt.Sprintf("ModelName: %s%s%s", consts.Green, cpuInfo.CPUArchInfo.ModelName, consts.Reset)
+	uptimePrint := fmt.Sprintf("Uptime: %s%s%s", consts.Green, cpuInfo.Uptime, consts.Reset)
+
+	nuamNodes := make([]string, 0, len(cpuInfo.CPUArchInfo.NumaNodeInfo))
+	for _, node := range cpuInfo.CPUArchInfo.NumaNodeInfo {
+		numaNode := fmt.Sprintf("NUMA node%d CPU(s): %s%s%s", node.ID, consts.Green, node.CPUs, consts.Reset)
+		nuamNodes = append(nuamNodes, numaNode)
+	}
+	taskPrint := fmt.Sprintf("Tasks: %d, %s%d%s thr; %d running", cpuInfo.UsageInfo.SystemProcessesTotal, consts.Green, cpuInfo.UsageInfo.TotalThreadCount, consts.Reset, cpuInfo.UsageInfo.RunnableTaskCount)
+	loadAvgPrint := fmt.Sprintf("Load average: %s%.2f %.2f %.2f%s", consts.Green, cpuInfo.UsageInfo.CpuLoadAvg1m, cpuInfo.UsageInfo.CpuLoadAvg5m, cpuInfo.UsageInfo.CpuLoadAvg15m, consts.Reset)
+	var performanceModePrint string
+	checkerResults := result.Checkers
+	for _, result := range checkerResults {
+		statusColor := consts.Green
+		if result.Status != consts.StatusNormal {
+			statusColor = consts.Red
+			checkAllPassed = false
+		}
+		switch result.Name {
+		case checker.CPUPerfCheckerName:
+			performanceModePrint = fmt.Sprintf("PerformanceMode: %s%s%s", statusColor, result.Curr, consts.Reset)
+		}
+	}
+	if summaryPrint {
+		fmt.Printf("\nHostname: %s\n\n", cpuInfo.HostInfo.Hostname)
+		utils.PrintTitle("System", "-")
+		termWidth, err := utils.GetTerminalWidth()
+		printInterval := 40
+		if err == nil {
+			printInterval = termWidth / 3
+		}
+		fmt.Printf("%-*s%-*s\n", printInterval, osPrint, printInterval, modelNamePrint)
+		fmt.Printf("%-*s%-*s%-*s\n", printInterval, uptimePrint, printInterval, nuamNodes[0], printInterval, taskPrint)
+		if cpuInfo.CPUArchInfo.NumaNum > 1 {
+			fmt.Printf("%-*s%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, nuamNodes[1], printInterval, loadAvgPrint)
+		} else {
+			fmt.Printf("%-*s%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, consts.Green+""+consts.Reset, printInterval, loadAvgPrint)
+		}
+		// TODO: more numa node
+		fmt.Printf("%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, performanceModePrint)
+		fmt.Println()
+	}
+	return checkAllPassed
 }

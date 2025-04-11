@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/dmesg/collector"
 	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -123,7 +124,6 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	resResult := &common.Result{
 		Item:       consts.ComponentNameDmesg,
-		Node:       "dmesg",
 		Status:     checkRes.Status,
 		Level:      consts.LevelCritical,
 		Suggestion: checkRes.Suggestion,
@@ -206,4 +206,28 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	dmesgEvent := make(map[string]string)
+	checkAllPassed := true
+	checkerResults := result.Checkers
+	for _, result := range checkerResults {
+		switch result.Name {
+		case "DmesgErrorChecker":
+			if result.Status == consts.StatusAbnormal {
+				checkAllPassed = false
+				dmesgEvent["DmesgErrorChecker"] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+			}
+		}
+	}
+
+	utils.PrintTitle("Dmesg", "-")
+	if len(dmesgEvent) == 0 {
+		fmt.Printf("%sNo Dmesg event detected%s\n", consts.Green, consts.Reset)
+		return checkAllPassed
+	}
+	for n := range dmesgEvent {
+		fmt.Printf("\tDetected %s Event\n", n)
+	}
+	return checkAllPassed
 }

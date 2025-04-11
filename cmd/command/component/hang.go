@@ -24,7 +24,6 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/hang"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ func NewHangCommand() *cobra.Command {
 		Aliases: []string{"h"},
 		Short:   "Perform Hang check",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -103,7 +102,7 @@ func NewHangCommand() *cobra.Command {
 			}(subctx)
 			wg.Wait()
 
-			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
+			result, err := common.RunHealthCheckWithTimeout(ctx, consts.CmdTimeout, component.Name(), component.HealthCheck)
 			if err != nil {
 				logrus.WithField("component", "Hang").Errorf("analyze hang failed: %v", err)
 				return
@@ -114,7 +113,7 @@ func NewHangCommand() *cobra.Command {
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 			}
-			pass := PrintHangInfo(info, result, true)
+			pass := component.PrintInfo(info, result, true)
 			StatusMutex.Lock()
 			ComponentStatuses[consts.ComponentNameHang] = pass
 			StatusMutex.Unlock()
@@ -126,20 +125,4 @@ func NewHangCommand() *cobra.Command {
 	hangCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return hangCmd
-}
-
-func PrintHangInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	checkAllPassed := true
-	checkerResults := result.Checkers
-	utils.PrintTitle("Hang Error", "-")
-	for _, result := range checkerResults {
-		if result.Status == consts.StatusAbnormal {
-			checkAllPassed = false
-			fmt.Printf("\t%s%s%s\n", Red, result.Detail, Reset)
-		}
-	}
-	if checkAllPassed {
-		fmt.Printf("%sNo Hang event detected%s\n", Green, Reset)
-	}
-	return checkAllPassed
 }

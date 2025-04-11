@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/scitix/sichek/components/infiniband/perftest"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +31,7 @@ func NewIBPerftestCmd() *cobra.Command {
 		Use:   "ib",
 		Short: "Perform Infiniband performance tests",
 		Run: func(cmd *cobra.Command, args []string) {
-			_, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			_, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 
 			verbose, err := cmd.Flags().GetBool("verbose")
 			if err != nil {
