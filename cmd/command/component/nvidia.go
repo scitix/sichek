@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -82,7 +83,12 @@ func NewNvidiaCmd() *cobra.Command {
 				logrus.WithField("components", "Nvidia").Info("ignore checkers", ignoredCheckersStr)
 			}
 			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
-			result, err := RunComponentCheck(ctx, consts.ComponentNameNvidia, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
+			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+			if err != nil {
+				logrus.WithField("component", "Nvidia").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

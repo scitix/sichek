@@ -18,6 +18,7 @@ package component
 import (
 	"context"
 
+	"github.com/scitix/sichek/components/memory"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -52,7 +53,12 @@ func NewMemoryCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "memory").Info("load default cfg...")
 			}
-			result, err := RunComponentCheck(ctx, consts.ComponentNameMemory, cfgFile, "", nil, consts.CmdTimeout)
+			component, err := memory.NewComponent(cfgFile)
+			if err != nil {
+				logrus.WithField("component", "memory").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

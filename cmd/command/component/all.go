@@ -17,11 +17,21 @@ package component
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/cpu"
+	"github.com/scitix/sichek/components/dmesg"
+	"github.com/scitix/sichek/components/gpfs"
+	"github.com/scitix/sichek/components/hang"
+	"github.com/scitix/sichek/components/infiniband"
+	"github.com/scitix/sichek/components/nccl"
+	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -120,7 +130,12 @@ func NewAllCmd() *cobra.Command {
 				wg.Add(1)
 				go func(idx int, componentName string) {
 					defer wg.Done()
-					checkResults[idx], _ = RunComponentCheck(ctx, componentName, cfgFile, specFile, ignoredCheckers, consts.AllCmdTimeout)
+					component, err := NewComponent(componentName, cfgFile, specFile, ignoredCheckers)
+					if err != nil {
+						logrus.WithField("component", componentName).Errorf("failed to create component: %v", err)
+						return
+					}
+					checkResults[idx], _ = RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.AllCmdTimeout)
 				}(idx, componentName)
 
 			}
@@ -143,4 +158,35 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
+}
+
+func NewComponent(componentName string, cfgFile string, specFile string, ignoredCheckers []string) (common.Component, error) {
+	switch componentName {
+	case consts.ComponentNameGpfs:
+		return gpfs.NewGpfsComponent(cfgFile)
+	case consts.ComponentNameCPU:
+		return cpu.NewComponent(cfgFile)
+	case consts.ComponentNameInfiniband:
+		return infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameDmesg:
+		return dmesg.NewComponent(cfgFile)
+	case consts.ComponentNameHang:
+		if !utils.IsNvidiaGPUExist() {
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+		}
+		_, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to Get Nvidia component, Bypassing HealthCheck")
+		}
+		return hang.NewComponent(cfgFile)
+	case consts.ComponentNameNvidia:
+		if !utils.IsNvidiaGPUExist() {
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+		}
+		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameNCCL:
+		return nccl.NewComponent(cfgFile)
+	default:
+		return nil, fmt.Errorf("invalid component name: %s", componentName)
+	}
 }

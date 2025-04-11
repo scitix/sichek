@@ -18,6 +18,7 @@ package component
 import (
 	"context"
 
+	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -51,8 +52,12 @@ func NewNCCLCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "NCCL").Infof("load cfg file:%s", cfgFile)
 			}
-
-			result, err := RunComponentCheck(ctx, consts.ComponentNameNCCL, cfgFile, "", nil, consts.CmdTimeout)
+			component, err := nccl.NewComponent(cfgFile)
+			if err != nil {
+				logrus.WithField("component", "NCCL").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

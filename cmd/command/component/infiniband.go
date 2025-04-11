@@ -19,6 +19,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -78,7 +79,12 @@ func NewInfinibandCmd() *cobra.Command {
 			if len(ignoredCheckersStr) > 0 {
 				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
 			}
-			result, err := RunComponentCheck(ctx, consts.ComponentNameInfiniband, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
+			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
+			if err != nil {
+				logrus.WithField("component", "infiniband").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

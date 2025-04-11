@@ -18,6 +18,7 @@ package component
 import (
 	"context"
 
+	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -52,7 +53,12 @@ func NewCPUCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "cpu").Info("load default cfg...")
 			}
-			result, err := RunComponentCheck(ctx, consts.ComponentNameCPU, cfgFile, "", nil, consts.CmdTimeout)
+			component, err := cpu.NewComponent(cfgFile)
+			if err != nil {
+				logrus.WithField("component", "cpu").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

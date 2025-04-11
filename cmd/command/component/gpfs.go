@@ -18,6 +18,7 @@ package component
 import (
 	"context"
 
+	"github.com/scitix/sichek/components/gpfs"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -53,7 +54,12 @@ func NewGpfsCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
-			result, err := RunComponentCheck(ctx, consts.ComponentNameGpfs, cfgFile, "", nil, consts.CmdTimeout)
+			component, err := gpfs.NewGpfsComponent(cfgFile)
+			if err != nil {
+				logrus.WithField("component", "Gpfs").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

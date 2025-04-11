@@ -18,6 +18,7 @@ package component
 import (
 	"context"
 
+	"github.com/scitix/sichek/components/ethernet"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -51,7 +52,12 @@ func NewEthernetCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "ethernet").Info("load default cfg...")
 			}
-			result, err := RunComponentCheck(ctx, consts.ComponentNameEthernet, cfgFile, "", nil, consts.CmdTimeout)
+			component, err := ethernet.NewEthernetComponent(cfgFile)
+			if err != nil {
+				logrus.WithField("component", "ethernet").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

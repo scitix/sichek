@@ -18,6 +18,7 @@ package component
 import (
 	"context"
 
+	"github.com/scitix/sichek/components/dmesg"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -51,7 +52,12 @@ func NewDmesgCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Dmesg").Infof("load cfg file:%s", cfgFile)
 			}
-			result, err := RunComponentCheck(ctx, consts.ComponentNameDmesg, cfgFile, "", nil, consts.CmdTimeout)
+			component, err := dmesg.NewComponent(cfgFile)
+			if err != nil {
+				logrus.WithField("component", "Dmesg").Error(err)
+				return
+			}
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
 				return
 			}
