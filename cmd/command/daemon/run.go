@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scitix/sichek/pkg/systemd"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/scitix/sichek/service"
 )
 
@@ -38,6 +39,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			_, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
+			utils.InitLogger(logrus.InfoLevel, false)
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)

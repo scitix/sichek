@@ -17,7 +17,6 @@ package checker
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
@@ -54,17 +53,18 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 	active, _ := systemd.IsActive("nvidia-fabricmanager")
 
 	if !active {
-		result.Detail = "Nvidia FabricManager is not active"
-		err := systemd.RestartSystemdService("nvidia-fabricmanager")
-		if err == nil {
-			result.Status = consts.StatusNormal
-			result.Curr = "Restarted"
-			result.Detail = "Nvidia FabricManager is not active. It has been restarted successfully"
-		} else {
-			result.Status = consts.StatusAbnormal
-			result.Curr = "NotActive"
-			result.Detail = fmt.Sprintf("Nvidia FabricManager is not active. Failed to try to restart Nvidia FabricManager: %v", err)
-		}
+		result.Status = consts.StatusAbnormal
+		result.Detail = "Nvidia FabricManager is not active, please check to restart Nvidia FabricManager"
+		// err := systemd.RestartSystemdService("nvidia-fabricmanager")
+		// if err == nil {
+		// 	result.Status = consts.StatusNormal
+		// 	result.Curr = "Restarted"
+		// 	result.Detail = "Nvidia FabricManager is not active. It has been restarted successfully"
+		// } else {
+		// 	result.Status = consts.StatusAbnormal
+		// 	result.Curr = "NotActive"
+		// 	result.Detail = fmt.Sprintf("Nvidia FabricManager is not active. Failed to try to restart Nvidia FabricManager: %v", err)
+		// }
 	} else {
 		result.Status = consts.StatusNormal
 		result.Curr = "Active"

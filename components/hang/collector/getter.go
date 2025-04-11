@@ -115,95 +115,111 @@ func (c *HangGetter) GetCfg() common.ComponentUserConfig {
 
 func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
-	getinfo, err := c.nvidiaComponent.CacheInfos()
-	if err != nil {
-		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia infos")
+	info, err := c.getLatestInfo(ctx)
+	if err != nil || info == nil {
+		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get latest nvidia info")
 		return nil, err
 	}
 
-	if !c.nvidiaComponent.Status() {
-		_, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck)
-		if err != nil {
-			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to run nvidiacomponent analyze")
-		}
-	}
+	for i := range info.DeviceCount {
+		deviceInfo := &info.DevicesInfo[i]
+		uuid := deviceInfo.UUID
 
-	for k := 0; k < len(getinfo); k++ {
-		if getinfo[k] == nil {
-			continue
-		}
-		info, ok := getinfo[k].(*collector.NvidiaInfo)
-		if !ok {
-			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("get wrong info type from nvidiaComponent")
-			continue
-		}
-		if !info.Time.After(c.prevTS) {
-			continue
-		}
-
-		for i := 0; i < info.DeviceCount; i++ {
-			deviceInfo := &info.DevicesInfo[i]
-			for j := 0; j < len(c.items); j++ {
-				var infoValue int64
-				switch c.items[j] {
-				case "pwr":
-					infoValue = int64(deviceInfo.Power.PowerUsage / 1000)
-				case "mem":
-					infoValue = int64(deviceInfo.Utilization.MemoryUsagePercent)
-				case "sm":
-					infoValue = int64(deviceInfo.Utilization.GPUUsagePercent)
-				case "pviol":
-					infoValue = int64(deviceInfo.Power.PowerViolations)
-				case "rxpci":
-					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
-					if _, ok := c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]; !ok {
-						infoValue = infoValueTmp
-					} else {
-						if infoValueTmp < c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] {
-							infoValue = c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] - infoValueTmp
-						} else {
-							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
-						}
-					}
-					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
-				case "txpci":
-					infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
-					if _, ok := c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]; !ok {
-						infoValue = infoValueTmp
-					} else {
-						if infoValueTmp < c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] {
-							infoValue = c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] - infoValueTmp
-						} else {
-							infoValue = infoValueTmp - c.prevIndicatorValue[c.items[j]][deviceInfo.UUID]
-						}
-					}
-					c.prevIndicatorValue[c.items[j]][deviceInfo.UUID] = infoValueTmp
-				case "smclk":
-					smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
-					smClk, _ := strconv.Atoi(smClkInt)
-					infoValue = int64(smClk)
-				case "gclk":
-					gClkInt := strings.Split(deviceInfo.Clock.CurGraphicsClk, " ")[0]
-					gClk, _ := strconv.Atoi(gClkInt)
-					infoValue = int64(gClk)
-				default:
-					logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", c.items[j])
-				}
-				duration := c.getDuration(c.items[j], infoValue, info.Time)
-				if duration == 0 {
-					c.hangInfo.HangDuration[c.items[j]][deviceInfo.UUID] = 0
+		for _, item := range c.items {
+			var infoValue int64
+			switch item {
+			case "pwr":
+				infoValue = int64(deviceInfo.Power.PowerUsage / 1000)
+			case "mem":
+				infoValue = int64(deviceInfo.Utilization.MemoryUsagePercent)
+			case "sm":
+				infoValue = int64(deviceInfo.Utilization.GPUUsagePercent)
+			case "pviol":
+				infoValue = int64(deviceInfo.Power.PowerViolations)
+			case "rxpci":
+				infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
+				if _, ok := c.prevIndicatorValue[item][uuid]; !ok {
+					infoValue = infoValueTmp
 				} else {
-					c.hangInfo.HangDuration[c.items[j]][deviceInfo.UUID] += duration
+					infoValue = absDiff(infoValueTmp, c.prevIndicatorValue[item][uuid])
 				}
-				// logrus.WithField("collector", "hanggetter").Warnf("Index=%d, GPU=%d, item=%s, indicate=%d, threshold=%d, duration=%d, nowduration=%d\n",
-				// 	deviceInfo.Index, i, c.items[j], infoValue, c.indicates[c.items[j]], duration,
-				// 	c.hangInfo.HangDuration[c.items[j]][deviceInfo.UUID])
+				c.prevIndicatorValue[item][uuid] = infoValueTmp
+			case "txpci":
+				infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
+				if _, ok := c.prevIndicatorValue[item][uuid]; !ok {
+					infoValue = infoValueTmp
+				} else {
+					infoValue = absDiff(infoValueTmp, c.prevIndicatorValue[item][uuid])
+				}
+				c.prevIndicatorValue[item][uuid] = infoValueTmp
+			case "smclk":
+				smClkInt := strings.Split(deviceInfo.Clock.CurSMClk, " ")[0]
+				smClk, _ := strconv.Atoi(smClkInt)
+				infoValue = int64(smClk)
+			case "gclk":
+				gClkInt := strings.Split(deviceInfo.Clock.CurGraphicsClk, " ")[0]
+				gClk, _ := strconv.Atoi(gClkInt)
+				infoValue = int64(gClk)
+			default:
+				logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", item)
 			}
+
+			duration := c.getDuration(item, infoValue, info.Time)
+			if duration == 0 {
+				c.hangInfo.HangDuration[item][uuid] = 0
+			} else {
+				c.hangInfo.HangDuration[item][uuid] += duration
+			}
+			// logrus.WithField("collector", "hanggetter").Warnf("Index=%d, GPU=%d, item=%s, indicate=%d, threshold=%d, duration=%d, nowduration=%d\n",
+			// 	deviceInfo.Index, i, item, infoValue, c.indicates[item], duration,
+			// 	c.hangInfo.HangDuration[item][uuid])
 		}
-		c.prevTS = info.Time
 	}
+	c.prevTS = info.Time
 
 	return &c.hangInfo, nil
+}
+
+func (c *HangGetter) getLatestInfo(ctx context.Context) (*collector.NvidiaInfo, error) {
+	var info *collector.NvidiaInfo
+	var ok bool
+	if !c.nvidiaComponent.Status() {
+		if _, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck); err != nil {
+			return nil, fmt.Errorf("failed to refresh nvidia info")
+		}
+		infoRaw, err := c.nvidiaComponent.LastInfo()
+		if err != nil {
+			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to refresh nvidia info")
+			return nil, err
+		}
+		info, ok = infoRaw.(*collector.NvidiaInfo)
+		if !ok {
+			return nil, fmt.Errorf("hanggetter: wrong info type of refresh nvidia info")
+		}
+	} else {
+		infoRaw, err := c.nvidiaComponent.LastInfo()
+		if err != nil {
+			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia infos")
+			return nil, err
+		}
+		info, ok = infoRaw.(*collector.NvidiaInfo)
+		if !ok {
+			return nil, fmt.Errorf("hanggetter: wrong info type of last nvidia info")
+		}
+		if !info.Time.After(c.prevTS) {
+			return nil, fmt.Errorf("hanggetter: nvidia info not update, current time: %v, last time: %v", info.Time, c.prevTS)
+		} else {
+			logrus.Infof("hanggetter: get valid nvidia info, current time: %v, last time: %v", info.Time, c.prevTS)
+		}
+	}
+	return info, nil
+}
+
+func absDiff(a, b int64) int64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
 }
 
 func (c *HangGetter) getDuration(name string, infoValue int64, now time.Time) int64 {

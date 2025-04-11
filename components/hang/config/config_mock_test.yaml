@@ -1,6 +1,6 @@
 hang:
   name: Hang
-  query_interval: 30
+  query_interval: 10
   cache_size: 5
   nvsmi: false
   mock: true

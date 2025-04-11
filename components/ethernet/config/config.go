@@ -43,6 +43,10 @@ func (c *EthernetUserConfig) GetQueryInterval() time.Duration {
 	return c.Ethernet.QueryInterval
 }
 
+func (c *EthernetUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Ethernet.QueryInterval = newInterval
+}
+
 func (c *EthernetUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
