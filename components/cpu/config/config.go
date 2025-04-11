@@ -48,6 +48,10 @@ func (c *CpuUserConfig) GetQueryInterval() time.Duration {
 	return c.CPU.QueryInterval
 }
 
+func (c *CpuUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.CPU.QueryInterval = newInterval
+}
+
 func (c *CpuUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)

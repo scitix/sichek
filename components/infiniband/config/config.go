@@ -44,6 +44,10 @@ func (c *InfinibandUserConfig) GetQueryInterval() time.Duration {
 	return c.Infiniband.QueryInterval
 }
 
+func (c *InfinibandUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Infiniband.QueryInterval = newInterval
+}
+
 func (c *InfinibandUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file == "" {
 		return common.DefaultComponentConfig(consts.ComponentNameInfiniband, c, consts.DefaultUserCfgName)

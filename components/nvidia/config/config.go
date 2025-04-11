@@ -43,6 +43,11 @@ func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {
 	return c.Nvidia.QueryInterval
 }
 
+// SetQueryInterval Update the query interval in the config
+func (c *NvidiaUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Nvidia.QueryInterval = newInterval
+}
+
 func (c *NvidiaUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file == "" {
 		return common.DefaultComponentConfig(consts.ComponentNameNvidia, c, consts.DefaultUserCfgName)

@@ -22,10 +22,13 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 // RunHealthCheckWithContext wraps the HealthCheck call and ensures it respects the provided context timeout or cancellation
 func RunHealthCheckWithTimeout(ctx context.Context, timeout time.Duration, componentName string, fn func(ctx context.Context) (*Result, error)) (*Result, error) {
+	timer := NewTimer(fmt.Sprintf("%s-HealthCheck-Cost", componentName))
+	defer timer.Total()
 	ctx, cancel := context.WithTimeout(ctx, timeout) // Use the timeout context
 	defer cancel()
 	// Create channels for result and error
@@ -87,4 +90,36 @@ func handleResult(result *Result, componentName string) (*Result, error) {
 
 	result.Checkers = append(result.Checkers, timeoutResolvedResult)
 	return result, nil
+}
+
+type Timer struct {
+	start     time.Time
+	stepStart time.Time
+	name      string
+}
+
+func NewTimer(name string) *Timer {
+	return &Timer{
+		start:     time.Now(),
+		stepStart: time.Now(),
+		name:      name,
+	}
+}
+
+func (t *Timer) Mark(step string) {
+	elapsed := time.Since(t.stepStart)
+	logrus.WithFields(logrus.Fields{
+		"func": t.name,
+		"step": step,
+		"cost": elapsed,
+	}).Info("Step timing")
+	t.stepStart = time.Now()
+}
+
+func (t *Timer) Total() {
+	total := time.Since(t.start)
+	logrus.WithFields(logrus.Fields{
+		"func":  t.name,
+		"total": total,
+	}).Info("Total execution time")
 }
