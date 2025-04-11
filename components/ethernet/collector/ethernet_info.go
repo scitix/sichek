@@ -128,6 +128,7 @@ func (i *EthernetInfo) GetEthInfo() *EthernetInfo {
 		var perEthHWInfo EthHardWareInfo
 		perEthHWInfo.EthDev = EthDev
 		perEthHWInfo.PhyState = i.GetPhyState(EthDev)[0]
+		perEthHWInfo.EthDev = EthDev
 		allEthHWInfo = append(allEthHWInfo, perEthHWInfo)
 	}
 
