@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/hang/checker"
 	"github.com/scitix/sichek/components/hang/collector"
 	"github.com/scitix/sichek/components/hang/config"
+	"github.com/scitix/sichek/components/hang/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -47,6 +48,7 @@ type component struct {
 	cacheSize         int64
 
 	service *common.CommonService
+	metrics *metrics.HangMetrics
 }
 
 var (
@@ -111,6 +113,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
+		metrics:           metrics.NewHangMetrics(),
 	}
 	component.service = common.NewCommonService(ctx, hangCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -126,8 +129,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect(ctx)")
 		return &common.Result{}, err
 	}
-
-	checkRes, err := c.checker.Check(ctx, info)
+	checkerInfo, ok := info.(*checker.HangInfo)
+	if !ok {
+		return nil, fmt.Errorf("wrong input of HangChecker")
+	}
+	c.metrics.ExportMetrics(checkerInfo)
+	checkRes, err := c.checker.Check(c.ctx, info)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check()")
 		return &common.Result{}, err

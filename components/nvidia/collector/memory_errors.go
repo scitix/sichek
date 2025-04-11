@@ -62,13 +62,13 @@ type LocationErrors struct {
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1g9bcbee49054a953d333d4aa11e8b9c25
 	// L1Cache          ErrorType `json:"GPU L1 Cache"`
 	// L2Cache          ErrorType `json:"GPU L2 Cache"`
-	DRAM ErrorType `json:"Turing+ DRAM"`
+	DRAM ErrorType `json:"Turing+DRAM"`
 	// GPUDeviceMemory  ErrorType `json:"GPU Device Memory"`
 	// GPURegisterFile  ErrorType `json:"GPU Register File"`
 	// GPUTextureMemory ErrorType `json:"GPU Texture Memory"`
 	// SharedMemory     ErrorType `json:"Shared memory"`
 	// CBU              ErrorType `json:"CBU"`
-	SRAM ErrorType `json:"Turing+ SRAM"`
+	SRAM ErrorType `json:"Turing+SRAM"`
 }
 
 type ErrorType struct {

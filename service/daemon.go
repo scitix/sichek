@@ -31,6 +31,7 @@ import (
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/metrics"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -55,6 +56,7 @@ type DaemonService struct {
 	componentsStatusLock sync.RWMutex
 	componentResults     map[string]<-chan *common.Result
 	componentsResultLock sync.RWMutex
+	metrics              *metrics.HealthCheckResMetrics
 
 	notifier Notifier
 }
@@ -91,6 +93,7 @@ func NewService(cfgFile string, specFile string, usedComponents []string, ignore
 		componentsStatus:  make(map[string]bool),
 		componentResults:  make(map[string]<-chan *common.Result),
 		notifier:          notifier,
+		metrics:           metrics.NewHealthCheckResMetrics(),
 	}
 
 	for componentName, enabled := range usedComponentsMap {
@@ -185,12 +188,34 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 			} else {
 				err = d.notifier.SetNodeAnnotation(d.ctx, result)
+				d.exportTimeoutResolved(componentName)
 			}
+			d.metrics.ExportMetrics(result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
 			}
 		}
 	}
+}
+
+func (d *DaemonService) exportTimeoutResolved(componentName string) {
+	timeoutResolvedCheckerResult := &common.CheckerResult{
+		Name:        fmt.Sprintf("%sTimeout", componentName),
+		Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   fmt.Sprintf("%sTimeout", componentName),
+		Suggestion:  "The Nvidida GPU may be broken, please restart the node",
+	}
+	timeoutResolvedResult := &common.Result{
+		Item:     componentName,
+		Status:   consts.StatusNormal,
+		Level:    consts.LevelCritical,
+		Checkers: []*common.CheckerResult{timeoutResolvedCheckerResult},
+		Time:     time.Now(),
+	}
+	d.metrics.ExportMetrics(timeoutResolvedResult)
 }
 
 func (d *DaemonService) Status() (interface{}, error) {

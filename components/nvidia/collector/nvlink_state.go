@@ -30,8 +30,6 @@ type NVLinkState struct {
 	NVlinkSupported      bool `json:"nvlink_supported"`
 	FeatureEnabled       bool `json:"feature_enabled"`
 	LinkNo               int  `json:"link_no"`
-	ThroughputRawRxBytes int  `json:"throughput_raw_rx_bytes"`
-	ThroughputRawTxBytes int  `json:"throughput_raw_tx_bytes"`
 }
 
 type NVLinkStates struct {

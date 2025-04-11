@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 
 	"sigs.k8s.io/yaml"
 )
@@ -29,3 +30,18 @@ func LoadFromYaml(file string, c interface{}) error {
 	}
 	return nil
 }
+
+func ParseStringToFloat(str string) float64 {
+	num, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return 0
+	}
+	return num
+}
+
+func ParseBoolToFloat(b bool) float64 {  
+	if b {  
+		return 1.0  
+	}  
+	return 0.0  
+} 

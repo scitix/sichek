@@ -25,15 +25,15 @@ import (
 )
 
 type ClockInfo struct {
-	CurGraphicsClk string `json:"cur_graphics_clk"`
-	AppGraphicsClk string `json:"app_graphics_clk"`
-	MaxGraphicsClk string `json:"max_graphics_clk"`
-	CurMemoryClk   string `json:"cur_memory_clk"`
-	AppMemoryClk   string `json:"app_memory_clk"`
-	MaxMemoryClk   string `json:"max_memory_clk"`
-	CurSMClk       string `json:"cur_sm_clk"`
-	AppSMClk       string `json:"app_sm_clk"`
-	MaxSMClk       string `json:"max_sm_clk"`
+	CurGraphicsClk uint32 `json:"cur_graphics_clk"`
+	AppGraphicsClk uint32 `json:"app_graphics_clk"`
+	MaxGraphicsClk uint32 `json:"max_graphics_clk"`
+	CurMemoryClk   uint32 `json:"cur_memory_clk"`
+	AppMemoryClk   uint32 `json:"app_memory_clk"`
+	MaxMemoryClk   uint32 `json:"max_memory_clk"`
+	CurSMClk       uint32 `json:"cur_sm_clk"`
+	AppSMClk       uint32 `json:"app_sm_clk"`
+	MaxSMClk       uint32 `json:"max_sm_clk"`
 }
 
 func (clk *ClockInfo) JSON() ([]byte, error) {
@@ -62,65 +62,59 @@ func (clk *ClockInfo) Get(device nvml.Device, uuid string) error {
 }
 
 func (clk *ClockInfo) getGraphicsClocks(device nvml.Device, uuid string) error {
-	curGraphicsClk, err := device.GetClockInfo(nvml.CLOCK_GRAPHICS)
+	var err nvml.Return
+	clk.CurGraphicsClk, err = device.GetClockInfo(nvml.CLOCK_GRAPHICS)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current graphics clock for GPU %v: %v", uuid, err)
 	}
-	clk.CurGraphicsClk = fmt.Sprintf("%d MHz", curGraphicsClk)
 
-	graphicsClkSet, err := device.GetApplicationsClock(nvml.CLOCK_GRAPHICS)
+	clk.AppGraphicsClk, err = device.GetApplicationsClock(nvml.CLOCK_GRAPHICS)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get application graphics clock setting for GPU %v: %v", uuid, err)
 	}
-	clk.AppGraphicsClk = fmt.Sprintf("%d MHz", graphicsClkSet)
 
-	maxGraphicsClk, err := device.GetMaxClockInfo(nvml.CLOCK_GRAPHICS)
+	clk.MaxGraphicsClk, err = device.GetMaxClockInfo(nvml.CLOCK_GRAPHICS)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get max graphics clock for GPU %v: %v", uuid, err)
 	}
-	clk.MaxGraphicsClk = fmt.Sprintf("%d MHz", maxGraphicsClk)
 
 	return nil
 }
 
 func (clk *ClockInfo) getMemoryClocks(device nvml.Device, uuid string) error {
-	curMemClock, err := device.GetClockInfo(nvml.CLOCK_MEM)
+	var err nvml.Return
+	clk.CurMemoryClk, err = device.GetClockInfo(nvml.CLOCK_MEM)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current memory clock for GPU %v: %v", uuid, err)
 	}
-	clk.CurMemoryClk = fmt.Sprintf("%d MHz", curMemClock)
 
-	memClockSet, err := device.GetApplicationsClock(nvml.CLOCK_MEM)
+	clk.AppMemoryClk, err = device.GetApplicationsClock(nvml.CLOCK_MEM)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get application memory clock setting for GPU %v: %v", uuid, err)
 	}
-	clk.AppMemoryClk = fmt.Sprintf("%d MHz", memClockSet)
 
-	maxMemClock, err := device.GetMaxClockInfo(nvml.CLOCK_MEM)
+	clk.MaxMemoryClk, err = device.GetMaxClockInfo(nvml.CLOCK_MEM)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get max memory clock for GPU %v: %v", uuid, err)
 	}
-	clk.MaxMemoryClk = fmt.Sprintf("%d MHz", maxMemClock)
 	return nil
 }
 
 func (clk *ClockInfo) getSMClocks(device nvml.Device, uuid string) error {
-	curSMClock, err := device.GetClockInfo(nvml.CLOCK_SM)
+	var err nvml.Return
+	clk.CurSMClk, err = device.GetClockInfo(nvml.CLOCK_SM)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get current SM clock for GPU %v: %v", uuid, err)
 	}
-	clk.CurSMClk = fmt.Sprintf("%d MHz", curSMClock)
 
-	smClockSet, err := device.GetApplicationsClock(nvml.CLOCK_SM)
+	clk.AppSMClk, err = device.GetApplicationsClock(nvml.CLOCK_SM)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get application SM clock setting for GPU %v: %v", uuid, err)
 	}
-	clk.AppSMClk = fmt.Sprintf("%d MHz", smClockSet)
 
-	maxSMClock, err := device.GetMaxClockInfo(nvml.CLOCK_SM)
+	clk.MaxSMClk, err = device.GetMaxClockInfo(nvml.CLOCK_SM)
 	if !errors.Is(err, nvml.SUCCESS) {
 		return fmt.Errorf("failed to get max SM clock for GPU %v: %v", uuid, err)
 	}
-	clk.MaxSMClk = fmt.Sprintf("%d MHz", maxSMClock)
 	return nil
 }

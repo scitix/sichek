@@ -28,6 +28,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/components/nvidia/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -56,6 +57,8 @@ type component struct {
 	serviceMtx    sync.RWMutex
 	running       bool
 	resultChannel chan *common.Result
+
+	metrics *metrics.NvidiaMetrics
 }
 
 var (
@@ -143,7 +146,6 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 			cancel()
 		}
 	}()
-
 	nvmlInst, err := NewNvml(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
@@ -201,6 +203,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
+		metrics:       metrics.NewNvidiaMetrics(),
 	}
 	return component, nil
 }
@@ -241,6 +244,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
+	c.metrics.ExportMetrics(nvidiaInfo)
 	timer.Mark("Collect")
 	status := consts.StatusNormal
 	level := consts.LevelInfo

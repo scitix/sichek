@@ -94,7 +94,6 @@ func NewDaemonRunCmd() *cobra.Command {
 			serviceChan := make(chan service.Service, 1)
 
 			logrus.WithField("daemon", "run").Info("starting sichek daemon service")
-
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
 			daemonService, err := service.NewService(cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
