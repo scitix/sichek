@@ -41,6 +41,10 @@ func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
 	return c.Dmesg.QueryInterval
 }
 
+func (c *DmesgUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Dmesg.QueryInterval = newInterval
+}
+
 func (c *DmesgUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	for name, cfg := range c.Dmesg.CheckerConfigs {

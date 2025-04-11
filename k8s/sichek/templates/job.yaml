@@ -17,6 +17,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       affinity:
+        {{- if not .Values.nodeName }}
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
@@ -28,6 +29,7 @@ spec:
               - key: gpu_type 
                 operator: DoesNotExist
               {{- end }}
+        {{- end }}
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:

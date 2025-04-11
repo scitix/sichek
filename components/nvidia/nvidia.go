@@ -182,6 +182,8 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 
+	freqController := common.GetFreqController()
+	freqController.RegisterModule(consts.ComponentNameNvidia, nvidiaCfg)
 	component := &component{
 		componentName: consts.ComponentNameNvidia,
 		ctx:           ctx,
@@ -233,12 +235,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		}
 		logrus.WithField("component", "NVIDIA").Errorf("Reinitialize NVML successfully")
 	}
+	timer := common.NewTimer(fmt.Sprintf("%s-HealthCheck-Cost", c.componentName))
 	nvidiaInfo, err := c.collector.Collect(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-
+	timer.Mark("Collect")
 	status := consts.StatusNormal
 	level := consts.LevelInfo
 	checkerResults := make([]*common.CheckerResult, 0)
@@ -259,6 +262,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			}
 		}
 	}
+	timer.Mark("check")
 
 	for _, checkItem := range checkerResults {
 		if checkItem.Status == consts.StatusAbnormal {
@@ -285,6 +289,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	} else {
 		logrus.WithField("component", "NVIDIA").Infof("Health Check PASSED")
 	}
+	timer.Mark("cache")
 
 	return resResult, nil
 }
@@ -342,7 +347,9 @@ func (c *component) Start() <-chan *common.Result {
 				fmt.Printf("[NvidiaStart] panic err is %s\n", err)
 			}
 		}()
-		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
+		interval := c.cfg.GetQueryInterval()
+		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with interval: %v", interval*time.Second)
+		ticker := time.NewTicker(interval * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -350,11 +357,19 @@ func (c *component) Start() <-chan *common.Result {
 			case <-c.ctx.Done():
 				return
 			case <-ticker.C:
+				// Check if need to update ticker
+				newInterval := c.cfg.GetQueryInterval()
+				if newInterval != interval {
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
+					ticker.Stop()
+					ticker = time.NewTicker(newInterval * time.Second)
+					interval = newInterval
+				}
 				c.serviceMtx.Lock()
 				result, err := common.RunHealthCheckWithTimeout(c.ctx, c.GetTimeout(), c.componentName, c.HealthCheck)
 				c.serviceMtx.Unlock()
 				if err != nil {
-					fmt.Printf("%s analyze failed: %v\n", c.componentName, err)
+					fmt.Printf("%s HealthCheck failed: %v\n", c.componentName, err)
 					continue
 				}
 				// Check if the error message contains "Timeout"

@@ -47,6 +47,10 @@ func (c *MemoryUserConfig) GetQueryInterval() time.Duration {
 	return c.Memory.QueryInterval
 }
 
+func (c *MemoryUserConfig) SetQueryInterval(newInterval time.Duration) {
+	c.Memory.QueryInterval = newInterval
+}
+
 func (c *MemoryUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
