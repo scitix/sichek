@@ -56,11 +56,11 @@ type component struct {
 	cacheSize   int64
 
 	service *common.CommonService
+	metrics *metrics.IBMetrics
 }
 
 func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
 	infinibandComponentOnce.Do(func() {
-		metrics.InitInfinibandMetrics()
 		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 		if err != nil {
 			panic(err)
@@ -116,6 +116,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		cacheInfo:   make([]common.Info, cfg.Infiniband.CacheSize),
 		currIndex:   0,
 		cacheSize:   cfg.Infiniband.CacheSize,
+		metrics:     metrics.NewInfinibandMetrics(),
 	}
 	// step4: start the service
 	component.service = common.NewCommonService(ctx, cfg, component.HealthCheck)
@@ -136,7 +137,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
-	metrics.ExportInfinibandMetrics(InfinibandInfo)
+	c.metrics.ExportMetrics(InfinibandInfo)
 	status := consts.StatusNormal
 
 	checkerResults := make([]*common.CheckerResult, 0)

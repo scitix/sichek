@@ -170,8 +170,6 @@ func listFiles(dir, IBDev, counterType string) ([]string, error) {
 	for _, file := range files {
 		fileNames = append(fileNames, file.Name())
 	}
-	logrus.WithField("component", "infiniband").Infof("Get %s  %s from path: %s \ncounters:%s", IBDev, counterType, dir, fileNames)
-
 	return fileNames, nil
 }
 

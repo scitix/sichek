@@ -48,14 +48,13 @@ var (
 // - verbos: Enable verbose output (default: false)
 // - eventonly: Print events output only (default: false)
 func NewAllCmd() *cobra.Command {
-	ctx, cancel := context.WithTimeout(context.Background(), AllCmdTimeout)
-	defer cancel()
-
 	allCmd := &cobra.Command{
 		Use:   "all",
 		Short: "Perform all components check",
 		Long:  "Used to perform all configured related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
+			ctx, cancel := context.WithTimeout(context.Background(), AllCmdTimeout)
+			defer cancel()
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
