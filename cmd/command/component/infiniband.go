@@ -32,11 +32,10 @@ import (
 )
 
 func NewInfinibandCmd() *cobra.Command {
-
 	infinibandCmd := &cobra.Command{
 		Use:     "infiniband",
 		Aliases: []string{"i"},
-		Short:   "Perform Infiniband - related operations",
+		Short:   "Perform Infiniband check - related operations",
 		Long:    "Used to perform specific Infiniband - related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
