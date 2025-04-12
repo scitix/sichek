@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -35,11 +36,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	ComponentStatuses = make(map[string]bool) // Tracks pass/fail status for each component
-	StatusMutex       sync.Mutex              // Ensures thread-safe updates
-)
-
 // NewAllCmd creates a new cobra.Command for performing health checks on all components.
 // It sets up the command with a context that times out after AllCmdTimeout, and defines the
 // command's usage, short description, and long description. The command iterates over
@@ -54,7 +50,7 @@ func NewAllCmd() *cobra.Command {
 		Short: "Perform all components check",
 		Long:  "Used to perform all configured related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), AllCmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.AllCmdTimeout)
 			defer cancel()
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
@@ -122,77 +118,34 @@ func NewAllCmd() *cobra.Command {
 			if len(ignoredCheckersStr) > 0 {
 				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
 			}
+			checkResults := make([]*CheckResults, len(consts.DefaultComponents))
 			var wg sync.WaitGroup
-			for _, componentName := range consts.DefaultComponents {
+			for idx, componentName := range consts.DefaultComponents {
 				if slices.Contains(ignoredComponents, componentName) {
 					continue
 				}
 				if len(usedComponentStr) > 0 && !slices.Contains(usedComponents, componentName) {
 					continue
 				}
-
-				var component common.Component
-				var err error
-				var printFunc func(common.Info, *common.Result, bool) bool
-				switch componentName {
-				case consts.ComponentNameGpfs:
-					component, err = gpfs.NewGpfsComponent(cfgFile)
-					printFunc = PrintGPFSInfo
-				case consts.ComponentNameCPU:
-					component, err = cpu.NewComponent(cfgFile)
-					printFunc = PrintSystemInfo
-				case consts.ComponentNameInfiniband:
-					component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
-					printFunc = PrintInfinibandInfo
-				case consts.ComponentNameDmesg:
-					component, err = dmesg.NewComponent(cfgFile)
-					printFunc = PrintDmesgInfo
-				case consts.ComponentNameHang:
-					if !utils.IsNvidiaGPUExist() {
-						logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
-						continue
-					}
-					_, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+				wg.Add(1)
+				go func(idx int, componentName string) {
+					defer wg.Done()
+					component, err := NewComponent(componentName, cfgFile, specFile, ignoredCheckers)
 					if err != nil {
-						logrus.WithField("component", "all").Errorf("Failed to Get Nvidia component, Bypassing HealthCheck")
-						continue
+						logrus.WithField("component", componentName).Errorf("failed to create component: %v", err)
+						return
 					}
-					component, err = hang.NewComponent(cfgFile)
-					printFunc = PrintHangInfo
-				case consts.ComponentNameNvidia:
-					if !utils.IsNvidiaGPUExist() {
-						logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
-						continue
-					}
-					component, err = nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
-					printFunc = PrintNvidiaInfo
-				case consts.ComponentNameNCCL:
-					component, err = nccl.NewComponent(cfgFile)
-					printFunc = PrintNCCLInfo
-				default:
-					logrus.WithField("component", "all").Errorf("invalid component_name: %s", componentName)
-					continue
-				}
-				if err != nil {
-					logrus.WithField("component", "all").Errorf("create component %s failed: %v", componentName, err)
-					continue
-				}
-				result, err := common.RunHealthCheckWithTimeout(ctx, AllCmdTimeout, component.Name(), component.HealthCheck)
-				if err != nil {
-					logrus.WithField("component", "all").Errorf("analyze %s failed: %v", componentName, err)
-					continue
-				}
-				info, err := component.LastInfo()
-				if err != nil {
-					logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
-				}
-				passed := printFunc(info, result, !eventonly)
-				StatusMutex.Lock()
-				ComponentStatuses[componentName] = passed
-				StatusMutex.Unlock()
-			}
+					checkResults[idx], _ = RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.AllCmdTimeout)
+				}(idx, componentName)
 
+			}
 			wg.Wait()
+			for _, checkResult := range checkResults {
+				if checkResult == nil {
+					continue
+				}
+				PrintCheckResults(!eventonly, checkResult)
+			}
 		},
 	}
 
@@ -205,4 +158,35 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
+}
+
+func NewComponent(componentName string, cfgFile string, specFile string, ignoredCheckers []string) (common.Component, error) {
+	switch componentName {
+	case consts.ComponentNameGpfs:
+		return gpfs.NewGpfsComponent(cfgFile)
+	case consts.ComponentNameCPU:
+		return cpu.NewComponent(cfgFile)
+	case consts.ComponentNameInfiniband:
+		return infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameDmesg:
+		return dmesg.NewComponent(cfgFile)
+	case consts.ComponentNameHang:
+		if !utils.IsNvidiaGPUExist() {
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+		}
+		_, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to Get Nvidia component, Bypassing HealthCheck")
+		}
+		return hang.NewComponent(cfgFile)
+	case consts.ComponentNameNvidia:
+		if !utils.IsNvidiaGPUExist() {
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+		}
+		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameNCCL:
+		return nccl.NewComponent(cfgFile)
+	default:
+		return nil, fmt.Errorf("invalid component name: %s", componentName)
+	}
 }

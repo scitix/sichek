@@ -18,7 +18,6 @@ package component
 import (
 	"context"
 
-	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/memory"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
@@ -33,7 +32,7 @@ func NewMemoryCmd() *cobra.Command {
 		Short:   "Perform Memory - related operations",
 		Long:    "Used to perform specific Memory - related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), CmdTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
@@ -56,25 +55,14 @@ func NewMemoryCmd() *cobra.Command {
 			}
 			component, err := memory.NewComponent(cfgFile)
 			if err != nil {
-				logrus.WithField("component", "memory").Errorf("create memory component failed: %v", err)
+				logrus.WithField("component", "memory").Error(err)
 				return
 			}
-
-			result, err := common.RunHealthCheckWithTimeout(ctx, CmdTimeout, component.Name(), component.HealthCheck)
+			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
 			if err != nil {
-				logrus.WithField("component", "memory").Errorf("analyze memory failed: %v", err)
 				return
 			}
-
-			logrus.WithField("component", component.Name()).Infof("Analysis Result: %s\n", common.ToString(result))
-			info, err := component.LastInfo()
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
-			}
-			pass := PrintMemoryInfo(info, result, true)
-			StatusMutex.Lock()
-			ComponentStatuses[consts.ComponentNameMemory] = pass
-			StatusMutex.Unlock()
+			PrintCheckResults(true, result)
 		},
 	}
 
@@ -82,8 +70,4 @@ func NewMemoryCmd() *cobra.Command {
 	memoryCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return memoryCmd
-}
-
-func PrintMemoryInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	return true
 }
