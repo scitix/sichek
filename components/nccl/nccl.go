@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/nccl/collector"
 	"github.com/scitix/sichek/components/nccl/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -208,4 +209,27 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	ncclEvents := make(map[string]string)
+
+	checkerResults := result.Checkers
+	for _, result := range checkerResults {
+		switch result.Name {
+		case "NCCLTimeoutChecker":
+			if result.Status == consts.StatusAbnormal {
+				ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+			}
+		}
+	}
+	utils.PrintTitle("NCCL Error", "-")
+	if len(ncclEvents) == 0 {
+		fmt.Printf("%sNo NCCL event detected%s\n", consts.Green, consts.Reset)
+		return true
+	}
+	for _, v := range ncclEvents {
+		fmt.Printf("\t%s\n", v)
+	}
+	return false
 }

@@ -128,42 +128,19 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 
-	status := consts.StatusNormal
-	checkerResults := make([]*common.CheckerResult, 0)
-	for _, each := range c.checkers {
-		checkResult, err := each.Check(ctx, memInfo.EventResults[each.Name()])
-		if err != nil {
-			logrus.WithField("component", "memory").Errorf("failed to check: %v", err)
-			continue
-		}
-		checkerResults = append(checkerResults, checkResult)
-
-		checkerCfg := c.cfg.Memory.Checkers[each.Name()]
-		if checkerCfg.Level == consts.LevelCritical && checkResult.Status == consts.StatusAbnormal {
-			status = consts.StatusAbnormal
-		}
-	}
-
-	resResult := &common.Result{
-		Item:     consts.ComponentNameMemory,
-		Status:   status,
-		Level:    consts.LevelCritical,
-		Checkers: checkerResults,
-		Time:     time.Now(),
-	}
-
+	result := common.Check(ctx, c.componentName, memInfo, c.checkers)
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
-	c.cacheBuffer[c.currIndex] = resResult
+	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "memory").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "memory").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -227,4 +204,7 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	return true
 }
