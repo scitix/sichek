@@ -19,6 +19,11 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type Checker interface {
@@ -107,4 +112,45 @@ func CompareVersion(spec, version string) bool {
 	default:
 		return false
 	}
+}
+
+func Check(ctx context.Context, componentName string, data any, checkers []Checker) *Result {
+	checkerResults := make([]*CheckerResult, len(checkers))
+	wg := sync.WaitGroup{}
+	for idx, each := range checkers {
+		wg.Add(1)
+		go func(idx int, each Checker) {
+			defer wg.Done()
+			checkResult, err := each.Check(ctx, data)
+			if err != nil {
+				logrus.WithField("component", componentName).Errorf("[%s]failed to check: %v", each.Name(), err)
+				return
+			}
+			checkerResults[idx] = checkResult
+		}(idx, each)
+	}
+	wg.Wait()
+	status := consts.StatusNormal
+	level := consts.LevelInfo
+	for _, checkItem := range checkerResults {
+		if checkItem == nil {
+			continue
+		}
+		if checkItem.Status == consts.StatusAbnormal {
+			logrus.WithField("component", componentName).Warnf("check Item:%s, status:%s", checkItem.Name, status)
+			status = consts.StatusAbnormal
+			level = checkItem.Level
+			break
+		}
+	}
+
+	resResult := &Result{
+		Item:     componentName,
+		Status:   status,
+		Level:    level,
+		Checkers: checkerResults,
+		Time:     time.Now(),
+	}
+
+	return resResult
 }
