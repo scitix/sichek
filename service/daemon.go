@@ -24,16 +24,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/cpu"
-	"github.com/scitix/sichek/components/dmesg"
-	"github.com/scitix/sichek/components/gpfs"
-	"github.com/scitix/sichek/components/hang"
-	"github.com/scitix/sichek/components/infiniband"
-	"github.com/scitix/sichek/components/nccl"
-	"github.com/scitix/sichek/components/nvidia"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/metrics"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -82,7 +73,7 @@ func NewService(components map[string]common.Component, annoKey string) (s Servi
 		componentsStatus: make(map[string]bool),
 		componentResults: make(map[string]<-chan *common.Result),
 		notifier:         notifier,
-		metrics:           metrics.NewHealthCheckResMetrics(),
+		metrics:          metrics.NewHealthCheckResMetrics(),
 		node:             hostname,
 	}
 
@@ -131,7 +122,6 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 			} else {
 				err = d.notifier.SetNodeAnnotation(d.ctx, result)
-				d.exportTimeoutResolved(componentName)
 			}
 			d.metrics.ExportMetrics(result)
 			if err != nil {
@@ -139,26 +129,6 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			}
 		}
 	}
-}
-
-func (d *DaemonService) exportTimeoutResolved(componentName string) {
-	timeoutResolvedCheckerResult := &common.CheckerResult{
-		Name:        fmt.Sprintf("%sTimeout", componentName),
-		Description: fmt.Sprintf("component %s did not return a result within %v s", componentName, timeoutDuration),
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelCritical,
-		Detail:      "",
-		ErrorName:   fmt.Sprintf("%sTimeout", componentName),
-		Suggestion:  "The Nvidida GPU may be broken, please restart the node",
-	}
-	timeoutResolvedResult := &common.Result{
-		Item:     componentName,
-		Status:   consts.StatusNormal,
-		Level:    consts.LevelCritical,
-		Checkers: []*common.CheckerResult{timeoutResolvedCheckerResult},
-		Time:     time.Now(),
-	}
-	d.metrics.ExportMetrics(timeoutResolvedResult)
 }
 
 func (d *DaemonService) Status() (interface{}, error) {
