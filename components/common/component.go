@@ -35,6 +35,7 @@ type Component interface {
 	// CacheInfos cached collector infos
 	CacheInfos() ([]Info, error)
 	LastInfo() (Info, error)
+	PrintInfo(Info, *Result, bool) bool
 
 	// Metrics For http service
 	Metrics(ctx context.Context, since time.Time) (interface{}, error)

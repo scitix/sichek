@@ -19,12 +19,16 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/scitix/sichek/cmd/command/component"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/scitix/sichek/service"
@@ -96,7 +100,23 @@ func NewDaemonRunCmd() *cobra.Command {
 			logrus.WithField("daemon", "run").Info("starting sichek daemon service")
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
-			daemonService, err := service.NewService(cfgFile, specFile, usedComponents, ignoredComponents, annoKey)
+			components := make(map[string]common.Component)
+			for _, componentName := range consts.DefaultComponents {
+				if slices.Contains(ignoredComponents, componentName) {
+					continue
+				}
+				if len(usedComponentStr) > 0 && !slices.Contains(usedComponents, componentName) {
+					continue
+				}
+				component, err := component.NewComponent(componentName, cfgFile, specFile, nil)
+				if err != nil {
+					logrus.WithField("daemon", "run").Errorf("failed to create component %s: %v", componentName, err)
+					continue
+				}
+				components[componentName] = component
+			}
+
+			daemonService, err := service.NewService(components, annoKey)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return

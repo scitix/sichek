@@ -27,6 +27,7 @@ import (
 	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/components/hang/metrics"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -224,4 +225,20 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	checkAllPassed := true
+	checkerResults := result.Checkers
+	utils.PrintTitle("Hang Error", "-")
+	for _, result := range checkerResults {
+		if result.Status == consts.StatusAbnormal {
+			checkAllPassed = false
+			fmt.Printf("\t%s%s%s\n", consts.Red, result.Detail, consts.Reset)
+		}
+	}
+	if checkAllPassed {
+		fmt.Printf("%sNo Hang event detected%s\n", consts.Green, consts.Reset)
+	}
+	return checkAllPassed
 }

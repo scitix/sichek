@@ -21,6 +21,7 @@ import (
 
 	"github.com/scitix/sichek/cmd/command"
 	"github.com/scitix/sichek/cmd/command/component"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/metrics"
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -57,9 +58,9 @@ func printComponentStatuses() {
 	defer component.StatusMutex.Unlock()
 	utils.PrintTitle("Summary", "-")
 	for componentItem, status := range component.ComponentStatuses {
-		statusStr := fmt.Sprintf("%s%s%s", component.Green, "PASS", component.Reset)
+		statusStr := fmt.Sprintf("%s%s%s", consts.Green, "PASS", consts.Reset)
 		if !status {
-			statusStr = fmt.Sprintf("%s%s%s", component.Red, "FAIL", component.Reset)
+			statusStr = fmt.Sprintf("%s%s%s", consts.Red, "FAIL", consts.Reset)
 		}
 		fmt.Printf(" - %s: %s\n", componentItem, statusStr)
 	}

@@ -18,7 +18,7 @@ package infiniband
 import (
 	"context"
 	"fmt"
-	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/components/infiniband/metrics"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
@@ -136,70 +137,26 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
 	c.metrics.ExportMetrics(InfinibandInfo)
-	status := consts.StatusNormal
-
-	checkerResults := make([]*common.CheckerResult, 0)
-	var level string = consts.LevelInfo
-	var err error
-
-	for _, cherker := range c.checkers {
-		logrus.WithField("component", "infiniband").Debugf("do the check: %s", cherker.Name())
-		result, err := cherker.Check(ctx, InfinibandInfo)
-		if err != nil {
-			logrus.WithField("component", "infiniband").Errorf("failed to check: %v", err)
-			continue
-		}
-		checkerResults = append(checkerResults, result)
-	}
-
-	for _, checkItem := range checkerResults {
-		if checkItem.Status == consts.StatusAbnormal {
-			logrus.WithField("component", "infiniband").Warnf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
-		}
-	}
-
-	for _, checkItem := range checkerResults {
-		if checkItem.Status == consts.StatusAbnormal {
-			status = consts.StatusAbnormal
-			level = config.InfinibandCheckItems[checkItem.Name].Level
-			logrus.WithField("component", "infiniband").Errorf("check Item:%s, status:%s, level:%s", checkItem.Name, status, level)
-			break
-		}
-	}
+	result := common.Check(ctx, c.componentName, InfinibandInfo, c.checkers)
 	info, err := InfinibandInfo.JSON()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert infiniband info to JSON: %w", err)
 	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("failed to get the hostname: %v", err)
-		hostname = "unknown"
-	}
-
-	resResult := &common.Result{
-		Item:     consts.ComponentNameInfiniband,
-		Node:     hostname,
-		Status:   status,
-		Level:    level,
-		RawData:  info,
-		Checkers: checkerResults,
-		Time:     time.Now(),
-	}
+	result.RawData = info
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = InfinibandInfo
-	c.cacheBuffer[c.currIndex] = resResult
+	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
 
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "Infiniband").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "Infiniband").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -271,4 +228,143 @@ func (c *component) Stop() error {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	checkAllPassed := true
+
+	ibInfo, ok := info.(*collector.InfinibandInfo)
+	if !ok {
+		logrus.WithField("component", "infiniband").Errorf("invalid data type, expected InfinibandInfo")
+		return false
+	}
+
+	checkerResults := result.Checkers
+	ibControllersPrintColor := consts.Green
+	// PerformancePrint := "Performance: "
+
+	var (
+		ibKmodPrint      string
+		ofedVersionPrint string
+		fwVersionPrint   string
+		ibPortSpeedPrint string
+		phyStatPrint     string
+		ibStatePrint     string
+		pcieLinkPrint    string
+		// throughPrint        string
+		// latencyPrint     string
+	)
+	pcieGen := ""
+	pcieWidth := ""
+
+	infinibandEvents := make(map[string]string)
+	ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", consts.Green, ibInfo.IBSoftWareInfo.OFEDVer, consts.Reset)
+
+	logrus.Infof("checkerResults: %v", common.ToString(checkerResults))
+
+	for _, result := range checkerResults {
+		statusColor := consts.Green
+		if result.Status != consts.StatusNormal {
+			statusColor = consts.Red
+			infinibandEvents[result.Name] = fmt.Sprintf("%s%s%s", statusColor, result.Detail, consts.Reset)
+			checkAllPassed = false
+		}
+
+		switch result.Name {
+		case config.ChekIBOFED:
+			ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", statusColor, result.Curr, consts.Reset)
+		case config.CheckIBKmod:
+			ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Loaded", consts.Reset)
+			if result.Status != consts.StatusNormal {
+				ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Not Loaded Correctly", consts.Reset)
+			}
+		case config.ChekIBFW:
+			fwVersion := extractAndDeduplicate(result.Curr)
+			fwVersionPrint = fmt.Sprintf("FW Version: %s%s%s", statusColor, fwVersion, consts.Reset)
+		case config.ChekIBPortSpeed:
+			portSpeed := extractAndDeduplicate(result.Curr)
+			ibPortSpeedPrint = fmt.Sprintf("IB Port Speed: %s%s%s", statusColor, portSpeed, consts.Reset)
+		case config.ChekIBPhyState:
+			phyState := "LinkUp"
+			if result.Status != consts.StatusNormal {
+				phyState = "Not All LinkUp"
+			}
+			phyStatPrint = fmt.Sprintf("Phy State: %s%s%s", statusColor, phyState, consts.Reset)
+		case config.ChekIBState:
+			ibState := "Active"
+			if result.Status != consts.StatusNormal {
+				ibState = "Not All Active"
+			}
+			ibStatePrint = fmt.Sprintf("IB State: %s%s%s", statusColor, ibState, consts.Reset)
+		case config.CheckPCIESpeed:
+			pcieGen = fmt.Sprintf("%s%s%s", statusColor, extractAndDeduplicate(result.Curr), consts.Reset)
+		case config.CheckPCIEWidth:
+			pcieWidth = fmt.Sprintf("%s%s%s", statusColor, extractAndDeduplicate(result.Curr), consts.Reset)
+		case config.CheckIBDevs:
+			ibControllersPrintColor = statusColor
+		}
+	}
+	if pcieGen != "" && pcieWidth != "" {
+		pcieLinkPrint = fmt.Sprintf("PCIe Link: %s%s (x%s)%s", consts.Green, pcieGen, pcieWidth, consts.Reset)
+	} else {
+		pcieLinkPrint = fmt.Sprintf("PCIe Link: %sError Detected%s", consts.Red, consts.Reset)
+	}
+
+	ibControllersPrint := fmt.Sprintf("Host Channel Adaptor: %s", ibControllersPrintColor)
+	for _, hwInfo := range ibInfo.IBHardWareInfo {
+		ibControllersPrint += fmt.Sprintf("%s(%s), ", hwInfo.IBDev, hwInfo.NetDev)
+	}
+
+	ibControllersPrint = strings.TrimSuffix(ibControllersPrint, ", ")
+	ibControllersPrint += consts.Reset
+
+	if summaryPrint {
+		utils.PrintTitle("infiniband", "-")
+		termWidth, err := utils.GetTerminalWidth()
+		printInterval := 60
+		if err == nil {
+			printInterval = termWidth / 3
+		}
+		if printInterval < len(ofedVersionPrint) {
+			printInterval = len(ofedVersionPrint) + 2
+		}
+		fmt.Printf("%-*s\n", printInterval, ibControllersPrint)
+		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "")          //, PerformancePrint)
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "")   //, "Throughput: TBD")
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "") //, "Latency: TBD")
+		fmt.Printf("%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, pcieLinkPrint)
+	}
+
+	fmt.Println("Errors Events:")
+
+	if len(infinibandEvents) == 0 {
+		fmt.Printf("\t%sNo Infiniband Events Detected%s\n", consts.Green, consts.Reset)
+	} else {
+		for _, event := range infinibandEvents {
+			fmt.Printf("\t%s\n", event)
+		}
+	}
+	return checkAllPassed
+}
+
+func extractAndDeduplicate(curr string) string {
+	// Split the string by ';'
+	values := strings.Split(curr, ",")
+
+	// Use a map to store unique values
+	uniqueValues := make(map[string]struct{})
+	for _, value := range values {
+		if value != "" { // Ignore empty strings
+			uniqueValues[value] = struct{}{}
+		}
+	}
+
+	// Collect keys from the map into a slice
+	result := make([]string, 0, len(uniqueValues))
+	for key := range uniqueValues {
+		result = append(result, key)
+	}
+
+	// Join the unique values back into a single string
+	return strings.Join(result, ",")
 }

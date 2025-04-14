@@ -18,6 +18,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -37,8 +38,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const timeoutDuration = 120 * time.Second
-
 type Service interface {
 	Run()
 	Status() (interface{}, error)
@@ -49,19 +48,17 @@ type Service interface {
 type DaemonService struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
-	usedComponentsMap    map[string]bool
 	components           map[string]common.Component
 	componentsLock       sync.RWMutex
 	componentsStatus     map[string]bool
 	componentsStatusLock sync.RWMutex
 	componentResults     map[string]<-chan *common.Result
-	componentsResultLock sync.RWMutex
+	node                 string
 	metrics              *metrics.HealthCheckResMetrics
-
-	notifier Notifier
+	notifier             Notifier
 }
 
-func NewService(cfgFile string, specFile string, usedComponents []string, ignoredComponents []string, annoKey string) (s Service, err error) {
+func NewService(components map[string]common.Component, annoKey string) (s Service, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -74,70 +71,19 @@ func NewService(cfgFile string, specFile string, usedComponents []string, ignore
 		logrus.WithField("daemon", "new").Errorf("create notifier failed: %v", err)
 		return nil, err
 	}
-	usedComponentsMap := make(map[string]bool)
-	if len(usedComponents) == 0 {
-		usedComponents = consts.DefaultComponents
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.WithField("daemon", "new").Errorf("get node name failed: %v", err)
 	}
-	for _, componentName := range usedComponents {
-		usedComponentsMap[componentName] = true
-	}
-	for _, componentName := range ignoredComponents {
-		usedComponentsMap[componentName] = false
-	}
-
 	daemonService := &DaemonService{
-		ctx:               ctx,
-		cancel:            cancel,
-		usedComponentsMap: usedComponentsMap,
-		components:        make(map[string]common.Component),
-		componentsStatus:  make(map[string]bool),
-		componentResults:  make(map[string]<-chan *common.Result),
-		notifier:          notifier,
+		ctx:              ctx,
+		cancel:           cancel,
+		components:       components,
+		componentsStatus: make(map[string]bool),
+		componentResults: make(map[string]<-chan *common.Result),
+		notifier:         notifier,
 		metrics:           metrics.NewHealthCheckResMetrics(),
-	}
-
-	for componentName, enabled := range usedComponentsMap {
-		if !enabled {
-			continue
-		}
-		var component common.Component
-		var err error
-		switch componentName {
-		case consts.ComponentNameGpfs:
-			component, err = gpfs.NewGpfsComponent(cfgFile)
-		case consts.ComponentNameCPU:
-			component, err = cpu.NewComponent(cfgFile)
-		case consts.ComponentNameInfiniband:
-			component, err = infiniband.NewInfinibandComponent(cfgFile, specFile, nil)
-		case consts.ComponentNameDmesg:
-			component, err = dmesg.NewComponent(cfgFile)
-		case consts.ComponentNameNvidia:
-			if !utils.IsNvidiaGPUExist() {
-				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
-				continue
-			}
-			component, err = nvidia.NewComponent(cfgFile, specFile, nil)
-		case consts.ComponentNameHang:
-			if !utils.IsNvidiaGPUExist() {
-				logrus.Warn("Nvidia GPU is not Exist. Bypassing Hang HealthCheck")
-				continue
-			}
-			_, err = nvidia.NewComponent(cfgFile, specFile, nil)
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("Failed to Get Nvidia component, Bypassing HealthCheck")
-				continue
-			}
-			component, err = hang.NewComponent(cfgFile)
-		case consts.ComponentNameNCCL:
-			component, err = nccl.NewComponent(cfgFile)
-		default:
-			err = fmt.Errorf("invalid component_name: %s", componentName)
-			return nil, err
-		}
-		if err != nil {
-			return nil, err
-		}
-		daemonService.components[componentName] = component
+		node:             hostname,
 	}
 
 	return daemonService, nil
@@ -146,11 +92,7 @@ func NewService(cfgFile string, specFile string, usedComponents []string, ignore
 func (d *DaemonService) Run() {
 	d.componentsLock.Lock()
 
-	for componentName := range d.usedComponentsMap {
-		component, exist := d.components[componentName]
-		if !exist {
-			continue
-		}
+	for componentName, component := range d.components {
 		resultChan := component.Start()
 		d.componentResults[componentName] = resultChan
 	}
@@ -184,6 +126,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
 			var err error
+			result.Node = d.node
 			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
 				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 			} else {

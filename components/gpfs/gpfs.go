@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/gpfs/collector"
 	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -123,44 +124,19 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "gpfs").Errorf("wrong gpfs collector info type")
 		return nil, err
 	}
-
-	status := consts.StatusNormal
-	level := consts.LevelInfo
-	checkerResults := make([]*common.CheckerResult, 0)
-	for _, each := range c.checkers {
-		checkResult, err := each.Check(ctx, gpfsInfo.FilterResults[each.Name()])
-		if err != nil {
-			logrus.WithField("component", "gpfs").Errorf("failed to check: %v", err)
-			continue
-		}
-		checkerResults = append(checkerResults, checkResult)
-		if checkResult.Level == consts.LevelCritical && checkResult.Status == consts.StatusAbnormal {
-			status = consts.StatusAbnormal
-			level = checkResult.Level
-		}
-	}
-
-	resResult := &common.Result{
-		Item:       consts.ComponentNameGpfs,
-		Status:     status,
-		Level:      level,
-		Suggestion: "Repair and Reboot the system",
-		Checkers:   checkerResults,
-		Time:       time.Now(),
-	}
-
+	result := common.Check(ctx, c.componentName, gpfsInfo, c.checkers)
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
-	c.cacheBuffer[c.currIndex] = resResult
+	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "gpfs").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "gpfs").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -226,4 +202,37 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval() * time.Second
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	checkAllPassed := true
+	_, ok := info.(*collector.GPFSInfo)
+	if !ok {
+		logrus.WithField("component", "Gpfs").Errorf("invalid data type, expected GPFSInfo")
+		return false
+	}
+	var mountPrint string
+	gpfsEvent := make(map[string]string)
+
+	checkerResults := result.Checkers
+	for _, result := range checkerResults {
+		statusColor := consts.Green
+		if result.Status != consts.StatusNormal {
+			statusColor = consts.Red
+			checkAllPassed = false
+			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", consts.Red, result.ErrorName, consts.Reset)
+		}
+
+		switch result.Name {
+		case config.FilesystemUnmountCheckerName:
+			mountPrint = fmt.Sprintf("GPFS: %sMounted%s", statusColor, consts.Reset)
+		}
+	}
+
+	utils.PrintTitle("GPFS", "-")
+	fmt.Printf("%s\n", mountPrint)
+	for _, v := range gpfsEvent {
+		fmt.Printf("\t%s\n", v)
+	}
+	return checkAllPassed
 }
