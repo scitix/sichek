@@ -103,7 +103,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer:   make([]*common.Result, cfg.CPU.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.CPU.CacheSize),
 		cacheSize:     cfg.CPU.CacheSize,
-		metrics:     metrics.NewCpuMetrics(),
+		metrics:       metrics.NewCpuMetrics(),
 	}
 	service := common.NewCommonService(ctx, cfg, comp.componentName, comp.GetTimeout(), comp.HealthCheck)
 	comp.service = service
@@ -126,7 +126,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "cpu").Errorf("wrong cpu info type")
 		return nil, err
 	}
-	c.metrics.ExportMetrics(cpuInfo)	
+	c.metrics.ExportMetrics(cpuInfo)
 	result := common.Check(ctx, c.Name(), cpuInfo, c.checkers)
 
 	c.cacheMtx.Lock()
