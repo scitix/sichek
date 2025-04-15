@@ -25,6 +25,11 @@ type PodInfo struct {
 	PodName   string
 }
 
+// Implement String() method for pretty printing
+func (p *PodInfo) String() string {
+	return fmt.Sprintf("Namespace: %s, PodName: %s", p.Namespace, p.PodName)
+}
+
 var (
 	podResourceMapper *PodResourceMapper
 	syncOnce          sync.Once

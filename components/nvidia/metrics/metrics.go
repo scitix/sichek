@@ -57,15 +57,12 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 			currentClkEvent := make(map[string]struct{})
 			for _, event := range device.ClockEvents.CriticalClockEvents {
 				currentClkEvent[event.Name] = struct{}{}
-				m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId), event.Description}, float64(1.0))
 			}
-			for _, event := range device.ClockEvents.CriticalClockEvents {
-				currentClkEvent[event.Name] = struct{}{}
-				m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId), event.Description}, float64(1.0))
-			}
-			for eventName := range m.NvidiaDeviceClkEventGauge.MetricsMap {
-				if _, found := currentClkEvent[eventName]; !found {
-					m.NvidiaDeviceClkEventGauge.SetMetric(eventName, []string{deviceIdx, "0", "0"}, float64(0.0))
+			for _, event := range collector.CriticalClockEvents {
+				if _, found := currentClkEvent[event.Name]; found {
+					m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId), event.Description}, float64(1.0))
+				} else {
+					m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId), event.Description}, float64(0.0))
 				}
 			}
 		}
