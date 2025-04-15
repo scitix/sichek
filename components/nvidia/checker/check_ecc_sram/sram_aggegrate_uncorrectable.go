@@ -80,7 +80,6 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

@@ -64,7 +64,6 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 			result.Curr = "LoadedOnline"
 			result.Detail = "nvidia_peermem is not loaded. It has been loaded online successfully"
 			result.Suggestion = ""
-			result.ErrorName = ""
 		} else {
 			result.Status = consts.StatusAbnormal
 			result.Curr = "NotLoaded"
@@ -75,7 +74,6 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 		result.Curr = "Loaded"
 		result.Detail = "nvidia_peermem is loaded correctly"
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

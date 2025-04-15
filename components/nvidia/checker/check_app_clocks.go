@@ -86,7 +86,6 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

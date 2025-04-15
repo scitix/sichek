@@ -19,7 +19,7 @@ type HealthCheckResMetrics struct {
 }
 
 func NewHealthCheckResMetrics() *HealthCheckResMetrics {
-	HealthCheckResGauge := NewGaugeVecMetricExporter(MetricPrefix, []string{"component_name", "level", "error_name", "device"})
+	HealthCheckResGauge := NewGaugeVecMetricExporter(MetricPrefix, []string{"component_name", "level", "error_name"})
 	return &HealthCheckResMetrics{
 		HealthCheckResGauge: HealthCheckResGauge,
 	}
@@ -28,9 +28,9 @@ func NewHealthCheckResMetrics() *HealthCheckResMetrics {
 func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 	for _, checker := range metrics.Checkers {
 		if checker.Status == consts.StatusAbnormal {
-			m.HealthCheckResGauge.SetMetric("healthcheck_results", []string{metrics.Item, checker.Level, checker.ErrorName, checker.Device}, 1.0)
+			m.HealthCheckResGauge.SetMetric("healthcheck_results", []string{metrics.Item, checker.Level, checker.ErrorName}, 1.0)
 		} else {
-			m.HealthCheckResGauge.SetMetric("healthcheck_results", []string{metrics.Item, checker.Level, checker.ErrorName, checker.Device}, 0.0)
+			m.HealthCheckResGauge.SetMetric("healthcheck_results", []string{metrics.Item, checker.Level, checker.ErrorName}, 0.0)
 		}
 	}
 }
