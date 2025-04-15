@@ -27,7 +27,7 @@ func NewNvidiaMetrics() *NvidiaMetrics {
 	NvidiaSoftwareInfoGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"metric_name"})
 	NvidiaDevUUIDGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "uuid"})
 	NvidiaDeviceGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index"})
-	NvidiaDeviceClkEventGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "clock_event_reason_id", "description"})
+	NvidiaDeviceClkEventGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "clock_event_reason_id"})
 	return &NvidiaMetrics{
 		NvidiaDevCntGauge:         NvidiaDevCntGauge,
 		NvidiaSoftwareInfoGauge:   NvidiaSoftwareInfoGauge,
@@ -60,9 +60,9 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 			}
 			for _, event := range collector.CriticalClockEvents {
 				if _, found := currentClkEvent[event.Name]; found {
-					m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId), event.Description}, float64(1.0))
+					m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId)}, float64(1.0))
 				} else {
-					m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId), event.Description}, float64(0.0))
+					m.NvidiaDeviceClkEventGauge.SetMetric(event.Name, []string{deviceIdx, fmt.Sprintf("%d", event.ClockEventReasonId)}, float64(0.0))
 				}
 			}
 		}
