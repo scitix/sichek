@@ -126,8 +126,8 @@ func (c *component) Name() string {
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	info, err := c.collector.Collect(ctx)
-	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to Collect(ctx)")
+	if err != nil || info == nil {
+		logrus.WithField("component", "hang").Error("failed to Collect")
 		return &common.Result{}, err
 	}
 	checkerInfo, ok := info.(*checker.HangInfo)
@@ -137,7 +137,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.metrics.ExportMetrics(checkerInfo)
 	checkRes, err := c.checker.Check(c.ctx, info)
 	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to Check()")
+		logrus.WithField("component", "hang").WithError(err).Error("failed to Check")
 		return &common.Result{}, err
 	}
 	resResult := &common.Result{

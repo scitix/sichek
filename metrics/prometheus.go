@@ -3,6 +3,7 @@ package metrics
 import (
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/scitix/sichek/components/common"
@@ -16,13 +17,27 @@ const (
 
 type HealthCheckResMetrics struct {
 	HealthCheckResGauge *GaugeVecMetricExporter
+	AnnotationResGauge  *GaugeVecMetricExporter
 }
 
-func NewHealthCheckResMetrics() *HealthCheckResMetrics {
+func newHealthCheckResMetrics() *HealthCheckResMetrics {
 	HealthCheckResGauge := NewGaugeVecMetricExporter(MetricPrefix, []string{"component_name", "level", "error_name"})
+	AnnotationResGauge := NewGaugeVecMetricExporter(MetricPrefix, []string{"annotaion"})
+
 	return &HealthCheckResMetrics{
 		HealthCheckResGauge: HealthCheckResGauge,
+		AnnotationResGauge:  AnnotationResGauge,
 	}
+}
+
+var HealthCheckMetrics *HealthCheckResMetrics
+var once sync.Once
+
+func GetHealthCheckResMetrics() *HealthCheckResMetrics {
+	once.Do(func() {
+		HealthCheckMetrics = newHealthCheckResMetrics()
+	})
+	return HealthCheckMetrics
 }
 
 func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
@@ -34,9 +49,12 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 		}
 	}
 }
+func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
+	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
+}
 
 func InitPrometheus() {
-	// 启动 Prometheus HTTP 处理程序
+	// start Prometheus HTTP
 	http.Handle("/metrics", promhttp.Handler())
 	if err := http.ListenAndServe(":9091", nil); err != nil {
 		log.Fatal(err)

@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewGpfsCmd 创建并返回用于代表Gpfs相关操作的子命令实例，配置命令的基本属性
+// NewGpfsCmd creates and returns a subcommand instance for running in Gpfs, configuring the basic attributes of the command.
 func NewGpfsCmd() *cobra.Command {
 	gpfsCmd := &cobra.Command{
 		Use:     "gpfs",

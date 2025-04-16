@@ -128,7 +128,6 @@ func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[str
 			if !field.CanInterface() {
 				continue
 			}
-			// 指定从结构体字段的tagPrefix(通常使用"json")标签中提取标签的值作为字段名。如果没有标签，则使用字段的名称
 			tag := fieldType.Tag.Get(tagPrefix)
 			if tag == "-" {
 				continue

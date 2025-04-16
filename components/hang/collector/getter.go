@@ -115,7 +115,7 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 	c.hangInfo.Time = time.Now()
 	info, err := c.getLatestInfo(ctx)
 	if err != nil || info == nil {
-		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get latest nvidia info")
+		logrus.WithField("collector", "hanggetter").Warnf("failed to get latest nvidia info")
 		return nil, err
 	}
 
@@ -164,9 +164,6 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 			} else {
 				c.hangInfo.HangDuration[item][uuid] += duration
 			}
-			// logrus.WithField("collector", "hanggetter").Warnf("Index=%d, GPU=%d, item=%s, indicate=%d, threshold=%d, duration=%d, nowduration=%d\n",
-			// 	deviceInfo.Index, i, item, infoValue, c.indicates[item], duration,
-			// 	c.hangInfo.HangDuration[item][uuid])
 		}
 	}
 	c.prevTS = info.Time
@@ -178,34 +175,23 @@ func (c *HangGetter) getLatestInfo(ctx context.Context) (*collector.NvidiaInfo, 
 	var info *collector.NvidiaInfo
 	var ok bool
 	if !c.nvidiaComponent.Status() {
-		if _, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck); err != nil {
-			return nil, fmt.Errorf("failed to refresh nvidia info")
-		}
-		infoRaw, err := c.nvidiaComponent.LastInfo()
+		_, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck)
 		if err != nil {
-			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to refresh nvidia info")
 			return nil, err
-		}
-		info, ok = infoRaw.(*collector.NvidiaInfo)
-		if !ok {
-			return nil, fmt.Errorf("hanggetter: wrong info type of refresh nvidia info")
-		}
-	} else {
-		infoRaw, err := c.nvidiaComponent.LastInfo()
-		if err != nil {
-			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia infos")
-			return nil, err
-		}
-		info, ok = infoRaw.(*collector.NvidiaInfo)
-		if !ok {
-			return nil, fmt.Errorf("hanggetter: wrong info type of last nvidia info")
-		}
-		if !info.Time.After(c.prevTS) {
-			return nil, fmt.Errorf("hanggetter: nvidia info not update, current time: %v, last time: %v", info.Time, c.prevTS)
-		} else {
-			logrus.Infof("hanggetter: get valid nvidia info, current time: %v, last time: %v", info.Time, c.prevTS)
 		}
 	}
+	infoRaw, err := c.nvidiaComponent.LastInfo()
+	if err != nil {
+		return nil, err
+	}
+	info, ok = infoRaw.(*collector.NvidiaInfo)
+	if !ok {
+		return nil, fmt.Errorf("hanggetter: wrong info type of last nvidia info")
+	}
+	if !info.Time.After(c.prevTS) {
+		return nil, fmt.Errorf("hanggetter: nvidia info not updated, current time: %v, last time: %v", info.Time, c.prevTS)
+	}
+
 	return info, nil
 }
 

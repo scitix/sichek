@@ -41,8 +41,7 @@ type component struct {
 	cancel        context.CancelFunc
 
 	cfg      *config.NvidiaUserConfig
-	cfgMutex sync.RWMutex // 用于更新时的锁
-
+	cfgMutex sync.RWMutex 
 	nvmlInst  nvml.Interface
 	collector *collector.NvidiaCollector
 	checkers  []common.Checker
@@ -344,7 +343,6 @@ func (c *component) Start() <-chan *common.Result {
 				// Check if the error message contains "Timeout"
 				if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
 					// Handle the timeout error
-					logrus.WithField("component", "NVIDIA").Errorf("Health Check TIMEOUT")
 					err := ReNewNvml(c)
 					if err != nil {
 						logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML after HealthCheck Timeout: %s", err.Error())

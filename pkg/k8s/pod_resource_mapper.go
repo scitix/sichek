@@ -100,11 +100,8 @@ func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]*PodInfo, error) {
 	// Print pod resources
 	deviceToPodMap := make(map[string]*PodInfo)
 	for _, pod := range resp.PodResources {
-		// logrus.Infof("Pod: %s/%s\n", pod.Namespace, pod.Name)
 		for _, container := range pod.Containers {
-			// logrus.Infof("  Container: %s\n", container.Name)
 			for _, device := range container.Devices {
-				// logrus.Infof("    Resource Name: %s, Devices: %v\n", device.ResourceName, device.DeviceIds)
 				if device.ResourceName == "nvidia.com/gpu" {
 					for _, deviceID := range device.DeviceIds {
 						deviceToPodMap[deviceID] = &PodInfo{

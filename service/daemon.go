@@ -17,7 +17,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -73,7 +72,7 @@ func NewService(components map[string]common.Component, annoKey string) (s Servi
 		componentsStatus: make(map[string]bool),
 		componentResults: make(map[string]<-chan *common.Result),
 		notifier:         notifier,
-		metrics:          metrics.NewHealthCheckResMetrics(),
+		metrics:          metrics.GetHealthCheckResMetrics(),
 		node:             hostname,
 	}
 
@@ -97,7 +96,7 @@ func (d *DaemonService) Run() {
 func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan *common.Result) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("[DaemonService|monitorComponent] panic err is %s\n", err)
+			logrus.WithField("daemon", "run").Errorf("monitorComponent panic,err is %v\n", err)
 		}
 	}()
 	d.componentsStatusLock.Lock()

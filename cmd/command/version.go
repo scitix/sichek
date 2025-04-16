@@ -24,7 +24,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewInfinibandCmd 创建并返回用于代表Infiniband相关操作的子命令实例，配置命令的基本属性
 func NewVersionCmd() *cobra.Command {
 	infinibandCmd := &cobra.Command{
 		Use:     "version",
@@ -41,11 +40,6 @@ func NewVersionCmd() *cobra.Command {
 	return infinibandCmd
 }
 
-// func hasGitInstalled() bool {
-// 	_, err := exec.LookPath("git")
-// 	return err == nil
-// }
-
 func getGitCommitWithShell() string {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	output, err := cmd.Output()
@@ -54,20 +48,6 @@ func getGitCommitWithShell() string {
 	}
 	return strings.TrimSpace(string(output))
 }
-
-// func getGitCommitWithModule() string {
-// 	repo, err := git.PlainOpen(".")
-// 	if err != nil {
-// 		log.Fatalf("Failed to open Git repository: %v", err)
-// 	}
-
-// 	head, err := repo.Head()
-// 	if err != nil {
-// 		log.Fatalf("Failed to get HEAD: %v", err)
-// 	}
-
-// 	return head.Hash().String()
-// }
 
 func getGitCommit() string {
 	return getGitCommitWithShell()
