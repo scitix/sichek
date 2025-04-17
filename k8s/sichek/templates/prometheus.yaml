@@ -10,12 +10,12 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: {{ .Values.name }}  # 选择标签与 DaemonSet 中应用相匹配的 Pods  
+    app: {{ .Values.name }}  # Selects pods with labels that match the DaemonSet application 
     role: leader
   ports:
     - name: metrics  
-      port: 9091   # 指标端口  
-      targetPort: metrics  # 容器中暴露的端口  
+      port: 9091   # Metrics port  
+      targetPort: metrics  # Port exposed in the container  
 {{- end }}
 ---
 {{- if eq .Values.mode "daemon" }}
@@ -28,15 +28,15 @@ metadata:
     app: {{ .Values.name }}  
 spec:
   podMetricsEndpoints:
-    - interval: 15s  # 抓取间隔  
-      path: /metrics  # 指标路径  
-      port: metrics  # 服务中定义的端口名称  
+    - interval: 15s  # Scrape interval  
+      path: /metrics  # Metrics path  
+      port: metrics   
       scrapeTimeout: 10s
       scheme: http
   namespaceSelector:
     matchNames:
-      - {{ .Values.namespace }}  # 匹配命名空间  
+      - {{ .Values.namespace }}   
   selector:
     matchLabels:
-      app: {{ .Values.name }}  # 选择与 Service 中标签匹配的 Pods
+      app: {{ .Values.name }}  
 {{- end }}
