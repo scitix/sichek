@@ -40,8 +40,8 @@ type component struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 
-	cfg      *config.NvidiaUserConfig
-	cfgMutex sync.RWMutex 
+	cfg       *config.NvidiaUserConfig
+	cfgMutex  sync.RWMutex
 	nvmlInst  nvml.Interface
 	collector *collector.NvidiaCollector
 	checkers  []common.Checker
@@ -486,10 +486,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		case config.HardwareCheckerName:
 			if result.Status == consts.StatusNormal {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
-					consts.Green, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, len(nvidiaInfo.DeviceToPodMap), consts.Reset)
+					consts.Green, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, nvidiaInfo.DeviceUsedCount, consts.Reset)
 			} else {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
-					consts.Red, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, len(nvidiaInfo.DeviceToPodMap), consts.Reset)
+					consts.Red, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, nvidiaInfo.DeviceUsedCount, consts.Reset)
 				gpuStatus[config.HardwareCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 			}
 		case config.SoftwareCheckerName:

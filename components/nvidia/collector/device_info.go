@@ -42,6 +42,7 @@ type DeviceInfo struct {
 	Utilization  UtilizationInfo `json:"utilization_info"`
 	NVLinkStates NVLinkStates    `json:"nvlink_state"`
 	MemoryErrors MemoryErrors    `json:"ecc_event"`
+	NProcess     int             `json:"nprocess"`
 }
 
 func (deviceInfo *DeviceInfo) JSON() ([]byte, error) {
@@ -143,6 +144,13 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	if err2 != nil {
 		return fmt.Errorf("failed to get nvlink states for device %v: %v", uuid, err2)
 	}
+	// Get the number of processes using the GPU
+	processInfo, err := device.GetComputeRunningProcesses()
+	if !errors.Is(err, nvml.SUCCESS) {
+		return fmt.Errorf("failed to get processes for GPU %v: %s", uuid, nvml.ErrorString(err))
+	}
+	deviceInfo.NProcess = len(processInfo)
+
 	return nil
 }
 

@@ -40,7 +40,7 @@ func NewPodResourceMapper() *PodResourceMapper {
 		var err error
 		podResourceMapper, err = newPodResourceMapper()
 		if err != nil {
-			panic(err)
+			logrus.Errorf("Failed to create PodResourceMapper: %v", err)
 		}
 	})
 	return podResourceMapper
@@ -48,12 +48,17 @@ func NewPodResourceMapper() *PodResourceMapper {
 
 func newPodResourceMapper() (*PodResourceMapper, error) {
 	socketPath := "/var/lib/kubelet/pod-resources/kubelet.sock"
+	var ret error
+	ret = nil
+	// Check if the socket file exists or is accessible
 	_, err := os.Stat(socketPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no Kubelet socket")
+			ret = fmt.Errorf("kubelet socket does not exist: %v", err)
+		} else {
+			ret = fmt.Errorf("kubelet socket is not accessible: %v", err)
 		}
-		return nil, fmt.Errorf("error checking Kubelet socket: %v", err)
+		socketPath = ""
 	}
 
 	return &PodResourceMapper{
@@ -61,10 +66,14 @@ func newPodResourceMapper() (*PodResourceMapper, error) {
 		ConnectionTimeout:             10 * time.Second,
 		PodResourcesKubeletSocketPath: socketPath,
 		callMtx:                       sync.RWMutex{},
-	}, nil
+	}, ret
 }
 
 func (p *PodResourceMapper) GetDeviceToPodMap() (map[string]*PodInfo, error) {
+	if p.PodResourcesKubeletSocketPath == "" {
+		logrus.Warn("PodResourcesKubeletSocketPath is not set, returning empty map")
+		return nil, nil
+	}
 	p.callMtx.Lock()
 	defer p.callMtx.Unlock()
 	// Context with timeout for the request

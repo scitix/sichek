@@ -20,24 +20,42 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
+var (
+	Major     = "0"
+	Minor     = "3"
+	Patch     = "0"
+	GitCommit = "none"
+	GoVersion = "none"
+	BuildTime = "unknown"
+)
+
 func NewVersionCmd() *cobra.Command {
-	infinibandCmd := &cobra.Command{
+	VersionCmd := &cobra.Command{
 		Use:     "version",
 		Aliases: []string{"v"},
 		Short:   "Print the version number of sichek",
 		Long:    "All software has versions. This is sichek's",
 		Run: func(cmd *cobra.Command, args []string) {
-			version := "v0.3.0"
-			gitCommit := getGitCommit()
-			goVersion := getGoVersion()
-			cmd.Printf("Version: %s\nGit Commit: %s\nGo Version: %s\n", version, gitCommit, goVersion)
+			version := "v" + Major + "." + Minor + "." + Patch
+			if GitCommit == "none" {
+				GitCommit = getGitCommit()
+			}
+			if GoVersion == "none" {
+				GoVersion = getGoVersion()
+			}
+			if BuildTime == "unknown" {
+				now := time.Now()
+				BuildTime = now.Format("2006-01-02T15:04:05")
+			}
+			cmd.Printf("Version: %s\nGit Commit: %s\nGo Version: %s\nBuildTime: %s\n", version, GitCommit, GoVersion, BuildTime)
 		},
 	}
-	return infinibandCmd
+	return VersionCmd
 }
 
 func getGitCommitWithShell() string {
