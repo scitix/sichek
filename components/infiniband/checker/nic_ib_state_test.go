@@ -25,7 +25,6 @@ import (
 )
 
 func TestIBStateChecker_Check(t *testing.T) {
-	// 模拟 Spec 配置
 	spec := &config.InfinibandSpecItem{
 		HCAs: map[string]*collector.IBHardWareInfo{
 			"MT_0000000970": {
@@ -41,7 +40,6 @@ func TestIBStateChecker_Check(t *testing.T) {
 		},
 	}
 
-	// 创建 Checker 实例
 	checker, err := NewIBStateChecker(spec)
 	if err != nil {
 		t.Fatalf("failed to create IBStateChecker: %v", err)
@@ -49,7 +47,6 @@ func TestIBStateChecker_Check(t *testing.T) {
 
 	ibChecker := checker.(*IBStateChecker)
 
-	// 测试用例
 	tests := []struct {
 		name           string
 		data           *collector.InfinibandInfo

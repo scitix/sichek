@@ -26,7 +26,7 @@ import (
 	"github.com/scitix/sichek/pkg/utils"
 )
 
-// NewDaemonStopCmd 创建并返回用于停止daemon 进程的子命令实例，配置命令的基本属性
+// NewDaemonStopCmd creates and returns a subcommand instance for stopping the daemon process, configuring the basic attributes of the command.  
 func NewDaemonStopCmd() *cobra.Command {
 
 	daemonStopCmd := &cobra.Command{

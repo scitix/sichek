@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/memory/checker"
 	"github.com/scitix/sichek/components/memory/collector"
 	"github.com/scitix/sichek/components/memory/config"
+	"github.com/scitix/sichek/components/memory/metrics"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -47,6 +48,7 @@ type component struct {
 	cacheSize   int64
 
 	service *common.CommonService
+	metrics *metrics.MemoryMetrics
 }
 
 var (
@@ -105,6 +107,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),
 		cacheInfo:     make([]common.Info, memoryCfg.Memory.CacheSize),
 		cacheSize:     memoryCfg.Memory.CacheSize,
+		metrics:       metrics.NewMemoryMetrics(),
 	}
 	service := common.NewCommonService(ctx, memoryCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
@@ -127,7 +130,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "memory").Errorf("wrong memory collector info type")
 		return nil, err
 	}
-
+	c.metrics.ExportMetrics(memInfo.Info)
 	result := common.Check(ctx, c.componentName, memInfo, c.checkers)
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info

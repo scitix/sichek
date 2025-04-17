@@ -61,7 +61,7 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 				gpusAppClocksStatus = make(map[int]string)
 			}
 			gpusAppClocksStatus[device.Index] = fmt.Sprintf(
-				"GPU %d:%s AppSMClk: %s, MaxAppSMClk: %s, AppGraphicsClk: %s, MaxGraphicsClk: %s, AppMemoryClk: %s, MaxMemoryClk: %s\n",
+				"GPU %d:%s AppSMClk: %d Mhz, MaxAppSMClk: %d Mhz, AppGraphicsClk: %d Mhz, MaxGraphicsClk: %d Mhz, AppMemoryClk: %d Mhz, MaxMemoryClk: %d Mhz\n",
 				device.Index, device.UUID,
 				device.Clock.AppSMClk,
 				device.Clock.MaxSMClk,
@@ -72,7 +72,7 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 			)
 			var devicePodName string
 			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
+				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID].String())
 			} else {
 				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
@@ -86,7 +86,6 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

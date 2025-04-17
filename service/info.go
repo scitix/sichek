@@ -21,6 +21,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/metrics"
 
 	"github.com/sirupsen/logrus"
 )
@@ -139,6 +140,8 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 	if err != nil {
 		return fmt.Errorf("error marshaling updated annotation: %v", err)
 	}
+	m := metrics.GetHealthCheckResMetrics()
+	m.ExportAnnotationMetrics(annoStr)
 	if result.Status == consts.StatusAbnormal && (result.Level == consts.LevelCritical || result.Level == consts.LevelFatal) {
 		logrus.Infof("set node annotation for check result %s", jsonData)
 		logrus.Infof("update node annotataion from %s to %s", preAnnoStr, annoStr)

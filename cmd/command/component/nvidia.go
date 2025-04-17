@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewNvidiaCmd 创建并返回用于代表GPU相关操作的子命令实例，配置命令的基本属性
+// NewNvidiaCmd creates and returns a subcommand instance for representing gpu-related operations, configuring the basic attributes of the command.
 func NewNvidiaCmd() *cobra.Command {
 
 	NvidaCmd := &cobra.Command{

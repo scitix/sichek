@@ -79,7 +79,6 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

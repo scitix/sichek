@@ -75,7 +75,6 @@ func (c *SoftwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

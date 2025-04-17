@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDaemonStartCmd 创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
+// NewDaemonStartCmd creates and returns a subcommand instance for directly running a daemon process, configuring the basic attributes of the command.  
 func NewDaemonStartCmd() *cobra.Command {
 	daemonStartCmd := &cobra.Command{
 		Use:   "start",

@@ -88,7 +88,6 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }
