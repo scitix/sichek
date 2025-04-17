@@ -227,7 +227,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return checkAllPassed
 	}
 	for n := range dmesgEvent {
-		fmt.Printf("\tDetected %s Event\n", n)
+		fmt.Printf("\tDetected %d Kernel Events:\n %s\n", len(dmesgEvent), dmesgEvent[n])
 	}
 	return checkAllPassed
 }
