@@ -20,12 +20,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -70,19 +70,18 @@ func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		return nil, fmt.Errorf("wrong input of DmesgChecker")
 	}
 
-	var raw string
-	js, err := utils.JSON(info)
-	if err != nil {
-		logrus.WithError(err).Error("failed to get info")
-	}
-	raw = raw + js + "\n"
-
 	status := consts.StatusNormal
 	var suggest string
+	var raw strings.Builder
 	if len(info.Name) != 0 {
 		status = consts.StatusAbnormal
 		suggest = "check dmesg error"
+		for i, log := range info.Raw {
+			raw.WriteString(fmt.Sprintf("name: %s, detail: %s\n", info.Name[i], log))
+			logrus.Errorf("Detected dmesg error: %s", log)
+		}
 	}
+
 	return &common.CheckerResult{
 		Name:        c.name,
 		Description: "Get errors from dmesg",
@@ -92,7 +91,7 @@ func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		Status:      status,
 		Level:       consts.LevelCritical,
 		Suggestion:  suggest,
-		Detail:      raw,
+		Detail:      raw.String(),
 		ErrorName:   consts.ErrorNameDmesg,
 	}, nil
 }
