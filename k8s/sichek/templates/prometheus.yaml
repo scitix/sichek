@@ -1,4 +1,5 @@
 ---
+{{- if eq .Values.mode "daemon" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,7 +16,9 @@ spec:
     - name: metrics  
       port: 9091   # 指标端口  
       targetPort: metrics  # 容器中暴露的端口  
+{{- end }}
 ---
+{{- if eq .Values.mode "daemon" }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
@@ -35,4 +38,5 @@ spec:
       - {{ .Values.namespace }}  # 匹配命名空间  
   selector:
     matchLabels:
-      app: {{ .Values.name }}  # 选择与 Service 中标签匹配的 Pods  
+      app: {{ .Values.name }}  # 选择与 Service 中标签匹配的 Pods
+{{- end }}

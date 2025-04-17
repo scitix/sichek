@@ -13,7 +13,7 @@ hang:
       check_items:
         power:
           name: "pwr"
-          threshold: 150
+          threshold: 100
           compare: low
         gclk:
           name: "gclk"

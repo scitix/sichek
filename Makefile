@@ -1,14 +1,57 @@
 PROJECT_NAME := sichek
 GO := go
 INSTALL_DIR := /usr/sbin
+VERSION_MAJOR := 0
+VERSION_MINOR := 3
+VERSION_PATCH := 0
+GIT_COMMIT := $(shell git rev-parse --short HEAD)
+GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
+BUILD_TIME := $(shell date -u '+%Y-%m-%d')
+VERSION:=v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
+           -X 'cmd/command/version.Minor=$(VERSION_MINOR)' \
+           -X 'cmd/command/version.Patch=$(VERSION_PATCH)' \
+           -X 'cmd/command/version.GitCommit=$(GIT_COMMIT)' \
+           -X 'cmd/command/version.GoVersion=$(GO_VERSION)' \
+           -X 'cmd/command/version.BuildTime=$(BUILD_TIME)'
 
 all:
 	mkdir -p build/bin/
-	GOOS=linux GOARCH=amd64 $(GO) build -o build/bin/$(PROJECT_NAME) cmd/main.go
+	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -o build/bin/$(PROJECT_NAME) cmd/main.go
 
 debug:
 	mkdir -p build/bin/
-	GOOS=linux GOARCH=amd64 $(GO) build -gcflags "all=-N -l" -o build/bin/$(PROJECT_NAME) cmd/main.go
+	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -gcflags "all=-N -l" -o build/bin/$(PROJECT_NAME) cmd/main.go
+
+docker:
+	docker build \
+	--build-arg VERSION_MAJOR=${VERSION_MAJOR} \
+	--build-arg VERSION_MINOR=${VERSION_MINOR} \
+	--build-arg VERSION_PATCH=${VERSION_PATCH} \
+	--build-arg GIT_COMMIT=${GIT_COMMIT} \
+	--build-arg GO_VERSION=${GO_VERSION} \
+	--build-arg BUILD_TIME=${BUILD_TIME} \
+	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+
+release:
+	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
+	GIT_COMMIT=${GIT_COMMIT} GO_VERSION=${GO_VERSION} BUILD_TIME=${BUILD_TIME} \
+	goreleaser release --snapshot --clean
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/latest/sichek_latest_linux_amd64.rpm" --upload-file ./dist/sichek_${VERSION}_linux_amd64.rpm
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/latest/sichek_latest_linux_amd64.deb" --upload-file ./dist/sichek_${VERSION}_linux_amd64.deb
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/${VERSION}/sichek_${VERSION}_linux_amd64.rpm" --upload-file ./dist/sichek_${VERSION}_linux_amd64.rpm
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/${VERSION}/sichek_${VERSION}_linux_amd64.deb" --upload-file ./dist/sichek_${VERSION}_linux_amd64.deb
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/install.sh" --upload-file ./install.sh
+	docker build \
+	--build-arg VERSION_MAJOR=${VERSION_MAJOR} \
+	--build-arg VERSION_MINOR=${VERSION_MINOR} \
+	--build-arg VERSION_PATCH=${VERSION_PATCH} \
+	--build-arg GIT_COMMIT=${GIT_COMMIT} \
+	--build-arg GO_VERSION=${GO_VERSION} \
+	--build-arg BUILD_TIME=${BUILD_TIME} \
+	-t registry-ap-southeast.scitix.ai/hisys/sichek:_${VERSION} -f docker/Dockerfile .
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
 
 clean:
 	rm -f build/bin/*
