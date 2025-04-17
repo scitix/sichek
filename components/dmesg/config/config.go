@@ -29,12 +29,13 @@ type DmesgUserConfig struct {
 }
 
 type DmesgConfig struct {
-	Name           string                       `json:"name" yaml:"name"`
-	DmesgFileName  []string                     `json:"FileNmae" yaml:"FileNmae"`
-	DmesgCmd       [][]string                   `json:"Cmd" yaml:"Cmd"`
-	QueryInterval  time.Duration                `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                        `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*DmesgErrorConfig `json:"checkers" yaml:"checkers"`
+	Name          string                       `json:"name" yaml:"name"`
+	DmesgFileName []string                     `json:"FileNmae" yaml:"FileNmae"`
+	DmesgCmd      [][]string                   `json:"Cmd" yaml:"Cmd"`
+	QueryInterval time.Duration                `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64                        `json:"cache_size" yaml:"cache_size"`
+	EventCheckers map[string]*DmesgErrorConfig `json:"event_checkers" yaml:"event_checkers"`
+	EnableMetrics bool                         `json:"enable_metrics" yaml:"enable_metrics"`
 }
 
 func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
@@ -45,14 +46,6 @@ func (c *DmesgUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.Dmesg.QueryInterval = newInterval
 }
 
-func (c *DmesgUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.Dmesg.CheckerConfigs {
-		commonCfgMap[name] = cfg
-	}
-	return commonCfgMap
-}
-
 func (c *DmesgUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
@@ -60,9 +53,14 @@ func (c *DmesgUserConfig) LoadUserConfigFromYaml(file string) error {
 			return fmt.Errorf("failed to load dmesg config from YAML file %s: %v", file, err)
 		}
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameDmesg, c, consts.DefaultUserCfgName)
+	err := common.DefaultComponentUserConfig(c)
 	if err != nil || c.Dmesg == nil {
-		return fmt.Errorf("failed to load default dmesg config: %v", err)
+		return fmt.Errorf("failed to load default cpu config: %v", err)
+	}
+	// load event checker
+	err = common.DefaultComponentConfig(consts.ComponentNameDmesg, c.Dmesg.EventCheckers, consts.DefaultEventCheckerCfgName)
+	if err != nil {
+		return fmt.Errorf("failed to load default cpu event checker config: %v", err)
 	}
 	return nil
 }

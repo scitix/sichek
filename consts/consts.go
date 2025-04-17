@@ -99,10 +99,11 @@ const (
 )
 
 const (
-	DefaultUserCfgName   = "default_user_config.yaml"
-	DefaultSpecCfgName   = "default_spec.yaml"
-	DefaultSpecCfgSuffix = "_spec.yaml"
-	DefaultPodCfgPath    = "/var/sichek/"
+	DefaultUserCfgName         = "default_user_config.yaml"
+	DefaultEventCheckerCfgName = "event_checker.yaml"
+	DefaultSpecCfgName         = "default_spec.yaml"
+	DefaultSpecCfgSuffix       = "_spec.yaml"
+	DefaultPodCfgPath          = "/var/sichek/"
 )
 
 const (

@@ -45,12 +45,7 @@ type HangGetter struct {
 	nvidiaComponent common.Component
 }
 
-func NewHangGetter(cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
-	hangCfg, ok := cfg.(*config.HangUserConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for Hang")
-	}
-
+func NewHangGetter(hangCfg *config.HangUserConfig) (hangGetter *HangGetter, err error) {
 	var res HangGetter
 	res.name = hangCfg.Hang.Name
 	res.cfg = hangCfg
@@ -68,11 +63,7 @@ func NewHangGetter(cfg common.ComponentUserConfig) (hangGetter *HangGetter, err 
 		}
 	}
 
-	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		getterConfig, ok := tmpCfg.(*config.HangErrorConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid config type for Hang getter")
-		}
+	for _, getterConfig := range hangCfg.Hang.CheckerConfigs {
 		threshold := getterConfig.HangThreshold
 		for _, value := range getterConfig.HangIndicates {
 			if value.Name != "pwr" && value.Name != "sm" &&

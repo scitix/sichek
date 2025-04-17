@@ -1,9 +1,3 @@
-hang:
-  name: Hang
-  query_interval: 30
-  cache_size: 5
-  nvsmi: false
-  mock: false
   checkers:
     GPU:
       name: "GPUHang"

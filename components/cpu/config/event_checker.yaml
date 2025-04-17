@@ -1,7 +1,3 @@
-cpu:
-  name: cpu
-  query_interval: 30
-  cache_size: 5
   event_checkers:
     kernel_panic:
       name: "kernel_panic"
@@ -24,4 +20,3 @@ cpu:
       regexp: "(soft lockup)|(hard LOCKUP)"
       level: warning
       suggestion: ""
-  info_checker: ["Intel(R) Xeon(R) Platinum 8468"]

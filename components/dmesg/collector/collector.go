@@ -37,13 +37,13 @@ type DmesgCollector struct {
 
 func NewDmesgCollector(cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
 
-	if len(cfg.Dmesg.CheckerConfigs) == 0 {
+	if len(cfg.Dmesg.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
-	regexpName := make([]string, 0, len(cfg.Dmesg.CheckerConfigs))
-	regexp := make([]string, 0, len(cfg.Dmesg.CheckerConfigs))
+	regexpName := make([]string, 0, len(cfg.Dmesg.EventCheckers))
+	regexp := make([]string, 0, len(cfg.Dmesg.EventCheckers))
 
-	for _, checkersCfg := range cfg.Dmesg.CheckerConfigs {
+	for _, checkersCfg := range cfg.Dmesg.EventCheckers {
 		regexpName = append(regexpName, checkersCfg.Name)
 		regexp = append(regexp, checkersCfg.Regexp)
 	}

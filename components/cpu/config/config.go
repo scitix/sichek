@@ -32,16 +32,8 @@ type CPUConfig struct {
 	Name          string                     `json:"name" yaml:"name"`
 	QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics bool                       `json:"enable_metrics" yaml:"enable_metrics"`
 	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
-}
-
-func (c *CpuUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.CPU.EventCheckers {
-		key := "event_" + name
-		commonCfgMap[key] = cfg
-	}
-	return commonCfgMap
 }
 
 func (c *CpuUserConfig) GetQueryInterval() time.Duration {
@@ -53,16 +45,23 @@ func (c *CpuUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *CpuUserConfig) LoadUserConfigFromYaml(file string) error {
+	fmt.Println("cpuconfig",c.CPU)
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.CPU == nil {
 			return fmt.Errorf("failed to load cpu config from YAML file %s: %v", file, err)
 		}
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameCPU, c, consts.DefaultUserCfgName)
+	err := common.DefaultComponentUserConfig(c)
 	if err != nil || c.CPU == nil {
 		return fmt.Errorf("failed to load default cpu config: %v", err)
 	}
+	// load event checker
+	err = common.DefaultComponentConfig(consts.ComponentNameCPU, c.CPU.EventCheckers, consts.DefaultEventCheckerCfgName)
+	if err != nil {
+		return fmt.Errorf("failed to load default cpu event checker config: %v", err)
+	}
+	fmt.Println("cpuconfig",c.CPU)
 	return nil
 }
 

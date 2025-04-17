@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -42,11 +41,7 @@ type HangCollector struct {
 	hangInfo      checker.HangInfo
 }
 
-func NewHangCollector(cfg common.ComponentUserConfig) (*HangCollector, error) {
-	hangCfg, ok := cfg.(*config.HangUserConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for Hang")
-	}
+func NewHangCollector(hangCfg *config.HangUserConfig) (*HangCollector, error) {
 
 	var res HangCollector
 	res.name = hangCfg.Hang.Name
@@ -55,11 +50,7 @@ func NewHangCollector(cfg common.ComponentUserConfig) (*HangCollector, error) {
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
-	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		collectorConfig, ok := tmpCfg.(*config.HangErrorConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid config type for Hang collector")
-		}
+	for _, collectorConfig := range hangCfg.Hang.CheckerConfigs {
 		threshold := collectorConfig.HangThreshold
 		for _, value := range collectorConfig.HangIndicates {
 			if value.Name != "pwr" && value.Name != "sm" &&

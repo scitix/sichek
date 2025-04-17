@@ -1,7 +1,3 @@
-memory:
-  name: memory
-  query_interval: 30
-  cache_size: 5
   checkers:
     OutOfMemory:
       name: "OutOfMemory"

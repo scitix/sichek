@@ -1,11 +1,57 @@
-nvidia:
-  name: nvidia
+cpu:
+  name: cpu
   query_interval: 30
   cache_size: 5
-  ignored_checkers: []
+  enable_metrics: true
+
+
+dmesg:
+  name: DMesg
+  FileNmae: ["/var/log/dmesg"]
+  Cmd:
+    - ["dmesg"]
+  query_interval: 30
+  cache_size: 5
+
+ethernet:
+  name: "ethernet"
+  query_interval: 30
+  cache_size: 5
+  checkers:
+  - "phy_state"
+
+gpfs:
+  name: GPFS
+  query_interval: 30
+  cache_size: 5
+
+hang:
+  name: Hang
+  query_interval: 30
+  cache_size: 5
+  nvsmi: false
+  mock: false
+
 infiniband:
   name: "infiniband"
   query_interval: 30
   cache_size: 5
   ignored_checkers:
     - "net_operstate"
+
+memory:
+  name: memory
+  query_interval: 30
+  cache_size: 5
+
+nccl:
+  name: NCCL
+  log_dir: "/var/log/pods"
+  query_interval: 30
+  cache_size: 5
+
+nvidia:
+  name: nvidia
+  query_interval: 30
+  cache_size: 5
+  ignored_checkers: []

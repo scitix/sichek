@@ -1,11 +1,4 @@
-dmesg:
-  name: DMesg
-  FileNmae: ["/var/log/dmesg"]
-  Cmd:
-    - ["dmesg"]
-  query_interval: 30
-  cache_size: 5
-  checkers:
+  event_checkers:
     OOM1:
       name: "oom"
       description: "oom error in dmesg"

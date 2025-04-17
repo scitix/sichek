@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/consts"
@@ -32,6 +33,7 @@ func NewCPUCmd() *cobra.Command {
 		Short:   "Perform CPU - related operations",
 		Long:    "Used to perform specific CPU - related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("11111")
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
