@@ -118,7 +118,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		cacheInfo:     make([]common.Info, cfg.Infiniband.CacheSize),
 		currIndex:     0,
 		cacheSize:     cfg.Infiniband.CacheSize,
-		metrics:     metrics.NewInfinibandMetrics(),
+		metrics:       metrics.NewInfinibandMetrics(),
 	}
 	// step4: start the service
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
