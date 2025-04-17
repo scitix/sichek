@@ -54,7 +54,7 @@ hca:
     MT_0000000838:
       hca_type: "MT4129"
       board_id: "MT_0000000838"
-      fw_ver: "28.39.2048"
+      fw_ver: ">=28.39.2048"
       vpd: "NVIDIA ConnectX-7 HHHL Adapter card, 400GbE / NDR IB (default mode), Single-port OSFP, PCIe 5.0 x16, Crypto Disabled, Secure Boot Enabled"
       net_port: 1
       port_speed: "400 Gb/sec (4X NDR)"

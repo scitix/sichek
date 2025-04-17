@@ -25,14 +25,12 @@ import (
 )
 
 func TestIBKmodChecker_Check(t *testing.T) {
-	// 模拟配置文件 Spec
 	spec := &config.InfinibandSpecItem{
 		IBSoftWareInfo: &collector.IBSoftWareInfo{
 			KernelModule: []string{"mlx5_core", "ib_uverbs", "rdma_ucm"},
 		},
 	}
 
-	// 创建 Checker 实例
 	checker, err := NewIBKmodChecker(spec)
 	if err != nil {
 		t.Fatalf("failed to create IBKmodChecker: %v", err)
@@ -40,7 +38,6 @@ func TestIBKmodChecker_Check(t *testing.T) {
 
 	ibChecker := checker.(*IBKmodChecker)
 
-	// 定义测试用例
 	tests := []struct {
 		name               string
 		data               *collector.InfinibandInfo
@@ -91,19 +88,13 @@ func TestIBKmodChecker_Check(t *testing.T) {
 		},
 	}
 
-	// 遍历所有的测试用例
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// 执行 Check 方法
 			ctx := context.Background()
 			result, err := ibChecker.Check(ctx, tt.data)
-
-			// 检查错误
 			if (err != nil) != tt.expectError {
 				t.Errorf("unexpected error status: got %v, want error=%v", err, tt.expectError)
 			}
-
-			// 检查结果
 			if result.Status != tt.expectedStatus {
 				t.Errorf("unexpected status: got %s, want %s", result.Status, tt.expectedStatus)
 			}

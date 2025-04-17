@@ -62,7 +62,6 @@ func NewHangCollector(cfg common.ComponentUserConfig) (*HangCollector, error) {
 		}
 		threshold := collectorConfig.HangThreshold
 		for _, value := range collectorConfig.HangIndicates {
-			// value.Name != "gclk" && value.Name != "smclk" &&
 			if value.Name != "pwr" && value.Name != "sm" &&
 				value.Name != "pviol" && value.Name != "rxpci" &&
 				value.Name != "txpci" && value.Name != "mem" {
@@ -109,7 +108,7 @@ func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 
 			v, err := strconv.ParseInt(gpuInfo[indicateName], 10, 64)
 			if err != nil {
-				logrus.WithField("collector", "Hang").WithError(err).Errorf("failed to parse gpu res to int64, %s->%s", indicateName, gpuInfo[indicateName])
+				logrus.WithField("collector", "Hang").Errorf("failed to parse gpu res to int64, %s->%s", indicateName, gpuInfo[indicateName])
 				continue
 			}
 			if ((v < c.indicates[indicateName]) && (c.indicatesComp[indicateName] == "high")) ||
@@ -145,7 +144,7 @@ func getGPUInfo(ctx context.Context) []map[string]string {
 	}
 
 	if len(headers) == 0 || len(dataRows) == 0 {
-		logrus.WithField("collector", "Hang").WithError(err).Errorf("No valid data found in nvidia-smi output")
+		logrus.WithField("collector", "Hang").Errorf("No valid data found in nvidia-smi output")
 		return nil
 	}
 

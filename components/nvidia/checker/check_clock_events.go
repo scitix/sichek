@@ -79,7 +79,6 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

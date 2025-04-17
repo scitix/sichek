@@ -85,7 +85,6 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

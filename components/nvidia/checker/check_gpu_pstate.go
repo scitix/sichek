@@ -76,7 +76,6 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 	} else {
 		result.Status = consts.StatusNormal
 		result.Suggestion = ""
-		result.ErrorName = ""
 		if c.cfg.State.GpuPstate != 0 {
 			result.Curr = fmt.Sprintf("Below or Is P%d", c.cfg.State.GpuPstate)
 		} else {

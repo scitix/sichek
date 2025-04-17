@@ -46,7 +46,6 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 		result.Status = consts.StatusNormal
 		result.Curr = "Not Required"
 		result.Suggestion = ""
-		result.ErrorName = ""
 		return &result, nil
 	}
 
@@ -55,22 +54,11 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 	if !active {
 		result.Status = consts.StatusAbnormal
 		result.Detail = "Nvidia FabricManager is not active, please check to restart Nvidia FabricManager"
-		// err := systemd.RestartSystemdService("nvidia-fabricmanager")
-		// if err == nil {
-		// 	result.Status = consts.StatusNormal
-		// 	result.Curr = "Restarted"
-		// 	result.Detail = "Nvidia FabricManager is not active. It has been restarted successfully"
-		// } else {
-		// 	result.Status = consts.StatusAbnormal
-		// 	result.Curr = "NotActive"
-		// 	result.Detail = fmt.Sprintf("Nvidia FabricManager is not active. Failed to try to restart Nvidia FabricManager: %v", err)
-		// }
 	} else {
 		result.Status = consts.StatusNormal
 		result.Curr = "Active"
 		result.Detail = "Nvidia FabricManager is active"
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

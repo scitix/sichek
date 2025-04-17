@@ -1,0 +1,42 @@
+---
+{{- if eq .Values.mode "daemon" }}
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.name }}-svc
+  labels:
+    app: {{ .Values.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.name }}  # Selects pods with labels that match the DaemonSet application 
+    role: leader
+  ports:
+    - name: metrics  
+      port: 9091   # Metrics port  
+      targetPort: metrics  # Port exposed in the container  
+{{- end }}
+---
+{{- if eq .Values.mode "daemon" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Values.name }}-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}  
+spec:
+  podMetricsEndpoints:
+    - interval: 15s  # Scrape interval  
+      path: /metrics  # Metrics path  
+      port: metrics   
+      scrapeTimeout: 10s
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}   
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}  
+{{- end }}

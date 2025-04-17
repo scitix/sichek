@@ -84,7 +84,7 @@ func handleResult(result *Result, componentName string) (*Result, error) {
 		Name:        fmt.Sprintf("%sHealthCheckTimeout", componentName),
 		Description: fmt.Sprintf("component %s health check resolved", componentName),
 		Status:      consts.StatusNormal,
-		Level:       consts.LevelInfo,
+		Level:       consts.LevelCritical,
 		ErrorName:   fmt.Sprintf("%sHealthCheckTimeout", componentName),
 	}
 

@@ -75,7 +75,6 @@ func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		}
 		result.Detail = fmt.Sprintf("IOMMU is %s", result.Curr)
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

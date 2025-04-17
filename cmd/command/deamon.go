@@ -21,17 +21,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDaemonCmd 创建并返回用于以daemon状态运行的子命令实例，配置命令的基本属性
+// NewDaemonCmd creates and returns a subcommand instance for running in daemon mode, configuring the basic attributes of the command.  
 func NewDaemonCmd() *cobra.Command {
 	daemonCmd := &cobra.Command{
 		Use:     "daemon",
 		Aliases: []string{"d"},
 		Short:   "Run in daemon mode",
 		Long:    "Start the application in daemon mode for continuous monitoring or other background tasks",
-		// 此处暂不添加具体的Run逻辑，只定义命令结构
 	}
 
-	// 添加子命令
 	daemonCmd.AddCommand(daemon.NewDaemonRunCmd())
 	daemonCmd.AddCommand(daemon.NewDaemonStartCmd())
 	daemonCmd.AddCommand(daemon.NewDaemonStopCmd())

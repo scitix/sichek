@@ -22,11 +22,13 @@ import (
 	"github.com/scitix/sichek/cmd/command"
 	"github.com/scitix/sichek/cmd/command/component"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/metrics"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 func main() {
 	rootCmd := command.NewRootCmd()
+	go metrics.InitPrometheus()
 	if err := rootCmd.Execute(); err != nil {
 		panic(err)
 	}

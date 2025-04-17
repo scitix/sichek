@@ -275,10 +275,6 @@ func (usage *Usage) getProcStats_(filename string) error {
 		fields := strings.Fields(line)
 
 		switch fields[0] {
-		// case "processes":
-		// 	if len(fields) > 1 {
-		// 		usage.SystemProcessesTotal, _ = strconv.ParseInt(fields[1], 10, 64)
-		// 	}
 		case "procs_running":
 			if len(fields) > 1 {
 				usage.SystemProcsRunning, err = strconv.ParseInt(fields[1], 10, 64)
@@ -314,8 +310,6 @@ func (usage *Usage) getProcStats_(filename string) error {
 				if err != nil {
 					return fmt.Errorf("fail to conv err:%w", err)
 				}
-				// idle, _ := strconv.Atoi(fields[4])
-				// iowait, _ := strconv.Atoi(fields[5])
 				irq, err := strconv.Atoi(fields[6])
 				if err != nil {
 					return fmt.Errorf("fail to conv err:%w", err)
