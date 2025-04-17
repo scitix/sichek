@@ -72,7 +72,6 @@ func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		result.Curr = "Disabled"
 		result.Detail = "All PCIe ACS are disabled"
 		result.Suggestion = ""
-		result.ErrorName = ""
 	}
 	return &result, nil
 }

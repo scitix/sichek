@@ -29,6 +29,7 @@ type NvidiaInfo struct {
 	ValiddeviceUUIDFlag bool                    `json:"valid_device_uuid_flag"`
 	DeviceUUIDs         map[int]string          `json:"device_uuids"`
 	DeviceCount         int                     `json:"device_count"`
+	DeviceUsedCount     int                     `json:"device_used_count"`
 	DevicesInfo         []DeviceInfo            `json:"gpu_devices"`
 	DeviceToPodMap      map[string]*k8s.PodInfo `json:"device_to_pod_map"`
 }

@@ -86,13 +86,11 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 		result.Detail = "All Nvidia GPUs have persistence mode enabled"
 		result.Curr = "Enabled"
 		result.Suggestion = ""
-		result.ErrorName = ""
 	} else {
 		if len(failedGpuidPodnames) == 0 {
 			result.Status = consts.StatusNormal
 			result.Curr = "EnabledOnline"
 			result.Suggestion = ""
-			result.ErrorName = ""
 		} else {
 			result.Status = consts.StatusAbnormal
 			result.Curr = "Disabled"

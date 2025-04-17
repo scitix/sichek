@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDaemonupdateCmd 创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
+// NewDaemonUpdateCmd creates and returns a subcommand instance for directly updating the daemon process, configuring the basic attributes of the command.
 func NewDaemonUpdateCmd() *cobra.Command {
 	daemonUpdateCmd := &cobra.Command{
 		Use:   "update",

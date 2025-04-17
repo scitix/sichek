@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04 AS build
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04 AS build
 
 RUN apt-get update && apt-get install -y \
     build-essential gcc g++ curl git \
@@ -20,24 +20,37 @@ WORKDIR /go/src/sichek
 # COPY go.sum go.sum
 # code
 COPY . .
-RUN git branch && git log -1
 RUN go mod download
-RUN goreleaser release --snapshot --clean
 
-FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
+ARG VERSION_MAJOR=0
+ARG VERSION_MINOR=3
+ARG VERSION_PATCH=0
+ARG GIT_COMMIT="none"
+ARG GO_VERSION="none"
+ARG BUILD_TIME="unknow"
+RUN echo "VERSION_MAJOR=${VERSION_MAJOR}" && \
+    echo "VERSION_MINOR=${VERSION_MINOR}" && \
+    echo "VERSION_PATCH=${VERSION_PATCH}" && \
+    echo "GIT_COMMIT=${GIT_COMMIT}" && \
+    echo "GO_VERSION=${GO_VERSION}" && \
+    echo "BUILD_TIME=${BUILD_TIME}" && \
+    VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
+    GIT_COMMIT=${GIT_COMMIT} GO_VERSION=${GO_VERSION} BUILD_TIME=${BUILD_TIME} \
+    goreleaser release --snapshot --clean
+
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
-    vim build-essential tzdata curl git sudo ca-certificates libgcc1 python3 python3-pip && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y vim curl tzdata git ca-certificates perftest && rm -rf /var/lib/apt/lists/*
 
-ENV TZ=UTC
 ENV NVIDIA_VISIBLE_DEVICES=""
+ENV TZ=UTC
 RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure --frontend noninteractive tzdata
 
 WORKDIR /opt/sichek
-COPY --from=build /go/src/sichek/dist/sichek_linux_amd64.deb .
-RUN dpkg -i sichek_linux_amd64.deb && rm -rf sichek_linux_amd64.deb
+
+COPY --from=build /go/src/sichek/dist ./dist
+RUN dpkg -i ./dist/sichek_*_linux_amd64.deb && rm -rf ./dist
 
 EXPOSE 8080

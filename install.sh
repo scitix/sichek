@@ -173,9 +173,9 @@ checkDesiredVersion() {
 # for that binary.
 downloadFile() {
   if [ $OSRELEASE = "ubuntu" ]; then
-    SICHEK_DIST="sichek_linux_amd64.deb"
+    SICHEK_DIST="sichek_${DESIRED_VERSION}_linux_amd64.deb"
   elif [ $OSRELEASE = "centos" ]; then
-    SICHEK_DIST="sichek_linux_amd64.rpm"
+    SICHEK_DIST="sichek_${DESIRED_VERSION}_linux_amd64.rpm"
   fi
   DOWNLOAD_URL="https://oss-ap-southeast.scitix.ai/scitix-release/sichek/${DESIRED_VERSION}/${SICHEK_DIST}"
 #   CHECKSUM_URL="$DOWNLOAD_URL.sha256"
@@ -183,6 +183,7 @@ downloadFile() {
   SICHEK_TMP_FILE="$SICHEK_TMP_ROOT/$SICHEK_DIST"
 #   SICHEK_SUM_FILE="$SICHEK_TMP_ROOT/$SICHEK_DIST.sha256"
   echo "Downloading $DOWNLOAD_URL"
+  set +e
   if [ "${HAS_CURL}" == "true" ]; then
     # curl -SsL "$CHECKSUM_URL" -o "$SICHEK_SUM_FILE"
     curl -SsL "$DOWNLOAD_URL" -o "$SICHEK_TMP_FILE"
@@ -190,12 +191,12 @@ downloadFile() {
     # wget -q -O "$SICHEK_SUM_FILE" "$CHECKSUM_URL"
     wget -q -O "$SICHEK_TMP_FILE" "$DOWNLOAD_URL"
   fi
+  set -e
 }
 
 # installFile installs the Helm binary.
 installFile() {
   if [ $OSRELEASE = "ubuntu" ]; then
-    SICHEK_DIST="sichek_linux_amd64.deb"
     runAsRoot dpkg -i "$SICHEK_TMP_FILE"
   elif [ $OSRELEASE = "centos" ]; then
     runAsRoot rpm -i "$SICHEK_TMP_FILE"

@@ -23,6 +23,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/checker"
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
+	"github.com/scitix/sichek/components/ethernet/metrics"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -56,6 +57,7 @@ type component struct {
 	cacheSize   int64
 
 	service *common.CommonService
+	metrics *metrics.EthernetMetrics
 }
 
 func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
@@ -120,6 +122,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:     0,
 		cacheSize:     cfg.Ethernet.CacheSize,
+		metrics:       metrics.NewEthernetMetrics(),
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -134,6 +137,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
+	c.metrics.ExportMetrics(ethernetInfo)
 	result := common.Check(ctx, c.Name(), ethernetInfo, c.checkers)
 
 	info, err := ethernetInfo.JSON()

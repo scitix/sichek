@@ -29,9 +29,6 @@ type Collector interface {
 
 type Info interface {
 	JSON() (string, error)
-	// JSON() ([]byte, error)
-	// ToString() string
-	// Get() error
 }
 
 // JSON Base function to convert any struct to JSON

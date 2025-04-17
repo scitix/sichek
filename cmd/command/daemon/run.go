@@ -34,7 +34,6 @@ import (
 	"github.com/scitix/sichek/service"
 )
 
-// NewDaemonRunCmd 创建并返回用于直接运行 daemon 进程的子命令实例，配置命令的基本属性
 func NewDaemonRunCmd() *cobra.Command {
 	daemonRunCmd := &cobra.Command{
 		Use:   "run",
@@ -90,7 +89,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				logrus.WithField("daemon", "run").Info("set annotation-key ", annoKey)
+				logrus.WithField("daemon", "run").Infof("set annotation-key %s", annoKey)
 			}
 
 			start := time.Now()
@@ -98,7 +97,6 @@ func NewDaemonRunCmd() *cobra.Command {
 			serviceChan := make(chan service.Service, 1)
 
 			logrus.WithField("daemon", "run").Info("starting sichek daemon service")
-
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
 			components := make(map[string]common.Component)

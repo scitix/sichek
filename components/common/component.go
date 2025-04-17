@@ -144,7 +144,7 @@ func (s *CommonService) Start() <-chan *Result {
 				// Check if need to update ticker
 				newInterval := s.cfg.GetQueryInterval()
 				if newInterval != interval {
-					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval * time.Second, newInterval * time.Second)
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
 					ticker.Stop()
 					ticker = time.NewTicker(newInterval * time.Second)
 					interval = newInterval
@@ -153,7 +153,7 @@ func (s *CommonService) Start() <-chan *Result {
 				result, err := RunHealthCheckWithTimeout(s.ctx, s.checkTimeout, s.componentName, s.healthCheckFunc)
 				s.mutex.Unlock()
 				if err != nil {
-					logrus.WithField("component", "service").Errorf("Run HealthCheck func error: %v\n", err)
+					logrus.WithField("component", s.componentName).Errorf("Run HealthCheck func error: %v", err)
 					continue
 				}
 

@@ -26,7 +26,9 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scitix/sichek/pkg/utils"
@@ -40,12 +42,13 @@ var (
 )
 
 type InfinibandInfo struct {
-	HCAPCINum      int              `json:"hca_pci_num"`
-	IBDevs         []string         `json:"ib_dev"`
-	IBHardWareInfo []IBHardWareInfo `json:"ib_hardware_info"`
-	IBSoftWareInfo IBSoftWareInfo   `json:"ib_software_info"`
-	PCIETreeInfo   []PCIETreeInfo   `json:"pcie_tree_info"`
-	Time           time.Time        `json:"time"`
+	HCAPCINum      int                          `json:"hca_pci_num"`
+	IBDevs         []string                     `json:"ib_dev"`
+	IBHardWareInfo []IBHardWareInfo             `json:"ib_hardware_info"`
+	IBSoftWareInfo IBSoftWareInfo               `json:"ib_software_info"`
+	PCIETreeInfo   []PCIETreeInfo               `json:"pcie_tree_info"`
+	IBCounters     map[string]map[string]uint64 `json:"ib_counters"`
+	Time           time.Time                    `json:"time"`
 }
 
 type IBHardWareInfo struct {
@@ -154,6 +157,68 @@ func (i *InfinibandInfo) GetNetOperstate(IBDev string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
+}
+
+func listFiles(dir, IBDev, counterType string) ([]string, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Infof("Fail to Read dir:%s", dir)
+		return nil, err
+	}
+
+	var fileNames []string
+	for _, file := range files {
+		fileNames = append(fileNames, file.Name())
+	}
+	return fileNames, nil
+}
+
+func GetIBCounter(IBDev string, counterType string) (map[string]uint64, error) {
+	Counters := make(map[string]uint64, 0)
+	counterPath := path.Join(IBSYSPathPre, IBDev, "ports/1", counterType)
+	ibCounterName, err := listFiles(counterPath, IBDev, counterType)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Fail to get the counter from path :%s", counterPath)
+		return nil, err
+	}
+	for _, counter := range ibCounterName {
+
+		counterValuePath := path.Join(counterPath, counter)
+		contents, err := os.ReadFile(counterValuePath)
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("Fail to read the ib counter from path: %s", counterValuePath)
+		}
+		// counter Value
+		value, err := strconv.ParseUint(strings.ReplaceAll(string(contents), "\n", ""), 10, 64)
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("Error covering string to uint64")
+			return nil, err
+		}
+		Counters[counter] = value
+	}
+
+	return Counters, nil
+}
+
+func (i *InfinibandInfo) GetIBCounters(IBDev string) map[string]uint64 {
+	Counters := make(map[string]uint64, 0)
+	var wg sync.WaitGroup
+	counterTypes := []string{"counters", "hw_counters"}
+
+	wg.Add(len(counterTypes))
+	for _, counterType := range counterTypes {
+		go func(ct string) {
+			defer wg.Done()
+			var err error
+			Counters, err = GetIBCounter(IBDev, ct)
+			if err != nil {
+				logrus.WithField("component", "infiniband").Errorf("Get IB Counter failed, err:%s", err)
+				return
+			}
+		}(counterType)
+	}
+	wg.Wait()
+	return Counters
 }
 
 func (i *InfinibandInfo) GetHCAType(IBDev string) []string {
@@ -390,6 +455,7 @@ func (i *InfinibandInfo) GetIBInfo(ctx context.Context) *InfinibandInfo {
 	IBInfo.IBDevs = IBInfo.GetIBdevs()
 	IBInfo.HCAPCINum = len(IBInfo.IBDevs)
 	IBHWInfo := make([]IBHardWareInfo, 0, len(IBInfo.IBDevs))
+	IBCounters := make(map[string]map[string]uint64, len(IBInfo.IBDevs))
 	for _, IBDev := range IBInfo.IBDevs {
 		var perIBHWInfo IBHardWareInfo
 		perIBHWInfo.IBDev = IBDev
@@ -449,9 +515,12 @@ func (i *InfinibandInfo) GetIBInfo(ctx context.Context) *InfinibandInfo {
 		// perIBHWInfo.PCIETreeWidth = i.GetPCIETreeWidth(IBDev)
 		perIBHWInfo.VPD = i.GetVPD(IBDev)
 		IBHWInfo = append(IBHWInfo, perIBHWInfo)
+		IBCounters[IBDev] = i.GetIBCounters(IBDev)
+
 	}
 	IBInfo.IBHardWareInfo = IBHWInfo
 	IBInfo.IBSoftWareInfo = IBSWInfo
+	IBInfo.IBCounters = IBCounters
 	IBInfo.Time = time.Now()
 	return &IBInfo
 }

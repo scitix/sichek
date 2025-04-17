@@ -28,6 +28,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/checker"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/components/nvidia/metrics"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -39,9 +40,8 @@ type component struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 
-	cfg      *config.NvidiaUserConfig
-	cfgMutex sync.RWMutex // 用于更新时的锁
-
+	cfg       *config.NvidiaUserConfig
+	cfgMutex  sync.RWMutex
 	nvmlInst  nvml.Interface
 	collector *collector.NvidiaCollector
 	checkers  []common.Checker
@@ -57,6 +57,8 @@ type component struct {
 	serviceMtx    sync.RWMutex
 	running       bool
 	resultChannel chan *common.Result
+
+	metrics *metrics.NvidiaMetrics
 }
 
 var (
@@ -144,7 +146,6 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 			cancel()
 		}
 	}()
-
 	nvmlInst, err := NewNvml(ctx)
 	if err != nil {
 		logrus.WithField("component", "NVIDIA").Errorf("NewNvidia create nvml failed: %v", err)
@@ -202,6 +203,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
+		metrics:       metrics.NewNvidiaMetrics(),
 	}
 	return component, nil
 }
@@ -242,6 +244,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
+	c.metrics.ExportMetrics(nvidiaInfo)
 	result := common.Check(ctx, c.componentName, nvidiaInfo, c.checkers)
 	timer.Mark("check")
 	c.cacheMtx.Lock()
@@ -340,7 +343,6 @@ func (c *component) Start() <-chan *common.Result {
 				// Check if the error message contains "Timeout"
 				if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
 					// Handle the timeout error
-					logrus.WithField("component", "NVIDIA").Errorf("Health Check TIMEOUT")
 					err := ReNewNvml(c)
 					if err != nil {
 						logrus.WithField("component", "NVIDIA").Errorf("failed to Reinitialize NVML after HealthCheck Timeout: %s", err.Error())
@@ -484,10 +486,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		case config.HardwareCheckerName:
 			if result.Status == consts.StatusNormal {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
-					consts.Green, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, len(nvidiaInfo.DeviceToPodMap), consts.Reset)
+					consts.Green, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, nvidiaInfo.DeviceUsedCount, consts.Reset)
 			} else {
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
-					consts.Red, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, len(nvidiaInfo.DeviceToPodMap), consts.Reset)
+					consts.Red, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, nvidiaInfo.DeviceUsedCount, consts.Reset)
 				gpuStatus[config.HardwareCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 			}
 		case config.SoftwareCheckerName:

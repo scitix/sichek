@@ -17,13 +17,13 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/metrics"
 
 	"github.com/sirupsen/logrus"
 )
@@ -44,6 +44,7 @@ type DaemonService struct {
 	componentsStatusLock sync.RWMutex
 	componentResults     map[string]<-chan *common.Result
 	node                 string
+	metrics              *metrics.HealthCheckResMetrics
 	notifier             Notifier
 }
 
@@ -71,6 +72,7 @@ func NewService(components map[string]common.Component, annoKey string) (s Servi
 		componentsStatus: make(map[string]bool),
 		componentResults: make(map[string]<-chan *common.Result),
 		notifier:         notifier,
+		metrics:          metrics.GetHealthCheckResMetrics(),
 		node:             hostname,
 	}
 
@@ -94,7 +96,7 @@ func (d *DaemonService) Run() {
 func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan *common.Result) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("[DaemonService|monitorComponent] panic err is %s\n", err)
+			logrus.WithField("daemon", "run").Errorf("monitorComponent panic,err is %v\n", err)
 		}
 	}()
 	d.componentsStatusLock.Lock()
@@ -120,6 +122,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			} else {
 				err = d.notifier.SetNodeAnnotation(d.ctx, result)
 			}
+			d.metrics.ExportMetrics(result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
 			}

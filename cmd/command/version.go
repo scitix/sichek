@@ -20,31 +20,43 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
-// NewInfinibandCmd 创建并返回用于代表Infiniband相关操作的子命令实例，配置命令的基本属性
+var (
+	Major     = "0"
+	Minor     = "3"
+	Patch     = "0"
+	GitCommit = "none"
+	GoVersion = "none"
+	BuildTime = "unknown"
+)
+
 func NewVersionCmd() *cobra.Command {
-	infinibandCmd := &cobra.Command{
+	VersionCmd := &cobra.Command{
 		Use:     "version",
 		Aliases: []string{"v"},
 		Short:   "Print the version number of sichek",
 		Long:    "All software has versions. This is sichek's",
 		Run: func(cmd *cobra.Command, args []string) {
-			version := "v0.2.3"
-			gitCommit := getGitCommit()
-			goVersion := getGoVersion()
-			cmd.Printf("Version: %s\nGit Commit: %s\nGo Version: %s\n", version, gitCommit, goVersion)
+			version := "v" + Major + "." + Minor + "." + Patch
+			if GitCommit == "none" {
+				GitCommit = getGitCommit()
+			}
+			if GoVersion == "none" {
+				GoVersion = getGoVersion()
+			}
+			if BuildTime == "unknown" {
+				now := time.Now()
+				BuildTime = now.Format("2006-01-02T15:04:05")
+			}
+			cmd.Printf("Version: %s\nGit Commit: %s\nGo Version: %s\nBuildTime: %s\n", version, GitCommit, GoVersion, BuildTime)
 		},
 	}
-	return infinibandCmd
+	return VersionCmd
 }
-
-// func hasGitInstalled() bool {
-// 	_, err := exec.LookPath("git")
-// 	return err == nil
-// }
 
 func getGitCommitWithShell() string {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
@@ -54,20 +66,6 @@ func getGitCommitWithShell() string {
 	}
 	return strings.TrimSpace(string(output))
 }
-
-// func getGitCommitWithModule() string {
-// 	repo, err := git.PlainOpen(".")
-// 	if err != nil {
-// 		log.Fatalf("Failed to open Git repository: %v", err)
-// 	}
-
-// 	head, err := repo.Head()
-// 	if err != nil {
-// 		log.Fatalf("Failed to get HEAD: %v", err)
-// 	}
-
-// 	return head.Hash().String()
-// }
 
 func getGitCommit() string {
 	return getGitCommitWithShell()

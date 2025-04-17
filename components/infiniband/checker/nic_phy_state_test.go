@@ -25,8 +25,6 @@ import (
 )
 
 func TestIBPhyStateChecker_Check(t *testing.T) {
-	// 模拟 Spec 配置
-	// 模拟 Spec 配置
 	spec := &config.InfinibandSpecItem{
 		HCAs: map[string]*collector.IBHardWareInfo{
 			"MT_0000000970": {
@@ -42,7 +40,6 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 		},
 	}
 
-	// 创建 Checker 实例
 	checker, err := NewIBPhyStateChecker(spec)
 	if err != nil {
 		t.Fatalf("failed to create IBPhyStateChecker: %v", err)
@@ -50,7 +47,6 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 
 	ibChecker := checker.(*IBPhyStateChecker)
 
-	// 测试用例
 	tests := []struct {
 		name           string
 		data           *collector.InfinibandInfo
@@ -105,19 +101,15 @@ func TestIBPhyStateChecker_Check(t *testing.T) {
 		},
 	}
 
-	// 遍历测试用例
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// 执行 Check 方法
 			ctx := context.Background()
 			result, err := ibChecker.Check(ctx, tt.data)
 
-			// 验证错误状态
 			if (err != nil) != tt.expectedError {
 				t.Errorf("unexpected error state, got error=%v, expectedError=%v", err, tt.expectedError)
 			}
 
-			// 验证返回结果
 			if result != nil {
 				if result.Status != tt.expectedStatus {
 					t.Errorf("unexpected status, got=%s, want=%s", result.Status, tt.expectedStatus)
