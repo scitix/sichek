@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
@@ -71,15 +72,16 @@ func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 
 	status := consts.StatusNormal
 	var suggest string
-	var raw string
+	var raw strings.Builder
 	if len(info.Name) != 0 {
 		status = consts.StatusAbnormal
 		suggest = "check dmesg error"
 		for i, log := range info.Raw {
-			raw = raw + fmt.Sprintf("name: %s, detail: %s\n", info.Name[i], log)
+			raw.WriteString(fmt.Sprintf("name: %s, detail: %s\n", info.Name[i], log))
 			logrus.Errorf("Detected dmesg error: %s", log)
 		}
 	}
+
 	return &common.CheckerResult{
 		Name:        c.name,
 		Description: "Get errors from dmesg",
@@ -89,7 +91,7 @@ func (c *DmesgChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 		Status:      status,
 		Level:       consts.LevelCritical,
 		Suggestion:  suggest,
-		Detail:      raw,
+		Detail:      raw.String(),
 		ErrorName:   consts.ErrorNameDmesg,
 	}, nil
 }
