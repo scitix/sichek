@@ -1,10 +1,5 @@
 hang:
-  name: Hang
-  query_interval: 30
-  cache_size: 5
-  nvsmi: false
-  mock: false
-  checkers:
+  event_checkers:
     GPU:
       name: "GPUHang"
       description: "GPU Hang"

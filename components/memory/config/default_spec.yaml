@@ -1,8 +1,5 @@
 memory:
-  name: memory
-  query_interval: 30
-  cache_size: 5
-  checkers:
+  event_checkers:
     OutOfMemory:
       name: "OutOfMemory"
       description: "Out of memory"

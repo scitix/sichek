@@ -47,18 +47,18 @@ func (o *CPUOutput) JSON() (string, error) {
 
 type Collector struct {
 	name        string
-	cfg         *config.CpuUserConfig
+	cfg         *config.CpuSpec
 	CPUArchInfo *CPUArchInfo `json:"cpu_arch_info"`
 	HostInfo    *HostInfo    `json:"host_info"`
 	filter      *filter.FileFilter
 }
 
-func NewCpuCollector(ctx context.Context, cfg *config.CpuUserConfig) (*Collector, error) {
+func NewCpuCollector(ctx context.Context, cfg *config.CpuSpec) (*Collector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checkerCfg := range cfg.CPU.EventCheckers {
+	for _, checkerCfg := range cfg.EventCheckers {
 		_, err := os.Stat(checkerCfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "CPU").Errorf("log file %s not exist for CPU collector", checkerCfg.LogFile)
@@ -95,10 +95,6 @@ func NewCpuCollector(ctx context.Context, cfg *config.CpuUserConfig) (*Collector
 
 func (c *Collector) Name() string {
 	return c.name
-}
-
-func (c *Collector) GetCfg() common.ComponentUserConfig {
-	return c.cfg
 }
 
 func (c *Collector) Collect(ctx context.Context) (common.Info, error) {

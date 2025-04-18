@@ -81,16 +81,22 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to load HangUserConfig")
 		return nil, err
 	}
-
+	specCfg := &config.HangSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "hang").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	hangSpec := specCfg.HangSpec
 	var hangCollector common.Collector
 	if hangCfg.Hang.NVSMI {
-		hangCollector, err = collector.NewHangCollector(hangCfg)
+		hangCollector, err = collector.NewHangCollector(hangCfg, hangSpec)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 			return nil, err
 		}
 	} else {
-		hangCollector, err = collector.NewHangGetter(hangCfg)
+		hangCollector, err = collector.NewHangGetter(hangCfg, hangSpec)
 		if err != nil {
 			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 			return nil, err
@@ -101,6 +107,11 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 
 	freqController := common.GetFreqController()
 	freqController.RegisterModule(consts.ComponentNameHang, hangCfg)
+
+	var hangMetrics *metrics.HangMetrics
+	if hangCfg.Hang.EnableMetrics {
+		hangMetrics = metrics.NewHangMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -114,7 +125,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
-		metrics:           metrics.NewHangMetrics(),
+		metrics:           hangMetrics,
 	}
 	component.service = common.NewCommonService(ctx, hangCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -134,7 +145,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("wrong input of HangChecker")
 	}
-	c.metrics.ExportMetrics(checkerInfo)
+	if c.cfg.Hang.EnableMetrics {
+		c.metrics.ExportMetrics(checkerInfo)
+	}
 	checkRes, err := c.checker.Check(c.ctx, info)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check")

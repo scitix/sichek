@@ -37,9 +37,6 @@ type Component interface {
 	LastInfo() (Info, error)
 	PrintInfo(Info, *Result, bool) bool
 
-	// Metrics For http service
-	Metrics(ctx context.Context, since time.Time) (interface{}, error)
-
 	// Start For daemon service
 	Start() <-chan *Result
 	Update(cfg ComponentUserConfig) error

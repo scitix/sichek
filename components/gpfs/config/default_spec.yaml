@@ -1,7 +1,4 @@
-gpfs:
-  name: GPFS
-  query_interval: 30
-  cache_size: 5
+gpfs: 
   event_checkers:
     time_clock:
       name: "time_clock"

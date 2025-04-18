@@ -1,6 +1,7 @@
+.PHONY: docker  
 PROJECT_NAME := sichek
 GO := go
-INSTALL_DIR := /usr/sbin
+INSTALL_DIR := /usr/local/bin
 VERSION_MAJOR := 0
 VERSION_MINOR := 3
 VERSION_PATCH := 1
@@ -15,7 +16,7 @@ LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
            -X 'cmd/command/version.GoVersion=$(GO_VERSION)' \
            -X 'cmd/command/version.BuildTime=$(BUILD_TIME)'
 
-all:
+all:  
 	mkdir -p build/bin/
 	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -o build/bin/$(PROJECT_NAME) cmd/main.go
 

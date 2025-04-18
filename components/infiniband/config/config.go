@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -33,6 +32,7 @@ type InfinibandConfig struct {
 	Name            string        `json:"name" yaml:"name"`
 	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
 	IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
@@ -50,7 +50,7 @@ func (c *InfinibandUserConfig) SetQueryInterval(newInterval time.Duration) {
 
 func (c *InfinibandUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file == "" {
-		return common.DefaultComponentConfig(consts.ComponentNameInfiniband, c, consts.DefaultUserCfgName)
+		return common.DefaultComponentUserConfig(c)
 	}
 	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.Infiniband == nil {

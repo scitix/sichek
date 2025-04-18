@@ -33,43 +33,28 @@ import (
 
 type NCCLCollector struct {
 	name string
-	cfg  *config.NCCLUserConfig
+	cfg  *config.NcclSpec
 
 	RegexpName []string
 	Regexp     []string
 }
 
-func NewNCCLCollector(cfg common.ComponentUserConfig) (*NCCLCollector, error) {
-	configPointer, ok := cfg.(*config.NCCLUserConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for GPFS")
-	}
-	if len(configPointer.NCCL.CheckerConfigs) == 0 {
+func NewNCCLCollector(cfg *config.NcclSpec) (*NCCLCollector, error) {
+
+	if len(cfg.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no NCCL Collector indicate in yaml config")
 	}
 
 	var regexpName []string
 	var regexp []string
-	for _, checkersCfg := range configPointer.NCCL.CheckerConfigs {
+	for _, checkersCfg := range cfg.EventCheckers {
 		regexpName = append(regexpName, checkersCfg.Name)
 		regexp = append(regexp, checkersCfg.Regexp)
 	}
 
-	// filter, err := filter.NewFilter(
-	// 	regexpName,
-	// 	regexp,
-	// 	allFiles,
-	// 	[][]string{},
-	// 	5000,
-	// )
-	// if err != nil {
-	// 	logrus.WithError(err).Error("failed to create filter in NCCLCollector")
-	// 	return nil, err
-	// }
-
 	return &NCCLCollector{
 		name:       "NCCLCollector",
-		cfg:        configPointer,
+		cfg:        cfg,
 		RegexpName: regexpName,
 		Regexp:     regexp,
 	}, nil
@@ -79,14 +64,10 @@ func (c *NCCLCollector) Name() string {
 	return c.name
 }
 
-func (c *NCCLCollector) GetCfg() common.ComponentUserConfig {
-	return c.cfg
-}
-
 func (c *NCCLCollector) Collect(ctx context.Context) (common.Info, error) {
-	allFiles, err := GetAllFilePaths(c.cfg.NCCL.DirPath)
+	allFiles, err := GetAllFilePaths(c.cfg.DirPath)
 	if err != nil {
-		logrus.WithError(err).Errorf("failed to walkdir in %s", c.cfg.NCCL.DirPath)
+		logrus.WithError(err).Errorf("failed to walkdir in %s", c.cfg.DirPath)
 		return nil, err
 	}
 

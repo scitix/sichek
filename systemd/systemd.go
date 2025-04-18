@@ -33,7 +33,7 @@ const (
 	DefaultEnvFile       = "/etc/default/sichek"
 	DefaultUnitFile      = "/etc/systemd/system/sichek.service"
 	DefaultLogrotateConf = "/etc/logrotate.d/sichek"
-	DefaultBinPath       = "/usr/sbin/sichek"
+	DefaultBinPath       = "/usr/local/bin/sichek"
 )
 
 func DefaultBinExists() bool {

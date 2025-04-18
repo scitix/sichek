@@ -51,11 +51,11 @@ nfpms:
     license: Apache 2.0
     contents:
     - src: ./bin/taskguard
-      dst: /usr/sbin/taskguard
+      dst: /usr/local/bin/taskguard
     - src: ./etc/config.yaml
-      dst: /usr/sbin/etc/config.yaml
+      dst: /usr/local/bin/etc/config.yaml
     - src: ./etc/log-checker-rules.yaml
-      dst: /usr/sbin/etc/log-checker-rules.yaml
+      dst: /usr/local/bin/etc/log-checker-rules.yaml
     # - src: ./.kube/config
     #   dst: /root/.kube/config
 

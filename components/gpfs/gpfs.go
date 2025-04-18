@@ -79,14 +79,20 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed: %v", err)
 		return nil, err
 	}
-
-	collectorPointer, err := collector.NewGPFSCollector(cfg)
+	specCfg := &config.GpfsSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "gpfs").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	gpfsSpec := specCfg.GpfsSpec
+	collectorPointer, err := collector.NewGPFSCollector(gpfsSpec)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(cfg)
+	checkers, err := checker.NewCheckers(gpfsSpec)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create checkers failed: %v", err)
 		return nil, err
@@ -171,10 +177,6 @@ func (c *component) LastInfo() (common.Info, error) {
 		info = c.cacheInfo[c.currIndex-1]
 	}
 	return info, nil
-}
-
-func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
-	return nil, nil
 }
 
 func (c *component) Start() <-chan *common.Result {

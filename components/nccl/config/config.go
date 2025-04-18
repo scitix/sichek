@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -29,11 +28,9 @@ type NCCLUserConfig struct {
 }
 
 type NCCLConfig struct {
-	Name           string                      `json:"name" yaml:"name"`
-	DirPath        string                      `json:"log_dir" yaml:"log_dir"`
-	QueryInterval  time.Duration               `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                       `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*NCCLErrorConfig `json:"checkers" yaml:"checkers"`
+	Name          string        `json:"name" yaml:"name"`
+	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
 }
 
 func (c *NCCLUserConfig) GetQueryInterval() time.Duration {
@@ -44,31 +41,13 @@ func (c *NCCLUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.NCCL.QueryInterval = newInterval
 }
 
-func (c *NCCLUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.NCCL.CheckerConfigs {
-		commonCfgMap[name] = cfg
-	}
-	return commonCfgMap
-}
-
 func (c *NCCLUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.NCCL == nil {
-			return fmt.Errorf("failed to load nccl config from YAML file %s: %v", file, err)
-		}
+	if file == "" {
+		return common.DefaultComponentUserConfig(c)
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameNCCL, c, consts.DefaultUserCfgName)
+	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.NCCL == nil {
-		return fmt.Errorf("failed to load default nccl config: %v", err)
+		return fmt.Errorf("failed to load nccl config: %v", err)
 	}
 	return nil
-}
-
-type NCCLErrorConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
 }

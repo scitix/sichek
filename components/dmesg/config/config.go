@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -29,12 +28,9 @@ type DmesgUserConfig struct {
 }
 
 type DmesgConfig struct {
-	Name           string                       `json:"name" yaml:"name"`
-	DmesgFileName  []string                     `json:"FileNmae" yaml:"FileNmae"`
-	DmesgCmd       [][]string                   `json:"Cmd" yaml:"Cmd"`
-	QueryInterval  time.Duration                `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                        `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*DmesgErrorConfig `json:"checkers" yaml:"checkers"`
+	Name          string        `json:"name" yaml:"name"`
+	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
 }
 
 func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
@@ -45,31 +41,13 @@ func (c *DmesgUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.Dmesg.QueryInterval = newInterval
 }
 
-func (c *DmesgUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.Dmesg.CheckerConfigs {
-		commonCfgMap[name] = cfg
-	}
-	return commonCfgMap
-}
-
 func (c *DmesgUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Dmesg == nil {
-			return fmt.Errorf("failed to load dmesg config from YAML file %s: %v", file, err)
-		}
+	if file == "" {
+		return common.DefaultComponentUserConfig(c)
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameDmesg, c, consts.DefaultUserCfgName)
+	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.Dmesg == nil {
-		return fmt.Errorf("failed to load default dmesg config: %v", err)
+		return fmt.Errorf("failed to load dmesg config: %v", err)
 	}
 	return nil
-}
-
-type DmesgErrorConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
 }
