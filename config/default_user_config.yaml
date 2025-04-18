@@ -2,7 +2,7 @@ cpu:
   name: cpu
   query_interval: 30
   cache_size: 5
-  enable_metrics: false
+  enable_metrics: true
 
 
 dmesg:
