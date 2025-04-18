@@ -79,13 +79,19 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed: %v", err)
 		return nil, err
 	}
-
-	collectorPointer, err := collector.NewDmesgCollector(dmsgCfg)
+	specCfg := &config.DmesgSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "dmesg").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	dmesgSpec := specCfg.DmesgSpec
+	collectorPointer, err := collector.NewDmesgCollector(dmesgSpec)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
 
-	dmesgChecker := checker.NewDmesgChecker(dmsgCfg)
+	dmesgChecker := checker.NewDmesgChecker(dmesgSpec)
 
 	component := &component{
 		ctx:           ctx,
@@ -227,7 +233,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return checkAllPassed
 	}
 	for n := range dmesgEvent {
-		fmt.Printf("\tDetected %s Event\n", n)
+		fmt.Printf("\tDetected %d Kernel Events:\n %s\n", len(dmesgEvent), dmesgEvent[n])
 	}
 	return checkAllPassed
 }

@@ -83,10 +83,19 @@ func DefaultComponentConfig(component string, config interface{}, filename strin
 
 // DefaultComponentConfig loads the default configuration for a given component from a YAML file.
 func DefaultComponentUserConfig(config interface{}) error {
-	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, consts.DefaultUserCfgName)
+	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, "config", consts.DefaultUserCfgName)
 	_, err := os.Stat(defaultCfgPath)
 	if err != nil {
-		defaultCfgPath = filepath.Join("config", consts.DefaultUserCfgName)
+		// run on host use local config
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// Get the directory of the current file
+		commonDir := filepath.Dir(curFile)
+		sichekDir := filepath.Dir(filepath.Dir(commonDir))
+
+		defaultCfgPath = filepath.Join(sichekDir, "config", consts.DefaultUserCfgName)
 	}
 	err = utils.LoadFromYaml(defaultCfgPath, config)
 	return err

@@ -45,7 +45,7 @@ type HangGetter struct {
 	nvidiaComponent common.Component
 }
 
-func NewHangGetter(hangCfg *config.HangUserConfig) (hangGetter *HangGetter, err error) {
+func NewHangGetter(hangCfg *config.HangUserConfig, hangSpec *config.HangSpec) (hangGetter *HangGetter, err error) {
 	var res HangGetter
 	res.name = hangCfg.Hang.Name
 	res.cfg = hangCfg
@@ -63,7 +63,7 @@ func NewHangGetter(hangCfg *config.HangUserConfig) (hangGetter *HangGetter, err 
 		}
 	}
 
-	for _, getterConfig := range hangCfg.Hang.CheckerConfigs {
+	for _, getterConfig := range hangSpec.EventCheckers {
 		threshold := getterConfig.HangThreshold
 		for _, value := range getterConfig.HangIndicates {
 			if value.Name != "pwr" && value.Name != "sm" &&

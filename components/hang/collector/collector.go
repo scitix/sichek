@@ -41,7 +41,7 @@ type HangCollector struct {
 	hangInfo      checker.HangInfo
 }
 
-func NewHangCollector(hangCfg *config.HangUserConfig) (*HangCollector, error) {
+func NewHangCollector(hangCfg *config.HangUserConfig, hangSpec *config.HangSpec) (*HangCollector, error) {
 
 	var res HangCollector
 	res.name = hangCfg.Hang.Name
@@ -50,7 +50,7 @@ func NewHangCollector(hangCfg *config.HangUserConfig) (*HangCollector, error) {
 	res.indicates = make(map[string]int64)
 	res.indicatesComp = make(map[string]string)
 
-	for _, collectorConfig := range hangCfg.Hang.CheckerConfigs {
+	for _, collectorConfig := range hangSpec.EventCheckers {
 		threshold := collectorConfig.HangThreshold
 		for _, value := range collectorConfig.HangIndicates {
 			if value.Name != "pwr" && value.Name != "sm" &&

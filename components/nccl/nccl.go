@@ -79,7 +79,14 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to load NCCL config")
 		return nil, err
 	}
-	ncclCollector, err := collector.NewNCCLCollector(ncclCfg)
+	specCfg := &config.NcclSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "nccl").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	ncclSpec := specCfg.NcclSpec
+	ncclCollector, err := collector.NewNCCLCollector(ncclSpec)
 	if err != nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to create NCCLCollector")
 		return nil, err

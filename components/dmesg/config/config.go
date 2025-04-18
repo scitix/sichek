@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -29,13 +28,9 @@ type DmesgUserConfig struct {
 }
 
 type DmesgConfig struct {
-	Name          string                       `json:"name" yaml:"name"`
-	DmesgFileName []string                     `json:"FileNmae" yaml:"FileNmae"`
-	DmesgCmd      [][]string                   `json:"Cmd" yaml:"Cmd"`
-	QueryInterval time.Duration                `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                        `json:"cache_size" yaml:"cache_size"`
-	EventCheckers map[string]*DmesgErrorConfig `json:"event_checkers" yaml:"event_checkers"`
-	EnableMetrics bool                         `json:"enable_metrics" yaml:"enable_metrics"`
+	Name          string        `json:"name" yaml:"name"`
+	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
 }
 
 func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
@@ -47,27 +42,12 @@ func (c *DmesgUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *DmesgUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Dmesg == nil {
-			return fmt.Errorf("failed to load dmesg config from YAML file %s: %v", file, err)
-		}
+	if file == "" {
+		return common.DefaultComponentUserConfig(c)
 	}
-	err := common.DefaultComponentUserConfig(c)
+	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.Dmesg == nil {
-		return fmt.Errorf("failed to load default cpu config: %v", err)
-	}
-	// load event checker
-	err = common.DefaultComponentConfig(consts.ComponentNameDmesg, c.Dmesg.EventCheckers, consts.DefaultEventCheckerCfgName)
-	if err != nil {
-		return fmt.Errorf("failed to load default cpu event checker config: %v", err)
+		return fmt.Errorf("failed to load dmesg config: %v", err)
 	}
 	return nil
-}
-
-type DmesgErrorConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
 }

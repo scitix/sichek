@@ -22,7 +22,7 @@ import (
 	"github.com/scitix/sichek/components/cpu/config"
 )
 
-func NewCheckers(cfg *config.CpuUserConfig) ([]common.Checker, error) {
+func NewCheckers(cfg *config.CpuSpec) ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
 	checker, err := NewCPUPerfChecker()
 	if err != nil {
@@ -30,7 +30,7 @@ func NewCheckers(cfg *config.CpuUserConfig) ([]common.Checker, error) {
 	}
 	checkers = append(checkers, checker)
 
-	for name, eventCfg := range cfg.CPU.EventCheckers {
+	for name, eventCfg := range cfg.EventCheckers {
 		eventChecker, err := NewEventChecker(eventCfg)
 		if err != nil {
 			return nil, fmt.Errorf("create event %s checker failed: %v", name, err)

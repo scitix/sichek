@@ -1,4 +1,6 @@
-  checkers:
+nccl: 
+  log_dir: "/var/log/pods"
+  event_checkers:
     TIMEOUT:
       name: "NCCL Timeout"
       description: "NCCL Timeout error"

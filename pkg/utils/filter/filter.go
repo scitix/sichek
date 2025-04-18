@@ -20,7 +20,7 @@ type Filter struct {
 }
 
 func NewFilter(regexpName []string, regexps []string, filesName []string, cmds [][]string, cacheLineN int64) (*Filter, error) {
-	return NewFilterSkip(regexpName, regexps, filesName, cmds, cacheLineN, 100)
+	return NewFilterSkip(regexpName, regexps, filesName, cmds, cacheLineN, 99)
 }
 
 func NewFilterSkip(regexpName []string, regexps []string, filesName []string, cmds [][]string, cacheLineN int64, skipPercent int64) (*Filter, error) {

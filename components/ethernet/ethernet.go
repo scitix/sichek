@@ -90,26 +90,16 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 	ethernetSpec := specCfg.EthernetSpec
-	checkers := make([]common.Checker, 0)
-	checkerIndex := 0
-	for _, checkItem := range cfg.Ethernet.Cherkers {
-		switch checkItem {
-		case "phy_state":
-			checkerIndex = checkerIndex + 1
-			ethPhyStateChecker, err := checker.NewEthPhyStateChecker(ethernetSpec)
-			if err != nil {
-				logrus.WithField("component", "ethernet").Errorf("Fail to create the checker: %d, err: %v", checkerIndex, err)
-			}
-			checkers = append(checkers, ethPhyStateChecker)
-			logrus.WithField("component", "ethernet").Infof("create the checker %d: %s", checkerIndex, checkItem)
-		}
-	}
+	checkers, err := checker.NewCheckers(cfg, ethernetSpec)
 
 	var info collector.EthernetInfo
 	if err != nil {
 		logrus.WithField("component", "ethernet").Infof("fail to get the ib spec err %v", err)
 	}
-
+	var ethernetMetrics *metrics.EthernetMetrics
+	if cfg.Ethernet.EnableMetrics {
+		ethernetMetrics = metrics.NewEthernetMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -122,7 +112,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:     0,
 		cacheSize:     cfg.Ethernet.CacheSize,
-		metrics:       metrics.NewEthernetMetrics(),
+		metrics:       ethernetMetrics,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -137,7 +127,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
-	c.metrics.ExportMetrics(ethernetInfo)
+	if c.cfg.Ethernet.EnableMetrics {
+		c.metrics.ExportMetrics(ethernetInfo)
+	}
 	result := common.Check(ctx, c.Name(), ethernetInfo, c.checkers)
 
 	info, err := ethernetInfo.JSON()
@@ -193,10 +185,6 @@ func (c *component) LastInfo() (common.Info, error) {
 		info = c.cacheInfo[c.currIndex-1]
 	}
 	return info, nil
-}
-
-func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
-	return nil, nil
 }
 
 func (c *component) Update(cfg common.ComponentUserConfig) error {

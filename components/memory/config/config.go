@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -29,18 +28,10 @@ type MemoryUserConfig struct {
 }
 
 type MemoryConfig struct {
-	Name          string                        `json:"name" yaml:"name"`
-	QueryInterval time.Duration                 `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                         `json:"cache_size" yaml:"cache_size"`
-	Checkers      map[string]*MemoryEventConfig `json:"checkers" yaml:"checkers"`
-}
-
-func (c *MemoryUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.Memory.Checkers {
-		commonCfgMap[name] = cfg
-	}
-	return commonCfgMap
+	Name          string        `json:"name" yaml:"name"`
+	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics bool          `json:"enable_metrics" yaml:"enable_metrics"`
 }
 
 func (c *MemoryUserConfig) GetQueryInterval() time.Duration {
@@ -52,23 +43,12 @@ func (c *MemoryUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *MemoryUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Memory == nil {
-			return fmt.Errorf("failed to load memory config from YAML file %s: %v", file, err)
-		}
+	if file == "" {
+		return common.DefaultComponentUserConfig(c)
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameMemory, c, consts.DefaultUserCfgName)
+	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.Memory == nil {
-		return fmt.Errorf("failed to load default memory config: %v", err)
+		return fmt.Errorf("failed to load memory config: %v", err)
 	}
 	return nil
-}
-
-type MemoryEventConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	LogFile     string `json:"log_file" yaml:"log_file"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
 }

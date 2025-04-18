@@ -29,21 +29,20 @@ import (
 )
 
 type DmesgCollector struct {
-	name string
-	cfg  common.ComponentUserConfig
-
+	name   string
+	cfg    *config.DmesgSpec
 	filter *filter.Filter
 }
 
-func NewDmesgCollector(cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
+func NewDmesgCollector(cfg *config.DmesgSpec) (*DmesgCollector, error) {
 
-	if len(cfg.Dmesg.EventCheckers) == 0 {
+	if len(cfg.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
-	regexpName := make([]string, 0, len(cfg.Dmesg.EventCheckers))
-	regexp := make([]string, 0, len(cfg.Dmesg.EventCheckers))
+	regexpName := make([]string, 0, len(cfg.EventCheckers))
+	regexp := make([]string, 0, len(cfg.EventCheckers))
 
-	for _, checkersCfg := range cfg.Dmesg.EventCheckers {
+	for _, checkersCfg := range cfg.EventCheckers {
 		regexpName = append(regexpName, checkersCfg.Name)
 		regexp = append(regexp, checkersCfg.Regexp)
 	}
@@ -51,8 +50,8 @@ func NewDmesgCollector(cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
 	filterPointer, err := filter.NewFilter(
 		regexpName,
 		regexp,
-		cfg.Dmesg.DmesgFileName,
-		cfg.Dmesg.DmesgCmd,
+		cfg.DmesgFileName,
+		cfg.DmesgCmd,
 		5000,
 	)
 	if err != nil {
@@ -69,10 +68,6 @@ func NewDmesgCollector(cfg *config.DmesgUserConfig) (*DmesgCollector, error) {
 
 func (c *DmesgCollector) Name() string {
 	return c.name
-}
-
-func (c *DmesgCollector) GetCfg() common.ComponentUserConfig {
-	return c.cfg
 }
 
 func (c *DmesgCollector) Collect(ctx context.Context) (common.Info, error) {

@@ -30,8 +30,8 @@ func TestCollector_Collect(t *testing.T) {
 	defer cancel()
 
 	// Mock configuration
-	cfg := &config.CpuUserConfig{
-		CPU: &config.CPUConfig{
+	cfg := &config.CpuSpecConfig{
+		CpuSpec: &config.CpuSpec{
 			EventCheckers: map[string]*config.CPUEventConfig{
 				"testChecker": {
 					Name:        "testChecker",
@@ -52,7 +52,7 @@ func TestCollector_Collect(t *testing.T) {
 		t.Fatalf("Failed to create temp log file: %v", err)
 	}
 	t.Logf("Log file: %s", logFile.Name())
-	cfg.CPU.EventCheckers["testChecker"].LogFile = logFile.Name()
+	cfg.CpuSpec.EventCheckers["testChecker"].LogFile = logFile.Name()
 	// Write some test data to the log file
 	_, err = logFile.WriteString("test log data\n")
 	if err != nil {
@@ -98,10 +98,10 @@ func TestCollector_Collect(t *testing.T) {
 	}()
 
 	// Update the log file path in the configuration
-	cfg.CPU.EventCheckers["testChecker"].LogFile = logFile.Name()
-	t.Logf("Event checkers: %+v", cfg.CPU.EventCheckers["testChecker"])
+	cfg.CpuSpec.EventCheckers["testChecker"].LogFile = logFile.Name()
+	t.Logf("Event checkers: %+v", cfg.CpuSpec.EventCheckers["testChecker"])
 	// Create a new collector instance
-	collector, err := NewCpuCollector(ctx, cfg)
+	collector, err := NewCpuCollector(ctx, cfg.CpuSpec)
 	if err != nil {
 		t.Fatalf("Failed to create collector: %v", err)
 	}

@@ -1,3 +1,4 @@
+cpu:  
   event_checkers:
     kernel_panic:
       name: "kernel_panic"

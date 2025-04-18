@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -29,11 +28,10 @@ type CpuUserConfig struct {
 }
 
 type CPUConfig struct {
-	Name          string                     `json:"name" yaml:"name"`
-	QueryInterval time.Duration              `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64                      `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics bool                       `json:"enable_metrics" yaml:"enable_metrics"`
-	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	Name          string        `json:"name" yaml:"name"`
+	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics bool          `json:"enable_metrics" yaml:"enable_metrics"`
 }
 
 func (c *CpuUserConfig) GetQueryInterval() time.Duration {
@@ -45,31 +43,12 @@ func (c *CpuUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *CpuUserConfig) LoadUserConfigFromYaml(file string) error {
-	fmt.Println("cpuconfig",c.CPU)
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.CPU == nil {
-			return fmt.Errorf("failed to load cpu config from YAML file %s: %v", file, err)
-		}
+	if file == "" {
+		return common.DefaultComponentUserConfig(c)
 	}
-	err := common.DefaultComponentUserConfig(c)
+	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.CPU == nil {
-		return fmt.Errorf("failed to load default cpu config: %v", err)
+		return fmt.Errorf("failed to load cpu config: %v", err)
 	}
-	// load event checker
-	err = common.DefaultComponentConfig(consts.ComponentNameCPU, c.CPU.EventCheckers, consts.DefaultEventCheckerCfgName)
-	if err != nil {
-		return fmt.Errorf("failed to load default cpu event checker config: %v", err)
-	}
-	fmt.Println("cpuconfig",c.CPU)
 	return nil
-}
-
-type CPUEventConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	LogFile     string `json:"log_file" yaml:"log_file"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
-	Suggestion  string `json:"suggestion" yaml:"suggestion"`
 }

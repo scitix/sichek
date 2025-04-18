@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -32,6 +31,7 @@ type NvidiaConfig struct {
 	Name            string        `json:"name"`
 	QueryInterval   time.Duration `json:"query_interval"`
 	CacheSize       int64         `json:"cache_size"`
+	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
 	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
 }
 
@@ -50,7 +50,7 @@ func (c *NvidiaUserConfig) SetQueryInterval(newInterval time.Duration) {
 
 func (c *NvidiaUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file == "" {
-		return common.DefaultComponentConfig(consts.ComponentNameNvidia, c, consts.DefaultUserCfgName)
+		return common.DefaultComponentUserConfig(c)
 	}
 	err := utils.LoadFromYaml(file, c)
 	if err != nil || c.Nvidia == nil {

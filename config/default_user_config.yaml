@@ -2,14 +2,11 @@ cpu:
   name: cpu
   query_interval: 30
   cache_size: 5
-  enable_metrics: true
+  enable_metrics: false
 
 
 dmesg:
   name: DMesg
-  FileNmae: ["/var/log/dmesg"]
-  Cmd:
-    - ["dmesg"]
   query_interval: 30
   cache_size: 5
 
@@ -17,8 +14,7 @@ ethernet:
   name: "ethernet"
   query_interval: 30
   cache_size: 5
-  checkers:
-  - "phy_state"
+  enable_metrics: true
 
 gpfs:
   name: GPFS
@@ -31,11 +27,13 @@ hang:
   cache_size: 5
   nvsmi: false
   mock: false
+  enable_metrics: true
 
 infiniband:
   name: "infiniband"
   query_interval: 30
   cache_size: 5
+  enable_metrics: true
   ignored_checkers:
     - "net_operstate"
 
@@ -43,10 +41,10 @@ memory:
   name: memory
   query_interval: 30
   cache_size: 5
+  enable_metrics: true
 
 nccl:
   name: NCCL
-  log_dir: "/var/log/pods"
   query_interval: 30
   cache_size: 5
 
@@ -54,4 +52,5 @@ nvidia:
   name: nvidia
   query_interval: 30
   cache_size: 5
+  enable_metrics: true
   ignored_checkers: []

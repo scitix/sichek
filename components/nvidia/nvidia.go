@@ -186,6 +186,11 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 
 	freqController := common.GetFreqController()
 	freqController.RegisterModule(consts.ComponentNameNvidia, nvidiaCfg)
+
+	var nvidiaMetrics *metrics.NvidiaMetrics
+	if nvidiaCfg.Nvidia.EnableMetrics {
+		nvidiaMetrics = metrics.NewNvidiaMetrics()
+	}
 	component := &component{
 		componentName: consts.ComponentNameNvidia,
 		ctx:           ctx,
@@ -203,7 +208,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
-		metrics:       metrics.NewNvidiaMetrics(),
+		metrics:       nvidiaMetrics,
 	}
 	return component, nil
 }
@@ -244,7 +249,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-	c.metrics.ExportMetrics(nvidiaInfo)
+	if c.cfg.Nvidia.EnableMetrics {
+		c.metrics.ExportMetrics(nvidiaInfo)
+	}
 	result := common.Check(ctx, c.componentName, nvidiaInfo, c.checkers)
 	timer.Mark("check")
 	c.cacheMtx.Lock()

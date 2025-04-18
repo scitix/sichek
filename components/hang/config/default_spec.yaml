@@ -1,4 +1,5 @@
-  checkers:
+hang:
+  event_checkers:
     GPU:
       name: "GPUHang"
       description: "GPU Hang"

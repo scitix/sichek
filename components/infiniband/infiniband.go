@@ -105,7 +105,10 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}
 
 	var info collector.InfinibandInfo
-
+	var infinibandMetrics *metrics.IBMetrics
+	if cfg.Infiniband.EnableMetrics {
+		infinibandMetrics = metrics.NewInfinibandMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -118,7 +121,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		cacheInfo:     make([]common.Info, cfg.Infiniband.CacheSize),
 		currIndex:     0,
 		cacheSize:     cfg.Infiniband.CacheSize,
-		metrics:     metrics.NewInfinibandMetrics(),
+		metrics:       infinibandMetrics,
 	}
 	// step4: start the service
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
@@ -136,7 +139,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
-	c.metrics.ExportMetrics(InfinibandInfo)
+	if c.cfg.Infiniband.EnableMetrics {
+		c.metrics.ExportMetrics(InfinibandInfo)
+	}
 	result := common.Check(ctx, c.componentName, InfinibandInfo, c.checkers)
 	info, err := InfinibandInfo.JSON()
 	if err != nil {

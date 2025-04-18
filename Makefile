@@ -1,9 +1,10 @@
+.PHONY: docker  
 PROJECT_NAME := sichek
 GO := go
-INSTALL_DIR := /usr/sbin
+INSTALL_DIR := /usr/local/bin
 VERSION_MAJOR := 0
 VERSION_MINOR := 3
-VERSION_PATCH := 0
+VERSION_PATCH := 1
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
 BUILD_TIME := $(shell date -u '+%Y-%m-%d')
@@ -15,13 +16,18 @@ LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
            -X 'cmd/command/version.GoVersion=$(GO_VERSION)' \
            -X 'cmd/command/version.BuildTime=$(BUILD_TIME)'
 
-all:
+all:  
 	mkdir -p build/bin/
 	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -o build/bin/$(PROJECT_NAME) cmd/main.go
 
 debug:
 	mkdir -p build/bin/
 	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -gcflags "all=-N -l" -o build/bin/$(PROJECT_NAME) cmd/main.go
+	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
+	GIT_COMMIT=${GIT_COMMIT} GO_VERSION=${GO_VERSION} BUILD_TIME=${BUILD_TIME} \
+	goreleaser release --snapshot --clean
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/vdebug/sichek_vdebug_linux_amd64.rpm" --upload-file ./dist/sichek_${VERSION}_linux_amd64.rpm
+	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/vdebug/sichek_vdebug_linux_amd64.deb" --upload-file ./dist/sichek_${VERSION}_linux_amd64.deb
 
 docker:
 	docker build \

@@ -1,4 +1,5 @@
-  checkers:
+memory:
+  event_checkers:
     OutOfMemory:
       name: "OutOfMemory"
       description: "Out of memory"

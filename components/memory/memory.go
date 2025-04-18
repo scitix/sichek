@@ -80,15 +80,21 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
 	}
-
-	collectorPointer, err := collector.NewCollector(memoryCfg)
+	specCfg := &config.MemorySpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "memory").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	memorySpec := specCfg.MemorySpec
+	collectorPointer, err := collector.NewCollector(memorySpec)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, spec := range memoryCfg.GetCheckerSpec() {
+	for name, spec := range memorySpec.EventCheckers {
 		memChecker, err := checker.NewMemoryChecker(spec)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)
@@ -96,7 +102,10 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		}
 		checkers = append(checkers, memChecker)
 	}
-
+	var memoryMetrics *metrics.MemoryMetrics
+	if memoryCfg.Memory.EnableMetrics {
+		memoryMetrics = metrics.NewMemoryMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -107,7 +116,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),
 		cacheInfo:     make([]common.Info, memoryCfg.Memory.CacheSize),
 		cacheSize:     memoryCfg.Memory.CacheSize,
-		metrics:       metrics.NewMemoryMetrics(),
+		metrics:       memoryMetrics,
 	}
 	service := common.NewCommonService(ctx, memoryCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
@@ -130,7 +139,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "memory").Errorf("wrong memory collector info type")
 		return nil, err
 	}
-	c.metrics.ExportMetrics(memInfo.Info)
+	if c.cfg.Memory.EnableMetrics {
+		c.metrics.ExportMetrics(memInfo.Info)
+	}
 	result := common.Check(ctx, c.componentName, memInfo, c.checkers)
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info

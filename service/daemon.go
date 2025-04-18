@@ -49,6 +49,7 @@ type DaemonService struct {
 }
 
 func NewService(components map[string]common.Component, annoKey string) (s Service, err error) {
+	go metrics.InitPrometheus()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {

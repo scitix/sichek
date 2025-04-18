@@ -1,3 +1,7 @@
+dmesg: 
+  file_name: ["/var/log/dmesg"]
+  cmd:
+    - ["dmesg"]
   event_checkers:
     OOM1:
       name: "oom"
@@ -14,25 +18,15 @@
       description: "oom error in dmesg"
       regexp: 'Out of memory:'
       level: error
-    OOM4:
-      name: "oom"
+    CgroupOOM:
+      name: "cgroup_oom"
       description: "oom error in dmesg"
       regexp: 'Memory cgroup out of memory'
       level: error
-    NVXID:
-      name: "nvidia"
-      description: "nv xid error in dmesg"
-      regexp: 'NVRM: Xid.*?: (\d+),'
-      level: error
     NVSXID:
-      name: "nvidia"
+      name: "nvidia_sxid"
       description: "nv sxid error in dmesg"
       regexp: 'SXid.*?: (\d+),'
-      level: error
-    PEERMEM:
-      name: "peermem"
-      description: "peermem invalid context error in dmesg"
-      regexp: '.*ERROR detected invalid context, skipping further processing'
       level: error
     NCCL:
       name: "nccl"
