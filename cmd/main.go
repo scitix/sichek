@@ -17,29 +17,28 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/scitix/sichek/cmd/command"
 	"github.com/scitix/sichek/cmd/command/component"
+	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/metrics"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
 func main() {
-	rootCmd := command.NewRootCmd()
-	go metrics.InitPrometheus()
-	if err := rootCmd.Execute(); err != nil {
-		panic(err)
-	}
-	if len(component.ComponentStatuses) != 0 {
-		printComponentStatuses()
-	}
-	if !isAllPassed() {
-		os.Exit(-1)
-	} else {
-		os.Exit(0)
-	}
+	topotest.CheckGPUTopology()
+	// rootCmd := command.NewRootCmd()
+	// go metrics.InitPrometheus()
+	// if err := rootCmd.Execute(); err != nil {
+	// 	panic(err)
+	// }
+	// if len(component.ComponentStatuses) != 0 {
+	// 	printComponentStatuses()
+	// }
+	// if !isAllPassed() {
+	// 	os.Exit(-1)
+	// } else {
+	// 	os.Exit(0)
+	// }
 }
 
 func isAllPassed() bool {
