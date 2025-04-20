@@ -34,5 +34,5 @@ pcie_device:
 
 pcie_cluster:  
   default:  
-    - "0x233010de"  
-    - "0x20f310de"  
+    - 0x233010de  
+    - 0x20f310de 
