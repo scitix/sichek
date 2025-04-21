@@ -141,7 +141,7 @@ func (s *CommonService) Start() <-chan *Result {
 				// Check if need to update ticker
 				newInterval := s.cfg.GetQueryInterval()
 				if newInterval.Duration != interval.Duration {
-					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %s to %s", interval, newInterval)
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %s to %s", interval.Duration, newInterval.Duration)
 					ticker.Stop()
 					ticker = time.NewTicker(newInterval.Duration)
 					interval = newInterval

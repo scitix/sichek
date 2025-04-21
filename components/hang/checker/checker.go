@@ -147,7 +147,8 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		freqController := common.GetFreqController()
 		freqController.SetModuleQueryInterval(consts.ComponentNameHang, c.originalQueryInterval)
 		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, c.originalNvidiaQueryInterval)
-		logrus.WithField("checker", "hang").Infof("GPU hang status resolved, restoring hang query interval to %d, nviida query interval to %d.", c.originalQueryInterval, c.originalNvidiaQueryInterval)
+		logrus.WithField("checker", "hang").Infof("GPU hang status resolved, restoring hang query interval to %s, nviida query interval to %s.",
+			c.originalQueryInterval.Duration, c.originalNvidiaQueryInterval.Duration)
 	}
 
 	result.Device = strings.Join(devices, ",")
