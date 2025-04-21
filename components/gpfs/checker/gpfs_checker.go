@@ -29,16 +29,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg common.ComponentUserConfig) ([]common.Checker, error) {
-	gpfsCfg, ok := cfg.(*config.GpfsUserConfig)
-	if !ok {
-		err := fmt.Errorf("invalid config type for gpfs checker")
-		logrus.WithField("component", "gpfs").Error(err)
-		return nil, err
-	}
-
+func NewCheckers(cfg *config.GpfsSpec) ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
-	for name, cfg := range gpfsCfg.Gpfs.EventCheckers {
+	for name, cfg := range cfg.EventCheckers {
 		checker, err := NewEventChecker(cfg)
 		if err != nil {
 			logrus.WithField("component", "gpfs").Errorf("create event checker %s failed: %v", name, err)

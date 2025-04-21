@@ -52,7 +52,17 @@ func NewDmesgCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Dmesg").Infof("load cfg file:%s", cfgFile)
 			}
-			component, err := dmesg.NewComponent(cfgFile)
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "Dmesg").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "Dmesg").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "Dmesg").Info("load default specFile...")
+				}
+			}
+			component, err := dmesg.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "Dmesg").Error(err)
 				return
@@ -66,6 +76,7 @@ func NewDmesgCmd() *cobra.Command {
 	}
 
 	dmesgCmd.Flags().StringP("cfg", "c", "", "Path to the Dmesg Cfg file")
+	dmesgCmd.Flags().StringP("spec", "s", "", "Path to the Dmesg specification file")
 	dmesgCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return dmesgCmd

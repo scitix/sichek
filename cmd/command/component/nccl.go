@@ -52,7 +52,17 @@ func NewNCCLCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "NCCL").Infof("load cfg file:%s", cfgFile)
 			}
-			component, err := nccl.NewComponent(cfgFile)
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "NCCL").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "NCCL").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "NCCL").Info("load default specFile...")
+				}
+			}
+			component, err := nccl.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "NCCL").Error(err)
 				return
@@ -66,6 +76,7 @@ func NewNCCLCmd() *cobra.Command {
 	}
 
 	ncclCmd.Flags().StringP("cfg", "c", "", "Path to the NCCL Cfg file")
+	ncclCmd.Flags().StringP("spec", "s", "", "Path to the NCCL specification file")
 	ncclCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return ncclCmd

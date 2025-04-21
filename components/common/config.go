@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,12 +29,24 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type Duration struct {
+	time.Duration
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	dur, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	d.Duration = dur
+	return nil
+}
+
 // ComponentUserConfig defines the methods for getting and setting user configuration.
 type ComponentUserConfig interface {
-	GetCheckerSpec() map[string]CheckerSpec
-	GetQueryInterval() time.Duration
-	SetQueryInterval(newInterval time.Duration)
-	LoadUserConfigFromYaml(file string) error
+	GetQueryInterval() Duration
+	SetQueryInterval(newInterval Duration)
 }
 
 // ComponentSpecConfig defines the method for loading specification config from YAML.
@@ -82,6 +95,33 @@ func DefaultComponentConfig(component string, config interface{}, filename strin
 	return fmt.Errorf("failed to find default config file: %s", filename)
 }
 
+// DefaultComponentConfig loads the default configuration for a given component from a YAML file.
+func LoadComponentUserConfig(file string, config interface{}) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, config)
+		if err == nil {
+			return nil
+		}
+	}
+	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, "config", consts.DefaultUserCfgName)
+	_, err := os.Stat(defaultCfgPath)
+	if err != nil {
+		// run on host use local config
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// Get the directory of the current file
+		commonDir := filepath.Dir(curFile)
+		sichekDir := filepath.Dir(filepath.Dir(commonDir))
+
+		defaultCfgPath = filepath.Join(sichekDir, "config", consts.DefaultUserCfgName)
+	}
+	err = utils.LoadFromYaml(defaultCfgPath, config)
+	return err
+
+}
+
 // FreqController controls the frequency of component queries.
 type FreqController struct {
 	mu      sync.Mutex
@@ -96,7 +136,7 @@ func (fc *FreqController) RegisterModule(moduleName string, moduleCfg ComponentU
 }
 
 // SetModuleQueryInterval sets the query interval for a specific module.
-func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval time.Duration) {
+func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval Duration) {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 	if module, exists := fc.modules[moduleName]; exists {
@@ -105,7 +145,7 @@ func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval 
 }
 
 // GetModuleQueryInterval retrieves the query interval for a specific module.
-func (fc *FreqController) GetModuleQueryInterval(moduleName string) time.Duration {
+func (fc *FreqController) GetModuleQueryInterval(moduleName string) Duration {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 	if module, exists := fc.modules[moduleName]; exists {
@@ -113,7 +153,7 @@ func (fc *FreqController) GetModuleQueryInterval(moduleName string) time.Duratio
 	} else {
 		// If the module is not registered, return a default value.
 		logrus.WithField("component", "FreqController").Errorf("module %s not registered", moduleName)
-		return 0
+		return Duration{0}
 	}
 }
 

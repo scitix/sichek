@@ -6,7 +6,7 @@
 : ${USE_SUDO:="true"}
 : ${DEBUG:="false"}
 : ${VERIFY_CHECKSUM:="false"}
-: ${SICHEK_INSTALL_DIR:="/usr/sbin"}
+: ${SICHEK_INSTALL_DIR:="/usr/local/bin"}
 
 HAS_CURL="$(type "curl" &> /dev/null && echo true || echo false)"
 HAS_WGET="$(type "wget" &> /dev/null && echo true || echo false)"

@@ -16,12 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 )
 
 type NvidiaUserConfig struct {
@@ -29,32 +24,21 @@ type NvidiaUserConfig struct {
 }
 
 type NvidiaConfig struct {
-	Name            string        `json:"name"`
-	QueryInterval   time.Duration `json:"query_interval"`
-	CacheSize       int64         `json:"cache_size"`
-	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
+	QueryInterval   common.Duration `json:"query_interval"`
+	CacheSize       int64           `json:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	IgnoredCheckers []string        `json:"ignored_checkers,omitempty"`
 }
 
 func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	return commonCfgMap
 }
-func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {
+func (c *NvidiaUserConfig) GetQueryInterval() common.Duration {
 	return c.Nvidia.QueryInterval
 }
 
 // SetQueryInterval Update the query interval in the config
-func (c *NvidiaUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *NvidiaUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Nvidia.QueryInterval = newInterval
-}
-
-func (c *NvidiaUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file == "" {
-		return common.DefaultComponentConfig(consts.ComponentNameNvidia, c, consts.DefaultUserCfgName)
-	}
-	err := utils.LoadFromYaml(file, c)
-	if err != nil || c.Nvidia == nil {
-		return fmt.Errorf("failed to load nvidia config: %v", err)
-	}
-	return nil
 }

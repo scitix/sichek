@@ -58,17 +58,20 @@ var (
 	cpuComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	cpuComponentOnce.Do(func() {
-		cpuComponent, err = newComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component cpu: %v", r)
+			}
+		}()
+		cpuComponent, err = newComponent(cfgFile, specFile)
 	})
-	return cpuComponent, nil
+	return cpuComponent, err
 }
 
-func newComponent(cfgFile string) (comp *component, err error) {
+func newComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -76,23 +79,33 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		}
 	}()
 	cfg := &config.CpuUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.CPU == nil {
+		logrus.WithField("component", "cpu").Errorf("NewComponent load config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewCpuComponent get user config failed")
+	}
+	specCfg := &config.CpuSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
-		logrus.WithField("component", "cpu").Errorf("NewComponent load config failed: %v", err)
+		logrus.WithField("component", "cpu").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-	collectorPointer, err := collector.NewCpuCollector(ctx, cfg)
+	cpuSpec := specCfg.CpuSpec
+	collectorPointer, err := collector.NewCpuCollector(ctx, cpuSpec)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(cfg)
+	checkers, err := checker.NewCheckers(cpuSpec)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create checkers failed: %v", err)
 		return nil, err
 	}
-
+	var cpuMetrics *metrics.CpuMetrics
+	if cfg.CPU.EnableMetrics {
+		cpuMetrics = metrics.NewCpuMetrics()
+	}
 	comp = &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -103,7 +116,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer:   make([]*common.Result, cfg.CPU.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.CPU.CacheSize),
 		cacheSize:     cfg.CPU.CacheSize,
-		metrics:       metrics.NewCpuMetrics(),
+		metrics:       cpuMetrics,
 	}
 	service := common.NewCommonService(ctx, cfg, comp.componentName, comp.GetTimeout(), comp.HealthCheck)
 	comp.service = service
@@ -126,7 +139,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "cpu").Errorf("wrong cpu info type")
 		return nil, err
 	}
-	c.metrics.ExportMetrics(cpuInfo)
+	if c.cfg.CPU.EnableMetrics {
+		c.metrics.ExportMetrics(cpuInfo)
+	}
 	result := common.Check(ctx, c.Name(), cpuInfo, c.checkers)
 
 	c.cacheMtx.Lock()
@@ -205,7 +220,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

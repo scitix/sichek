@@ -18,7 +18,6 @@ package collector
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
@@ -42,21 +41,17 @@ func (o *Output) JSON() (string, error) {
 
 type MemoryCollector struct {
 	name string
-	cfg  *config.MemoryUserConfig
+	cfg  *config.MemorySpec
 
 	filter *filter.FileFilter
 }
 
-func NewCollector(cfg common.ComponentUserConfig) (*MemoryCollector, error) {
-	configPointer, ok := cfg.(*config.MemoryUserConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for Memory")
-	}
+func NewCollector(cfg *config.MemorySpec) (*MemoryCollector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checkerCfg := range configPointer.Memory.Checkers {
+	for _, checkerCfg := range cfg.EventCheckers {
 		_, err := os.Stat(checkerCfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "Memory").Errorf("log file %s not exist for Memory collector", checkerCfg.LogFile)
@@ -77,17 +72,13 @@ func NewCollector(cfg common.ComponentUserConfig) (*MemoryCollector, error) {
 
 	return &MemoryCollector{
 		name:   "MemoryCollector",
-		cfg:    configPointer,
+		cfg:    cfg,
 		filter: filterPointer,
 	}, nil
 }
 
 func (c *MemoryCollector) Name() string {
 	return c.name
-}
-
-func (c *MemoryCollector) GetCfg() common.ComponentUserConfig {
-	return c.cfg
 }
 
 func (c *MemoryCollector) Collect(ctx context.Context) (common.Info, error) {

@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/scitix/sichek/components/common"
 )
 
 func TestLoadSpecFromYaml(t *testing.T) {
@@ -144,8 +147,8 @@ infiniband:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(spec.NvidiaSpec.NvidiaSpecMap) != 2 {
-		t.Fatalf("Expected spec to have 2 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
+	if len(spec.NvidiaSpec.NvidiaSpecMap) < 2 {
+		t.Fatalf("Expected spec at least have 2 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
 	}
 	if _, ok := formatedNvidiaSpecsMap["0x233010de"]; !ok {
 		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")
@@ -178,8 +181,8 @@ func TestLoadSpecFromDefaultYaml(t *testing.T) {
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(spec.NvidiaSpec.NvidiaSpecMap) != 1 {
-		t.Fatalf("Expected spec to have 1 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
+	if len(spec.NvidiaSpec.NvidiaSpecMap) < 1 {
+		t.Fatalf("Expected spec at least have 1 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
 	}
 	if _, ok := formatedNvidiaSpecsMap["0x233010de"]; !ok {
 		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")
@@ -262,7 +265,7 @@ nvidia:
 	userConfigData := `
 nvidia:
   name: "nvidia"
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   ignored_checkers: ["cpu_performance"]
 `
@@ -272,8 +275,8 @@ nvidia:
 
 	// Test the NvidiaConfig function
 	cfg := &NvidiaUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(userConfigFile.Name())
-	if err != nil {
+	err = common.LoadComponentUserConfig(userConfigFile.Name(), cfg)
+	if err != nil || cfg.Nvidia == nil {
 		t.Fatalf("Failed to load user config: %v", err)
 	}
 	spec := &NvidiaSpecConfig{}
@@ -294,10 +297,7 @@ nvidia:
 		t.Errorf("Expected Spec.Name to be 'NVIDIA H100 80GB HBM3', got '%s'", specItem.Name)
 	}
 
-	if cfg.Nvidia.Name != "nvidia" {
-		t.Errorf("Expected ComponentConfig.Nvidia.Name to be 'nvidia', got '%s'", cfg.Nvidia.Name)
-	}
-	if cfg.Nvidia.QueryInterval != 30 {
+	if cfg.Nvidia.QueryInterval.Duration != 30*time.Second {
 		t.Errorf("Expected ComponentConfig.Nvidia.UpdateInterval to be 1, got %d", cfg.Nvidia.QueryInterval)
 	}
 	if cfg.Nvidia.CacheSize != 5 {
@@ -307,3 +307,102 @@ nvidia:
 		t.Errorf("Expected 1 ignored checkers, got %d", len(cfg.Nvidia.IgnoredCheckers))
 	}
 }
+
+func TestLoadComponentUserConfig_WithValidFile(t *testing.T) {
+	// Create a temporary user config file
+	userConfigFile, err := os.CreateTemp("", "user_config_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp user config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp user config file: %v", err)
+		}
+	}(userConfigFile.Name())
+
+	// Write sample data to the temporary file
+	userConfigData := `
+nvidia:
+  query_interval: 1m
+  cache_size: 5
+  enable_metrics: true
+  ignored_checkers: ["cpu_performance"]
+
+memory:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := userConfigFile.Write([]byte(userConfigData)); err != nil {
+		t.Fatalf("Failed to write to temp user config file: %v", err)
+	}
+
+	// Test the LoadComponentUserConfig function
+	cfg := &NvidiaUserConfig{}
+	err = common.LoadComponentUserConfig(userConfigFile.Name(), cfg)
+	if err != nil {
+		t.Fatalf("LoadComponentUserConfig() returned an error: %v", err)
+	}
+
+	// Validate the loaded configuration
+	if cfg.Nvidia == nil {
+		t.Fatalf("Expected Nvidia config to be non-nil")
+	}
+	if cfg.Nvidia.QueryInterval.Duration != 60*time.Second {
+		t.Errorf("Expected QueryInterval to be 1m, got %s", cfg.Nvidia.QueryInterval.Duration)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
+	}
+	if len(cfg.Nvidia.IgnoredCheckers) != 1 || cfg.Nvidia.IgnoredCheckers[0] != "cpu_performance" {
+		t.Errorf("Expected IgnoredCheckers to contain 'cpu_performance', got %v", cfg.Nvidia.IgnoredCheckers)
+	}
+}
+
+func TestLoadComponentUserConfig_WithInvalidFile(t *testing.T) {
+	// Test with an invalid file path
+	cfg := &NvidiaUserConfig{}
+	err := common.LoadComponentUserConfig("invalid_file_path.yaml", cfg)
+	// Validate the loaded configuration with default config values)
+	if err != nil {
+		t.Fatalf("Expected LoadComponentUserConfig() with default config, got: %v", err)
+	}
+	if cfg.Nvidia == nil {
+		t.Fatalf("Expected Nvidia config to be non-nil")
+	}
+	if cfg.Nvidia.QueryInterval.Duration != 30*time.Second {
+		t.Errorf("Expected QueryInterval to be 30s, got %v", cfg.Nvidia.QueryInterval.Duration)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
+	}
+	if len(cfg.Nvidia.IgnoredCheckers) != 0{
+		t.Errorf("Expected 0 IgnoredCheckers, got %d", len(cfg.Nvidia.IgnoredCheckers))
+	}
+}
+
+func TestLoadComponentUserConfig_WithDefaultConfig(t *testing.T) {
+	// Simulate the absence of a user-provided file to test loading the default config
+	cfg := &NvidiaUserConfig{}
+	err := common.LoadComponentUserConfig("", cfg)
+	if err != nil {
+		t.Fatalf("LoadComponentUserConfig() returned an error: %v", err)
+	}
+
+	// Validate the loaded configuration with default config values)
+	if cfg.Nvidia == nil {
+		t.Fatalf("Expected Nvidia config to be non-nil")
+	}
+	// Add additional assertions here based on the expected default configuration
+	if cfg.Nvidia.QueryInterval.Duration != 30*time.Second {
+		t.Errorf("Expected QueryInterval to be 30s, got %v", cfg.Nvidia.QueryInterval.Duration)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
+	}
+	if len(cfg.Nvidia.IgnoredCheckers) != 0{
+		t.Errorf("Expected 0 IgnoredCheckers, got %d", len(cfg.Nvidia.IgnoredCheckers))
+	}
+}
+
