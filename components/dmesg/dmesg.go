@@ -56,9 +56,9 @@ var (
 	dmesgComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	dmesgComponentOnce.Do(func() {
-		dmesgComponent, err = newComponent(cfgFile)
+		dmesgComponent, err = newComponent(cfgFile, specFile)
 		if err != nil {
 			panic(err)
 		}
@@ -66,7 +66,7 @@ func NewComponent(cfgFile string) (comp common.Component, err error) {
 	return dmesgComponent, nil
 }
 
-func newComponent(cfgFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -80,7 +80,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		return nil, err
 	}
 	specCfg := &config.DmesgSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "dmesg").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err

@@ -28,7 +28,6 @@ type EthernetUserConfig struct {
 }
 
 type EthernetConfig struct {
-	Name            string        `json:"name" yaml:"name"`
 	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
 	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`

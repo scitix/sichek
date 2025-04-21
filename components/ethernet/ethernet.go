@@ -60,9 +60,9 @@ type component struct {
 	metrics *metrics.EthernetMetrics
 }
 
-func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
+func NewEthernetComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	ethernetComponentOnce.Do(func() {
-		ethernetComponent, err = newEthernetComponent(cfgFile)
+		ethernetComponent, err = newEthernetComponent(cfgFile, specFile)
 		if err != nil {
 			panic(err)
 		}
@@ -70,7 +70,7 @@ func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
 	return ethernetComponent, nil
 }
 
-func newEthernetComponent(cfgFile string) (comp *component, err error) {
+func newEthernetComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -84,7 +84,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 	specCfg := &config.EthernetSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "ethernet").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err

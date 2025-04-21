@@ -21,6 +21,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type DmesgSpecConfig struct {
@@ -44,7 +45,10 @@ func (c *DmesgSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.DmesgSpec == nil {
-			return fmt.Errorf("failed to load ethernet spec from YAML file %s: %v", file, err)
+			logrus.WithField("componet", "dmesg").Errorf("failed to load spec from YAML file %s: %v", file, err)
+		} else {
+			logrus.WithField("component", "dmesg").Infof("loaded spec from YAML file %s", file)
+			return nil
 		}
 	}
 	err := common.DefaultComponentConfig(consts.ComponentNameDmesg, c, consts.DefaultSpecCfgName)

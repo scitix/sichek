@@ -30,7 +30,7 @@ import (
 func TestCPU_HealthCheckPrint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	component, err := cpu.NewComponent("")
+	component, err := cpu.NewComponent("","")
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}

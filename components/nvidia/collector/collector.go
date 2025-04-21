@@ -68,9 +68,11 @@ func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDe
 }
 
 func (collector *NvidiaCollector) getUUID() {
+	collector.UUIDAllValidFlag = true
 	for i := 0; i < collector.ExpectedDeviceCount; i++ {
 		device, err := collector.nvmlInst.DeviceGetHandleByIndex(i)
 		if !errors.Is(err, nvml.SUCCESS) {
+			collector.UUIDAllValidFlag = false
 			logrus.WithField("component", "NVIDIA-Collector-getUUID").Errorf("failed to get Nvidia GPU device %d: %v", i, err)
 			return
 		}

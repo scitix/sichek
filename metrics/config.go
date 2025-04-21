@@ -13,40 +13,30 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package config
+package metrics
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
-type DmesgUserConfig struct {
-	Dmesg *DmesgConfig `json:"dmesg" yaml:"dmesg"`
+type MetricsUserConfig struct {
+	Metrics *MetricsConfig `json:"metrics" yaml:"metrics"`
 }
 
-type DmesgConfig struct {
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+type MetricsConfig struct {
+	Port              int      `json:"port" yaml:"port"`
 }
 
-func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
-	return c.Dmesg.QueryInterval
-}
-
-func (c *DmesgUserConfig) SetQueryInterval(newInterval time.Duration) {
-	c.Dmesg.QueryInterval = newInterval
-}
-
-func (c *DmesgUserConfig) LoadUserConfigFromYaml(file string) error {
+func (c *MetricsUserConfig) LoadUserConfigFromYaml(file string) error {
 	if file == "" {
 		return common.DefaultComponentUserConfig(c)
 	}
 	err := utils.LoadFromYaml(file, c)
-	if err != nil || c.Dmesg == nil {
-		return fmt.Errorf("failed to load dmesg config: %v", err)
+	if err != nil || c.Metrics == nil {
+		return fmt.Errorf("failed to load metrics config: %v", err)
 	}
 	return nil
 }

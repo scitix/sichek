@@ -86,7 +86,7 @@ func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
 		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
 		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
 	}
-	deviceID := getDeviceID()
+	deviceID := GetDeviceID()
 	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to find spec file for deviceID: %s", deviceID)
 		return nil
@@ -138,7 +138,7 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 	return nil
 }
 
-func getDeviceID() string {
+func GetDeviceID() string {
 	nvmlInst := nvml.New()
 	if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
 		panic(fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
@@ -149,7 +149,7 @@ func getDeviceID() string {
 	// In case of GPU error, iterate through all GPUs to find the first valid one
 	deviceCount, err := nvmlInst.DeviceGetCount()
 	if !errors.Is(err, nvml.SUCCESS) {
-		panic(fmt.Errorf("Failed to get device count: %s\n", nvml.ErrorString(err)))
+		panic(fmt.Errorf("failed to get device count: %s", nvml.ErrorString(err)))
 	}
 	var deviceID string
 	for i := 0; i < deviceCount; i++ {

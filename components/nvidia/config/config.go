@@ -28,7 +28,6 @@ type NvidiaUserConfig struct {
 }
 
 type NvidiaConfig struct {
-	Name            string        `json:"name"`
 	QueryInterval   time.Duration `json:"query_interval"`
 	CacheSize       int64         `json:"cache_size"`
 	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`

@@ -53,7 +53,7 @@ func NewCPUCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "cpu").Info("load default cfg...")
 			}
-			component, err := cpu.NewComponent(cfgFile)
+			component, err := cpu.NewComponent(cfgFile, "")
 			if err != nil {
 				logrus.WithField("component", "cpu").Error(err)
 				return

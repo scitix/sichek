@@ -1,42 +1,42 @@
 hang:
-  event_checkers:
-    GPU:
-      name: "GPUHang"
-      description: "GPU Hang"
-      hang_threshold: 90
-      level: warn
-      check_items:
+  name: "GPUHang"
+  description: "GPU Hang"
+  duration_threshold: 2m30s
+  level: warn
+  check_items:
+    power:
+      threshold: 100
+      compare: low
+    gclk:
+      threshold: 1400
+      compare: high
+    smclk:
+      threshold: 1400
+      compare: high
+    sm_util:
+      threshold: 95
+      compare: high
+    mem_util:
+      threshold: 5
+      compare: low
+    pviol:
+      threshold: 5
+      compare: low
+    rxpci:
+      threshold: 20 # MB/s
+      compare: low
+    txpci:
+      threshold: 20 # MB/s
+      compare: low
+  check_items_by_model:
+    - model: "0x233010de"
+      override:
         power:
-          name: "pwr"
-          threshold: 100
+          threshold: 150
           compare: low
         gclk:
-          name: "gclk"
-          threshold: 1400
+          threshold: 1900
           compare: high
         smclk:
-          name: "smclk"
-          threshold: 1400
+          threshold: 1900
           compare: high
-        comp_util:
-          name: "sm"
-          threshold: 95
-          compare: high
-        mem_util:
-          name: "mem"
-          threshold: 5
-          compare: low
-        pviol:
-          name: "pviol"
-          threshold: 5
-          compare: low
-        rxpci:
-          name: "rxpci"
-          # MB/s
-          threshold: 20
-          compare: low
-        txpci:
-          name: "txpci"
-          # MB/s
-          threshold: 20
-          compare: low
