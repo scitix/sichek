@@ -215,7 +215,7 @@ func (c *component) Stop() error {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

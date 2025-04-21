@@ -85,7 +85,7 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		return nil, err
 	}
 	specCfg := &config.HangSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(specFile)
+	err = specCfg.GetSpec(specFile)
 	if err != nil {
 		logrus.WithField("component", "hang").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
@@ -203,10 +203,6 @@ func (c *component) LastInfo() (common.Info, error) {
 	return info, nil
 }
 
-func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
-	return nil, nil
-}
-
 func (c *component) Start() <-chan *common.Result {
 	return c.service.Start()
 }
@@ -231,7 +227,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

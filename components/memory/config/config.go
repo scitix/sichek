@@ -16,7 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"time"
+	"github.com/scitix/sichek/components/common"
 )
 
 type MemoryUserConfig struct {
@@ -24,15 +24,15 @@ type MemoryUserConfig struct {
 }
 
 type MemoryConfig struct {
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics bool          `json:"enable_metrics" yaml:"enable_metrics"`
+	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics bool            `json:"enable_metrics" yaml:"enable_metrics"`
 }
 
-func (c *MemoryUserConfig) GetQueryInterval() time.Duration {
+func (c *MemoryUserConfig) GetQueryInterval() common.Duration {
 	return c.Memory.QueryInterval
 }
 
-func (c *MemoryUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *MemoryUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Memory.QueryInterval = newInterval
 }

@@ -16,7 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"time"
+	"github.com/scitix/sichek/components/common"
 )
 
 type EthernetUserConfig struct {
@@ -24,16 +24,16 @@ type EthernetUserConfig struct {
 }
 
 type EthernetConfig struct {
-	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
-	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
+	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	IgnoredCheckers []string        `json:"ignored_checkers,omitempty"`
 }
 
-func (c *EthernetUserConfig) GetQueryInterval() time.Duration {
+func (c *EthernetUserConfig) GetQueryInterval() common.Duration {
 	return c.Ethernet.QueryInterval
 }
 
-func (c *EthernetUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *EthernetUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Ethernet.QueryInterval = newInterval
 }

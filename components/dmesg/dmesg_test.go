@@ -43,19 +43,19 @@ func TestDmesg(t *testing.T) {
 	// Write config data to the temporary files
 	configData := `
 dmesg:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: false
 
 memory:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: false
 `
 	if _, err := configFile.Write([]byte(configData)); err != nil {
 		t.Fatalf("Failed to write to temp config file: %v", err)
 	}
-	
+
 	specFile, err := os.CreateTemp("", "spec_*.yaml")
 	if err != nil {
 		t.Fatalf("Failed to create temp spec file: %v", err)

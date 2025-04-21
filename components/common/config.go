@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,10 +29,24 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type Duration struct {
+	time.Duration
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	dur, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	d.Duration = dur
+	return nil
+}
+
 // ComponentUserConfig defines the methods for getting and setting user configuration.
 type ComponentUserConfig interface {
-	GetQueryInterval() time.Duration
-	SetQueryInterval(newInterval time.Duration)
+	GetQueryInterval() Duration
+	SetQueryInterval(newInterval Duration)
 }
 
 // ComponentSpecConfig defines the method for loading specification config from YAML.
@@ -121,7 +136,7 @@ func (fc *FreqController) RegisterModule(moduleName string, moduleCfg ComponentU
 }
 
 // SetModuleQueryInterval sets the query interval for a specific module.
-func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval time.Duration) {
+func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval Duration) {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 	if module, exists := fc.modules[moduleName]; exists {
@@ -130,7 +145,7 @@ func (fc *FreqController) SetModuleQueryInterval(moduleName string, newInterval 
 }
 
 // GetModuleQueryInterval retrieves the query interval for a specific module.
-func (fc *FreqController) GetModuleQueryInterval(moduleName string) time.Duration {
+func (fc *FreqController) GetModuleQueryInterval(moduleName string) Duration {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 	if module, exists := fc.modules[moduleName]; exists {
@@ -138,7 +153,7 @@ func (fc *FreqController) GetModuleQueryInterval(moduleName string) time.Duratio
 	} else {
 		// If the module is not registered, return a default value.
 		logrus.WithField("component", "FreqController").Errorf("module %s not registered", moduleName)
-		return 0
+		return Duration{0}
 	}
 }
 

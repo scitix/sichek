@@ -46,6 +46,7 @@ type IndicatorStates struct {
 // DeviceIndicatorStates tracks all hang indicators for all GPU device.
 type DeviceIndicatorStates struct {
 	Indicators map[string]*IndicatorStates // DeviceID -> IndicatorStates
+	LastUpdate time.Time // Last update timestamp for all devices' indicators
 }
 
 func (s *DeviceIndicatorStates) JSON() (string, error) {
@@ -100,7 +101,6 @@ func (c *HangCollector) Name() string {
 }
 
 func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
-	c.LastUpdate = time.Now()
 	var curDeviceIndicatorStates *DeviceIndicatorStates
 	if !c.cfg.Hang.NVSMI {
 		curDeviceIndicatorStates = c.getInfobyLatestInfo(ctx)
@@ -123,10 +123,10 @@ func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 		IndicatorStates := devIndicatorStates[gpuId].Indicators
 		preIndicatorStates := IndicatorStates
 
-		for indicateName := range c.spec.Indicators {
-			if _, ok := IndicatorStates[indicateName]; !ok {
+		for indicatorName := range c.spec.Indicators {
+			if _, ok := IndicatorStates[indicatorName]; !ok {
 				// Initialize the state of indicator if it doesn't exist
-				IndicatorStates[indicateName] = &IndicatorState{
+				IndicatorStates[indicatorName] = &IndicatorState{
 					Active:   false,
 					Value:    0,
 					Duration: 0,
@@ -138,30 +138,29 @@ func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 			// Instead of using the raw current value, their status should be determined
 			// based on the difference (delta) between the current and previous values.
 			var infoValue int64
-			switch indicateName {
+			switch indicatorName {
 			case "rxpci", "txpci":
-				infoValue = absDiff(curIndicatorStates.Indicators[indicateName].Value, preIndicatorStates[indicateName].Value)
+				infoValue = absDiff(curIndicatorStates.Indicators[indicatorName].Value, preIndicatorStates[indicatorName].Value)
 			default:
-				infoValue = curIndicatorStates.Indicators[indicateName].Value
+				infoValue = curIndicatorStates.Indicators[indicatorName].Value
 			}
 
-			duration := c.getDuration(indicateName, infoValue, curIndicatorStates.LastUpdate)
-
+			duration := c.getDuration(indicatorName, infoValue, curIndicatorStates.LastUpdate)
 			if duration == 0 {
-				IndicatorStates[indicateName] = &IndicatorState{
+				IndicatorStates[indicatorName] = &IndicatorState{
 					Active:   false,
 					Value:    infoValue,
 					Duration: 0,
 				}
 			} else {
-				IndicatorStates[indicateName].Active = true
-				IndicatorStates[indicateName].Value = infoValue
-				IndicatorStates[indicateName].Duration += time.Duration(duration) * time.Second
+				IndicatorStates[indicatorName].Active = true
+				IndicatorStates[indicatorName].Value = infoValue
+				IndicatorStates[indicatorName].Duration += time.Duration(duration) * time.Second
 			}
-			c.LastUpdate = curIndicatorStates.LastUpdate
 		}
 	}
 
+	c.LastUpdate = curDeviceIndicatorStates.LastUpdate
 	return c.devIndicatorStates, nil
 }
 

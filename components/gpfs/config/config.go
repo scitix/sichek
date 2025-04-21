@@ -16,7 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"time"
+	"github.com/scitix/sichek/components/common"
 )
 
 type GpfsUserConfig struct {
@@ -24,14 +24,14 @@ type GpfsUserConfig struct {
 }
 
 type GpfsConfig struct {
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
 }
 
-func (c *GpfsUserConfig) GetQueryInterval() time.Duration {
+func (c *GpfsUserConfig) GetQueryInterval() common.Duration {
 	return c.Gpfs.QueryInterval
 }
 
-func (c *GpfsUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *GpfsUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Gpfs.QueryInterval = newInterval
 }
