@@ -1,5 +1,5 @@
 pcie_device:  
-  0x233010de:  
+  "0x233010de":  
     numa_config:  
       - node_id: 0  # NUMA node ID  
         bdf_list:   # List of BDFs associated with NUMA node 0  
@@ -31,8 +31,3 @@ pcie_device:
         bdf_list:   
           - "0000:29:00.0"  
           - "0000:1b:00.0"  
-
-pcie_cluster:  
-  default:  
-    - 0x233010de  
-    - 0x20f310de 
