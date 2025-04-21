@@ -16,12 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type NCCLUserConfig struct {
@@ -39,21 +34,4 @@ func (c *NCCLUserConfig) GetQueryInterval() time.Duration {
 
 func (c *NCCLUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.NCCL.QueryInterval = newInterval
-}
-
-func (c *NCCLUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.NCCL == nil {
-			logrus.WithField("component", "nccl").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "nccl").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
-	if err != nil || c.NCCL == nil {
-		return fmt.Errorf("failed to load default nccl user config: %v", err)
-	}
-	return nil
 }

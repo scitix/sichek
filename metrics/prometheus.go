@@ -2,13 +2,13 @@ package metrics
 
 import (
 	"net/http"
-	"sync"
 	"strconv"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -54,13 +54,12 @@ func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }
 
-func InitPrometheus(cfgFile string)  {
+func InitPrometheus(cfgFile string) {
 	// Initialize the metrics config
 	cfg := &MetricsUserConfig{}
-	err := cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed: %v", err)
-		return
+	err := common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Metrics == nil {
+		logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed or cfg is nil: %v", err)
 	}
 	// start Prometheus HTTP
 	http.Handle("/metrics", promhttp.Handler())

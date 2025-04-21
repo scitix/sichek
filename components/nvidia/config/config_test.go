@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/scitix/sichek/components/common"
 )
 
 func TestLoadSpecFromYaml(t *testing.T) {
@@ -272,8 +274,8 @@ nvidia:
 
 	// Test the NvidiaConfig function
 	cfg := &NvidiaUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(userConfigFile.Name())
-	if err != nil {
+	err = common.LoadComponentUserConfig(userConfigFile.Name(), cfg)
+	if err != nil || cfg.Nvidia == nil {
 		t.Fatalf("Failed to load user config: %v", err)
 	}
 	spec := &NvidiaSpecConfig{}

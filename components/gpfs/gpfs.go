@@ -77,10 +77,10 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 	}()
 
 	cfg := &config.GpfsUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Gpfs == nil {
+		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewGpfsComponent get user config failed")
 	}
 	specCfg := &config.GpfsSpecConfig{}
 	err = specCfg.LoadSpecConfigFromYaml(specFile)

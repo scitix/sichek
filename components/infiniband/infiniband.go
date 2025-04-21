@@ -81,10 +81,10 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		}
 	}()
 	cfg := &config.InfinibandUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("NewComponent load user config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Infiniband == nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewInfinibandComponent get user config failed")
 	}
 	if len(ignoredCheckers) > 0 {
 		cfg.Infiniband.IgnoredCheckers = ignoredCheckers

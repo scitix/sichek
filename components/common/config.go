@@ -32,7 +32,6 @@ import (
 type ComponentUserConfig interface {
 	GetQueryInterval() time.Duration
 	SetQueryInterval(newInterval time.Duration)
-	LoadUserConfigFromYaml(file string) error
 }
 
 // ComponentSpecConfig defines the method for loading specification config from YAML.
@@ -82,7 +81,13 @@ func DefaultComponentConfig(component string, config interface{}, filename strin
 }
 
 // DefaultComponentConfig loads the default configuration for a given component from a YAML file.
-func DefaultComponentUserConfig(config interface{}) error {
+func LoadComponentUserConfig(file string, config interface{}) error {
+	if file != "" {
+		err := utils.LoadFromYaml(file, config)
+		if err == nil {
+			return nil
+		}
+	}
 	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, "config", consts.DefaultUserCfgName)
 	_, err := os.Stat(defaultCfgPath)
 	if err != nil {

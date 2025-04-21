@@ -78,10 +78,10 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 	}()
 
 	memoryCfg := &config.MemoryUserConfig{}
-	err = memoryCfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, memoryCfg)
+	if err != nil || memoryCfg.Memory == nil {
+		logrus.WithField("component", "memory").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewMemoryComponent get user config failed")
 	}
 	specCfg := &config.MemorySpecConfig{}
 	err = specCfg.LoadSpecConfigFromYaml(specFile)

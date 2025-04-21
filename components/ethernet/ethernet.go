@@ -81,10 +81,10 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 		}
 	}()
 	cfg := &config.EthernetUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "ethernet").Errorf("NewComponent load user config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Ethernet == nil {
+		logrus.WithField("component", "ethernet").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewEthernetComponent get user config failed")
 	}
 	specCfg := &config.EthernetSpecConfig{}
 	err = specCfg.LoadSpecConfigFromYaml(specFile)

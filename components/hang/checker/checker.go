@@ -72,7 +72,6 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	hangNum := make(map[string]int64)
 	for uuid, curIndicatorStates := range info.Indicators {
 		for indicateName, indicator := range curIndicatorStates.Indicators {
-			// fmt.Printf("name=%s, item=%s, duration=%d\n", name, indicateName, duration)
 			if indicator.Duration >= c.spec.DurationThreshold.Duration {
 				raw = fmt.Sprintf("%sdevice=%s, indicateName=%s, hang_duration=%s, hang_duration_threshold=%s\n",
 					raw, uuid, indicateName, indicator.Duration, c.spec.DurationThreshold)
@@ -92,6 +91,8 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 			return nil, err
 		}
 	}
+	result := config.HangCheckItems["GPUHang"]
+
 	for name, num := range hangNum {
 		if num == int64(len(c.spec.Indicators)) {
 			gpuAbNum++
@@ -100,6 +101,11 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 			var devicePod string
 			if _, found := deviceToPodMap[name]; found {
 				devicePod = fmt.Sprintf("%s:%s", name, deviceToPodMap[name])
+				nameSpace := deviceToPodMap[name].Namespace
+				if _, exist := c.cfg.Hang.ProcessedIgnoreNamespace[nameSpace]; exist {
+					result.Level = consts.LevelInfo
+					logrus.WithField("component", "hang").Warningf("device=%s probably hang in pod=%+v", name, deviceToPodMap[name])
+				}
 			} else {
 				devicePod = fmt.Sprintf("%s:", name)
 			}
@@ -141,7 +147,6 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		logrus.WithField("checker", "hang").Infof("GPU hang status resolved, restoring hang query interval to %d, nviida query interval to %d.", c.originalQueryInterval, c.originalNvidiaQueryInterval)
 	}
 
-	result := config.HangCheckItems["GPUHang"]
 	result.Device = strings.Join(devices, ",")
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status

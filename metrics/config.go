@@ -15,28 +15,10 @@ limitations under the License.
 */
 package metrics
 
-import (
-	"fmt"
-
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-)
-
 type MetricsUserConfig struct {
 	Metrics *MetricsConfig `json:"metrics" yaml:"metrics"`
 }
 
 type MetricsConfig struct {
-	Port              int      `json:"port" yaml:"port"`
-}
-
-func (c *MetricsUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file == "" {
-		return common.DefaultComponentUserConfig(c)
-	}
-	err := utils.LoadFromYaml(file, c)
-	if err != nil || c.Metrics == nil {
-		return fmt.Errorf("failed to load metrics config: %v", err)
-	}
-	return nil
+	Port int `json:"port" yaml:"port"`
 }

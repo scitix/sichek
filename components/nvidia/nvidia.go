@@ -152,10 +152,10 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 	nvidiaCfg := &config.NvidiaUserConfig{}
-	err = nvidiaCfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "nvidia").Errorf("NewComponent load user config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, nvidiaCfg)
+	if err != nil || nvidiaCfg.Nvidia == nil {
+		logrus.WithField("component", "nvidia").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewNvidiaComponent get user config failed")
 	}
 	if len(ignoredCheckers) > 0 {
 		nvidiaCfg.Nvidia.IgnoredCheckers = ignoredCheckers

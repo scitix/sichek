@@ -16,12 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type GpfsUserConfig struct {
@@ -39,21 +34,4 @@ func (c *GpfsUserConfig) GetQueryInterval() time.Duration {
 
 func (c *GpfsUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.Gpfs.QueryInterval = newInterval
-}
-
-func (c *GpfsUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Gpfs == nil {
-			logrus.WithField("component", "gpfs").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "gpfs").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
-	if err != nil || c.Gpfs == nil {
-		return fmt.Errorf("failed to load default gpfs user config: %v", err)
-	}
-	return nil
 }

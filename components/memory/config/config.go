@@ -16,12 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type MemoryUserConfig struct {
@@ -40,21 +35,4 @@ func (c *MemoryUserConfig) GetQueryInterval() time.Duration {
 
 func (c *MemoryUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.Memory.QueryInterval = newInterval
-}
-
-func (c *MemoryUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Memory == nil {
-			logrus.WithField("component", "memory").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "memory").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
-	if err != nil || c.Memory == nil {
-		return fmt.Errorf("failed to load default memory user config: %v", err)
-	}
-	return nil
 }

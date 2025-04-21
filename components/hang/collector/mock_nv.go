@@ -78,9 +78,9 @@ func newMockNvidia(cfgFile string) (comp *component, err error) {
 		}
 	}()
 	cfg := &config.NvidiaUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Nvidia == nil {
+		return nil, fmt.Errorf("NewMockNvidiaComponent get user config failed")
 	}
 
 	component := &component{

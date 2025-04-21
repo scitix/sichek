@@ -79,10 +79,10 @@ func newComponent(cfgFile string, specFile string) (comp *component, err error) 
 		}
 	}()
 	cfg := &config.CpuUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "cpu").Errorf("NewComponent load config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.CPU == nil {
+		logrus.WithField("component", "cpu").Errorf("NewComponent load config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewCpuComponent get user config failed")
 	}
 	specCfg := &config.CpuSpecConfig{}
 	err = specCfg.LoadSpecConfigFromYaml(specFile)

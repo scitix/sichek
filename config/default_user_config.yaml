@@ -39,6 +39,7 @@ hang:
   nvsmi: false
   mock: false
   enable_metrics: true
+  ignore_namespaces: []
 
 nccl:
   query_interval: 30

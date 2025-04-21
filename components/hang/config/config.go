@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type HangUserConfig struct {
@@ -29,11 +27,14 @@ type HangUserConfig struct {
 }
 
 type HangConfig struct {
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics bool          `json:"enable_metrics" yaml:"enable_metrics"`
-	NVSMI         bool          `json:"nvsmi" yaml:"nvsmi"`
-	Mock          bool          `json:"mock" yaml:"mock"`
+	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
+	NVSMI           bool          `json:"nvsmi" yaml:"nvsmi"`
+	Mock            bool          `json:"mock" yaml:"mock"`
+	IgnoreNamespace []string      `json:"ignore_namespaces" yaml:"ignore_namespaces"`
+
+	ProcessedIgnoreNamespace map[string]struct{}
 }
 
 func (c *HangUserConfig) GetQueryInterval() time.Duration {
@@ -46,18 +47,13 @@ func (c *HangUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *HangUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Hang == nil {
-			logrus.WithField("component", "hang").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "hang").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
+	err := common.LoadComponentUserConfig(file, c)
 	if err != nil || c.Hang == nil {
 		return fmt.Errorf("failed to load default hang user config: %v", err)
+	}
+	c.Hang.ProcessedIgnoreNamespace = make(map[string]struct{})
+	for _, nameSpace := range c.Hang.IgnoreNamespace {
+		c.Hang.ProcessedIgnoreNamespace[nameSpace] = struct{}{}
 	}
 	return nil
 }

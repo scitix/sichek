@@ -16,12 +16,9 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type InfinibandUserConfig struct {
@@ -46,21 +43,4 @@ func (c *InfinibandUserConfig) GetQueryInterval() time.Duration {
 
 func (c *InfinibandUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.Infiniband.QueryInterval = newInterval
-}
-
-func (c *InfinibandUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Infiniband == nil {
-			logrus.WithField("component", "infiniband").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "infiniband").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
-	if err != nil || c.Infiniband == nil {
-		return fmt.Errorf("failed to load default infiniband user config: %v", err)
-	}
-	return nil
 }

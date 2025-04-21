@@ -28,6 +28,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/config"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/scitix/sichek/components/common"
 )
 
 // define the shared NvidiaInfo
@@ -40,8 +41,8 @@ var nvidiaSpecCfg *config.NvidiaSpecItem
 func setup() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err := nvidiaUserCfg.LoadUserConfigFromYaml("")
-	if err != nil {
+	err := common.LoadComponentUserConfig("", nvidiaUserCfg)
+	if err != nil || nvidiaUserCfg.Nvidia == nil {
 		return fmt.Errorf("NewComponent load user config failed: %v", err)
 	}
 	var nvidiaSpecCfgs config.NvidiaSpecConfig

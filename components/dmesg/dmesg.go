@@ -77,10 +77,10 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		}
 	}()
 	dmsgCfg := &config.DmesgUserConfig{}
-	err = dmsgCfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, dmsgCfg)
+	if err != nil || dmsgCfg.Dmesg == nil {
+		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewDmesgComponent get user config failed")
 	}
 	specCfg := &config.DmesgSpecConfig{}
 	err = specCfg.LoadSpecConfigFromYaml(specFile)

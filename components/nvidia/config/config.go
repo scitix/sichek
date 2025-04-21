@@ -16,12 +16,9 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type NvidiaUserConfig struct {
@@ -46,21 +43,4 @@ func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {
 // SetQueryInterval Update the query interval in the config
 func (c *NvidiaUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.Nvidia.QueryInterval = newInterval
-}
-
-func (c *NvidiaUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Nvidia == nil {
-			logrus.WithField("component", "nvidia").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "nvidia").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
-	if err != nil || c.Nvidia == nil {
-		return fmt.Errorf("failed to load default nvidia user config: %v", err)
-	}
-	return nil
 }

@@ -16,12 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type CpuUserConfig struct {
@@ -40,21 +35,4 @@ func (c *CpuUserConfig) GetQueryInterval() time.Duration {
 
 func (c *CpuUserConfig) SetQueryInterval(newInterval time.Duration) {
 	c.CPU.QueryInterval = newInterval
-}
-
-func (c *CpuUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.CPU == nil {
-			logrus.WithField("component", "cpu").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "cpu").Infof("loaded user config from YAML file %s", file)
-			return nil
-		}
-	}
-	err := common.DefaultComponentUserConfig(c)
-	if err != nil || c.CPU == nil {
-		return fmt.Errorf("failed to load default cpu user config: %v", err)
-	}
-	return nil
 }
