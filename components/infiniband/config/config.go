@@ -16,8 +16,6 @@ limitations under the License.
 package config
 
 import (
-	"time"
-
 	"github.com/scitix/sichek/components/common"
 )
 
@@ -27,20 +25,20 @@ type InfinibandUserConfig struct {
 
 // InfinibandConfig 实现ComponentsConfig 接口
 type InfinibandConfig struct {
-	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
-	IgnoredCheckers []string      `json:"ignored_checkers" yaml:"ignored_checkers"`
+	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	IgnoredCheckers []string        `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
 func (c *InfinibandUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	return nil
 }
 
-func (c *InfinibandUserConfig) GetQueryInterval() time.Duration {
+func (c *InfinibandUserConfig) GetQueryInterval() common.Duration {
 	return c.Infiniband.QueryInterval
 }
 
-func (c *InfinibandUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *InfinibandUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Infiniband.QueryInterval = newInterval
 }

@@ -122,7 +122,7 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 	if err != nil {
 		return fmt.Errorf("failed to get default nvidia config files: %v", err)
 	}
-	// 遍历文件并加载符合条件的 YAML 文件
+	// // Traverse files and load YAML files with default spec suffix
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
 			nvidiaSpec := &NvidiaSpecConfig{}

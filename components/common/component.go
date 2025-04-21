@@ -130,7 +130,7 @@ func (s *CommonService) Start() <-chan *Result {
 			}
 		}()
 		interval := s.cfg.GetQueryInterval()
-		ticker := time.NewTicker(interval * time.Second)
+		ticker := time.NewTicker(interval.Duration)
 		defer ticker.Stop()
 
 		for {
@@ -140,10 +140,10 @@ func (s *CommonService) Start() <-chan *Result {
 			case <-ticker.C:
 				// Check if need to update ticker
 				newInterval := s.cfg.GetQueryInterval()
-				if newInterval != interval {
-					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
+				if newInterval.Duration != interval.Duration {
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %s to %s", interval, newInterval)
 					ticker.Stop()
-					ticker = time.NewTicker(newInterval * time.Second)
+					ticker = time.NewTicker(newInterval.Duration)
 					interval = newInterval
 				}
 				s.mutex.Lock()

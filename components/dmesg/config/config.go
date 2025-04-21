@@ -16,7 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"time"
+	"github.com/scitix/sichek/components/common"
 )
 
 type DmesgUserConfig struct {
@@ -24,14 +24,14 @@ type DmesgUserConfig struct {
 }
 
 type DmesgConfig struct {
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
 }
 
-func (c *DmesgUserConfig) GetQueryInterval() time.Duration {
+func (c *DmesgUserConfig) GetQueryInterval() common.Duration {
 	return c.Dmesg.QueryInterval
 }
 
-func (c *DmesgUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *DmesgUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Dmesg.QueryInterval = newInterval
 }

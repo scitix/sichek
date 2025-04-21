@@ -37,8 +37,8 @@ type HangChecker struct {
 	cfg                         *config.HangUserConfig
 	spec                        *config.HangSpec
 	HighSampleRateStatus        bool
-	originalQueryInterval       time.Duration
-	originalNvidiaQueryInterval time.Duration
+	originalQueryInterval       common.Duration
+	originalNvidiaQueryInterval common.Duration
 	abnormalDetectedTimes       uint32
 	podResourceMapper           *k8s.PodResourceMapper
 }
@@ -52,7 +52,7 @@ func NewHangChecker(cfg *config.HangUserConfig, spec *config.HangSpec) common.Ch
 		spec:                        spec,
 		HighSampleRateStatus:        false,
 		originalQueryInterval:       cfg.Hang.QueryInterval,
-		originalNvidiaQueryInterval: 30 * time.Second,
+		originalNvidiaQueryInterval: common.Duration{Duration: 30 * time.Second},
 		abnormalDetectedTimes:       0,
 		podResourceMapper:           podResourceMapper,
 	}
@@ -71,10 +71,10 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	var raw string
 	hangNum := make(map[string]int64)
 	for uuid, curIndicatorStates := range info.Indicators {
-		for indicateName, indicator := range curIndicatorStates.Indicators {
+		for indicatorName, indicator := range curIndicatorStates.Indicators {
 			if indicator.Duration >= c.spec.DurationThreshold.Duration {
-				raw = fmt.Sprintf("%sdevice=%s, indicateName=%s, hang_duration=%s, hang_duration_threshold=%s\n",
-					raw, uuid, indicateName, indicator.Duration, c.spec.DurationThreshold)
+				raw = fmt.Sprintf("%sdevice=%s, indicatorName=%s, value=%d, spec=%ser-than-%d, hang_duration=%s, duration_threshold=%s\n",
+					raw, uuid, indicatorName, indicator.Value, c.spec.Indicators[indicatorName].CompareType, c.spec.Indicators[indicatorName].Threshold, indicator.Duration, c.spec.DurationThreshold)
 				hangNum[uuid]++
 			}
 		}
@@ -92,22 +92,22 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		}
 	}
 	result := config.HangCheckItems["GPUHang"]
-
-	for name, num := range hangNum {
+	// Check if all abnormal indicators exceeds their's threshold
+	for uuid, num := range hangNum {
 		if num == int64(len(c.spec.Indicators)) {
 			gpuAbNum++
 			status = consts.StatusAbnormal
-			suggest = fmt.Sprintf("%ssuggest check gpu device=%s which probably hang\n", suggest, name)
+			suggest = fmt.Sprintf("%ssuggest check gpu device=%s which probably hang\n", suggest, uuid)
 			var devicePod string
-			if _, found := deviceToPodMap[name]; found {
-				devicePod = fmt.Sprintf("%s:%s", name, deviceToPodMap[name])
-				nameSpace := deviceToPodMap[name].Namespace
+			if _, found := deviceToPodMap[uuid]; found {
+				devicePod = fmt.Sprintf("%s:%s", uuid, deviceToPodMap[uuid])
+				nameSpace := deviceToPodMap[uuid].Namespace
 				if _, exist := c.cfg.Hang.ProcessedIgnoreNamespace[nameSpace]; exist {
 					result.Level = consts.LevelInfo
-					logrus.WithField("component", "hang").Warningf("device=%s probably hang in pod=%+v", name, deviceToPodMap[name])
+					logrus.WithField("component", "hang").Warningf("device=%s probably hang in pod=%+v", uuid, deviceToPodMap[uuid])
 				}
 			} else {
-				devicePod = fmt.Sprintf("%s:", name)
+				devicePod = fmt.Sprintf("%s:", uuid)
 			}
 			devices = append(devices, devicePod)
 		}
@@ -121,21 +121,24 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		c.originalQueryInterval = c.cfg.Hang.QueryInterval
 		freqController := common.GetFreqController()
 		c.originalNvidiaQueryInterval = freqController.GetModuleQueryInterval(consts.ComponentNameNvidia)
-		if c.originalNvidiaQueryInterval == 0 {
-			c.originalNvidiaQueryInterval = 30
+		if c.originalNvidiaQueryInterval.Duration == 0 {
+			c.originalNvidiaQueryInterval = common.Duration{Duration: 30 * time.Second}
 		}
-		freqController.SetModuleQueryInterval(consts.ComponentNameHang, 10)
-		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, 10)
+		freqController.SetModuleQueryInterval(consts.ComponentNameHang, c.spec.QueryIntervalAfterAbnormal)
+		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, c.spec.QueryIntervalAfterAbnormal)
 		c.abnormalDetectedTimes += 1
 		status = consts.StatusNormal
-		suggest = "GPU hang suspected, increase sample rate to 10s"
-		logrus.WithField("checker", "hang").Warn("GPU hang suspected, increase sample rate to 10s")
+		suggest = fmt.Sprintf("GPU hang suspected for %v, increase sample rate to %s", devices, c.spec.QueryIntervalAfterAbnormal.Duration)
+		logrus.WithField("checker", "hang").Warnf("%s", suggest)
 	case abnormalDetected && c.HighSampleRateStatus:
 		c.abnormalDetectedTimes++
-		// If the abnormal state persists for 3 consecutive checks, consider it a real GPU hang
+		// If the abnormal state persists for `c.spec.AbnormalDetectedTimes`` consecutive checks, consider it a real GPU hang
 		if c.abnormalDetectedTimes >= c.spec.AbnormalDetectedTimes {
 			logrus.WithField("checker", "hang").Errorf("GPU hang confirmed after %d checks", c.abnormalDetectedTimes)
 			status = consts.StatusAbnormal
+		} else {
+			logrus.WithField("checker", "hang").Errorf("GPU hang suspected after %d checks: %s", c.abnormalDetectedTimes, devices)
+			status = consts.StatusNormal
 		}
 	case !abnormalDetected && c.HighSampleRateStatus:
 		// Abnormal state recovered, reset status

@@ -82,6 +82,7 @@ func getInfobyNvidiaSmi(ctx context.Context) *DeviceIndicatorStates {
 			}
 		}
 	}
+	devIndicatorStates.LastUpdate = time.Now()
 	return devIndicatorStates
 }
 
@@ -106,9 +107,11 @@ func (c *HangCollector) getInfobyLatestInfo(ctx context.Context) *DeviceIndicato
 		return nil
 	}
 	if !info.Time.After(c.LastUpdate) {
-		logrus.WithField("collector", "hanggetter").Errorf("nvidia info not updated, current time: %v, last time: %v", info.Time, c.LastUpdate)
+		logrus.WithField("collector", "hanggetter").Warnf("nvidia info not updated, current time: %s, last time: %s", info.Time, c.LastUpdate)
 		return nil
 	}
+
+	logrus.WithField("collector", "hanggetter").Infof("get updated nvidia info, current time: %s, last time: %s", info.Time, c.LastUpdate)
 
 	devIndicatorStates := &DeviceIndicatorStates{
 		Indicators: make(map[string]*IndicatorStates),
@@ -123,15 +126,15 @@ func (c *HangCollector) getInfobyLatestInfo(ctx context.Context) *DeviceIndicato
 			LastUpdate: info.Time,
 		}
 		indicatorStates := devIndicatorStates.Indicators[uuid].Indicators
-		for indicateName := range c.spec.Indicators {
-			indicatorStates[indicateName] = &IndicatorState{
+		for indicatorName := range c.spec.Indicators {
+			indicatorStates[indicatorName] = &IndicatorState{
 				Active:   false,
 				Value:    0,
 				Duration: 0,
 			}
 			// Get the value of the indicator
 			var infoValue int64
-			switch indicateName {
+			switch indicatorName {
 			case "pwr":
 				infoValue = int64(deviceInfo.Power.PowerUsage / 1000)
 			case "mem":
@@ -149,11 +152,13 @@ func (c *HangCollector) getInfobyLatestInfo(ctx context.Context) *DeviceIndicato
 			case "gclk":
 				infoValue = int64(deviceInfo.Clock.CurGraphicsClk)
 			default:
-				logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", indicateName)
+				logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", indicatorName)
 				continue
 			}
-			indicatorStates[indicateName].Value = infoValue
+			indicatorStates[indicatorName].Value = infoValue
 		}
 	}
+	// Update the last update time
+	devIndicatorStates.LastUpdate = info.Time
 	return devIndicatorStates
 }

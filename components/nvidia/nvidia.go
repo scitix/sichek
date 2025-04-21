@@ -323,8 +323,8 @@ func (c *component) Start() <-chan *common.Result {
 			}
 		}()
 		interval := c.cfg.GetQueryInterval()
-		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with interval: %v", interval*time.Second)
-		ticker := time.NewTicker(interval * time.Second)
+		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with query_interval: %s", interval.Duration)
+		ticker := time.NewTicker(interval.Duration)
 		defer ticker.Stop()
 
 		for {
@@ -335,9 +335,9 @@ func (c *component) Start() <-chan *common.Result {
 				// Check if need to update ticker
 				newInterval := c.cfg.GetQueryInterval()
 				if newInterval != interval {
-					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval.Duration, newInterval.Duration)
 					ticker.Stop()
-					ticker = time.NewTicker(newInterval * time.Second)
+					ticker = time.NewTicker(newInterval.Duration)
 					interval = newInterval
 				}
 				c.serviceMtx.Lock()
@@ -412,7 +412,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

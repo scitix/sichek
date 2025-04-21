@@ -43,7 +43,7 @@ func TestHang(t *testing.T) {
 	// Write config data to the temporary files
 	configData := `
 hang:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   nvsmi: false
   mock: true

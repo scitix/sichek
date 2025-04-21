@@ -190,7 +190,7 @@ func (c *component) Start() <-chan *common.Result {
 	c.serviceMtx.Unlock()
 
 	go func() {
-		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
+		ticker := time.NewTicker(c.cfg.GetQueryInterval().Duration)
 		defer ticker.Stop()
 
 		for {
@@ -249,7 +249,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

@@ -41,9 +41,39 @@ var nvidiaSpecCfg *config.NvidiaSpecItem
 func setup() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err := common.LoadComponentUserConfig("", nvidiaUserCfg)
+
+	// Create temporary files for testing
+	configFile, err := os.CreateTemp("", "cfg_*.yaml")
+	if err != nil {
+		return fmt.Errorf("Failed to create temp config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			fmt.Printf("Failed to remove temp config file: %v", err)
+		}
+	}(configFile.Name())
+
+	// Write config data to the temporary files
+	configData := `
+nvidia:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: true
+  ignored_checkers: []
+
+memory:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := configFile.Write([]byte(configData)); err != nil {
+		return fmt.Errorf("Failed to write to temp config file: %v", err)
+	}
+
+	err = common.LoadComponentUserConfig(configFile.Name(), &nvidiaUserCfg)
 	if err != nil || nvidiaUserCfg.Nvidia == nil {
-		return fmt.Errorf("NewComponent load user config failed: %v", err)
+		return fmt.Errorf("NewComponent load user config failed: err=%v, nvidiaUserCfg.Nvidia=%v", err, nvidiaUserCfg.Nvidia)
 	}
 	var nvidiaSpecCfgs config.NvidiaSpecConfig
 	nvidiaSpecCfg = nvidiaSpecCfgs.GetSpec("")

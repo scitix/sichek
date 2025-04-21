@@ -16,7 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"time"
+	"github.com/scitix/sichek/components/common"
 )
 
 type NCCLUserConfig struct {
@@ -24,14 +24,14 @@ type NCCLUserConfig struct {
 }
 
 type NCCLConfig struct {
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
+	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
 }
 
-func (c *NCCLUserConfig) GetQueryInterval() time.Duration {
+func (c *NCCLUserConfig) GetQueryInterval() common.Duration {
 	return c.NCCL.QueryInterval
 }
 
-func (c *NCCLUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *NCCLUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.NCCL.QueryInterval = newInterval
 }

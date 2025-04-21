@@ -17,7 +17,6 @@ package config
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scitix/sichek/components/common"
 )
@@ -27,22 +26,22 @@ type HangUserConfig struct {
 }
 
 type HangConfig struct {
-	QueryInterval   time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize       int64         `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
-	NVSMI           bool          `json:"nvsmi" yaml:"nvsmi"`
-	Mock            bool          `json:"mock" yaml:"mock"`
-	IgnoreNamespace []string      `json:"ignore_namespaces" yaml:"ignore_namespaces"`
+	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	NVSMI           bool            `json:"nvsmi" yaml:"nvsmi"`
+	Mock            bool            `json:"mock" yaml:"mock"`
+	IgnoreNamespace []string        `json:"ignore_namespaces" yaml:"ignore_namespaces"`
 
 	ProcessedIgnoreNamespace map[string]struct{}
 }
 
-func (c *HangUserConfig) GetQueryInterval() time.Duration {
+func (c *HangUserConfig) GetQueryInterval() common.Duration {
 	return c.Hang.QueryInterval
 }
 
 // SetQueryInterval Update the query interval in the config
-func (c *HangUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *HangUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Hang.QueryInterval = newInterval
 }
 

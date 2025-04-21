@@ -1,9 +1,10 @@
 hang:
   name: "GPUHang"
   description: "GPU Hang"
-  duration_threshold: 2m30s
+  duration_threshold: 60s
   level: warn
-  abnormal_detected_times: 3
+  query_interval_after_abnormal: 20s
+  abnormal_detected_times: 10
   check_items:
     pwr:
       threshold: 100
@@ -33,7 +34,7 @@ hang:
     - model: "0x233010de"
       override:
         pwr:
-          threshold: 150
+          threshold: 160
           compare: low
         gclk:
           threshold: 1900

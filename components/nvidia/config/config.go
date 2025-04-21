@@ -16,8 +16,6 @@ limitations under the License.
 package config
 
 import (
-	"time"
-
 	"github.com/scitix/sichek/components/common"
 )
 
@@ -26,21 +24,21 @@ type NvidiaUserConfig struct {
 }
 
 type NvidiaConfig struct {
-	QueryInterval   time.Duration `json:"query_interval"`
-	CacheSize       int64         `json:"cache_size"`
-	EnableMetrics   bool          `json:"enable_metrics" yaml:"enable_metrics"`
-	IgnoredCheckers []string      `json:"ignored_checkers,omitempty"`
+	QueryInterval   common.Duration `json:"query_interval"`
+	CacheSize       int64           `json:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	IgnoredCheckers []string        `json:"ignored_checkers,omitempty"`
 }
 
 func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
 	commonCfgMap := make(map[string]common.CheckerSpec)
 	return commonCfgMap
 }
-func (c *NvidiaUserConfig) GetQueryInterval() time.Duration {
+func (c *NvidiaUserConfig) GetQueryInterval() common.Duration {
 	return c.Nvidia.QueryInterval
 }
 
 // SetQueryInterval Update the query interval in the config
-func (c *NvidiaUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *NvidiaUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Nvidia.QueryInterval = newInterval
 }

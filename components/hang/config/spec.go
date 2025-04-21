@@ -17,8 +17,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
@@ -34,32 +32,19 @@ const (
 	CompareHigh CompareType = "high"
 )
 
-type Duration struct {
-	time.Duration
-}
-
-func (d *Duration) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), `"`)
-	dur, err := time.ParseDuration(s)
-	if err != nil {
-		return err
-	}
-	d.Duration = dur
-	return nil
-}
-
 type HangSpecConfig struct {
 	HangSpec *HangSpec `yaml:"hang" json:"hang"`
 }
 
 type HangSpec struct {
-	Name                  string                    `json:"name" yaml:"name"`
-	Description           string                    `json:"description,omitempty" yaml:"description,omitempty"`
-	DurationThreshold     Duration                  `json:"duration_threshold" yaml:"duration_threshold"`
-	Level                 string                    `json:"level" yaml:"level"`
-	Indicators            map[string]*HangIndicator `json:"check_items" yaml:"check_items"`
-	IndicatorsByModel     []*IndicatorModelOverride `json:"check_items_by_model" yaml:"check_items_by_model"`
-	AbnormalDetectedTimes uint32                    `json:"abnormal_detected_times" yaml:"abnormal_detected_times"`
+	Name                       string                    `json:"name" yaml:"name"`
+	Description                string                    `json:"description,omitempty" yaml:"description,omitempty"`
+	DurationThreshold          common.Duration           `json:"duration_threshold" yaml:"duration_threshold"`
+	Level                      string                    `json:"level" yaml:"level"`
+	Indicators                 map[string]*HangIndicator `json:"check_items" yaml:"check_items"`
+	IndicatorsByModel          []*IndicatorModelOverride `json:"check_items_by_model" yaml:"check_items_by_model"`
+	AbnormalDetectedTimes      uint32                    `json:"abnormal_detected_times" yaml:"abnormal_detected_times"`
+	QueryIntervalAfterAbnormal common.Duration           `json:"query_interval_after_abnormal" yaml:"query_interval_after_abnormal"`
 }
 
 type HangIndicator struct {

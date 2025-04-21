@@ -47,12 +47,12 @@ func TestGpfsHealthCheck(t *testing.T) {
 	// Write config data to the temporary files
 	configData := `
 gpfs:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: false
 
 memory:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: false
 `

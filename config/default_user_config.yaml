@@ -2,39 +2,39 @@ metrics:
   port: 19091
 
 nvidia:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: true
   ignored_checkers: []
 
 infiniband:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: true
   ignored_checkers:
     - "net_operstate"
 
 ethernet:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: true
 
 gpfs:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
 
 cpu:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: true
 
 memory:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   enable_metrics: true
 
 hang:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
   nvsmi: false
   mock: false
@@ -42,9 +42,9 @@ hang:
   ignore_namespaces: []
 
 nccl:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
 
 dmesg:
-  query_interval: 30
+  query_interval: 30s
   cache_size: 5
