@@ -133,7 +133,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	case abnormalDetected && c.HighSampleRateStatus:
 		c.abnormalDetectedTimes++
 		// If the abnormal state persists for 3 consecutive checks, consider it a real GPU hang
-		if c.abnormalDetectedTimes >= 3 {
+		if c.abnormalDetectedTimes >= c.spec.AbnormalDetectedTimes {
 			logrus.WithField("checker", "hang").Errorf("GPU hang confirmed after %d checks", c.abnormalDetectedTimes)
 			status = consts.StatusAbnormal
 		}

@@ -3,6 +3,7 @@ hang:
   description: "GPU Hang"
   duration_threshold: 2m30s
   level: warn
+  abnormal_detected_times: 3
   check_items:
     pwr:
       threshold: 100
