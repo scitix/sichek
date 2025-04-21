@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -30,7 +31,63 @@ import (
 func TestCPU_HealthCheckPrint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	component, err := cpu.NewComponent("","")
+
+	// Create temporary files for testing
+	configFile, err := os.CreateTemp("", "cfg_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp config file: %v", err)
+		}
+	}(configFile.Name())
+
+	// Write config data to the temporary files
+	configData := `
+cpu:
+  query_interval: 30
+  cache_size: 5
+  enable_metrics: false
+
+memory:
+  query_interval: 30
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := configFile.Write([]byte(configData)); err != nil {
+		t.Fatalf("Failed to write to temp config file: %v", err)
+	}
+	
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
+
+	// Write spec data to the temporary files
+	specData := `
+cpu:  
+  event_checkers:
+    kernel_panic:
+      name: "kernel_panic"
+      description: "kernel panic are alerted"
+      log_file: "/var/log/syslog"
+      regexp: "kernel panic"
+      level: critical
+      suggestion: "restart node"
+`
+
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}	
+	component, err := cpu.NewComponent(configFile.Name(), specFile.Name())
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
 	}
