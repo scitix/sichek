@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	PciTopoNumaCheckerName = "PciTopoNumaCheckerName"
+	PciTopoNumaCheckerName   = "PciTopoNumaCheckerName"
+	PciTopoSwitchCheckerName = "PciTopoSwitchCheckerName"
 )
 
 // PciTopoCheckItems is a map of check items for Topo
@@ -33,6 +34,15 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "Numa-BDFRelationError",
+		Suggestion:  "Check Pci Topo",
+	},
+	PciTopoSwitchCheckerName: {
+		Name:        PciTopoSwitchCheckerName,
+		Description: "",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "Switch-BDFRelationError",
 		Suggestion:  "Check Pci Topo",
 	},
 }

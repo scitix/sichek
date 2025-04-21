@@ -38,7 +38,9 @@ type GPUInfo struct {
 	UUID                        string //unique identifier
 	Index                       int    //GPU sequence number
 	NumaID                      uint64 // PCI domain
+	SwitchBDF                   string
 	DomainID                    string
+	PciDeviceID                 string
 	SmallestCommonPCIeSwitchBDF string // Smallest PCIe switch BDF of the GPU and its neighboring GPU
 }
 
@@ -46,12 +48,6 @@ type GPUInfo struct {
 type PCIeSW struct {
 	SwitchBDF string     //BDF of the PCIe switch
 	GPUList   []*PciNode // List of GPU nodes connected to this switch
-}
-
-// GPUInfoByPCIeSW represents PCIe switch and theGPUS connected to it
-type GPUInfoByPCIeSW struct {
-	SwitchBDF string     // BDF of the PCIe switch
-	GPUList   []*GPUInfo // List of GPU nodes connected to this switch
 }
 
 // readFile reads the content of a file and returns it as a string
@@ -107,7 +103,7 @@ func GetCPUVendorID() string {
 }
 
 // BuildPciTrees constructs PCIe trees by reading fFrom /sys/bus/pci/devices
-func BuildPciTrees() (map[string]*PciNode, []PciTree, error) {
+func BuildPciTrees() (map[string]*PciNode, []*PciTree, error) {
 	// Map to store all nodes by their BDF
 	nodes := make(map[string]*PciNode)
 	// Iterate over all devices in /sys/bus/pci/ddevices
@@ -214,10 +210,10 @@ func BuildPciTrees() (map[string]*PciNode, []PciTree, error) {
 		}
 	}
 	// Convert domainRoots map to slice of PciTree
-	var pciTrees []PciTree
+	var pciTrees []*PciTree
 	for domain, root := range domainRoots {
 		for _, r := range root {
-			pciTrees = append(pciTrees, PciTree{
+			pciTrees = append(pciTrees, &PciTree{
 				Domain: domain,
 				Root:   r,
 			})
@@ -266,48 +262,23 @@ func GetGPUList() map[string]*GPUInfo {
 		gpu.NumaID = math.MaxUint64              //	Initialize to math.MaxUint64
 		gpu.DomainID = "fffff"                   // Initialize to "ffff" string
 		gpu.SmallestCommonPCIeSwitchBDF = "ffff" // Initializto "ffff"string
+		gpu.PciDeviceID = fmt.Sprintf("0x%x", pciInfo.PciDeviceId)
 		gpus[gpu.BDF] = gpu
 	}
 	return gpus
 }
 
-// findNvGPUsbyNumaNode identifies all GPU devicesin each numa node
-func GetNumaNodeForNvGPUs(nodes map[string]*PciNode, gpus map[string]*GPUInfo) map[uint64][]*GPUInfo {
-	gpuListbyNumaNode := make(map[uint64][]*GPUInfo)
+// FillNvGPUsWithNumaNode fill all GPU devices with numa node
+func FillNvGPUsWithNumaNode(nodes map[string]*PciNode, gpus map[string]*GPUInfo) {
 	for _, node := range nodes {
 		if node.Vendor == 0x10de && node.Class != 0x068000 {
-
 			numaNode := node.NumaID
 			domain := strings.Split(node.BDF, ":")[0] // Extract domainfrom BDF
 			gpu := gpus[node.BDF]
 			gpu.NumaID = numaNode
 			gpu.DomainID = domain
-			if _, exists := gpuListbyNumaNode[numaNode]; !exists {
-				gpuListbyNumaNode[numaNode] = make([]*GPUInfo, 0)
-			}
-			gpuListbyNumaNode[numaNode] = append(gpuListbyNumaNode[numaNode], gpu)
 		}
 	}
-	// especial case: for AMD Server, if there are 8 numa nodes annd two GPU in the same numa node, then let one of them be in the numa node minus 1
-	cpuVendorId := GetCPUVendorID()
-	numaNodes := GetNUMANodes()
-	if cpuVendorId == "AuthenticAMD" && len(numaNodes) == 8 {
-		for _, gpus := range gpuListbyNumaNode {
-			if len(gpus) == 2 {
-				if gpus[0].NumaID == gpus[1].NumaID {
-					gpus[0].NumaID = gpus[0].NumaID - 1
-				}
-			}
-			for _, gpu := range gpus {
-				if gpu.NumaID < 4 {
-					gpu.DomainID = "0000"
-				} else {
-					gpu.DomainID = "0001"
-				}
-			}
-		}
-	}
-	return gpuListbyNumaNode
 }
 
 // findNvGPUsbyPcieTree identifies all GPU devices ineach domain root PciTree
@@ -387,41 +358,14 @@ func findGPULowestCommonSwitch(pciTree *PciTree) []PCIeSW {
 	return pcieSWs
 }
 
-// findCommonSwitch finds the smallest common PCIe switchh for a group of GPUS
-func FindNvGPUsbyCommonSwitch(pciTrees []PciTree, gpus map[string]*GPUInfo) []GPUInfoByPCIeSW {
-	gpuListbyCommonPcieSWs := []GPUInfoByPCIeSW{}
+func FillNvGPUsWithCommonSwitch(pciTrees []*PciTree, gpus map[string]*GPUInfo) {
 	for _, pciTree := range pciTrees {
-		pcieSWs := findGPULowestCommonSwitch(&pciTree)
+		pcieSWs := findGPULowestCommonSwitch(pciTree)
 		for _, sw := range pcieSWs {
-			gpuInfoBySW := GPUInfoByPCIeSW{SwitchBDF: sw.SwitchBDF, GPUList: []*GPUInfo{}}
 			for _, gpu := range sw.GPUList {
 				_gpu := gpus[gpu.BDF]
 				_gpu.SmallestCommonPCIeSwitchBDF = sw.SwitchBDF
-				gpuInfoBySW.GPUList = append(gpuInfoBySW.GPUList, gpus[gpu.BDF])
 			}
-			gpuListbyCommonPcieSWs = append(gpuListbyCommonPcieSWs, gpuInfoBySW)
 		}
 	}
-	return gpuListbyCommonPcieSWs
-}
-
-func GetGPUListWithTopoInfo() []*GPUInfo {
-	// Build PCIe trees
-	nodes, pciTrees, err := BuildPciTrees()
-	if err != nil {
-		panic(fmt.Sprintf("Error building PCIe trees: %v\n", err))
-	}
-	// Get GPU Devices
-	gpus := GetGPUList()
-	// Find all GPUS by numa node
-	FindNvGPUsbyNumaNode(nodes, gpus)
-	// Find all GPUS by common PCIe switch
-	FindNvGPUsbyCommonSwitch(pciTrees, gpus)
-
-	// Convert domainRoots map to slice of PciTree
-	gpuList := make([]*GPUInfo, 0, len(gpus))
-	for _, gpu := range gpus {
-		gpuList = append(gpuList, gpu)
-	}
-	return gpuList
 }

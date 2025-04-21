@@ -9,19 +9,18 @@ import (
 )
 
 type PciTopoConfig struct {
-	DeviceConfig  map[string]*PciDeviceTopoConfig  `json:"pcie_device"`
-	ClusterConfig map[string]*PciClusterTopoConfig `json:"pcie_cluster"`
+	DeviceConfig map[string]*PciDeviceTopoConfig `json:"pcie_device"`
 }
 
 // PciDevice represents the device configuration
 type PciDeviceTopoConfig struct {
-	NumaConfig  []*NumaConfig `json:"numa_config"`
-	PciSwitches []*PciSwitch  `json:"pci_switches"`
+	NumaConfig        []*NumaConfig `json:"numa_config"`
+	PciSwitchesConfig []*PciSwitch  `json:"pci_switches"`
 }
 
 // NodeConfig represents the NUMA node configuration
 type NumaConfig struct {
-	NodeID  int      `json:"node_id"`  // NUMA Node ID
+	NodeID  uint64   `json:"node_id"`  // NUMA Node ID
 	BdfList []string `json:"bdf_list"` // List of BDFs associated with the NUMA node
 }
 
