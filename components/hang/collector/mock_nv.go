@@ -34,11 +34,11 @@ type component struct {
 	cancel context.CancelFunc
 
 	cfg      *config.NvidiaUserConfig
-	cfgMutex sync.RWMutex // 用于更新时的锁
+	cfgMutex sync.RWMutex
 
-	nvmlInst  nvml.Interface
-	collector collector.NvidiaInfo
-	checkers  []common.Checker
+	nvmlInst nvml.Interface
+	// collector collector.NvidiaInfo
+	checkers []common.Checker
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -56,15 +56,18 @@ var (
 	nvidiaComponentOnce sync.Once
 )
 
-func NewMockNvidiaComponent(cfgFile string) (comp common.Component, err error) {
+func NewMockNvidiaComponent(cfgFile string) (common.Component, error) {
+	var err error
 	nvidiaComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component hang: %v", r)
+			}
+		}()
 		nvidiaComponent, err = newMockNvidia(cfgFile)
-		if err != nil {
-			panic(err)
-		}
 	})
 	now = time.Now()
-	return nvidiaComponent, nil
+	return nvidiaComponent, err
 }
 
 func newMockNvidia(cfgFile string) (comp *component, err error) {
@@ -75,15 +78,17 @@ func newMockNvidia(cfgFile string) (comp *component, err error) {
 		}
 	}()
 	cfg := &config.NvidiaUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Nvidia == nil {
+		return nil, fmt.Errorf("NewMockNvidiaComponent get user config failed")
 	}
 
 	component := &component{
-		name:        consts.ComponentNameNvidia,
-		ctx:         ctx,
-		cancel:      cancel,
+		name:   consts.ComponentNameNvidia,
+		ctx:    ctx,
+		cancel: cancel,
+
+		cfg:         cfg,
 		cfgMutex:    sync.RWMutex{},
 		nvmlInst:    nil,
 		checkers:    nil,
@@ -121,13 +126,20 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		nvdiaCollector.DevicesInfo = append(nvdiaCollector.DevicesInfo, deviceInfo)
 	}
 
+	result := &common.Result{
+		Item:     consts.ComponentNameNvidia,
+		Status:   consts.StatusAbnormal,
+		Checkers: make([]*common.CheckerResult, 0),
+		Time:     time.Now(),
+	}
+
 	c.cacheMtx.Lock()
 	c.cacheBuffer[c.currIndex] = nil
 	c.cacheInfo[c.currIndex] = nvdiaCollector
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
 
-	return nil, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -155,9 +167,11 @@ func (c *component) CacheInfos() ([]common.Info, error) {
 func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	info := c.cacheInfo[c.currIndex]
+	var info common.Info
 	if c.currIndex == 0 {
 		info = c.cacheInfo[c.cacheSize-1]
+	} else {
+		info = c.cacheInfo[c.currIndex-1]
 	}
 	return info, nil
 }
@@ -176,7 +190,7 @@ func (c *component) Start() <-chan *common.Result {
 	c.serviceMtx.Unlock()
 
 	go func() {
-		ticker := time.NewTicker(c.cfg.GetQueryInterval() * time.Second)
+		ticker := time.NewTicker(c.cfg.GetQueryInterval().Duration)
 		defer ticker.Stop()
 
 		for {
@@ -235,7 +249,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

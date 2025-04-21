@@ -18,7 +18,6 @@ package collector
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
@@ -41,21 +40,17 @@ func (i *GPFSInfo) JSON() (string, error) {
 
 type GPFSCollector struct {
 	name string
-	cfg  *config.GpfsUserConfig
+	cfg  *config.GpfsSpec
 
 	filter *filter.FileFilter
 }
 
-func NewGPFSCollector(cfg common.ComponentUserConfig) (*GPFSCollector, error) {
-	configPointer, ok := cfg.(*config.GpfsUserConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for GPFS")
-	}
+func NewGPFSCollector(cfg *config.GpfsSpec) (*GPFSCollector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)
 	files := make([]string, 0)
-	for _, checkerCfg := range configPointer.Gpfs.EventCheckers {
+	for _, checkerCfg := range cfg.EventCheckers {
 		_, err := os.Stat(checkerCfg.LogFile)
 		if err != nil {
 			logrus.WithField("collector", "GPFS").Errorf("log file %s not exist for GPFS collector", checkerCfg.LogFile)
@@ -76,17 +71,13 @@ func NewGPFSCollector(cfg common.ComponentUserConfig) (*GPFSCollector, error) {
 
 	return &GPFSCollector{
 		name:   "GPFSCollector",
-		cfg:    configPointer,
+		cfg:    cfg,
 		filter: filterPointer,
 	}, nil
 }
 
 func (c *GPFSCollector) Name() string {
 	return c.name
-}
-
-func (c *GPFSCollector) GetCfg() common.ComponentUserConfig {
-	return c.cfg
 }
 
 func (c *GPFSCollector) Collect(ctx context.Context) (common.Info, error) {

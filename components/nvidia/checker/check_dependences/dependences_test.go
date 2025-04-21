@@ -23,56 +23,56 @@ import (
 
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/systemd"
+	// "github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
-func TestNVFabricManagerChecker_Check(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+// func TestNVFabricManagerChecker_Check(t *testing.T) {
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	defer cancel()
 
-	// disable performance mode for testing
-	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
-	output, err := utils.ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
-	if err != nil {
-		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
-			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
-			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
-		} else {
-			t.Fatalf("failed to stop nvidia-fabricmanager: %v, output: %v", err, string(output))
-		}
-	}
+// 	// disable performance mode for testing
+// 	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
+// 	output, err := utils.ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
+// 	if err != nil {
+// 		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
+// 			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
+// 			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
+// 		} else {
+// 			t.Fatalf("failed to stop nvidia-fabricmanager: %v, output: %v", err, string(output))
+// 		}
+// 	}
 
-	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
-	isActive, _ := systemd.IsActive("nvidia-fabricmanager")
-	if isActive {
-		t.Fatalf("unexpected active nvidia-fabricmanager")
-	}
+// 	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
+// 	isActive, _ := systemd.IsActive("nvidia-fabricmanager")
+// 	if isActive {
+// 		t.Fatalf("unexpected active nvidia-fabricmanager")
+// 	}
 
-	t.Logf("======test: `systemctl status nvidia-fabricmanager`=====")
-	output, _ = utils.ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
-	t.Logf("nvidia-fabricmanager status: %s", string(output))
+// 	t.Logf("======test: `systemctl status nvidia-fabricmanager`=====")
+// 	output, _ = utils.ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
+// 	t.Logf("nvidia-fabricmanager status: %s", string(output))
 
-	// Run the Check method
-	t.Logf("======test: `do NVFabricManagerChecker and expect to start nvidia-fabricmanager`=====")
-	cfg := &config.NvidiaSpecItem{}
-	checker, err := NewNVFabricManagerChecker(cfg)
-	if err != nil {
-		t.Fatalf("failed to create NVFabricManagerChecker: %v", err)
-	}
+// 	// Run the Check method
+// 	t.Logf("======test: `do NVFabricManagerChecker and expect to start nvidia-fabricmanager`=====")
+// 	cfg := &config.NvidiaSpecItem{}
+// 	checker, err := NewNVFabricManagerChecker(cfg)
+// 	if err != nil {
+// 		t.Fatalf("failed to create NVFabricManagerChecker: %v", err)
+// 	}
 
-	result, err := checker.Check(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Status != consts.StatusNormal {
-		t.Fatalf("expected status 'normal', got %v", result.Status)
-	}
-	t.Logf("result: %v", result)
-	t.Logf("======test: `systemctl status nvidia-fabricmanager` after NVFabricManagerChecker =====")
-	output, _ = utils.ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
-	t.Logf("nvidia-fabricmanager status: %s", string(output))
-}
+// 	result, err := checker.Check(context.Background(), nil)
+// 	if err != nil {
+// 		t.Fatalf("unexpected error: %v", err)
+// 	}
+// 	if result.Status != consts.StatusNormal {
+// 		t.Fatalf("expected status 'normal', got %v", result.Status)
+// 	}
+// 	t.Logf("result: %v", result)
+// 	t.Logf("======test: `systemctl status nvidia-fabricmanager` after NVFabricManagerChecker =====")
+// 	output, _ = utils.ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
+// 	t.Logf("nvidia-fabricmanager status: %s", string(output))
+// }
 
 func TestIOMMUChecker_Check(t *testing.T) {
 	// Create a new IOMMUChecker

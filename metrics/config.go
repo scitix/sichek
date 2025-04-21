@@ -13,24 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package k8s
+package metrics
 
-import (
-	"testing"
+type MetricsUserConfig struct {
+	Metrics *MetricsConfig `json:"metrics" yaml:"metrics"`
+}
 
-	"github.com/sirupsen/logrus"
-)
-
-func TestNewDevicePodMapper(t *testing.T) {
-	mapper := NewPodResourceMapper()
-	if mapper == nil {
-		t.Fatalf("failed to create DevicePodMapper")
-	}
-	deviceToPodMap, err := mapper.GetDeviceToPodMap()
-	if err != nil {
-		t.Fatalf("failed to get device to pod map: %v", err)
-	}
-	for deviceID, podInfo := range deviceToPodMap {
-		logrus.Infof("Device: %s, Pod: %+v\n", deviceID, podInfo)
-	}
+type MetricsConfig struct {
+	Port int `json:"port" yaml:"port"`
 }

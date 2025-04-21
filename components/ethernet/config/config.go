@@ -16,12 +16,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 )
 
 type EthernetUserConfig struct {
@@ -29,34 +24,16 @@ type EthernetUserConfig struct {
 }
 
 type EthernetConfig struct {
-	Name          string        `json:"name" yaml:"name"`
-	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	Cherkers      []string      `json:"checkers" yaml:"checkers"`
+	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	IgnoredCheckers []string        `json:"ignored_checkers,omitempty"`
 }
 
-func (c *EthernetUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	return nil
-}
-
-func (c *EthernetUserConfig) GetQueryInterval() time.Duration {
+func (c *EthernetUserConfig) GetQueryInterval() common.Duration {
 	return c.Ethernet.QueryInterval
 }
 
-func (c *EthernetUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *EthernetUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Ethernet.QueryInterval = newInterval
-}
-
-func (c *EthernetUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Ethernet == nil {
-			return fmt.Errorf("failed to load ethernet config from YAML file %s: %v", file, err)
-		}
-	}
-	err := common.DefaultComponentConfig(consts.ComponentNameEthernet, c, consts.DefaultUserCfgName)
-	if err != nil || c.Ethernet == nil {
-		return fmt.Errorf("failed to load default ethernet config: %v", err)
-	}
-	return nil
 }

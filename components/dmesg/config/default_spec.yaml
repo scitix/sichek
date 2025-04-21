@@ -1,12 +1,9 @@
-dmesg:
-  name: DMesg
-  FileNmae: ["/var/log/kern.log"]
-  # Cmd:
+dmesg: 
+  file_name: ["/var/log/dmesg"]
+  # cmd:
   #   - ["dmesg"]
-  query_interval: 30
-  cache_size: 5
-  checkers:
-    OOM:
+  event_checkers:
+    SysOOM:
       name: "sys_oom"
       description: "oom error in dmesg"
       regexp: 'Out of memory:'

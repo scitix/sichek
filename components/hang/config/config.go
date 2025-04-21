@@ -17,11 +17,8 @@ package config
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 )
 
 type HangUserConfig struct {
@@ -29,55 +26,33 @@ type HangUserConfig struct {
 }
 
 type HangConfig struct {
-	Name           string                      `json:"name" yaml:"name"`
-	QueryInterval  time.Duration               `json:"query_interval" yaml:"query_interval"`
-	CacheSize      int64                       `json:"cache_size" yaml:"cache_size"`
-	CheckerConfigs map[string]*HangErrorConfig `json:"checkers" yaml:"checkers"`
-	NVSMI          bool                        `json:"nvsmi" yaml:"nvsmi"`
-	Mock           bool                        `json:"mock" yaml:"mock"`
+	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	NVSMI           bool            `json:"nvsmi" yaml:"nvsmi"`
+	Mock            bool            `json:"mock" yaml:"mock"`
+	IgnoreNamespace []string        `json:"ignore_namespaces" yaml:"ignore_namespaces"`
+
+	ProcessedIgnoreNamespace map[string]struct{}
 }
 
-func (c *HangUserConfig) GetQueryInterval() time.Duration {
+func (c *HangUserConfig) GetQueryInterval() common.Duration {
 	return c.Hang.QueryInterval
 }
 
 // SetQueryInterval Update the query interval in the config
-func (c *HangUserConfig) SetQueryInterval(newInterval time.Duration) {
+func (c *HangUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.Hang.QueryInterval = newInterval
 }
 
-func (c *HangUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	commonCfgMap := make(map[string]common.CheckerSpec)
-	for name, cfg := range c.Hang.CheckerConfigs {
-		commonCfgMap[name] = cfg
-	}
-	return commonCfgMap
-}
-
 func (c *HangUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.Hang == nil {
-			return fmt.Errorf("failed to load hang config from YAML file %s: %v", file, err)
-		}
-	}
-	err := common.DefaultComponentConfig(consts.ComponentNameHang, c, consts.DefaultUserCfgName)
+	err := common.LoadComponentUserConfig(file, c)
 	if err != nil || c.Hang == nil {
-		return fmt.Errorf("failed to load default hang config: %v", err)
+		return fmt.Errorf("failed to load default hang user config: %v", err)
+	}
+	c.Hang.ProcessedIgnoreNamespace = make(map[string]struct{})
+	for _, nameSpace := range c.Hang.IgnoreNamespace {
+		c.Hang.ProcessedIgnoreNamespace[nameSpace] = struct{}{}
 	}
 	return nil
-}
-
-type HangIndicate struct {
-	Name      string `json:"name" yaml:"name"`
-	Threshold int64  `json:"threshold" yaml:"threshold"`
-	CompareFn string `json:"compare" yaml:"compare"`
-}
-
-type HangErrorConfig struct {
-	Name          string                   `json:"name" yaml:"name"`
-	Description   string                   `json:"description,omitempty" yaml:"description,omitempty"`
-	HangThreshold int64                    `json:"hang_threshold" yaml:"hang_threshold"`
-	Level         string                   `json:"level" yaml:"level"`
-	HangIndicates map[string]*HangIndicate `json:"check_items" yaml:"check_items"`
 }

@@ -17,6 +17,7 @@ package cpu
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -29,7 +30,76 @@ func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	component, err := NewComponent("")
+	// Create temporary files for testing
+	configFile, err := os.CreateTemp("", "cfg_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp config file: %v", err)
+		}
+	}(configFile.Name())
+
+	// Write config data to the temporary files
+	configData := `
+cpu:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+
+memory:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := configFile.Write([]byte(configData)); err != nil {
+		t.Fatalf("Failed to write to temp config file: %v", err)
+	}
+
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
+
+	// Write spec data to the temporary files
+	specData := `
+cpu:  
+  event_checkers:
+    kernel_panic:
+      name: "kernel_panic"
+      description: "kernel panic are alerted"
+      log_file: "/var/log/syslog"
+      regexp: "kernel panic"
+      level: critical
+      suggestion: "restart node"
+    cpu_overheating:
+      name: "cpu_overheating"
+      description: "CPU Core temperature is above threshold, cpu clock is throttled"
+      log_file: "/var/log/syslog"
+      regexp: "temperature above threshold"
+      level: warning
+      suggestion: ""
+    cpu_lockup:
+      name: "cpu_lockup"
+      description: "CPU lockup occurs indicating the CPU cannot execute scheduled tasks due to software or hardware issues"
+      log_file: "/var/log/syslog"
+      regexp: "(soft lockup)|(hard LOCKUP)"
+      level: warning
+      suggestion: ""
+`
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}
+
+	component, err := NewComponent(configFile.Name(), specFile.Name())
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("create cpu component failed: %v", err)
 		return

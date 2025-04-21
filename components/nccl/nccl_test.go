@@ -28,7 +28,7 @@ func TestNCCL(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	component, err := NewComponent("")
+	component, err := NewComponent("", "")
 	if err != nil {
 		t.Log(err)
 		return
