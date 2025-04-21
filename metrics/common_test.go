@@ -13,8 +13,9 @@ func TestNewGaugeVecMetricExporter(t *testing.T) {
 	if exporter.prefix != prefix {
 		t.Errorf("expected prefix %s, got %s", prefix, exporter.prefix)
 	}
-	if !reflect.DeepEqual(exporter.labelKeys, labelKeys) {
-		t.Errorf("expected labelKeys %v, got %v", labelKeys, exporter.labelKeys)
+	expectLabels := []string{"label1", "label2", "node"}
+	if !reflect.DeepEqual(exporter.labelKeys, expectLabels) {
+		t.Errorf("expected labelKeys %v, got %v", expectLabels, exporter.labelKeys)
 	}
 	if len(exporter.MetricsMap) != 0 {
 		t.Errorf("expected empty MetricsMap, got %v", exporter.MetricsMap)
@@ -23,7 +24,7 @@ func TestNewGaugeVecMetricExporter(t *testing.T) {
 
 func TestGaugeVecMetricExporter_SetMetric(t *testing.T) {
 	exporter := NewGaugeVecMetricExporter("test", []string{"label1"})
-	exporter.SetMetric("test_metric", []string{"value1"}, 42.0)
+	exporter.SetMetric("metric", []string{"value1"}, 42.0)
 
 	if _, exists := exporter.MetricsMap["test_metric"]; !exists {
 		t.Fatalf("expected metric test_metric to exist")

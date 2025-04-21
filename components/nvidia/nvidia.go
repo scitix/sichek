@@ -125,11 +125,11 @@ func StopNvml(nvmlInst nvml.Interface) {
 	}
 }
 
-func GetComponent() common.Component {
+func GetComponent() (common.Component, error) {
 	if nvidiaComponent == nil {
-		panic("nvidia component not initialized")
+		return nil, fmt.Errorf("nvidia component not initialized")
 	}
-	return nvidiaComponent
+	return nvidiaComponent, nil
 }
 
 func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
@@ -152,10 +152,10 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 	nvidiaCfg := &config.NvidiaUserConfig{}
-	err = nvidiaCfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "nvidia").Errorf("NewComponent load user config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, nvidiaCfg)
+	if err != nil || nvidiaCfg.Nvidia == nil {
+		logrus.WithField("component", "nvidia").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewNvidiaComponent get user config failed")
 	}
 	if len(ignoredCheckers) > 0 {
 		nvidiaCfg.Nvidia.IgnoredCheckers = ignoredCheckers
@@ -186,6 +186,11 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 
 	freqController := common.GetFreqController()
 	freqController.RegisterModule(consts.ComponentNameNvidia, nvidiaCfg)
+
+	var nvidiaMetrics *metrics.NvidiaMetrics
+	if nvidiaCfg.Nvidia.EnableMetrics {
+		nvidiaMetrics = metrics.NewNvidiaMetrics()
+	}
 	component := &component{
 		componentName: consts.ComponentNameNvidia,
 		ctx:           ctx,
@@ -203,7 +208,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		xidPoller:     xidPoller,
 		running:       false,
 		resultChannel: resultChannel,
-		metrics:       metrics.NewNvidiaMetrics(),
+		metrics:       nvidiaMetrics,
 	}
 	return component, nil
 }
@@ -244,7 +249,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to collect nvidia info: %v", err)
 		return nil, err
 	}
-	c.metrics.ExportMetrics(nvidiaInfo)
+	if c.cfg.Nvidia.EnableMetrics {
+		c.metrics.ExportMetrics(nvidiaInfo)
+	}
 	result := common.Check(ctx, c.componentName, nvidiaInfo, c.checkers)
 	timer.Mark("check")
 	c.cacheMtx.Lock()
@@ -316,8 +323,8 @@ func (c *component) Start() <-chan *common.Result {
 			}
 		}()
 		interval := c.cfg.GetQueryInterval()
-		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with interval: %v", interval*time.Second)
-		ticker := time.NewTicker(interval * time.Second)
+		logrus.WithField("component", "NVIDIA").Infof("Starting NVIDIA component with query_interval: %s", interval.Duration)
+		ticker := time.NewTicker(interval.Duration)
 		defer ticker.Stop()
 
 		for {
@@ -328,9 +335,9 @@ func (c *component) Start() <-chan *common.Result {
 				// Check if need to update ticker
 				newInterval := c.cfg.GetQueryInterval()
 				if newInterval != interval {
-					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %s to %s", interval.Duration, newInterval.Duration)
 					ticker.Stop()
-					ticker = time.NewTicker(newInterval * time.Second)
+					ticker = time.NewTicker(newInterval.Duration)
 					interval = newInterval
 				}
 				c.serviceMtx.Lock()
@@ -405,7 +412,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/scitix/sichek/components/hang/checker"
+	"github.com/scitix/sichek/components/hang/collector"
 	common "github.com/scitix/sichek/metrics"
 )
 
@@ -15,17 +15,16 @@ type HangMetrics struct {
 }
 
 func NewHangMetrics() *HangMetrics {
-	HangGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"name","indicate_name"})
+	HangGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"name", "indicate_name"})
 	return &HangMetrics{
 		HangGauge: HangGauge,
 	}
 }
 
-func (m *HangMetrics) ExportMetrics(hangInfo *checker.HangInfo) {
-	for indicateName, name2duration := range hangInfo.HangDuration {
-		for name, duration := range name2duration {
-			m.HangGauge.SetMetric("duration", []string{name, indicateName}, float64(duration))
-			m.HangGauge.SetMetric("threshold", []string{name, indicateName}, float64(hangInfo.HangThreshold[indicateName]))
+func (m *HangMetrics) ExportMetrics(hangInfo *collector.DeviceIndicatorStates) {
+	for uuid, curIndicatorStates := range hangInfo.Indicators {
+		for indicateName, indicator := range curIndicatorStates.Indicators {
+			m.HangGauge.SetMetric("duration", []string{uuid, indicateName}, float64(indicator.Duration))
 		}
 	}
 }

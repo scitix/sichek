@@ -23,7 +23,7 @@ env:
   - GIT_COMMIT={{ .Env.GIT_COMMIT }}
   - GO_VERSION={{ .Env.GO_VERSION }}
   - BUILD_TIME={{ .Env.BUILD_TIME }}
-
+  - INSTALL_DIR={{ .Env.INSTALL_DIR }}
 builds:
   - id: "sichek"
     main: ./cmd/main.go
@@ -55,7 +55,7 @@ nfpms:
     maintainer: hhu
     description: "Sichek: check node components, e.g. CPU, GPU, IB etc"
     license: Apache 2.0
-    bindir: /usr/local/bin
+    bindir: "{{ .Env.INSTALL_DIR }}"
     contents:
     - src: ./components/cpu/config/*.yaml
       dst: /var/sichek/cpu/

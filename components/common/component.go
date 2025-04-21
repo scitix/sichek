@@ -37,9 +37,6 @@ type Component interface {
 	LastInfo() (Info, error)
 	PrintInfo(Info, *Result, bool) bool
 
-	// Metrics For http service
-	Metrics(ctx context.Context, since time.Time) (interface{}, error)
-
 	// Start For daemon service
 	Start() <-chan *Result
 	Update(cfg ComponentUserConfig) error
@@ -129,11 +126,11 @@ func (s *CommonService) Start() <-chan *Result {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				logrus.WithField("component", "service").Errorf("recover panic err: %v\n", err)
+				logrus.WithField("component", "service").Errorf("recover Start() panic err: %v\n", err)
 			}
 		}()
 		interval := s.cfg.GetQueryInterval()
-		ticker := time.NewTicker(interval * time.Second)
+		ticker := time.NewTicker(interval.Duration)
 		defer ticker.Stop()
 
 		for {
@@ -143,10 +140,10 @@ func (s *CommonService) Start() <-chan *Result {
 			case <-ticker.C:
 				// Check if need to update ticker
 				newInterval := s.cfg.GetQueryInterval()
-				if newInterval != interval {
-					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %v to %v", interval*time.Second, newInterval*time.Second)
+				if newInterval.Duration != interval.Duration {
+					logrus.WithField("component", "NVIDIA").Infof("Updating ticker interval from %s to %s", interval.Duration, newInterval.Duration)
 					ticker.Stop()
-					ticker = time.NewTicker(newInterval * time.Second)
+					ticker = time.NewTicker(newInterval.Duration)
 					interval = newInterval
 				}
 				s.mutex.Lock()

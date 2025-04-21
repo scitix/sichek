@@ -56,17 +56,20 @@ var (
 	memComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	memComponentOnce.Do(func() {
-		memComponent, err = newMemoryComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component memory: %v", r)
+			}
+		}()
+		memComponent, err = newMemoryComponent(cfgFile, specFile)
 	})
-	return memComponent, nil
+	return memComponent, err
 }
 
-func newMemoryComponent(cfgFile string) (comp *component, err error) {
+func newMemoryComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -75,20 +78,26 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 	}()
 
 	memoryCfg := &config.MemoryUserConfig{}
-	err = memoryCfg.LoadUserConfigFromYaml(cfgFile)
+	err = common.LoadComponentUserConfig(cfgFile, memoryCfg)
+	if err != nil || memoryCfg.Memory == nil {
+		logrus.WithField("component", "memory").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewMemoryComponent get user config failed")
+	}
+	specCfg := &config.MemorySpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
-		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
+		logrus.WithField("component", "memory").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-
-	collectorPointer, err := collector.NewCollector(memoryCfg)
+	memorySpec := specCfg.MemorySpec
+	collectorPointer, err := collector.NewCollector(memorySpec)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, spec := range memoryCfg.GetCheckerSpec() {
+	for name, spec := range memorySpec.EventCheckers {
 		memChecker, err := checker.NewMemoryChecker(spec)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)
@@ -96,7 +105,10 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		}
 		checkers = append(checkers, memChecker)
 	}
-
+	var memoryMetrics *metrics.MemoryMetrics
+	if memoryCfg.Memory.EnableMetrics {
+		memoryMetrics = metrics.NewMemoryMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -107,7 +119,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),
 		cacheInfo:     make([]common.Info, memoryCfg.Memory.CacheSize),
 		cacheSize:     memoryCfg.Memory.CacheSize,
-		metrics:       metrics.NewMemoryMetrics(),
+		metrics:       memoryMetrics,
 	}
 	service := common.NewCommonService(ctx, memoryCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
@@ -130,7 +142,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "memory").Errorf("wrong memory collector info type")
 		return nil, err
 	}
-	c.metrics.ExportMetrics(memInfo.Info)
+	if c.cfg.Memory.EnableMetrics {
+		c.metrics.ExportMetrics(memInfo.Info)
+	}
 	result := common.Check(ctx, c.componentName, memInfo, c.checkers)
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
@@ -206,7 +220,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	return true

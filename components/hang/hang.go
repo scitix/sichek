@@ -57,17 +57,20 @@ var (
 	hangComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	hangComponentOnce.Do(func() {
-		hangComponent, err = newComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component hang: %v", r)
+			}
+		}()
+		hangComponent, err = newComponent(cfgFile, specFile)
 	})
-	return hangComponent, nil
+	return hangComponent, err
 }
 
-func newComponent(cfgFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -81,26 +84,28 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to load HangUserConfig")
 		return nil, err
 	}
-
-	var hangCollector common.Collector
-	if hangCfg.Hang.NVSMI {
-		hangCollector, err = collector.NewHangCollector(hangCfg)
-		if err != nil {
-			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
-			return nil, err
-		}
-	} else {
-		hangCollector, err = collector.NewHangGetter(hangCfg)
-		if err != nil {
-			logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
-			return nil, err
-		}
+	specCfg := &config.HangSpecConfig{}
+	err = specCfg.GetSpec(specFile)
+	if err != nil {
+		logrus.WithField("component", "hang").Errorf("NewComponent load spec config failed: %v", err)
+		return nil, err
+	}
+	hangSpec := specCfg.HangSpec
+	hangCollector, err := collector.NewHangCollector(hangCfg, hangSpec)
+	if err != nil {
+		logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
+		return nil, err
 	}
 
-	hangChecker := checker.NewHangChecker(hangCfg)
+	hangChecker := checker.NewHangChecker(hangCfg, hangSpec)
 
 	freqController := common.GetFreqController()
 	freqController.RegisterModule(consts.ComponentNameHang, hangCfg)
+
+	var hangMetrics *metrics.HangMetrics
+	if hangCfg.Hang.EnableMetrics {
+		hangMetrics = metrics.NewHangMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -114,7 +119,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),
 		currIndex:         0,
 		cacheSize:         hangCfg.Hang.CacheSize,
-		metrics:           metrics.NewHangMetrics(),
+		metrics:           hangMetrics,
 	}
 	component.service = common.NewCommonService(ctx, hangCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -130,11 +135,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "hang").Error("failed to Collect")
 		return &common.Result{}, err
 	}
-	checkerInfo, ok := info.(*checker.HangInfo)
+	hangInfo, ok := info.(*collector.DeviceIndicatorStates)
 	if !ok {
 		return nil, fmt.Errorf("wrong input of HangChecker")
 	}
-	c.metrics.ExportMetrics(checkerInfo)
+	if c.cfg.Hang.EnableMetrics {
+		c.metrics.ExportMetrics(hangInfo)
+	}
 	checkRes, err := c.checker.Check(c.ctx, info)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to Check")
@@ -196,10 +203,6 @@ func (c *component) LastInfo() (common.Info, error) {
 	return info, nil
 }
 
-func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
-	return nil, nil
-}
-
 func (c *component) Start() <-chan *common.Result {
 	return c.service.Start()
 }
@@ -224,7 +227,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

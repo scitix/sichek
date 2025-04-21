@@ -49,10 +49,10 @@ func (d *DmesgInfo) JSON() (string, error) {
 type DmesgChecker struct {
 	id   string
 	name string
-	cfg  *config.DmesgUserConfig
+	cfg  *config.DmesgSpec
 }
 
-func NewDmesgChecker(cfg *config.DmesgUserConfig) common.Checker {
+func NewDmesgChecker(cfg *config.DmesgSpec) common.Checker {
 	return &DmesgChecker{
 		id:   consts.CheckerIDDmesg,
 		name: "DmesgErrorChecker",
