@@ -3,7 +3,7 @@ hang:
   description: "GPU Hang"
   duration_threshold: 60s
   level: warn
-  query_interval_after_abnormal: 20s
+  query_interval_after_abnormal: 10s
   abnormal_detected_times: 10
   check_items:
     pwr:
