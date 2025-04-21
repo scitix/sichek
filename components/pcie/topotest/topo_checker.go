@@ -3,6 +3,7 @@ package topotest
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
@@ -12,24 +13,25 @@ func checkNuma(gpus map[string]*GPUInfo, nodes map[string]*PciNode, numaConfig [
 	res := PciTopoCheckItems[PciTopoNumaCheckerName]
 	// Find all GPUS by numa node
 	gpuNodesbyNumaNode := FindNvGPUsbyNumaNode(nodes, gpus)
+	bdfToNuma := make(map[string]int)
 	for _, cfg := range numaConfig {
-		gpuList := gpuNodesbyNumaNode[uint64(cfg.NodeID)]
-		bdfMap := make(map[string]struct{})
-		for _, gpu := range gpuList {
-			bdfMap[gpu.BDF] = struct{}{}
-		}
 		for _, bdf := range cfg.BdfList {
-			if _, exists := bdfMap[bdf]; !exists {
-				res.Status = consts.StatusAbnormal
-				fmt.Printf("GPU %d: uuid=%v, BDF=%v, numa_node=%v, domain=%v, sw_id=%v\n", gpu.Index, gpu.UUID, gpu.BDF, gpu.NumaID, gpu.DomainID, gpu.SmallestCommonPCIeSwitchBDF)
-	
-				break
-			}
+			bdfToNuma[bdf] = cfg.NodeID
 		}
 	}
-	if res.Status == consts.StatusAbnormal{
-
+	var builder strings.Builder
+	for _, gpu := range gpus {
+		var expectNumaId uint64
+		if expectNumaId, exists := bdfToNuma[gpu.BDF]; !exists {
+			res.Status = consts.StatusAbnormal
+			builder.WriteString(fmt.Sprintf("GPU %d Not In Config (uuid=%s, BDF=%s, numa_node=%d)\n", gpu.Index, gpu.UUID, gpu.BDF, gpu.NumaID))
+		}
+		if gpu.NumaID != expectNumaId {
+			res.Status = consts.StatusAbnormal
+			builder.WriteString(fmt.Sprintf("GPU %d (BDF = %s) belongs to NUMA ID %d, but expected NUMA ID %d\n", gpu.Index, gpu.BDF, gpu.NumaID, expectNumaId))
+		}
 	}
+	res.Detail = builder.String()
 	return res
 }
 func checkPciSwitches() {

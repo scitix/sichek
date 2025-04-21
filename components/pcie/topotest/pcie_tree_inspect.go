@@ -272,7 +272,7 @@ func GetGPUList() map[string]*GPUInfo {
 }
 
 // findNvGPUsbyNumaNode identifies all GPU devicesin each numa node
-func FindNvGPUsbyNumaNode(nodes map[string]*PciNode, gpus map[string]*GPUInfo) map[uint64][]*GPUInfo {
+func GetNumaNodeForNvGPUs(nodes map[string]*PciNode, gpus map[string]*GPUInfo) map[uint64][]*GPUInfo {
 	gpuListbyNumaNode := make(map[uint64][]*GPUInfo)
 	for _, node := range nodes {
 		if node.Vendor == 0x10de && node.Class != 0x068000 {
