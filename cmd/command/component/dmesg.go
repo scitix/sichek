@@ -52,7 +52,7 @@ func NewDmesgCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Dmesg").Infof("load cfg file:%s", cfgFile)
 			}
-			component, err := dmesg.NewComponent(cfgFile)
+			component, err := dmesg.NewComponent(cfgFile, "")
 			if err != nil {
 				logrus.WithField("component", "Dmesg").Error(err)
 				return

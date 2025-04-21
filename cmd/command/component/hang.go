@@ -64,7 +64,7 @@ func NewHangCommand() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
 			}
-			component, err := hang.NewComponent(cfgFile)
+			component, err := hang.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("components", "Hang").Error("fail to Create Hang Components")
 				return

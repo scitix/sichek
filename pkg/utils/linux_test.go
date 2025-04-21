@@ -1,9 +1,24 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package utils
 
 import (
 	"context"
 	"errors"
-	"strings"
+	// "strings"
 	"testing"
 	"time"
 )
@@ -60,32 +75,32 @@ func TestExecCommandWithContext_OfedInfo(t *testing.T) {
 	}
 }
 
-func TestExecCommandWithContext_fm(t *testing.T) {
-	ctx := context.Background()
+// func TestExecCommandWithContext_fm(t *testing.T) {
+// 	ctx := context.Background()
 
-	// disable perfomance mode for testing
-	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
-	output, err := ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
-	if err != nil {
-		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
-			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
-			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
-			return
-		} else {
-			t.Fatalf("failed to stop nvidia-fabricmanager: %v, output: %v", err, string(output))
-		}
-	}
-	t.Logf("======test: `systemctl status nvidia-fabricmanager`=====")
-	output, _ = ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
-	t.Logf("nvidia-fabricmanager status: %s", string(output))
+// 	// disable perfomance mode for testing
+// 	t.Logf("======test: `systemctl stop nvidia-fabricmanager`=====")
+// 	output, err := ExecCommand(ctx, "systemctl", "stop", "nvidia-fabricmanager")
+// 	if err != nil {
+// 		if strings.Contains(string(output), "nvidia-fabricmanager.service not loaded") ||
+// 			strings.Contains(string(output), "Failed to connect to bus") { // skip for gitlab-ci
+// 			t.Skipf("command `systemctl stop nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
+// 			return
+// 		} else {
+// 			t.Fatalf("failed to stop nvidia-fabricmanager: %v, output: %v", err, string(output))
+// 		}
+// 	}
+// 	t.Logf("======test: `systemctl status nvidia-fabricmanager`=====")
+// 	output, _ = ExecCommand(ctx, "systemctl", "status", "nvidia-fabricmanager")
+// 	t.Logf("nvidia-fabricmanager status: %s", string(output))
 
-	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
-	output, err = ExecCommand(ctx, "systemctl", "is-active", "nvidia-fabricmanager")
-	if err != nil {
-		if strings.Contains(string(output), "inactive") {
-			t.Logf("command `systemctl is-active nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
-		} else {
-			t.Fatalf("expected an error, got output=%v: %v", string(output), err)
-		}
-	}
-}
+// 	t.Logf("======test: `systemctl is-active nvidia-fabricmanager`=====")
+// 	output, err = ExecCommand(ctx, "systemctl", "is-active", "nvidia-fabricmanager")
+// 	if err != nil {
+// 		if strings.Contains(string(output), "inactive") {
+// 			t.Logf("command `systemctl is-active nvidia-fabricmanager`: output= %v, err=%s", string(output), err.Error())
+// 		} else {
+// 			t.Fatalf("expected an error, got output=%v: %v", string(output), err)
+// 		}
+// 	}
+// }

@@ -294,9 +294,6 @@ nvidia:
 		t.Errorf("Expected Spec.Name to be 'NVIDIA H100 80GB HBM3', got '%s'", specItem.Name)
 	}
 
-	if cfg.Nvidia.Name != "nvidia" {
-		t.Errorf("Expected ComponentConfig.Nvidia.Name to be 'nvidia', got '%s'", cfg.Nvidia.Name)
-	}
 	if cfg.Nvidia.QueryInterval != 30 {
 		t.Errorf("Expected ComponentConfig.Nvidia.UpdateInterval to be 1, got %d", cfg.Nvidia.QueryInterval)
 	}

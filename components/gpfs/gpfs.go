@@ -55,9 +55,9 @@ var (
 	gpfsComponentOnce sync.Once
 )
 
-func NewGpfsComponent(cfgFile string) (comp common.Component, err error) {
+func NewGpfsComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	gpfsComponentOnce.Do(func() {
-		gpfsComponent, err = newGpfsComponent(cfgFile)
+		gpfsComponent, err = newGpfsComponent(cfgFile, specFile)
 		if err != nil {
 			panic(err)
 		}
@@ -65,7 +65,7 @@ func NewGpfsComponent(cfgFile string) (comp common.Component, err error) {
 	return gpfsComponent, nil
 }
 
-func newGpfsComponent(cfgFile string) (comp *component, err error) {
+func newGpfsComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -80,7 +80,7 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 	specCfg := &config.GpfsSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err

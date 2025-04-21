@@ -163,13 +163,13 @@ func NewAllCmd() *cobra.Command {
 func NewComponent(componentName string, cfgFile string, specFile string, ignoredCheckers []string) (common.Component, error) {
 	switch componentName {
 	case consts.ComponentNameGpfs:
-		return gpfs.NewGpfsComponent(cfgFile)
+		return gpfs.NewGpfsComponent(cfgFile, specFile)
 	case consts.ComponentNameCPU:
-		return cpu.NewComponent(cfgFile)
+		return cpu.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameInfiniband:
 		return infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameDmesg:
-		return dmesg.NewComponent(cfgFile)
+		return dmesg.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameHang:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
@@ -178,7 +178,7 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		if err != nil {
 			return nil, fmt.Errorf("failed to Get Nvidia component, Bypassing HealthCheck")
 		}
-		return hang.NewComponent(cfgFile)
+		return hang.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameNvidia:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")

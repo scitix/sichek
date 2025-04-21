@@ -21,6 +21,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type CpuSpecConfig struct {
@@ -44,7 +45,10 @@ func (c *CpuSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.CpuSpec == nil {
-			return fmt.Errorf("failed to load cpu spec from YAML file %s: %v", file, err)
+			logrus.WithField("componet", "cpu").Errorf("failed to load spec from YAML file %s: %v", file, err)
+		} else {
+			logrus.WithField("component", "cpu").Infof("loaded spec from YAML file %s", file)
+			return nil
 		}
 	}
 	err := common.DefaultComponentConfig(consts.ComponentNameCPU, c, consts.DefaultSpecCfgName)

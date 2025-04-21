@@ -17,7 +17,6 @@ package checker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -26,30 +25,17 @@ import (
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/hang/collector"
 	"github.com/scitix/sichek/components/hang/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
-type HangInfo struct {
-	Time          time.Time
-	Items         []string
-	HangDuration  map[string]map[string]int64
-	HangThreshold map[string]int64
-}
-
-func (d *HangInfo) JSON() (string, error) {
-	data, err := json.Marshal(d)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
 type HangChecker struct {
 	id                          string
 	name                        string
 	cfg                         *config.HangUserConfig
+	spec                        *config.HangSpec
 	HighSampleRateStatus        bool
 	originalQueryInterval       time.Duration
 	originalNvidiaQueryInterval time.Duration
@@ -57,12 +43,13 @@ type HangChecker struct {
 	podResourceMapper           *k8s.PodResourceMapper
 }
 
-func NewHangChecker(cfg *config.HangUserConfig) common.Checker {
+func NewHangChecker(cfg *config.HangUserConfig, spec *config.HangSpec) common.Checker {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	return &HangChecker{
 		id:                          consts.CheckerIDHang,
 		name:                        "GPUHangChecker",
 		cfg:                         cfg,
+		spec:                        spec,
 		HighSampleRateStatus:        false,
 		originalQueryInterval:       cfg.Hang.QueryInterval,
 		originalNvidiaQueryInterval: 30 * time.Second,
@@ -76,20 +63,20 @@ func (c *HangChecker) Name() string {
 }
 
 func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	info, ok := data.(*HangInfo)
+	info, ok := data.(*collector.DeviceIndicatorStates)
 	if !ok {
 		return nil, fmt.Errorf("wrong input of HangChecker")
 	}
 
 	var raw string
 	hangNum := make(map[string]int64)
-	for indicateName, name2duration := range info.HangDuration {
-		for name, duration := range name2duration {
+	for uuid, curIndicatorStates := range info.Indicators {
+		for indicateName, indicator := range curIndicatorStates.Indicators {
 			// fmt.Printf("name=%s, item=%s, duration=%d\n", name, indicateName, duration)
-			if duration >= info.HangThreshold[indicateName] {
-				raw = fmt.Sprintf("%sdevice=%s, item=%s, hang_duration=%d, hang_threshold=%d\n",
-					raw, name, indicateName, duration, info.HangThreshold[indicateName])
-				hangNum[name]++
+			if indicator.Duration >= c.spec.DurationThreshold.Duration {
+				raw = fmt.Sprintf("%sdevice=%s, indicateName=%s, hang_duration=%s, hang_duration_threshold=%s\n",
+					raw, uuid, indicateName, indicator.Duration, c.spec.DurationThreshold)
+				hangNum[uuid]++
 			}
 		}
 	}
@@ -106,7 +93,7 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		}
 	}
 	for name, num := range hangNum {
-		if num == int64(len(info.Items)) {
+		if num == int64(len(c.spec.Indicators)) {
 			gpuAbNum++
 			status = consts.StatusAbnormal
 			suggest = fmt.Sprintf("%ssuggest check gpu device=%s which probably hang\n", suggest, name)

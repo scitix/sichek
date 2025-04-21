@@ -54,7 +54,7 @@ func NewGpfsCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
-			component, err := gpfs.NewGpfsComponent(cfgFile)
+			component, err := gpfs.NewGpfsComponent(cfgFile, "")
 			if err != nil {
 				logrus.WithField("component", "Gpfs").Error(err)
 				return

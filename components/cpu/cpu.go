@@ -58,9 +58,9 @@ var (
 	cpuComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	cpuComponentOnce.Do(func() {
-		cpuComponent, err = newComponent(cfgFile)
+		cpuComponent, err = newComponent(cfgFile, specFile)
 		if err != nil {
 			panic(err)
 		}
@@ -68,7 +68,7 @@ func NewComponent(cfgFile string) (comp common.Component, err error) {
 	return cpuComponent, nil
 }
 
-func newComponent(cfgFile string) (comp *component, err error) {
+func newComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -82,7 +82,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 	specCfg := &config.CpuSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err

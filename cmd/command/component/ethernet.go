@@ -52,7 +52,7 @@ func NewEthernetCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "ethernet").Info("load default cfg...")
 			}
-			component, err := ethernet.NewEthernetComponent(cfgFile)
+			component, err := ethernet.NewEthernetComponent(cfgFile, "")
 			if err != nil {
 				logrus.WithField("component", "ethernet").Error(err)
 				return

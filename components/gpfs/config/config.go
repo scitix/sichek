@@ -28,7 +28,6 @@ type GpfsUserConfig struct {
 }
 
 type GpfsConfig struct {
-	Name          string        `json:"name" yaml:"name"`
 	QueryInterval time.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
 }

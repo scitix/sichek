@@ -21,6 +21,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type GpfsSpecConfig struct {
@@ -41,7 +42,10 @@ func (c *GpfsSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.GpfsSpec == nil {
-			return fmt.Errorf("failed to load gpfs spec from YAML file %s: %v", file, err)
+			logrus.WithField("componet", "gpfs").Errorf("failed to load spec from YAML file %s: %v", file, err)
+		} else {
+			logrus.WithField("component", "gpfs").Infof("loaded spec from YAML file %s", file)
+			return nil
 		}
 	}
 	err := common.DefaultComponentConfig(consts.ComponentNameGpfs, c, consts.DefaultSpecCfgName)

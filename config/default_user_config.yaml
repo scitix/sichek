@@ -1,56 +1,49 @@
-cpu:
-  name: cpu
+metrics:
+  port: 19091
+
+nvidia:
   query_interval: 30
   cache_size: 5
   enable_metrics: true
-
-
-dmesg:
-  name: DMesg
-  query_interval: 30
-  cache_size: 5
-
-ethernet:
-  name: "ethernet"
-  query_interval: 30
-  cache_size: 5
-  enable_metrics: true
-
-gpfs:
-  name: GPFS
-  query_interval: 30
-  cache_size: 5
-
-hang:
-  name: Hang
-  query_interval: 30
-  cache_size: 5
-  nvsmi: false
-  mock: false
-  enable_metrics: true
+  ignored_checkers: []
 
 infiniband:
-  name: "infiniband"
   query_interval: 30
   cache_size: 5
   enable_metrics: true
   ignored_checkers:
     - "net_operstate"
 
-memory:
-  name: memory
+ethernet:
   query_interval: 30
   cache_size: 5
+  enable_metrics: true
+
+gpfs:
+  query_interval: 30
+  cache_size: 5
+
+cpu:
+  query_interval: 30
+  cache_size: 5
+  enable_metrics: true
+
+memory:
+  query_interval: 30
+  cache_size: 5
+  enable_metrics: true
+
+hang:
+  query_interval: 30
+  cache_size: 5
+  nvsmi: false
+  mock: false
   enable_metrics: true
 
 nccl:
-  name: NCCL
   query_interval: 30
   cache_size: 5
 
-nvidia:
-  name: nvidia
+dmesg:
   query_interval: 30
   cache_size: 5
-  enable_metrics: true
-  ignored_checkers: []

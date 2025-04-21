@@ -1,11 +1,12 @@
 package metrics
 
 import (
-	"log"
 	"net/http"
 	"sync"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 )
@@ -53,11 +54,19 @@ func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }
 
-func InitPrometheus() {
+func InitPrometheus(cfgFile string)  {
+	// Initialize the metrics config
+	cfg := &MetricsUserConfig{}
+	err := cfg.LoadUserConfigFromYaml(cfgFile)
+	if err != nil {
+		logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed: %v", err)
+		return
+	}
 	// start Prometheus HTTP
 	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(":9091", nil); err != nil {
-		log.Fatal(err)
+	if err := http.ListenAndServe(":"+strconv.Itoa(cfg.Metrics.Port), nil); err != nil {
+		logrus.WithField("component", "metrics").Errorf("failed to start Prometheus metrics server: %v", err)
+		return
 	}
-
+	logrus.WithField("component", "metrics").Infof("Prometheus metrics server started on port %d", cfg.Metrics.Port)
 }

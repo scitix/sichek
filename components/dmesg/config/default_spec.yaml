@@ -1,20 +1,10 @@
 dmesg: 
   file_name: ["/var/log/dmesg"]
-  cmd:
-    - ["dmesg"]
+  # cmd:
+  #   - ["dmesg"]
   event_checkers:
-    OOM1:
-      name: "oom"
-      description: "oom error in dmesg"
-      regexp: '(?i)\b(invoked|triggered) oom-killer\b'
-      level: error
-    OOM2:
-      name: "oom"
-      description: "oom error in dmesg"
-      regexp: 'oom-kill:constraint='
-      level: error
-    OOM3:
-      name: "oom"
+    SysOOM:
+      name: "sys_oom"
       description: "oom error in dmesg"
       regexp: 'Out of memory:'
       level: error
