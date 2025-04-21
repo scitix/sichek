@@ -4,7 +4,7 @@ hang:
   duration_threshold: 2m30s
   level: warn
   check_items:
-    power:
+    pwr:
       threshold: 100
       compare: low
     gclk:
@@ -13,10 +13,10 @@ hang:
     smclk:
       threshold: 1400
       compare: high
-    sm_util:
+    sm:
       threshold: 95
       compare: high
-    mem_util:
+    mem:
       threshold: 5
       compare: low
     pviol:
@@ -31,7 +31,7 @@ hang:
   check_items_by_model:
     - model: "0x233010de"
       override:
-        power:
+        pwr:
           threshold: 150
           compare: low
         gclk:

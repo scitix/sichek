@@ -43,36 +43,43 @@ type K8sClient struct {
 }
 
 func NewClient() (*K8sClient, error) {
+	var err error
+	var cfg *rest.Config
 	k8sClientOnce.Do(func() {
-		var cfg *rest.Config
-		var err error
-
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred: %v", r)
+			}
+		}()
 		_, hasServiceHost := os.LookupEnv("KUBERNETES_SERVICE_HOST")
 		_, hasPort := os.LookupEnv("KUBERNETES_PORT")
 		if hasServiceHost && hasPort {
 			cfg, err = rest.InClusterConfig()
 			if err != nil {
 				logrus.Fatalf("build in-cluster kubeconfig failed: %v", err)
-				panic(err)
+				return
 			}
 		} else {
 			cfg, err = clientcmd.BuildConfigFromFlags("", consts.KubeConfigPath)
 			if err != nil {
-				logrus.Warnf("get kubeconfig faield, build in-cluster config: %v", err)
-				panic(err)
+				logrus.Fatalf("get kubeconfig faield, build in-cluster config: %v", err)
+				return
 			}
 		}
 
 		cli, err := kubernetes.NewForConfig(cfg)
 		if err != nil {
-			panic(err)
+			logrus.Fatalf("NewForConfig faield, err: %v", err)
+			return
 		}
-
 		k8sClient = &K8sClient{
 			kubeconfig: consts.KubeConfigPath,
 			client:     cli,
 		}
 	})
+	if err != nil {
+		return nil, err
+	}
 	return k8sClient, nil
 }
 

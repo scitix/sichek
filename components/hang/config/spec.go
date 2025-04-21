@@ -76,7 +76,10 @@ func (c *HangSpecConfig) GetSpec(specFile string) error {
 	if err != nil {
 		return err
 	}
-	deviceID := config.GetDeviceID()
+	deviceID, err := config.GetDeviceID()
+	if err != nil {
+		return err
+	}
 	for _, m := range c.HangSpec.IndicatorsByModel {
 		if m.Model == deviceID {
 			for k, override := range m.Override {
@@ -93,7 +96,7 @@ func (c *HangSpecConfig) LoadSpecConfigFromYaml(specFile string) error {
 	if specFile != "" {
 		err := utils.LoadFromYaml(specFile, c)
 		if err != nil || c.HangSpec == nil {
-			logrus.WithField("componet", "hang").Errorf("failed to load hang spec from YAML file %s: %v", specFile, err)
+			logrus.WithField("componet", "hang").Errorf("failed to load hang spec from YAML file %s: %v, try to load from default config", specFile, err)
 		} else {
 			logrus.WithField("component", "hang").Infof("loaded hang spec from YAML file %s", specFile)
 			return nil

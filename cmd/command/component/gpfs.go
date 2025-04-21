@@ -54,7 +54,17 @@ func NewGpfsCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Gpfs").Info("load default cfg...")
 			}
-			component, err := gpfs.NewGpfsComponent(cfgFile, "")
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "Gpfs").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "Gpfs").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "Gpfs").Info("load default specFile...")
+				}
+			}
+			component, err := gpfs.NewGpfsComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "Gpfs").Error(err)
 				return
@@ -68,6 +78,7 @@ func NewGpfsCmd() *cobra.Command {
 	}
 
 	gpfsCmd.Flags().StringP("cfg", "c", "", "Path to the Gpfs Cfg")
+	gpfsCmd.Flags().StringP("spec", "s", "", "Path to the Gpfs specification file")
 	gpfsCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return gpfsCmd

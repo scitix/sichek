@@ -60,14 +60,17 @@ type component struct {
 	metrics *metrics.IBMetrics
 }
 
-func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {
+func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (common.Component, error) {
+	var err error
 	infinibandComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component infiniband: %v", r)
+			}
+		}()
 		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
-		if err != nil {
-			panic(err)
-		}
 	})
-	return infinibandComponent, nil
+	return infinibandComponent, err
 }
 
 func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {

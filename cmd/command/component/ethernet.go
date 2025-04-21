@@ -52,7 +52,17 @@ func NewEthernetCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "ethernet").Info("load default cfg...")
 			}
-			component, err := ethernet.NewEthernetComponent(cfgFile, "")
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "ethernet").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "ethernet").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "ethernet").Info("load default specFile...")
+				}
+			}
+			component, err := ethernet.NewEthernetComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "ethernet").Error(err)
 				return
@@ -65,7 +75,8 @@ func NewEthernetCmd() *cobra.Command {
 		},
 	}
 
-	ethernetCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
+	ethernetCmd.Flags().StringP("cfg", "c", "", "Path to the ethernet Cfg")
+	ethernetCmd.Flags().StringP("spec", "s", "", "Path to the ethernet specification file")
 	ethernetCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return ethernetCmd

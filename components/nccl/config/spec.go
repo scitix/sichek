@@ -21,6 +21,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type NcclSpecConfig struct {
@@ -43,7 +44,10 @@ func (c *NcclSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.NcclSpec == nil {
-			return fmt.Errorf("failed to load nccl spec from YAML file %s: %v", file, err)
+			logrus.WithField("componet", "nccl").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+		} else {
+			logrus.WithField("component", "nccl").Infof("loaded spec from YAML file %s", file)
+			return nil
 		}
 	}
 	err := common.DefaultComponentConfig(consts.ComponentNameNCCL, c, consts.DefaultSpecCfgName)

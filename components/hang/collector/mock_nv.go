@@ -56,15 +56,18 @@ var (
 	nvidiaComponentOnce sync.Once
 )
 
-func NewMockNvidiaComponent(cfgFile string) (comp common.Component, err error) {
+func NewMockNvidiaComponent(cfgFile string) (common.Component, error) {
+	var err error
 	nvidiaComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component hang: %v", r)
+			}
+		}()
 		nvidiaComponent, err = newMockNvidia(cfgFile)
-		if err != nil {
-			panic(err)
-		}
 	})
 	now = time.Now()
-	return nvidiaComponent, nil
+	return nvidiaComponent, err
 }
 
 func newMockNvidia(cfgFile string) (comp *component, err error) {

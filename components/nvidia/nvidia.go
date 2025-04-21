@@ -125,11 +125,11 @@ func StopNvml(nvmlInst nvml.Interface) {
 	}
 }
 
-func GetComponent() common.Component {
+func GetComponent() (common.Component, error) {
 	if nvidiaComponent == nil {
-		panic("nvidia component not initialized")
+		return nil, fmt.Errorf("nvidia component not initialized")
 	}
-	return nvidiaComponent
+	return nvidiaComponent, nil
 }
 
 func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp common.Component, err error) {

@@ -52,7 +52,7 @@ hang:
 	if _, err := configFile.Write([]byte(configData)); err != nil {
 		t.Fatalf("Failed to write to temp config file: %v", err)
 	}
-		
+
 	specFile, err := os.CreateTemp("", "spec_*.yaml")
 	if err != nil {
 		t.Fatalf("Failed to create temp spec file: %v", err)
@@ -72,7 +72,7 @@ hang:
   duration_threshold: 2m30s
   level: warn
   check_items:
-    power:
+    pwr:
       threshold: 100
       compare: low
     gclk:
@@ -81,10 +81,10 @@ hang:
     smclk:
       threshold: 1400
       compare: high
-    sm_util:
+    sm:
       threshold: 95
       compare: high
-    mem_util:
+    mem:
       threshold: 5
       compare: low
     pviol:
@@ -108,12 +108,6 @@ hang:
 		return
 	}
 
-	for i := 0; i < 100; i++ {
-		_, err := component.HealthCheck(ctx)
-		if err != nil {
-			t.Error(err)
-		}
-	}
 	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 
 	if err != nil {

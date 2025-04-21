@@ -57,14 +57,17 @@ var (
 	hangComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	hangComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component hang: %v", r)
+			}
+		}()
 		hangComponent, err = newComponent(cfgFile, specFile)
-		if err != nil {
-			panic(err)
-		}
 	})
-	return hangComponent, nil
+	return hangComponent, err
 }
 
 func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {

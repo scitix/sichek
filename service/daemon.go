@@ -53,10 +53,10 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
+			logrus.WithField("daemon", "new").Errorf("new daemon service cancel: %v", err)
 			cancel()
 		}
 	}()
-
 	notifier, err := NewNotifier(annoKey)
 	if err != nil {
 		logrus.WithField("daemon", "new").Errorf("create notifier failed: %v", err)

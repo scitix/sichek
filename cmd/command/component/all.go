@@ -185,7 +185,7 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		}
 		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameNCCL:
-		return nccl.NewComponent(cfgFile)
+		return nccl.NewComponent(cfgFile, specFile)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}

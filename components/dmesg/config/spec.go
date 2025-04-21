@@ -29,8 +29,8 @@ type DmesgSpecConfig struct {
 }
 
 type DmesgSpec struct {
-	DmesgFileName []string      `json:"file_name" yaml:"file_name"`
-	DmesgCmd      [][]string    `json:"cmd" yaml:"cmd"`
+	DmesgFileName []string                     `json:"file_name" yaml:"file_name"`
+	DmesgCmd      [][]string                   `json:"cmd" yaml:"cmd"`
 	EventCheckers map[string]*DmesgErrorConfig `json:"event_checkers" yaml:"event_checkers"`
 }
 
@@ -45,7 +45,7 @@ func (c *DmesgSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.DmesgSpec == nil {
-			logrus.WithField("componet", "dmesg").Errorf("failed to load spec from YAML file %s: %v", file, err)
+			logrus.WithField("componet", "dmesg").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "dmesg").Infof("loaded spec from YAML file %s", file)
 			return nil

@@ -21,6 +21,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type MemorySpecConfig struct {
@@ -43,12 +44,15 @@ func (c *MemorySpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.MemorySpec == nil {
-			return fmt.Errorf("failed to load mempory spec from YAML file %s: %v", file, err)
+			logrus.WithField("componet", "memory").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+		} else {
+			logrus.WithField("component", "memory").Infof("loaded spec from YAML file %s", file)
+			return nil
 		}
 	}
 	err := common.DefaultComponentConfig(consts.ComponentNameMemory, c, consts.DefaultSpecCfgName)
 	if err != nil || c.MemorySpec == nil {
-		return fmt.Errorf("failed to load default mempory spec: %v", err)
+		return fmt.Errorf("failed to load default memory spec: %v", err)
 	}
 	return nil
 }

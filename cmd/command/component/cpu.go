@@ -53,7 +53,18 @@ func NewCPUCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "cpu").Info("load default cfg...")
 			}
-			component, err := cpu.NewComponent(cfgFile, "")
+
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "all").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "all").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "all").Info("load default specFile...")
+				}
+			}
+			component, err := cpu.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "cpu").Error(err)
 				return
@@ -68,6 +79,7 @@ func NewCPUCmd() *cobra.Command {
 	}
 
 	cpuCmd.Flags().StringP("cfg", "c", "", "Path to the cpu Cfg")
+	cpuCmd.Flags().StringP("spec", "s", "", "Path to the cpu specification file")
 	cpuCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 	return cpuCmd
 }

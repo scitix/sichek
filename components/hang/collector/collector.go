@@ -72,7 +72,10 @@ func NewHangCollector(cfg *config.HangUserConfig, spec *config.HangSpec) (*HangC
 	var nvidiaComponent common.Component
 	var err error
 	if !cfg.Hang.Mock {
-		nvidiaComponent = nvidia.GetComponent()
+		if nvidiaComponent, err = nvidia.GetComponent(); err != nil {
+			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to GetComponent")
+			return nil, err
+		}
 	} else {
 		if nvidiaComponent, err = NewMockNvidiaComponent(""); err != nil {
 			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to NewMockNvidiaComponent")

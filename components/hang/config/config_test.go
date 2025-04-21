@@ -46,7 +46,7 @@ hang:
   duration_threshold: 2m30s
   level: warn
   check_items:
-    power:
+    pwr:
       threshold: 100
       compare: low
     gclk:
@@ -55,10 +55,10 @@ hang:
     smclk:
       threshold: 1400
       compare: high
-    sm_util:
+    sm:
       threshold: 95
       compare: high
-    mem_util:
+    mem:
       threshold: 5
       compare: low
     pviol:
@@ -73,7 +73,7 @@ hang:
   check_items_by_model:
     - model: "0x233010de"
       override:
-        power:
+        pwr:
           threshold: 150
           compare: low
         gclk:
@@ -120,11 +120,11 @@ hang:
 	if gpuHangSpec.Level != "warn" {
 		t.Fatalf("Expected spec level to be 'warn', got '%s'", gpuHangSpec.Level)
 	}
-	if gpuHangSpec.Indicators["power"].Threshold != 100 {
-		t.Fatalf("Expected spec power threshold to be 100, got %d", gpuHangSpec.Indicators["power"].Threshold)
+	if gpuHangSpec.Indicators["pwr"].Threshold != 100 {
+		t.Fatalf("Expected spec pwr threshold to be 100, got %d", gpuHangSpec.Indicators["pwr"].Threshold)
 	}
-	if gpuHangSpec.Indicators["power"].CompareType != "low" {
-		t.Fatalf("Expected spec power compare type to be 'low', got '%s'", gpuHangSpec.Indicators["power"].CompareType)
+	if gpuHangSpec.Indicators["pwr"].CompareType != "low" {
+		t.Fatalf("Expected spec pwr compare type to be 'low', got '%s'", gpuHangSpec.Indicators["pwr"].CompareType)
 	}
 	if gpuHangSpec.Indicators["gclk"].Threshold != 1400 {
 		t.Fatalf("Expected spec gclk threshold to be 1400, got %d", gpuHangSpec.Indicators["gclk"].Threshold)
@@ -138,17 +138,17 @@ hang:
 	if gpuHangSpec.Indicators["smclk"].CompareType != "high" {
 		t.Fatalf("Expected spec smclk compare type to be 'high', got '%s'", gpuHangSpec.Indicators["smclk"].CompareType)
 	}
-	if gpuHangSpec.Indicators["sm_util"].Threshold != 95 {
-		t.Fatalf("Expected spec sm_util threshold to be 95, got %d", gpuHangSpec.Indicators["sm_util"].Threshold)
+	if gpuHangSpec.Indicators["sm"].Threshold != 95 {
+		t.Fatalf("Expected spec sm threshold to be 95, got %d", gpuHangSpec.Indicators["sm"].Threshold)
 	}
-	if gpuHangSpec.Indicators["sm_util"].CompareType != "high" {
-		t.Fatalf("Expected spec sm_util compare type to be 'high', got '%s'", gpuHangSpec.Indicators["sm_util"].CompareType)
+	if gpuHangSpec.Indicators["sm"].CompareType != "high" {
+		t.Fatalf("Expected spec sm compare type to be 'high', got '%s'", gpuHangSpec.Indicators["sm"].CompareType)
 	}
-	if gpuHangSpec.Indicators["mem_util"].Threshold != 5 {
-		t.Fatalf("Expected spec mem_util threshold to be 5, got %d", gpuHangSpec.Indicators["mem_util"].Threshold)
+	if gpuHangSpec.Indicators["mem"].Threshold != 5 {
+		t.Fatalf("Expected spec mem threshold to be 5, got %d", gpuHangSpec.Indicators["mem"].Threshold)
 	}
-	if gpuHangSpec.Indicators["mem_util"].CompareType != "low" {
-		t.Fatalf("Expected spec mem_util compare type to be 'low', got '%s'", gpuHangSpec.Indicators["mem_util"].CompareType)
+	if gpuHangSpec.Indicators["mem"].CompareType != "low" {
+		t.Fatalf("Expected spec mem compare type to be 'low', got '%s'", gpuHangSpec.Indicators["mem"].CompareType)
 	}
 	if gpuHangSpec.Indicators["pviol"].Threshold != 5 {
 		t.Fatalf("Expected spec pviol threshold to be 5, got %d", gpuHangSpec.Indicators["pviol"].Threshold)
@@ -174,8 +174,8 @@ hang:
 	if len(gpuHangSpec.IndicatorsByModel[0].Override) != 3 {
 		t.Fatalf("Expected first model to have 3 overrides, got %d", len(gpuHangSpec.IndicatorsByModel[0].Override))
 	}
-	if gpuHangSpec.IndicatorsByModel[0].Override["power"].Threshold != 150 {
-		t.Fatalf("Expected spec power override threshold to be 150, got %d", gpuHangSpec.IndicatorsByModel[0].Override["power"].Threshold)
+	if gpuHangSpec.IndicatorsByModel[0].Override["pwr"].Threshold != 150 {
+		t.Fatalf("Expected spec pwr override threshold to be 150, got %d", gpuHangSpec.IndicatorsByModel[0].Override["pwr"].Threshold)
 	}
 	if gpuHangSpec.IndicatorsByModel[0].Override["gclk"].Threshold != 1900 {
 		t.Fatalf("Expected spec gclk override threshold to be 1900, got %d", gpuHangSpec.IndicatorsByModel[0].Override["gclk"].Threshold)
@@ -206,7 +206,7 @@ hang:
   duration_threshold: 2m30s
   level: warn
   check_items:
-    power:
+    pwr:
       threshold: 100
       compare: low
     gclk:
@@ -215,10 +215,10 @@ hang:
     smclk:
       threshold: 1400
       compare: high
-    sm_util:
+    sm:
       threshold: 95
       compare: high
-    mem_util:
+    mem:
       threshold: 5
       compare: low
     pviol:
@@ -233,7 +233,7 @@ hang:
   check_items_by_model:
     - model: "0x233010de"
       override:
-        power:
+        pwr:
           threshold: 150
           compare: low
         gclk:
@@ -261,7 +261,10 @@ hang:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	device := config.GetDeviceID()
+	device, err := config.GetDeviceID()
+	if err != nil {
+		t.Fatalf("Failed to GetDeviceID: %v", err)
+	}
 	gpuHangSpec := spec.HangSpec
 	if gpuHangSpec.Name != "GPUHang" {
 		t.Fatalf("Expected spec name to be 'GPUHang', got '%s'", gpuHangSpec.Name)
@@ -283,16 +286,16 @@ hang:
 		t.Fatalf("Expected spec level to be 'warn', got '%s'", gpuHangSpec.Level)
 	}
 	if device == "0x233010de" {
-		if gpuHangSpec.Indicators["power"].Threshold != 150 {
-			t.Fatalf("Expected spec power threshold to be 150, got %d", gpuHangSpec.Indicators["power"].Threshold)
+		if gpuHangSpec.Indicators["pwr"].Threshold != 150 {
+			t.Fatalf("Expected spec pwr threshold to be 150, got %d", gpuHangSpec.Indicators["pwr"].Threshold)
 		}
 	} else {
-		if gpuHangSpec.Indicators["power"].Threshold != 100 {
-			t.Fatalf("Expected spec power threshold to be 100, got %d", gpuHangSpec.Indicators["power"].Threshold)
+		if gpuHangSpec.Indicators["pwr"].Threshold != 100 {
+			t.Fatalf("Expected spec pwr threshold to be 100, got %d", gpuHangSpec.Indicators["pwr"].Threshold)
 		}
 	}
-	if gpuHangSpec.Indicators["power"].CompareType != "low" {
-		t.Fatalf("Expected spec power compare type to be 'low', got '%s'", gpuHangSpec.Indicators["power"].CompareType)
+	if gpuHangSpec.Indicators["pwr"].CompareType != "low" {
+		t.Fatalf("Expected spec pwr compare type to be 'low', got '%s'", gpuHangSpec.Indicators["pwr"].CompareType)
 	}
 	if device == "0x233010de" {
 		if gpuHangSpec.Indicators["gclk"].Threshold != 1900 {
@@ -318,17 +321,17 @@ hang:
 	if gpuHangSpec.Indicators["smclk"].CompareType != "high" {
 		t.Fatalf("Expected spec smclk compare type to be 'high', got '%s'", gpuHangSpec.Indicators["smclk"].CompareType)
 	}
-	if gpuHangSpec.Indicators["sm_util"].Threshold != 95 {
-		t.Fatalf("Expected spec sm_util threshold to be 95, got %d", gpuHangSpec.Indicators["sm_util"].Threshold)
+	if gpuHangSpec.Indicators["sm"].Threshold != 95 {
+		t.Fatalf("Expected spec sm threshold to be 95, got %d", gpuHangSpec.Indicators["sm"].Threshold)
 	}
-	if gpuHangSpec.Indicators["sm_util"].CompareType != "high" {
-		t.Fatalf("Expected spec sm_util compare type to be 'high', got '%s'", gpuHangSpec.Indicators["sm_util"].CompareType)
+	if gpuHangSpec.Indicators["sm"].CompareType != "high" {
+		t.Fatalf("Expected spec sm compare type to be 'high', got '%s'", gpuHangSpec.Indicators["sm"].CompareType)
 	}
-	if gpuHangSpec.Indicators["mem_util"].Threshold != 5 {
-		t.Fatalf("Expected spec mem_util threshold to be 5, got %d", gpuHangSpec.Indicators["mem_util"].Threshold)
+	if gpuHangSpec.Indicators["mem"].Threshold != 5 {
+		t.Fatalf("Expected spec mem threshold to be 5, got %d", gpuHangSpec.Indicators["mem"].Threshold)
 	}
-	if gpuHangSpec.Indicators["mem_util"].CompareType != "low" {
-		t.Fatalf("Expected spec mem_util compare type to be 'low', got '%s'", gpuHangSpec.Indicators["mem_util"].CompareType)
+	if gpuHangSpec.Indicators["mem"].CompareType != "low" {
+		t.Fatalf("Expected spec mem compare type to be 'low', got '%s'", gpuHangSpec.Indicators["mem"].CompareType)
 	}
 	if gpuHangSpec.Indicators["pviol"].Threshold != 5 {
 		t.Fatalf("Expected spec pviol threshold to be 5, got %d", gpuHangSpec.Indicators["pviol"].Threshold)
@@ -354,8 +357,8 @@ hang:
 	if len(gpuHangSpec.IndicatorsByModel[0].Override) != 3 {
 		t.Fatalf("Expected first model to have 3 overrides, got %d", len(gpuHangSpec.IndicatorsByModel[0].Override))
 	}
-	if gpuHangSpec.IndicatorsByModel[0].Override["power"].Threshold != 150 {
-		t.Fatalf("Expected spec power override threshold to be 150, got %d", gpuHangSpec.IndicatorsByModel[0].Override["power"].Threshold)
+	if gpuHangSpec.IndicatorsByModel[0].Override["pwr"].Threshold != 150 {
+		t.Fatalf("Expected spec pwr override threshold to be 150, got %d", gpuHangSpec.IndicatorsByModel[0].Override["pwr"].Threshold)
 	}
 	if gpuHangSpec.IndicatorsByModel[0].Override["gclk"].Threshold != 1900 {
 		t.Fatalf("Expected spec gclk override threshold to be 1900, got %d", gpuHangSpec.IndicatorsByModel[0].Override["gclk"].Threshold)

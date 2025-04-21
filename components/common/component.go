@@ -126,7 +126,7 @@ func (s *CommonService) Start() <-chan *Result {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				logrus.WithField("component", "service").Errorf("recover panic err: %v\n", err)
+				logrus.WithField("component", "service").Errorf("recover Start() panic err: %v\n", err)
 			}
 		}()
 		interval := s.cfg.GetQueryInterval()

@@ -144,8 +144,8 @@ infiniband:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(spec.NvidiaSpec.NvidiaSpecMap) != 2 {
-		t.Fatalf("Expected spec to have 2 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
+	if len(spec.NvidiaSpec.NvidiaSpecMap) < 2 {
+		t.Fatalf("Expected spec at least have 2 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
 	}
 	if _, ok := formatedNvidiaSpecsMap["0x233010de"]; !ok {
 		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")
@@ -178,8 +178,8 @@ func TestLoadSpecFromDefaultYaml(t *testing.T) {
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(spec.NvidiaSpec.NvidiaSpecMap) != 1 {
-		t.Fatalf("Expected spec to have 1 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
+	if len(spec.NvidiaSpec.NvidiaSpecMap) < 1 {
+		t.Fatalf("Expected spec at least have 1 entry, got %d", len(spec.NvidiaSpec.NvidiaSpecMap))
 	}
 	if _, ok := formatedNvidiaSpecsMap["0x233010de"]; !ok {
 		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")

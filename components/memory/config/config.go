@@ -21,6 +21,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type MemoryUserConfig struct {
@@ -42,12 +43,18 @@ func (c *MemoryUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *MemoryUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file == "" {
-		return common.DefaultComponentUserConfig(c)
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.Memory == nil {
+			logrus.WithField("component", "memory").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
+		} else {
+			logrus.WithField("component", "memory").Infof("loaded user config from YAML file %s", file)
+			return nil
+		}
 	}
-	err := utils.LoadFromYaml(file, c)
+	err := common.DefaultComponentUserConfig(c)
 	if err != nil || c.Memory == nil {
-		return fmt.Errorf("failed to load memory config: %v", err)
+		return fmt.Errorf("failed to load default memory user config: %v", err)
 	}
 	return nil
 }

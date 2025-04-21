@@ -55,14 +55,17 @@ var (
 	gpfsComponentOnce sync.Once
 )
 
-func NewGpfsComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func NewGpfsComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	gpfsComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component gpfs: %v", r)
+			}
+		}()
 		gpfsComponent, err = newGpfsComponent(cfgFile, specFile)
-		if err != nil {
-			panic(err)
-		}
 	})
-	return gpfsComponent, nil
+	return gpfsComponent, err
 }
 
 func newGpfsComponent(cfgFile string, specFile string) (comp *component, err error) {

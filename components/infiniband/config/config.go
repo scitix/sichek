@@ -21,6 +21,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type InfinibandUserConfig struct {
@@ -48,12 +49,18 @@ func (c *InfinibandUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *InfinibandUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file == "" {
-		return common.DefaultComponentUserConfig(c)
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.Infiniband == nil {
+			logrus.WithField("component", "infiniband").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
+		} else {
+			logrus.WithField("component", "infiniband").Infof("loaded user config from YAML file %s", file)
+			return nil
+		}
 	}
-	err := utils.LoadFromYaml(file, c)
+	err := common.DefaultComponentUserConfig(c)
 	if err != nil || c.Infiniband == nil {
-		return fmt.Errorf("failed to load infiniband config: %v", err)
+		return fmt.Errorf("failed to load default infiniband user config: %v", err)
 	}
 	return nil
 }

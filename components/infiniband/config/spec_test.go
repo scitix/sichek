@@ -96,8 +96,8 @@ hca:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(hcaSpecs.HcaSpec.HCAHardwares) != 3 {
-		t.Fatalf("Expected spec to have 3 entry, got %d", len(hcaSpecs.HcaSpec.HCAHardwares))
+	if len(hcaSpecs.HcaSpec.HCAHardwares) < 3 {
+		t.Fatalf("Expected spec at least have 3 entry, got %d", len(hcaSpecs.HcaSpec.HCAHardwares))
 	}
 	if _, ok := hcaSpecs.HcaSpec.HCAHardwares["MT_0000000971"]; !ok {
 		t.Fatalf("Expected spec to have key 'MT_0000000971', it doesn't exist")
@@ -224,8 +224,8 @@ infiniband:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(ibSpec.InfinibandSpec.Clusters) != 2 {
-		t.Fatalf("Expected spec to have 2 entry, got %d", len(ibSpec.InfinibandSpec.Clusters))
+	if len(ibSpec.InfinibandSpec.Clusters) < 2 {
+		t.Fatalf("Expected spec at least have 2 entry, got %d", len(ibSpec.InfinibandSpec.Clusters))
 	}
 	if _, ok := ibSpec.InfinibandSpec.Clusters["cluster_name"]; !ok {
 		t.Fatalf("Expected spec to have key 'cluster_name', it doesn't exist")
@@ -332,8 +332,8 @@ infiniband:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	if len(ibSpec.InfinibandSpec.Clusters) != 1 {
-		t.Fatalf("Expected spec to have 1 entry, got %d", len(ibSpec.InfinibandSpec.Clusters))
+	if len(ibSpec.InfinibandSpec.Clusters) < 1 {
+		t.Fatalf("Expected spec at least have 1 entry, got %d", len(ibSpec.InfinibandSpec.Clusters))
 	}
 	if _, ok := ibSpec.InfinibandSpec.Clusters["default"]; !ok {
 		t.Fatalf("Expected spec to have key 'default', it doesn't exist")

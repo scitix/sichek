@@ -21,6 +21,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type EthernetUserConfig struct {
@@ -43,12 +44,18 @@ func (c *EthernetUserConfig) SetQueryInterval(newInterval time.Duration) {
 }
 
 func (c *EthernetUserConfig) LoadUserConfigFromYaml(file string) error {
-	if file == "" {
-		return common.DefaultComponentUserConfig(c)
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || c.Ethernet == nil {
+			logrus.WithField("component", "ethernet").Errorf("load user config from %s failed: %v, try to load from default config", file, err)
+		} else {
+			logrus.WithField("component", "ethernet").Infof("loaded user config from YAML file %s", file)
+			return nil
+		}
 	}
-	err := utils.LoadFromYaml(file, c)
+	err := common.DefaultComponentUserConfig(c)
 	if err != nil || c.Ethernet == nil {
-		return fmt.Errorf("failed to load ethernet config: %v", err)
+		return fmt.Errorf("failed to load default ethernet user config: %v", err)
 	}
 	return nil
 }

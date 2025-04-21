@@ -56,17 +56,20 @@ var (
 	memComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	memComponentOnce.Do(func() {
-		memComponent, err = newMemoryComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component memory: %v", r)
+			}
+		}()
+		memComponent, err = newMemoryComponent(cfgFile, specFile)
 	})
-	return memComponent, nil
+	return memComponent, err
 }
 
-func newMemoryComponent(cfgFile string) (comp *component, err error) {
+func newMemoryComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -81,7 +84,7 @@ func newMemoryComponent(cfgFile string) (comp *component, err error) {
 		return nil, err
 	}
 	specCfg := &config.MemorySpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err

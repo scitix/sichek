@@ -114,7 +114,6 @@ func NewDaemonRunCmd() *cobra.Command {
 				}
 				components[componentName] = component
 			}
-
 			daemonService, err := service.NewService(components, annoKey, cfgFile)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)

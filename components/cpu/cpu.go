@@ -58,14 +58,17 @@ var (
 	cpuComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	cpuComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component cpu: %v", r)
+			}
+		}()
 		cpuComponent, err = newComponent(cfgFile, specFile)
-		if err != nil {
-			panic(err)
-		}
 	})
-	return cpuComponent, nil
+	return cpuComponent, err
 }
 
 func newComponent(cfgFile string, specFile string) (comp *component, err error) {

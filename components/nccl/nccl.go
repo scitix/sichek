@@ -55,17 +55,20 @@ var (
 	ncclComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	ncclComponentOnce.Do(func() {
-		ncclComponent, err = newComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component nccl: %v", r)
+			}
+		}()
+		ncclComponent, err = newComponent(cfgFile, specFile)
 	})
-	return ncclComponent, nil
+	return ncclComponent, err
 }
 
-func newComponent(cfgFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -80,7 +83,7 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		return nil, err
 	}
 	specCfg := &config.NcclSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "nccl").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err

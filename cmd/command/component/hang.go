@@ -78,7 +78,7 @@ func NewHangCommand() *cobra.Command {
 			go func(ctx context.Context) {
 				defer func() {
 					if err := recover(); err != nil {
-						logrus.WithField("component", "Hang").Errorf("recover panic err: %v", err)
+						logrus.WithField("component", "Hang").Errorf("recover panic NewHangCommand() err: %v", err)
 					}
 				}()
 				defer wg.Done()

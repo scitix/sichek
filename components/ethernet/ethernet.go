@@ -60,14 +60,17 @@ type component struct {
 	metrics *metrics.EthernetMetrics
 }
 
-func NewEthernetComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func NewEthernetComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	ethernetComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component ethernet: %v", r)
+			}
+		}()
 		ethernetComponent, err = newEthernetComponent(cfgFile, specFile)
-		if err != nil {
-			panic(err)
-		}
 	})
-	return ethernetComponent, nil
+	return ethernetComponent, err
 }
 
 func newEthernetComponent(cfgFile string, specFile string) (comp *component, err error) {

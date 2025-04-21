@@ -55,8 +55,8 @@ func (s *InfinibandSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	}
 	if file != "" {
 		err := utils.LoadFromYaml(file, s)
-		if err != nil {
-			return fmt.Errorf("failed to load IB spec from YAML file %s: %v", file, err)
+		if err != nil || s.InfinibandSpec == nil {
+			logrus.WithField("componet", "infiniband").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		}
 	}
 	err = s.LoadDefaultSpec()
