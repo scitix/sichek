@@ -154,3 +154,7 @@ func TestDisableBatchACS(t *testing.T) {
 		}
 	}
 }
+
+func TestGetGPUTopology(t *testing.T) {
+	PrintGPUTopology()
+}
