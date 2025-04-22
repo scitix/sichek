@@ -8,33 +8,34 @@ import (
 	"github.com/scitix/sichek/pkg/utils"
 )
 
-type PciTopoConfig struct {
-	DeviceConfig map[string]*PciDeviceTopoConfig `json:"pcie_device"`
+type PcieTopoConfig struct {
+	PcieTopo map[string]*MachineConfig `json:"pcie_machine"`
 }
 
 // PciDevice represents the device configuration
-type PciDeviceTopoConfig struct {
+type MachineConfig struct {
 	NumaConfig        []*NumaConfig `json:"numa_config"`
 	PciSwitchesConfig []*PciSwitch  `json:"pci_switches"`
 }
 
 // NodeConfig represents the NUMA node configuration
 type NumaConfig struct {
-	NodeID  uint64   `json:"node_id"`  // NUMA Node ID
-	BdfList []string `json:"bdf_list"` // List of BDFs associated with the NUMA node
+	NodeID  uint64     `json:"node_id"`  // NUMA Node ID
+	BdfList []*BDFItem `json:"bdf_list"` // List of BDFs associated with the NUMA node
 }
 
 // PciSwitch represents the PCI switch configuration
 type PciSwitch struct {
-	SwitchID string   `json:"switch_id"` // BDF for the PCIe switch
-	BdfList  []string `json:"bdf_list"`  // List of BDFs connected to this PCIe switch
+	SwitchID string     `json:"switch_id"` // BDF for the PCIe switch
+	BdfList  []*BDFItem `json:"bdf_list"`  // List of BDFs connected to this PCIe switch
 }
 
-type PciClusterTopoConfig struct {
-	Devices []string `json:"devices"`
+type BDFItem struct {
+	DeviceType string `json:"type"`
+	BDF        string `json:"bdf"`
 }
 
-func (c *PciTopoConfig) LoadConfig(file string) error {
+func (c *PcieTopoConfig) LoadConfig(file string) error {
 	if file == "" {
 		_, curFile, _, ok := runtime.Caller(0)
 		if !ok {

@@ -1,33 +1,61 @@
-pcie_device:  
+pcie_machine:  
   "0x233010de":  
     numa_config:  
-      - node_id: 0  # NUMA node ID  
-        bdf_list:   # List of BDFs associated with NUMA node 0  
-          - "0000:29:00.0"  
-          - "0000:4e:00.0"  
-          - "0000:45:00.0"  
-          - "0000:1b:00.0"  
-      - node_id: 1  # NUMA node ID  
-        bdf_list:   # List of BDFs associated with NUMA node 1  
-          - "0001:4e:00.0"  
-          - "0001:1b:00.0"  
-          - "0001:45:00.0"  
-          - "0001:24:00.0"  
+      - node_id: 0            # NUMA‑0  
+        bdf_list:  
+          - type: "gpu"  
+            bdf: "0000:29:00.0"  
+          - type: "gpu"  
+            bdf: "0000:4e:00.0"  
+          - type: "gpu"  
+            bdf: "0000:45:00.0"  
+          - type: "gpu"  
+            bdf: "0000:1b:00.0"  
+          - type: "infiniband"  
+            bdf: "0000:1a:00.0"  
+          - type: "infiniband"  
+            bdf: "0000:44:00.0"  
 
-    pci_switches:  # Configuration for PCI switches  
-      - switch_id: "0001:16:00.0"  # BDF for the PCIe switch  
-        bdf_list:  # List of BDFs connected to this PCIe switch  
-          - "0001:24:00.0"  
-          - "0001:1b:00.0"  
+      - node_id: 1            # NUMA‑1  
+        bdf_list:  
+          - type: "gpu"  
+            bdf: "0001:4e:00.0"  
+          - type: "gpu"  
+            bdf: "0001:1b:00.0"  
+          - type: "gpu"  
+            bdf: "0001:45:00.0"  
+          - type: "gpu"  
+            bdf: "0001:24:00.0"  
+          - type: "infiniband"  
+            bdf: "0001:1a:00.0"  
+          - type: "infiniband"  
+            bdf: "0001:44:00.0"  
+
+    pci_switches:  
+      - switch_id: "0001:16:00.0"  
+        bdf_list:  
+          - type: "gpu"  
+            bdf: "0001:24:00.0"  
+          - type: "gpu"  
+            bdf: "0001:1b:00.0"  
+
       - switch_id: "0001:40:00.0"  
-        bdf_list:   
-          - "0001:4e:00.0"  
-          - "0001:45:00.0"  
+        bdf_list:  
+          - type: "gpu"  
+            bdf: "0001:4e:00.0"  
+          - type: "gpu"  
+            bdf: "0001:45:00.0"  
+
       - switch_id: "0000:40:00.0"  
-        bdf_list:   
-          - "0000:45:00.0"  
-          - "0000:4e:00.0"  
+        bdf_list:  
+          - type: "gpu"  
+            bdf: "0000:4e:00.0"  
+          - type: "gpu"  
+            bdf: "0000:45:00.0"  
+
       - switch_id: "0000:16:00.0"  
-        bdf_list:   
-          - "0000:29:00.0"  
-          - "0000:1b:00.0"  
+        bdf_list:  
+          - type: "gpu"  
+            bdf: "0000:29:00.0"  
+          - type: "gpu"  
+            bdf: "0000:24:00.0"  
