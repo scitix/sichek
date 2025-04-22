@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewMemoryCmd creates and returns a subcommand instance for representing memory-related operations, configuring the basic attributes of the command.  
+// NewMemoryCmd creates and returns a subcommand instance for representing memory-related operations, configuring the basic attributes of the command.
 func NewMemoryCmd() *cobra.Command {
 	memoryCmd := &cobra.Command{
 		Use:     "memory",
@@ -53,7 +53,17 @@ func NewMemoryCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "memory").Info("load default cfg...")
 			}
-			component, err := memory.NewComponent(cfgFile)
+			specFile, err := cmd.Flags().GetString("spec")
+			if err != nil {
+				logrus.WithField("components", "memory").Error(err)
+			} else {
+				if specFile != "" {
+					logrus.WithField("components", "memory").Info("load specFile: " + specFile)
+				} else {
+					logrus.WithField("components", "memory").Info("load default specFile...")
+				}
+			}
+			component, err := memory.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "memory").Error(err)
 				return
@@ -67,6 +77,7 @@ func NewMemoryCmd() *cobra.Command {
 	}
 
 	memoryCmd.Flags().StringP("cfg", "c", "", "Path to the memory Cfg")
+	memoryCmd.Flags().StringP("spec", "s", "", "Path to the memory specification file")
 	memoryCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
 	return memoryCmd

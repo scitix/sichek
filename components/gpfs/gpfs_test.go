@@ -32,6 +32,34 @@ func TestGpfsHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	// Create temporary files for testing
+	configFile, err0 := os.CreateTemp("", "cfg_*.yaml")
+	if err0 != nil {
+		t.Fatalf("Failed to create temp config file: %v", err0)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp config file: %v", err)
+		}
+	}(configFile.Name())
+
+	// Write config data to the temporary files
+	configData := `
+gpfs:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+
+memory:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := configFile.Write([]byte(configData)); err != nil {
+		t.Fatalf("Failed to write to temp config file: %v", err)
+	}
+
 	// Create a temporary log file for testing in a goroutine
 	var logFile *os.File
 	var err error
@@ -59,8 +87,8 @@ func TestGpfsHealthCheck(t *testing.T) {
 		t.Log("get curr file path failed")
 		return
 	}
-	testCfgFile := path.Dir(curFile) + "/test/gpfsCfg.yaml"
-	component, err := NewGpfsComponent(testCfgFile)
+	testSpecFile := path.Dir(curFile) + "/test/gpfsCfg.yaml"
+	component, err := NewGpfsComponent(configFile.Name(), testSpecFile)
 	if err != nil {
 		t.Log(err)
 		return

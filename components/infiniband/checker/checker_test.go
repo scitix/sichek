@@ -20,14 +20,16 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 )
 
 func TestIbChecker_Check(t *testing.T) {
 	cfg := &config.InfinibandUserConfig{}
-	err := cfg.LoadUserConfigFromYaml("")
-	if err != nil {
+
+	err := common.LoadComponentUserConfig("", cfg)
+	if err != nil || cfg.Infiniband == nil {
 		t.Fatalf("failed to load default config: %v", err)
 	}
 	specCfg := &config.InfinibandSpecConfig{}

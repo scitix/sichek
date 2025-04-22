@@ -81,7 +81,7 @@ var (
 	DefaultComponentQueryInterval = time.Duration.Seconds(1)
 
 	DefaultComponents = []string{
-		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, // ComponentNameDmesg,
+		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, ComponentNameDmesg,
 		ComponentNameNCCL, ComponentNameHang,
 	}
 )

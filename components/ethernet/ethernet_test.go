@@ -17,6 +17,7 @@ package ethernet
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -26,7 +27,66 @@ import (
 func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	component, err := NewEthernetComponent("")
+
+	// Create temporary files for testing
+	configFile, err := os.CreateTemp("", "cfg_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp config file: %v", err)
+		}
+	}(configFile.Name())
+
+	// Write config data to the temporary files
+	configData := `
+ethernet:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+
+memory:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := configFile.Write([]byte(configData)); err != nil {
+		t.Fatalf("Failed to write to temp config file: %v", err)
+	}
+
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
+
+	// Write spec data to the temporary files
+	specData := `
+ethernet:
+  hw_spec:
+  - model: "Connectx_5"
+    type: "MT4117"
+    specifications:
+      mode:
+      - "infiniband"
+      phy_state: "up"
+      port_speed: "200Gbps"
+      fw:
+      - "28.39.2048"
+      - "28.39.2049"
+`
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}
+
+	component, err := NewEthernetComponent(configFile.Name(), specFile.Name())
 	if err != nil {
 		t.Fatalf("failed to create Ethernet component: %v", err)
 	}

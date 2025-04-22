@@ -86,7 +86,11 @@ func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
 		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
 		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
 	}
-	deviceID := getDeviceID()
+	deviceID, err := GetDeviceID()
+	if err != nil {
+		logrus.WithField("component", "NVIDIA").Errorf("failed t oGetDeviceID: %v", err)
+		return nil
+	}
 	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
 		logrus.WithField("component", "NVIDIA").Errorf("failed to find spec file for deviceID: %s", deviceID)
 		return nil
@@ -97,8 +101,8 @@ func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
 func (s *NvidiaSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, s)
-		if err != nil {
-			return fmt.Errorf("failed to load nvidia spec from YAML file %s: %v", file, err)
+		if err != nil || s.NvidiaSpec == nil {
+			logrus.WithField("componet", "nvidia").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		}
 	}
 	err := s.LoadDefaultSpec()
@@ -118,7 +122,7 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 	if err != nil {
 		return fmt.Errorf("failed to get default nvidia config files: %v", err)
 	}
-	// 遍历文件并加载符合条件的 YAML 文件
+	// // Traverse files and load YAML files with default spec suffix
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
 			nvidiaSpec := &NvidiaSpecConfig{}
@@ -138,10 +142,10 @@ func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
 	return nil
 }
 
-func getDeviceID() string {
+func GetDeviceID() (string, error) {
 	nvmlInst := nvml.New()
 	if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
-		panic(fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
+		return "", fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 
 	}
 	defer nvmlInst.Shutdown()
@@ -149,7 +153,7 @@ func getDeviceID() string {
 	// In case of GPU error, iterate through all GPUs to find the first valid one
 	deviceCount, err := nvmlInst.DeviceGetCount()
 	if !errors.Is(err, nvml.SUCCESS) {
-		panic(fmt.Errorf("Failed to get device count: %s\n", nvml.ErrorString(err)))
+		return "", fmt.Errorf("failed to get device count: %s", nvml.ErrorString(err))
 	}
 	var deviceID string
 	for i := 0; i < deviceCount; i++ {
@@ -164,7 +168,7 @@ func getDeviceID() string {
 			continue
 		}
 		deviceID = fmt.Sprintf("0x%x", pciInfo.PciDeviceId)
-		return deviceID
+		return deviceID, nil
 	}
-	panic(fmt.Errorf("failed to get product name for NVIDIA GPU"))
+	return "", fmt.Errorf("failed to get product name for NVIDIA GPU")
 }

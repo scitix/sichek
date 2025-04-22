@@ -17,115 +17,124 @@ package collector
 
 import (
 	"context"
-	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/hang/checker"
-	"github.com/scitix/sichek/components/hang/config"
-	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
 
-type HangGetter struct {
-	name string
-	cfg  *config.HangUserConfig
-
-	items              []string
-	threshold          map[string]int64
-	indicates          map[string]int64
-	indicatesComp      map[string]string
-	prevTS             time.Time
-	prevIndicatorValue map[string]map[string]int64
-
-	hangInfo checker.HangInfo
-
-	nvidiaComponent common.Component
-}
-
-func NewHangGetter(cfg common.ComponentUserConfig) (hangGetter *HangGetter, err error) {
-	hangCfg, ok := cfg.(*config.HangUserConfig)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for Hang")
+func getInfobyNvidiaSmi(ctx context.Context) *DeviceIndicatorStates {
+	out, err := utils.ExecCommand(ctx, "nvidia-smi", "dmon", "-s", "pucvmet", "-d", "10", "-c", "1")
+	if err != nil {
+		logrus.WithField("collector", "Hang").WithError(err).Errorf("Error running command:")
+		return nil
 	}
+	output := string(out)
+	lines := strings.Split(output, "\n")
 
-	var res HangGetter
-	res.name = hangCfg.Hang.Name
-	res.cfg = hangCfg
-	res.threshold = make(map[string]int64)
-	res.indicates = make(map[string]int64)
-	res.indicatesComp = make(map[string]string)
-	res.prevIndicatorValue = make(map[string]map[string]int64)
+	var headers []string
+	var dataRows [][]string
 
-	if !hangCfg.Hang.Mock {
-		res.nvidiaComponent = nvidia.GetComponent()
-	} else {
-		if res.nvidiaComponent, err = NewMockNvidiaComponent(""); err != nil {
-			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to NewNvidia")
-			return nil, err
+	for _, line := range lines {
+		if strings.HasPrefix(line, "#") && strings.Contains(line, "gpu") {
+			headers = strings.Fields(line[1:])
+		} else if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "#") {
+			dataRows = append(dataRows, strings.Fields(line))
 		}
 	}
 
-	for _, tmpCfg := range cfg.GetCheckerSpec() {
-		getterConfig, ok := tmpCfg.(*config.HangErrorConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid config type for Hang getter")
+	if len(headers) == 0 || len(dataRows) == 0 {
+		logrus.WithField("collector", "Hang").Errorf("No valid data found in nvidia-smi output")
+		return nil
+	}
+
+	devIndicatorStates := &DeviceIndicatorStates{
+		Indicators: make(map[string]*IndicatorStates),
+	}
+
+	// Convert each row of data into a map with headers as keys
+	for _, row := range dataRows {
+		gpuIndex := row[0]
+		devIndicatorStates.Indicators[gpuIndex] = &IndicatorStates{
+			Indicators: make(map[string]*IndicatorState),
+			LastUpdate: time.Now(),
 		}
-		threshold := getterConfig.HangThreshold
-		for _, value := range getterConfig.HangIndicates {
-			if value.Name != "pwr" && value.Name != "sm" &&
-				value.Name != "gclk" && value.Name != "smclk" &&
-				value.Name != "pviol" && value.Name != "rxpci" &&
-				value.Name != "txpci" && value.Name != "mem" {
-				logrus.WithField("collector", "hanggetter").
-					Warnf("unsupport gpuhang indicate info type of %s", value.Name)
+		indicatorStates := devIndicatorStates.Indicators[gpuIndex].Indicators
+		for i, header := range headers {
+			value := row[i]
+			valueInt64, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				logrus.WithField("collector", "Hang").Errorf("failed to parse gpu res to int64, %s->%s", header, value)
 				continue
 			}
-
-			res.threshold[value.Name] = threshold
-			res.indicates[value.Name] = value.Threshold
-			res.indicatesComp[value.Name] = value.CompareFn
-			res.items = append(res.items, value.Name)
+			if i == 0 {
+				continue // Skip the first header (usually "gpu")
+			}
+			indicatorStates[header] = &IndicatorState{
+				Active:   false,
+				Value:    valueInt64,
+				Duration: 0,
+			}
 		}
-		res.prevTS = time.Time{}
+	}
+	devIndicatorStates.LastUpdate = time.Now()
+	return devIndicatorStates
+}
+
+func (c *HangCollector) getInfobyLatestInfo(ctx context.Context) *DeviceIndicatorStates {
+	var info *collector.NvidiaInfo
+	var ok bool
+	if !c.nvidiaComponent.Status() {
+		_, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck)
+		if err != nil {
+			logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get nvidia info according to health check")
+			return nil
+		}
+	}
+	infoRaw, err := c.nvidiaComponent.LastInfo()
+	if err != nil {
+		logrus.WithField("collector", "hanggetter").WithError(err).Errorf("failed to get last nvidia info")
+		return nil
+	}
+	info, ok = infoRaw.(*collector.NvidiaInfo)
+	if !ok {
+		logrus.WithField("collector", "hanggetter").Errorf("wrong info type of last nvidia info")
+		return nil
+	}
+	if !info.Time.After(c.LastUpdate) {
+		logrus.WithField("collector", "hanggetter").Warnf("nvidia info not updated, current time: %s, last time: %s", info.Time, c.LastUpdate)
+		return nil
 	}
 
-	res.hangInfo.Items = res.items
-	res.hangInfo.HangThreshold = res.threshold
-	res.hangInfo.HangDuration = make(map[string]map[string]int64)
-	for j := 0; j < len(res.items); j++ {
-		res.hangInfo.HangDuration[res.items[j]] = make(map[string]int64)
-		res.prevIndicatorValue[res.items[j]] = make(map[string]int64)
-	}
+	logrus.WithField("collector", "hanggetter").Infof("get updated nvidia info, current time: %s, last time: %s", info.Time, c.LastUpdate)
 
-	return &res, nil
-}
-
-func (c *HangGetter) Name() string {
-	return c.name
-}
-
-func (c *HangGetter) GetCfg() common.ComponentUserConfig {
-	return c.cfg
-}
-
-func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
-	c.hangInfo.Time = time.Now()
-	info, err := c.getLatestInfo(ctx)
-	if err != nil || info == nil {
-		logrus.WithField("collector", "hanggetter").Warnf("failed to get latest nvidia info")
-		return nil, err
+	devIndicatorStates := &DeviceIndicatorStates{
+		Indicators: make(map[string]*IndicatorStates),
 	}
 
 	for i := range info.DeviceCount {
 		deviceInfo := &info.DevicesInfo[i]
 		uuid := deviceInfo.UUID
-
-		for _, item := range c.items {
+		// gpuIndexInt := deviceInfo.Index
+		devIndicatorStates.Indicators[uuid] = &IndicatorStates{
+			Indicators: make(map[string]*IndicatorState),
+			LastUpdate: info.Time,
+		}
+		indicatorStates := devIndicatorStates.Indicators[uuid].Indicators
+		for indicatorName := range c.spec.Indicators {
+			indicatorStates[indicatorName] = &IndicatorState{
+				Active:   false,
+				Value:    0,
+				Duration: 0,
+			}
+			// Get the value of the indicator
 			var infoValue int64
-			switch item {
+			switch indicatorName {
 			case "pwr":
 				infoValue = int64(deviceInfo.Power.PowerUsage / 1000)
 			case "mem":
@@ -135,80 +144,21 @@ func (c *HangGetter) Collect(ctx context.Context) (common.Info, error) {
 			case "pviol":
 				infoValue = int64(deviceInfo.Power.PowerViolations)
 			case "rxpci":
-				infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
-				if _, ok := c.prevIndicatorValue[item][uuid]; !ok {
-					infoValue = infoValueTmp
-				} else {
-					infoValue = absDiff(infoValueTmp, c.prevIndicatorValue[item][uuid])
-				}
-				c.prevIndicatorValue[item][uuid] = infoValueTmp
+				infoValue = int64(deviceInfo.PCIeInfo.PCIeRx / 1024)
 			case "txpci":
-				infoValueTmp := int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
-				if _, ok := c.prevIndicatorValue[item][uuid]; !ok {
-					infoValue = infoValueTmp
-				} else {
-					infoValue = absDiff(infoValueTmp, c.prevIndicatorValue[item][uuid])
-				}
-				c.prevIndicatorValue[item][uuid] = infoValueTmp
+				infoValue = int64(deviceInfo.PCIeInfo.PCIeTx / 1024)
 			case "smclk":
 				infoValue = int64(deviceInfo.Clock.CurSMClk)
 			case "gclk":
 				infoValue = int64(deviceInfo.Clock.CurGraphicsClk)
 			default:
-				logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", item)
+				logrus.WithField("collector", "hanggetter").Errorf("failed to get info of %s", indicatorName)
+				continue
 			}
-
-			duration := c.getDuration(item, infoValue, info.Time)
-			if duration == 0 {
-				c.hangInfo.HangDuration[item][uuid] = 0
-			} else {
-				c.hangInfo.HangDuration[item][uuid] += duration
-			}
+			indicatorStates[indicatorName].Value = infoValue
 		}
 	}
-	c.prevTS = info.Time
-
-	return &c.hangInfo, nil
-}
-
-func (c *HangGetter) getLatestInfo(ctx context.Context) (*collector.NvidiaInfo, error) {
-	var info *collector.NvidiaInfo
-	var ok bool
-	if !c.nvidiaComponent.Status() {
-		_, err := common.RunHealthCheckWithTimeout(ctx, c.nvidiaComponent.GetTimeout(), c.nvidiaComponent.Name(), c.nvidiaComponent.HealthCheck)
-		if err != nil {
-			return nil, err
-		}
-	}
-	infoRaw, err := c.nvidiaComponent.LastInfo()
-	if err != nil {
-		return nil, err
-	}
-	info, ok = infoRaw.(*collector.NvidiaInfo)
-	if !ok {
-		return nil, fmt.Errorf("hanggetter: wrong info type of last nvidia info")
-	}
-	if !info.Time.After(c.prevTS) {
-		return nil, fmt.Errorf("hanggetter: nvidia info not updated, current time: %v, last time: %v", info.Time, c.prevTS)
-	}
-
-	return info, nil
-}
-
-func absDiff(a, b int64) int64 {
-	if a > b {
-		return a - b
-	}
-	return b - a
-}
-
-func (c *HangGetter) getDuration(name string, infoValue int64, now time.Time) int64 {
-	var res int64 = 0
-	if (infoValue < c.indicates[name] && c.indicatesComp[name] == "low") ||
-		(infoValue > c.indicates[name] && c.indicatesComp[name] == "high") {
-		if !c.prevTS.IsZero() {
-			res = int64(now.Sub(c.prevTS).Seconds())
-		}
-	}
-	return res
+	// Update the last update time
+	devIndicatorStates.LastUpdate = info.Time
+	return devIndicatorStates
 }

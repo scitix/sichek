@@ -23,7 +23,6 @@ import (
 
 type Collector interface {
 	Name() string
-	GetCfg() ComponentUserConfig
 	Collect(ctx context.Context) (Info, error)
 }
 

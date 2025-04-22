@@ -55,17 +55,20 @@ var (
 	gpfsComponentOnce sync.Once
 )
 
-func NewGpfsComponent(cfgFile string) (comp common.Component, err error) {
+func NewGpfsComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	gpfsComponentOnce.Do(func() {
-		gpfsComponent, err = newGpfsComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component gpfs: %v", r)
+			}
+		}()
+		gpfsComponent, err = newGpfsComponent(cfgFile, specFile)
 	})
-	return gpfsComponent, nil
+	return gpfsComponent, err
 }
 
-func newGpfsComponent(cfgFile string) (comp *component, err error) {
+func newGpfsComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -74,19 +77,25 @@ func newGpfsComponent(cfgFile string) (comp *component, err error) {
 	}()
 
 	cfg := &config.GpfsUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Gpfs == nil {
+		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewGpfsComponent get user config failed")
+	}
+	specCfg := &config.GpfsSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
-		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed: %v", err)
+		logrus.WithField("component", "gpfs").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-
-	collectorPointer, err := collector.NewGPFSCollector(cfg)
+	gpfsSpec := specCfg.GpfsSpec
+	collectorPointer, err := collector.NewGPFSCollector(gpfsSpec)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(cfg)
+	checkers, err := checker.NewCheckers(gpfsSpec)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create checkers failed: %v", err)
 		return nil, err
@@ -173,10 +182,6 @@ func (c *component) LastInfo() (common.Info, error) {
 	return info, nil
 }
 
-func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
-	return nil, nil
-}
-
 func (c *component) Start() <-chan *common.Result {
 	return c.service.Start()
 }
@@ -201,7 +206,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

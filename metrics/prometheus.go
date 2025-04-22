@@ -1,13 +1,14 @@
 package metrics
 
 import (
-	"log"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -53,11 +54,18 @@ func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }
 
-func InitPrometheus() {
+func InitPrometheus(cfgFile string) {
+	// Initialize the metrics config
+	cfg := &MetricsUserConfig{}
+	err := common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Metrics == nil {
+		logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed or cfg is nil: %v", err)
+	}
 	// start Prometheus HTTP
 	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(":9091", nil); err != nil {
-		log.Fatal(err)
+	if err := http.ListenAndServe(":"+strconv.Itoa(cfg.Metrics.Port), nil); err != nil {
+		logrus.WithField("component", "metrics").Errorf("failed to start Prometheus metrics server: %v", err)
+		return
 	}
-
+	logrus.WithField("component", "metrics").Infof("Prometheus metrics server started on port %d", cfg.Metrics.Port)
 }

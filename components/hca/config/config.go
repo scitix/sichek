@@ -22,7 +22,7 @@ type HCASpec struct {
 func (s *HCASpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, s)
-		if err != nil {
+		if err != nil || s.HcaSpec == nil {
 			logrus.WithField("component", "HCA").Errorf("failed to load from YAML file %s: %v", file, err)
 		}
 	}

@@ -56,17 +56,20 @@ var (
 	dmesgComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string) (comp common.Component, err error) {
+func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	dmesgComponentOnce.Do(func() {
-		dmesgComponent, err = newComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component dmesg: %v", r)
+			}
+		}()
+		dmesgComponent, err = newComponent(cfgFile, specFile)
 	})
-	return dmesgComponent, nil
+	return dmesgComponent, err
 }
 
-func newComponent(cfgFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -74,18 +77,24 @@ func newComponent(cfgFile string) (comp common.Component, err error) {
 		}
 	}()
 	dmsgCfg := &config.DmesgUserConfig{}
-	err = dmsgCfg.LoadUserConfigFromYaml(cfgFile)
+	err = common.LoadComponentUserConfig(cfgFile, dmsgCfg)
+	if err != nil || dmsgCfg.Dmesg == nil {
+		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewDmesgComponent get user config failed")
+	}
+	specCfg := &config.DmesgSpecConfig{}
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
-		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed: %v", err)
+		logrus.WithField("component", "dmesg").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-
-	collectorPointer, err := collector.NewDmesgCollector(dmsgCfg)
+	dmesgSpec := specCfg.DmesgSpec
+	collectorPointer, err := collector.NewDmesgCollector(dmesgSpec)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
 
-	dmesgChecker := checker.NewDmesgChecker(dmsgCfg)
+	dmesgChecker := checker.NewDmesgChecker(dmesgSpec)
 
 	component := &component{
 		ctx:           ctx,
@@ -205,7 +214,7 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	dmesgEvent := make(map[string]string)
@@ -227,7 +236,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return checkAllPassed
 	}
 	for n := range dmesgEvent {
-		fmt.Printf("\tDetected %s Event\n", n)
+		fmt.Printf("\tDetected %d Kernel Events:\n %s\n", len(dmesgEvent), dmesgEvent[n])
 	}
 	return checkAllPassed
 }

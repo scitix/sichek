@@ -60,17 +60,20 @@ type component struct {
 	metrics *metrics.EthernetMetrics
 }
 
-func NewEthernetComponent(cfgFile string) (comp common.Component, err error) {
+func NewEthernetComponent(cfgFile string, specFile string) (common.Component, error) {
+	var err error
 	ethernetComponentOnce.Do(func() {
-		ethernetComponent, err = newEthernetComponent(cfgFile)
-		if err != nil {
-			panic(err)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component ethernet: %v", r)
+			}
+		}()
+		ethernetComponent, err = newEthernetComponent(cfgFile, specFile)
 	})
-	return ethernetComponent, nil
+	return ethernetComponent, err
 }
 
-func newEthernetComponent(cfgFile string) (comp *component, err error) {
+func newEthernetComponent(cfgFile string, specFile string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -78,38 +81,28 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		}
 	}()
 	cfg := &config.EthernetUserConfig{}
-	err = cfg.LoadUserConfigFromYaml(cfgFile)
-	if err != nil {
-		logrus.WithField("component", "ethernet").Errorf("NewComponent load user config failed: %v", err)
-		return nil, err
+	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Ethernet == nil {
+		logrus.WithField("component", "ethernet").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		return nil, fmt.Errorf("NewEthernetComponent get user config failed")
 	}
 	specCfg := &config.EthernetSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(cfgFile)
+	err = specCfg.LoadSpecConfigFromYaml(specFile)
 	if err != nil {
 		logrus.WithField("component", "ethernet").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
 	ethernetSpec := specCfg.EthernetSpec
-	checkers := make([]common.Checker, 0)
-	checkerIndex := 0
-	for _, checkItem := range cfg.Ethernet.Cherkers {
-		switch checkItem {
-		case "phy_state":
-			checkerIndex = checkerIndex + 1
-			ethPhyStateChecker, err := checker.NewEthPhyStateChecker(ethernetSpec)
-			if err != nil {
-				logrus.WithField("component", "ethernet").Errorf("Fail to create the checker: %d, err: %v", checkerIndex, err)
-			}
-			checkers = append(checkers, ethPhyStateChecker)
-			logrus.WithField("component", "ethernet").Infof("create the checker %d: %s", checkerIndex, checkItem)
-		}
-	}
+	checkers, err := checker.NewCheckers(cfg, ethernetSpec)
 
 	var info collector.EthernetInfo
 	if err != nil {
 		logrus.WithField("component", "ethernet").Infof("fail to get the ib spec err %v", err)
 	}
-
+	var ethernetMetrics *metrics.EthernetMetrics
+	if cfg.Ethernet.EnableMetrics {
+		ethernetMetrics = metrics.NewEthernetMetrics()
+	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
@@ -122,7 +115,7 @@ func newEthernetComponent(cfgFile string) (comp *component, err error) {
 		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:     0,
 		cacheSize:     cfg.Ethernet.CacheSize,
-		metrics:       metrics.NewEthernetMetrics(),
+		metrics:       ethernetMetrics,
 	}
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
@@ -137,7 +130,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}
-	c.metrics.ExportMetrics(ethernetInfo)
+	if c.cfg.Ethernet.EnableMetrics {
+		c.metrics.ExportMetrics(ethernetInfo)
+	}
 	result := common.Check(ctx, c.Name(), ethernetInfo, c.checkers)
 
 	info, err := ethernetInfo.JSON()
@@ -195,10 +190,6 @@ func (c *component) LastInfo() (common.Info, error) {
 	return info, nil
 }
 
-func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
-	return nil, nil
-}
-
 func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	configPointer, ok := cfg.(*config.EthernetUserConfig)
@@ -224,7 +215,7 @@ func (c *component) Stop() error {
 }
 
 func (c *component) GetTimeout() time.Duration {
-	return c.cfg.GetQueryInterval() * time.Second
+	return c.cfg.GetQueryInterval().Duration
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

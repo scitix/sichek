@@ -64,7 +64,7 @@ func NewHangCommand() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
 			}
-			component, err := hang.NewComponent(cfgFile)
+			component, err := hang.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("components", "Hang").Error("fail to Create Hang Components")
 				return
@@ -78,7 +78,7 @@ func NewHangCommand() *cobra.Command {
 			go func(ctx context.Context) {
 				defer func() {
 					if err := recover(); err != nil {
-						logrus.WithField("component", "Hang").Errorf("recover panic err: %v", err)
+						logrus.WithField("component", "Hang").Errorf("recover panic NewHangCommand() err: %v", err)
 					}
 				}()
 				defer wg.Done()
