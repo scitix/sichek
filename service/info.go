@@ -118,34 +118,40 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 		return fmt.Errorf("error marshaling result: %v", err)
 	}
 
-	existAnnotation := make(map[string]*annotation)
-	for _, annotation := range annotations {
-		for _, item := range annotation {
-			existAnnotation[item.ErrorName] = item
+	deduplicatedAnnotation := make(map[string]map[string]*annotation)
+	// existed annotation
+	for level, annos := range annotations {
+		for _, item := range annos {
+			if deduplicatedAnnotation[level] == nil {
+				deduplicatedAnnotation[level] = make(map[string]*annotation)
+			}
+			deduplicatedAnnotation[level][item.ErrorName] = item
+		}
+	}
+	// new annotation
+	if result.Status == consts.StatusAbnormal {
+		for _, checkResult := range result.Checkers {
+			if checkResult.Status == consts.StatusAbnormal {
+				if deduplicatedAnnotation[checkResult.Level] == nil {
+					deduplicatedAnnotation[checkResult.Level] = make(map[string]*annotation)
+				}
+				deduplicatedAnnotation[checkResult.Level][checkResult.ErrorName] = &annotation{
+					ErrorName: checkResult.ErrorName,
+					Device:    checkResult.Device,
+				}
+			}
 		}
 	}
 
 	newAnnotation := make(map[string][]*annotation)
-	if result.Status == consts.StatusAbnormal {
-		for _, checkResult := range result.Checkers {
-			if checkResult.Status == consts.StatusAbnormal {
-				anno := &annotation{
-					ErrorName: checkResult.ErrorName,
-					Devcie:    checkResult.Device,
-				}
-				_, exist := newAnnotation[checkResult.Level]
-				if !exist {
-					newAnnotation[checkResult.Level] = make([]*annotation, 0)
-				} else {
-					annoNow, exists := existAnnotation[anno.ErrorName]
-					if !exists {
-						newAnnotation[checkResult.Level] = append(newAnnotation[checkResult.Level], anno)
-					} else {
-						annoNow.Devcie = checkResult.Device
-						newAnnotation[checkResult.Level] = append(newAnnotation[checkResult.Level], annoNow)
-					}
-				}
+	for level, annoMap := range deduplicatedAnnotation {
+		for _, anno := range annoMap {
+			_, exist := newAnnotation[level]
+			if !exist {
+				newAnnotation[level] = make([]*annotation, 0)
 			}
+			newAnnotation[level] = append(newAnnotation[level], anno)
+
 		}
 	}
 
@@ -191,7 +197,7 @@ func (a *nodeAnnotation) AppendFromResult(result *common.Result) error {
 
 type annotation struct {
 	ErrorName string `json:"error_name"`
-	Devcie    string `json:"device"`
+	Device    string `json:"device"`
 }
 
 func (a *annotation) JSON() (string, error) {
