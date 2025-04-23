@@ -117,12 +117,15 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 	if err != nil {
 		return fmt.Errorf("error marshaling result: %v", err)
 	}
-	vis := make(map[string]*annotation)
+
+	existAnnotation := make(map[string]*annotation)
 	for _, annotation := range annotations {
 		for _, item := range annotation {
-			vis[item.ErrorName] = item
+			existAnnotation[item.ErrorName] = item
 		}
 	}
+
+	newAnnotation := make(map[string][]*annotation)
 	if result.Status == consts.StatusAbnormal {
 		for _, checkResult := range result.Checkers {
 			if checkResult.Status == consts.StatusAbnormal {
@@ -130,21 +133,23 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 					ErrorName: checkResult.ErrorName,
 					Devcie:    checkResult.Device,
 				}
-				_, exist := annotations[checkResult.Level]
+				_, exist := newAnnotation[checkResult.Level]
 				if !exist {
-					annotations[checkResult.Level] = make([]*annotation, 0)
+					newAnnotation[checkResult.Level] = make([]*annotation, 0)
 				} else {
-					annoNow, exists := vis[anno.ErrorName]
+					annoNow, exists := existAnnotation[anno.ErrorName]
 					if !exists {
-						annotations[checkResult.Level] = append(annotations[checkResult.Level], anno)
+						newAnnotation[checkResult.Level] = append(newAnnotation[checkResult.Level], anno)
 					} else {
 						annoNow.Devcie = checkResult.Device
+						newAnnotation[checkResult.Level] = append(newAnnotation[checkResult.Level], annoNow)
 					}
 				}
 			}
 		}
 	}
-	err = a.setAnnotationsByItem(result.Item, annotations)
+
+	err = a.setAnnotationsByItem(result.Item, newAnnotation)
 	if err != nil {
 		return fmt.Errorf("error setting annotations by item %v: %v", result.Item, err)
 	}
