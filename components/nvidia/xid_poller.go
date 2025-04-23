@@ -147,7 +147,7 @@ func (x *XidEventPoller) Start() error {
 		logrus.WithField("component", "Nvidia").Errorf("%v\n", event.Detail)
 
 		resResult := &common.Result{
-			Item:     x.Name,
+			Item:     consts.ComponentNameNvidia,
 			Status:   event.Status,
 			Checkers: []*common.CheckerResult{&event},
 			Time:     time.Now(),
