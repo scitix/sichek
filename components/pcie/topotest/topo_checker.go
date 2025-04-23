@@ -8,23 +8,41 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-func checkNuma(devices map[string]*GPUInfo, numaConfig []*NumaConfig) *common.CheckerResult {
+func checkNuma(gpus map[string]*GPUInfo, ibs map[string]*IBInfo, numaConfig []*NumaConfig) *common.CheckerResult {
 	res := PciTopoCheckItems[PciTopoNumaCheckerName]
 	var builder strings.Builder
+	expectedNuma := make(map[string]uint64)
 	for _, cfg := range numaConfig {
-		for _, bdf := range cfg.BdfList {
-			device, exists := devices[bdf.BDF]
-			if !exists {
-				res.Status = consts.StatusAbnormal
-				builder.WriteString(fmt.Sprintf("numaConfig %s %s Not Found\n",
-					bdf.DeviceType, bdf.BDF))
-				continue
-			}
-			if device.NumaID != cfg.NodeID {
-				res.Status = consts.StatusAbnormal
-				builder.WriteString(fmt.Sprintf("%s %d (BDF=%s) belongs to NUMA ID %d, but expected NUMA ID %d\n",
-					bdf.DeviceType, device.Index, device.BDF, device.NumaID, cfg.NodeID))
-			}
+		for _, bdfItem := range cfg.BdfList {
+			expectedNuma[bdfItem.BDF] = cfg.NodeID
+		}
+	}
+	for bdf, gpu := range gpus {
+		expectedNumaId, exists := expectedNuma[bdf]
+		if !exists {
+			res.Status = consts.StatusAbnormal
+			builder.WriteString(fmt.Sprintf("Gpu %d (BDF = %s) Not Found In NumaConfig\n",
+				gpu.Index, gpu.BDF))
+			continue
+		}
+		if gpu.NumaID != expectedNumaId {
+			res.Status = consts.StatusAbnormal
+			builder.WriteString(fmt.Sprintf("Gpu %d (BDF=%s) belongs to NUMA ID %d, but expected NUMA ID %d\n",
+				gpu.Index, gpu.BDF, gpu.NumaID, expectedNumaId))
+		}
+	}
+	for bdf, ib := range ibs {
+		expectedNumaId, exists := expectedNuma[bdf]
+		if !exists {
+			res.Status = consts.StatusAbnormal
+			builder.WriteString(fmt.Sprintf("IB %s (BDF = %s) Not Found In NumaConfig\n",
+				ib.Name, ib.BDF))
+			continue
+		}
+		if ib.NumaID != expectedNumaId {
+			res.Status = consts.StatusAbnormal
+			builder.WriteString(fmt.Sprintf("IB %s (BDF=%s) belongs to NUMA ID %d, but expected NUMA ID %d\n",
+				ib.Name, ib.BDF, ib.NumaID, expectedNumaId))
 		}
 	}
 	res.Detail = builder.String()
@@ -34,10 +52,14 @@ func checkNuma(devices map[string]*GPUInfo, numaConfig []*NumaConfig) *common.Ch
 	return &res
 }
 
-func checkPciSwitches(nodes []*PciNode, PciSwitchesConfig []*PciSwitch) *common.CheckerResult {
+func checkPciSwitches(pciTrees []PciTree, gpus map[string]*GPUInfo, ibs map[string]*IBInfo, PciSwitchesConfig []*PciSwitch) *common.CheckerResult {
+	// Find all GPUS by common PCIe switch
+	gpuNodesbyCommonPcieSWs := FindNvGPUsbyCommonSwitch(pciTrees, gpus)
+	// Find all GPUS and IBs by common PCIe switch
+	endpointListbyCommonPcieSWs := FindEndpointsbyCommonSwitch(pciTrees, gpus, ibs)
+
 	res := PciTopoCheckItems[PciTopoSwitchCheckerName]
 	var builder strings.Builder
-	nodePaths := FindPathToRoot(nodes)
 	for _, cfg := range PciSwitchesConfig {
 		pass, err := checkSwitch(cfg.SwitchID, cfg.BdfList, nodePaths)
 		if !pass {
@@ -60,32 +82,25 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 	}
 	res := &common.Result{}
 	// Build PCIe trees
-	nodes, _, err := BuildPciTrees()
+	nodes, pciTrees, err := BuildPciTrees()
 	if err != nil {
 		return nil, fmt.Errorf("error building PCIe trees: %v", err)
 	}
-	// fmt.Printf("%+v", cfg)
-	devices := GetGPUList(nodes)
-	ibs := GetIBdevs()
-	devices = append(devices, ibs...)
-	devicesMap := make(map[string]*GPUInfo)
-	pciNodes := make([]*PciNode, 0)
-	for _, device := range devices {
-		devicesMap[device.BDF] = device
-		node, exist := nodes[device.BDF]
-		if !exist {
-			return nil, fmt.Errorf("find no pcieNode for device %s", device.BDF)
-		}
-		pciNodes = append(pciNodes, node)
-	}
+
+	gpus := GetGPUList()
+	// Find all GPUS by numa node
+	FindNvGPUsbyNumaNode(nodes, gpus)
+
+	ibs := GetIBList()
+
 	// FillPciDevicesWithCommonSwitch(pciTrees, nodes, devicesMap)
 	var checkRes []*common.CheckerResult
 	checkCfg := cfg.PcieTopo["0x233010de"]
 
-	numaCheckRes := checkNuma(devicesMap, checkCfg.NumaConfig)
+	numaCheckRes := checkNuma(gpus, ibs, checkCfg.NumaConfig)
 	checkRes = append(checkRes, numaCheckRes)
 
-	switchCheckRes := checkPciSwitches(pciNodes, checkCfg.PciSwitchesConfig)
+	switchCheckRes := checkPciSwitches(pciTrees, gpus, ibs, checkCfg.PciSwitchesConfig)
 	checkRes = append(checkRes, switchCheckRes)
 	res.Checkers = checkRes
 	for _, item := range res.Checkers {

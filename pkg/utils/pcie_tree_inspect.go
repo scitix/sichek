@@ -446,7 +446,7 @@ func FindPathToRoot(endpoints []*PciNode) map[string][]*PciNode {
 // FindLowestCommonSwitch finds the lowest common switdch for a group of endpoints nodes (GPU or IB) from a given PCIe tree
 func findEndpointLowestCommonSwitch(pciTree *PciTree, ibIncluded bool) []PCIeSW {
 	endpoints := findNvGPUsbyPcieTree(pciTree)
-	if ibInclude {
+	if ibIncluded {
 		ibs := findIBsbyPcieTree(pciTree)
 		endpoints = append(endpoints, ibs...)
 	}
