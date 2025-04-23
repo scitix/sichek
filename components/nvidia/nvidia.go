@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -357,7 +358,7 @@ func (c *component) Start() <-chan *common.Result {
 						logrus.WithField("component", "NVIDIA").Warnf("Reinitialize NVML successfully after HealthCheck Timeout")
 					}
 				}
-
+				c.checkXidPollerResult(result)
 				c.serviceMtx.Lock()
 				c.resultChannel <- result
 				c.serviceMtx.Unlock()
@@ -413,6 +414,35 @@ func (c *component) Status() bool {
 
 func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval().Duration
+}
+
+func (c *component) checkXidPollerResult(result *common.Result) {
+	xid := uint64(0)
+	for _, res := range result.Checkers {
+		if strings.Contains(res.Name, "xid") {
+			parts := strings.Split(res.Name, "-")
+			if len(parts) > 1 {
+				xidStr := parts[1]
+				var err error
+				xid, err = strconv.ParseUint(xidStr, 10, 64)
+				if err != nil {
+					logrus.WithField("component", "NVIDIA").Errorf("checkXidPollerResult Error converting string to uint64: %v", err)
+					return
+				}
+			} else {
+				logrus.WithField("component", "NVIDIA").Errorf("checkXidPollerResult Unexpected Xid Err Name: %s\n", res.Name)
+				return
+			}
+		}
+	}
+
+	for key, item := range config.CriticalXidEvent {
+		if key == xid {
+			continue
+		}
+		item.Status = consts.StatusNormal
+		result.Checkers = append(result.Checkers, &item)
+	}
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {

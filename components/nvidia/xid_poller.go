@@ -23,6 +23,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
@@ -142,7 +143,7 @@ func (x *XidEventPoller) Start() error {
 
 		event := config.CriticalXidEvent[xid]
 		event.Detail = fmt.Sprintf("GPU device %d detect critical xid event %d", deviceID, xid)
-		event.Status = "abnormal"
+		event.Status = consts.StatusAbnormal
 		logrus.WithField("component", "Nvidia").Errorf("%v\n", event.Detail)
 
 		resResult := &common.Result{
