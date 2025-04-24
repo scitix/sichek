@@ -132,25 +132,22 @@ func Check(ctx context.Context, componentName string, data any, checkers []Check
 	wg.Wait()
 	status := consts.StatusNormal
 	level := consts.LevelInfo
+	resResult := &Result{
+		Item: componentName,
+		Time: time.Now(),
+	}
 	for _, checkItem := range checkerResults {
 		if checkItem == nil {
 			continue
 		}
+		resResult.Checkers = append(resResult.Checkers, checkItem)
 		if checkItem.Status == consts.StatusAbnormal {
 			logrus.WithField("component", componentName).Warnf("check Item:%s, status:%s", checkItem.Name, status)
 			status = consts.StatusAbnormal
 			level = checkItem.Level
-			break
 		}
 	}
-
-	resResult := &Result{
-		Item:     componentName,
-		Status:   status,
-		Level:    level,
-		Checkers: checkerResults,
-		Time:     time.Now(),
-	}
-
+	resResult.Level = level
+	resResult.Status = status
 	return resResult
 }
