@@ -134,7 +134,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	resResult := &common.Result{
 		Item:       consts.ComponentNameDmesg,
 		Status:     checkRes.Status,
-		Level:      consts.LevelCritical,
+		Level:      checkRes.Level,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),
