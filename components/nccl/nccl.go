@@ -136,7 +136,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		Item:       consts.ComponentNameNCCL,
 		Node:       "NCCLLog",
 		Status:     checkRes.Status,
-		Level:      consts.LevelCritical,
+		Level:      checkRes.Level,
 		Suggestion: checkRes.Suggestion,
 		Checkers:   []*common.CheckerResult{checkRes},
 		Time:       time.Now(),

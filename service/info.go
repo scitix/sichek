@@ -117,22 +117,45 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 	if err != nil {
 		return fmt.Errorf("error marshaling result: %v", err)
 	}
+
+	deduplicatedAnnotation := make(map[string]map[string]*annotation)
+	// existed annotation
+	for level, annos := range annotations {
+		for _, item := range annos {
+			if deduplicatedAnnotation[level] == nil {
+				deduplicatedAnnotation[level] = make(map[string]*annotation)
+			}
+			deduplicatedAnnotation[level][item.ErrorName] = item
+		}
+	}
+	// new annotation
 	if result.Status == consts.StatusAbnormal {
 		for _, checkResult := range result.Checkers {
 			if checkResult.Status == consts.StatusAbnormal {
-				anno := &annotation{
+				if deduplicatedAnnotation[checkResult.Level] == nil {
+					deduplicatedAnnotation[checkResult.Level] = make(map[string]*annotation)
+				}
+				deduplicatedAnnotation[checkResult.Level][checkResult.ErrorName] = &annotation{
 					ErrorName: checkResult.ErrorName,
-					Devcie:    checkResult.Device,
+					Device:    checkResult.Device,
 				}
-				_, exist := annotations[checkResult.Level]
-				if !exist {
-					annotations[checkResult.Level] = make([]*annotation, 0)
-				}
-				annotations[checkResult.Level] = append(annotations[checkResult.Level], anno)
 			}
 		}
 	}
-	err = a.setAnnotationsByItem(result.Item, annotations)
+
+	newAnnotation := make(map[string][]*annotation)
+	for level, annoMap := range deduplicatedAnnotation {
+		for _, anno := range annoMap {
+			_, exist := newAnnotation[level]
+			if !exist {
+				newAnnotation[level] = make([]*annotation, 0)
+			}
+			newAnnotation[level] = append(newAnnotation[level], anno)
+
+		}
+	}
+
+	err = a.setAnnotationsByItem(result.Item, newAnnotation)
 	if err != nil {
 		return fmt.Errorf("error setting annotations by item %v: %v", result.Item, err)
 	}
@@ -174,7 +197,7 @@ func (a *nodeAnnotation) AppendFromResult(result *common.Result) error {
 
 type annotation struct {
 	ErrorName string `json:"error_name"`
-	Devcie    string `json:"device"`
+	Device    string `json:"device"`
 }
 
 func (a *annotation) JSON() (string, error) {
