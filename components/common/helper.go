@@ -70,7 +70,7 @@ func createTimeoutResult(componentName string, timeout time.Duration) (*Result, 
 	timeoutResult := &Result{
 		Item:     componentName,
 		Status:   consts.StatusAbnormal,
-		Level:    consts.LevelCritical,
+		Level:    timeoutCheckerResult.Level,
 		Checkers: []*CheckerResult{timeoutCheckerResult},
 		Time:     time.Now(),
 	}

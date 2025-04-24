@@ -144,7 +144,9 @@ func Check(ctx context.Context, componentName string, data any, checkers []Check
 		if checkItem.Status == consts.StatusAbnormal {
 			logrus.WithField("component", componentName).Warnf("check Item:%s, status:%s", checkItem.Name, status)
 			status = consts.StatusAbnormal
-			level = checkItem.Level
+			if consts.LevelPriority[level] > consts.LevelPriority[checkItem.Level] {
+				level = checkItem.Level
+			}
 		}
 	}
 	resResult.Level = level
