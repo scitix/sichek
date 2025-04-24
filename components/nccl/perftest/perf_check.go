@@ -1,65 +1,57 @@
-package main
+package perftest
 
 import (
-	"bufio"
 	"context"
-	"encoding/csv"
 	"fmt"
-	"os"
 	"os/exec"
-	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type Config struct {
-	NRanks       int      // 总进程数（=总 GPU 数）
-	GPUsPerNode  int      // 每节点 GPU 数，用于 map-by ppr
-	TestBin      string   // nccl-tests 可执行文件
-	MsgBegin     string   // -b 参数，比如 "8"
-	MsgEnd       string   // -e 参数，比如 "4G"
-	DtypeFlag    string   // -f 参数，"2"=fp16, "4"=fp32
-	NCCLExtraEnv []string // 其他想透传的 NCCL_* 环境变量
+	ProcessCount int
+	TestBin      string
+	MsgSize      int
+	NCCLExtraEnv []string
 	Timeout      time.Duration
 }
 
-func defaultJob() Config {
+func buildCmdConfig(processCount int, msgSize int) Config {
 	return Config{
-		NRanks:      8,
-		GPUsPerNode: 4,
-		TestBin:     "./build/all_reduce_perf",
-		MsgBegin:    "8",
-		MsgEnd:      "4",
-		DtypeFlag:   "2",
-		Timeout:     10 * time.Minute,
+		ProcessCount: processCount,
+		TestBin:      "/usr/local/sihpc/libexec/nccl-tests/all_reduce_perf",
+		MsgSize:      msgSize,
+		Timeout:      10 * time.Minute,
 		NCCLExtraEnv: []string{
-			"NCCL_DEBUG=INFO",
-			"NCCL_SOCKET_IFNAME=ib0",
-			"NCCL_IB_GID_INDEX=3",
+			"NCCL_SOCKET_IFNAME=bond0",
+			"SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1",
+			"NCCL_COLLENT_ENABLE=0",
+			"NCCL_NVLS_ENABLE=0",
 		},
 	}
 }
 
 func buildMpiCmd(cfg Config) *exec.Cmd {
 	args := []string{
-		"-np", fmt.Sprint(cfg.NRanks),
-		"--map-by", fmt.Sprintf("ppr:%d:node", cfg.GPUsPerNode),
+		"-np", fmt.Sprint(cfg.ProcessCount),
+		// "--map-by", fmt.Sprintf("ppr:%d:node", cfg.ProcessCount),
 		"--bind-to", "numa",
 		"-mca", "coll_hcoll_enable", "0",
 		"--allow-run-as-root",
 	}
 
-	for _, ev := range append(cfg.NCCLExtraEnv, "LD_LIBRARY_PATH") {
+	for _, ev := range cfg.NCCLExtraEnv {
 		args = append(args, "-x", ev)
 	}
 
 	// nccl-tests
 	testLine := []string{
 		cfg.TestBin,
-		"-b", cfg.MsgBegin,
-		"-e", cfg.MsgEnd,
-		"-f", cfg.DtypeFlag,
-		"-g", "1",
+		// "-b", cfg.MsgSize,
+		// "-e", cfg.MsgSize,
+		// "-f", "2",
+		// "-g", "1",
 	}
 	args = append(args, testLine...)
 
@@ -67,87 +59,72 @@ func buildMpiCmd(cfg Config) *exec.Cmd {
 	return cmd
 }
 
-var bwRe = regexp.MustCompile(`AlgBW\s+([0-9.]+)\s*GB/s`)
-var sizeRe = regexp.MustCompile(`^\s*([0-9.]+[KMGT]?)\s+`)
-
 type Record struct {
 	MsgSize string
 	AlgBW   string
 }
 
-func runNcclTest(cfg Config) ([]Record, error) {
+func runNcclTest(cfg Config) ([]float64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
 
 	cmd := buildMpiCmd(cfg)
+
+	fmt.Println("Command:", cmd.String())
 	cmdCtx := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
-	pipe, _ := cmdCtx.StdoutPipe()
-	cmdCtx.Stderr = cmdCtx.Stdout
-
-	if err := cmdCtx.Start(); err != nil {
-		return nil, err
+	output, err := cmdCtx.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("excute error :%v", err)
 	}
 
-	var rec []Record
-	sc := bufio.NewScanner(pipe)
-	for sc.Scan() {
-		line := sc.Text()
-		if !strings.HasPrefix(line, "#") {
-			if m := bwRe.FindStringSubmatch(line); m != nil {
-				bw := m[1]
-				sz := "?"
-				if ms := sizeRe.FindStringSubmatch(line); ms != nil {
-					sz = ms[1]
-				}
-				rec = append(rec, Record{MsgSize: sz, AlgBW: bw})
+	var res []float64
+	outputStr := string(output)
+	lines := strings.Split(outputStr, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Avg bus bandwidth") {
+			bwStr := strings.TrimSpace(strings.Split(line, ":")[1])
+			bwStr = strings.Split(bwStr, " ")[0]
+			bw, err := strconv.ParseFloat(bwStr, 64)
+			if err != nil {
+				return res, fmt.Errorf("convert err: %v", err)
 			}
+			res = append(res, bw)
 		}
-		fmt.Println(line)
 	}
-	if err := cmdCtx.Wait(); err != nil {
-		return nil, err
-	}
-	return rec, sc.Err()
+	return res, nil
 }
 
-func CHeckNcclPerf() {
-	job := defaultJob()
+func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) int {
+	var sum float64
+	for _, bw := range avgBusBandwidths {
+		sum += bw
+	}
+	avgBusBandwidth := sum / float64(len(avgBusBandwidths))
+
+	if avgBusBandwidth < exceptBwGbps {
+		fmt.Printf("NCCL allreduce bandwidth test failed, avgBusBandwidth returned %.2f Gbps, but expected > %.2f Gbps.\n", avgBusBandwidth, exceptBwGbps)
+		return 1
+	} else {
+		fmt.Printf("NCCL allreduce bandwidth test passed, avgBusBandwidth = %.2f Gbps.\n", avgBusBandwidth)
+		return 0
+	}
+}
+
+func CheckNcclPerf(processCount int, msgSize int, exceptBwGbps float64) error {
+	job := buildCmdConfig(processCount, msgSize)
 
 	records, err := runNcclTest(job)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "run fail: %v\n", err)
-		os.Exit(1)
-	}
-}
+		return fmt.Errorf("run fail: %v", err)
 
-// ---------------------------------------------------
-func saveCSV(path string, rec []Record) {
-	f, err := os.Create(path)
-	if err != nil {
-		fmt.Println("csv create:", err)
-		return
 	}
-	defer f.Close()
-	w := csv.NewWriter(f)
-	defer w.Flush()
-	w.Write([]string{"MessageSize", "AlgBW(GB/s)"})
-	for _, r := range rec {
-		w.Write([]string{r.MsgSize, r.AlgBW})
+	for _, record := range records {
+		fmt.Printf("record: %v\n", record)
 	}
-	fmt.Println("result saved to", path)
-}
+	if len(records) == 0 {
+		return fmt.Errorf("get no avg bus bandwidth res")
+	}
+	checkBandwidth(records, exceptBwGbps)
 
-func nodesInFile(file string) int {
-	b, err := os.ReadFile(file)
-	if err != nil {
-		return 1
-	}
-	lines := 0
-	for _, l := range strings.Split(string(b), "\n") {
-		l = strings.TrimSpace(l)
-		if l != "" && !strings.HasPrefix(l, "#") {
-			lines++
-		}
-	}
-	return lines
+	return nil
 }

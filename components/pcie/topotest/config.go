@@ -27,8 +27,8 @@ type NumaConfig struct {
 
 // PciSwitch represents the PCI switch configuration
 type PciSwitch struct {
-	SwitchID string     `json:"switch_id"` // BDF for the PCIe switch
-	BdfList  []*BDFItem `json:"bdf_list"`  // List of BDFs connected to this PCIe switch
+	SwitchBDF string     `json:"switch_id"` // BDF for the PCIe switch
+	BdfList   []*BDFItem `json:"bdf_list"`  // List of BDFs connected to this PCIe switch
 }
 
 func (sw *PciSwitch) String() string {

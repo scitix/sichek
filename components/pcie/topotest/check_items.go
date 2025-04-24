@@ -33,8 +33,8 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "Numa-BDFRelationError",
-		Suggestion:  "Check Pci Topo",
+		ErrorName:   "Numa-Device RelationError",
+		Suggestion:  "Check Device Topo",
 	},
 	PciTopoSwitchCheckerName: {
 		Name:        PciTopoSwitchCheckerName,
@@ -42,7 +42,7 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "Switch-BDFRelationError",
-		Suggestion:  "Check Pci Topo",
+		ErrorName:   "Switch-Device RelationError",
+		Suggestion:  "Check Device Topo",
 	},
 }
