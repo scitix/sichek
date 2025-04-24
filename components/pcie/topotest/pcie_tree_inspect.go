@@ -3,6 +3,7 @@ package topotest
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -68,6 +69,17 @@ type EndpointInfoByPCIeSW struct {
 	SwitchBDF string     // BDF of the PCIe switch
 	GPUList   []*GPUInfo // List of GPU nodes connected to this switch
 	IBList    []*IBInfo  // List of IB nodes connected to this switch
+}
+
+func (sw *EndpointInfoByPCIeSW) String() string {
+	var builder strings.Builder
+	for _, gpu := range sw.GPUList {
+		builder.WriteString(fmt.Sprintf(" GPU %d: BDF=%v ", gpu.Index, gpu.BDF))
+	}
+	for _, ib := range sw.IBList {
+		builder.WriteString(fmt.Sprintf(" IB %s: BDF=%v ", ib.Name, ib.BDF))
+	}
+	return builder.String()
 }
 
 // readFile reads the content of a file and returns it as a string
@@ -279,7 +291,7 @@ func GetGPUList() map[string]*GPUInfo {
 			continue
 		}
 		gpu.BDF = fmt.Sprintf("%04x:%02x:%02x.0", pciInfo.Domain, pciInfo.Bus, pciInfo.Device)
-		gpu.NumaID = pciNode.NumaID
+		gpu.NumaID = math.MaxUint64              //	Initialize to math.MaxUint64
 		gpu.DomainID = "fffff"                   // Initialize to "ffff" string
 		gpu.SmallestCommonPCIeSwitchBDF = "ffff" // Initializto "ffff"string
 		gpus[gpu.BDF] = gpu
@@ -443,123 +455,81 @@ func FindPathToRoot(endpoints []*PciNode) map[string][]*PciNode {
 }
 
 // FindLowestCommonSwitch finds the lowest common switdch for a group of endpoints nodes (GPU or IB) from a given PCIe tree
-func findEndpointLowestCommonSwitch(pciTree *PciTree, ibIncluded bool) []PCIeSW {
+func findEndpointLowestCommonSwitch(pciTree *PciTree) map[string]map[string]struct{} {
 	endpoints := findNvGPUsbyPcieTree(pciTree)
-	if ibIncluded {
-		ibs := findIBsbyPcieTree(pciTree)
-		endpoints = append(endpoints, ibs...)
-	}
+	ibs := findIBsbyPcieTree(pciTree)
+	endpoints = append(endpoints, ibs...)
+
 	if len(endpoints) == 0 {
 		return nil
 	}
 	paths := FindPathToRoot(endpoints)
 	endpointBDFs := make([]string, 0, len(endpoints))
-	pcieSWs := []PCIeSW{}
-	pcieSWMap := make(map[string]PCIeSW, 0)
+	swIDToBDFMap := make(map[string]map[string]struct{})
 	for bdf := range paths {
 		endpointBDFs = append(endpointBDFs, bdf)
 	}
-	for i := 0; i < len(endpointBDFs)-1; i++ {
+	for i := 0; i < len(endpointBDFs); i++ {
 		path1 := paths[endpointBDFs[i]]
-		for j := i + 1; j < len(endpointBDFs); j++ {
+		swMap := make(map[string]int)
+		var minSwitch []string
+		minSwitchIdx := math.MaxInt
+		for idx, node := range path1 {
+			if node.IsSwitch {
+				swMap[node.BDF] = idx
+			}
+		}
+		for j := 0; j < len(endpointBDFs); j++ {
+			if i == j {
+				continue
+			}
 			path2 := paths[endpointBDFs[j]]
-			// traverse path1 and path2 to find the first common switch
-			var firstCommonSwitch *PciNode
-			for m, n := 0, 0; m < len(path1) && n < len(path2); m, n = m+1, n+1 {
-				if path1[m].BDF == path2[n].BDF {
-					if path1[m].IsSwitch {
-						firstCommonSwitch = path1[m]
-						logrus.Infof("Find common switch: %s, ep1.bdf=%s, ep2.bdf=%s", firstCommonSwitch.BDF, endpointBDFs[i], endpointBDFs[j])
-						if _, exist := pcieSWMap[firstCommonSwitch.BDF]; !exist {
-							gpuCommonSwitch := PCIeSW{SwitchBDF: firstCommonSwitch.BDF, EndpointList: []*PciNode{endpoints[i], endpoints[j]}}
-							pcieSWMap[firstCommonSwitch.BDF] = gpuCommonSwitch
-						} else {
-							if i < j {
-								sw := pcieSWMap[firstCommonSwitch.BDF]
-								sw.EndpointList = append(sw.EndpointList, endpoints[j])
-								pcieSWMap[firstCommonSwitch.BDF] = sw
-								logrus.Infof("endpoints under common switch=%s: ", firstCommonSwitch.BDF)
-								for _, endpoint := range sw.EndpointList {
-									logrus.Infof("	- %s", endpoint.BDF)
-								}
-							}
-						}
-						break
+			for _, node := range path2 {
+				if idx, exist := swMap[node.BDF]; exist {
+					if idx < minSwitchIdx {
+						minSwitchIdx = idx
+						minSwitch = []string{endpointBDFs[j]}
+					} else if idx == minSwitchIdx {
+						minSwitch = append(minSwitch, endpointBDFs[j])
 					}
+					break
 				}
 			}
+
+		}
+		sw_id := path1[minSwitchIdx].BDF
+		if _, exists := swIDToBDFMap[sw_id]; !exists {
+			swIDToBDFMap[sw_id] = make(map[string]struct{})
+		}
+		swIDToBDFMap[sw_id][endpointBDFs[i]] = struct{}{}
+		for _, bdf := range minSwitch {
+			swIDToBDFMap[sw_id][bdf] = struct{}{}
 		}
 	}
-	for _, sw := range pcieSWMap {
-		pcieSWs = append(pcieSWs, sw)
-	}
-	return pcieSWs
+	return swIDToBDFMap
 }
 
 // findCommonSwitch finds the smallest common PCIe switchh for a group of GPUS
-func FindNvGPUsbyCommonSwitch(pciTrees []PciTree, gpus map[string]*GPUInfo) []GPUInfoByPCIeSW {
-	gpuListbyCommonPcieSWs := []GPUInfoByPCIeSW{}
+func ParseEndpointsbyCommonSwitch(pciTrees []PciTree, gpus map[string]*GPUInfo, ibs map[string]*IBInfo) []*EndpointInfoByPCIeSW {
+	endpointListbyCommonPcieSWs := make([]*EndpointInfoByPCIeSW, 0)
 	for _, pciTree := range pciTrees {
-		pcieSWs := findEndpointLowestCommonSwitch(&pciTree, false)
-		for _, sw := range pcieSWs {
-			gpuInfoBySW := GPUInfoByPCIeSW{SwitchBDF: sw.SwitchBDF, GPUList: []*GPUInfo{}}
-			for _, gpu := range sw.EndpointList {
-				_gpu := gpus[gpu.BDF]
-				_gpu.SmallestCommonPCIeSwitchBDF = sw.SwitchBDF
-				gpuInfoBySW.GPUList = append(gpuInfoBySW.GPUList, gpus[gpu.BDF])
-			}
-			gpuListbyCommonPcieSWs = append(gpuListbyCommonPcieSWs, gpuInfoBySW)
-		}
-	}
-	return gpuListbyCommonPcieSWs
-}
-
-// findCommonSwitch finds the smallest common PCIe switchh for a group of GPUS
-func FindEndpointsbyCommonSwitch(pciTrees []PciTree, gpus map[string]*GPUInfo, ibs map[string]*IBInfo) []EndpointInfoByPCIeSW {
-	endpointListbyCommonPcieSWs := []EndpointInfoByPCIeSW{}
-	for _, pciTree := range pciTrees {
-		pcieSWs := findEndpointLowestCommonSwitch(&pciTree, true)
-		for _, sw := range pcieSWs {
-			gpuInfoBySW := EndpointInfoByPCIeSW{SwitchBDF: sw.SwitchBDF, GPUList: []*GPUInfo{}, IBList: []*IBInfo{}}
-			for _, endpoint := range sw.EndpointList {
+		swIDToBDFMap := findEndpointLowestCommonSwitch(&pciTree)
+		for swId, bdfSet := range swIDToBDFMap {
+			gpuInfoBySW := &EndpointInfoByPCIeSW{SwitchBDF: swId, GPUList: []*GPUInfo{}, IBList: []*IBInfo{}}
+			for bdf := range bdfSet {
 				// Check if the endpoint is a GPU
-				if _, exist := gpus[endpoint.BDF]; exist {
-					_gpu := gpus[endpoint.BDF]
-					_gpu.SmallestCommonPCIeSwitchBDF = sw.SwitchBDF
-					gpuInfoBySW.GPUList = append(gpuInfoBySW.GPUList, gpus[endpoint.BDF])
+				if gpu, exist := gpus[bdf]; exist {
+					gpuInfoBySW.GPUList = append(gpuInfoBySW.GPUList, gpu)
 				}
 				// Check if the endpoint is an IB
-				if _, exist := ibs[endpoint.BDF]; exist {
-					_ib := ibs[endpoint.BDF]
-					_ib.SmallestCommonPCIeSwitchBDF = sw.SwitchBDF
-					gpuInfoBySW.IBList = append(gpuInfoBySW.IBList, ibs[endpoint.BDF])
+				if ib, exist := ibs[bdf]; exist {
+					gpuInfoBySW.IBList = append(gpuInfoBySW.IBList, ib)
 				}
 			}
 			endpointListbyCommonPcieSWs = append(endpointListbyCommonPcieSWs, gpuInfoBySW)
 		}
 	}
 	return endpointListbyCommonPcieSWs
-}
-
-func GetGPUListWithTopoInfo() []*GPUInfo {
-	// Build PCIe trees
-	nodes, pciTrees, err := BuildPciTrees()
-	if err != nil {
-		panic(fmt.Sprintf("Error building PCIe trees: %v\n", err))
-	}
-	// Get GPU Devices
-	gpus := GetGPUList()
-	// Find all GPUS by numa node
-	FindNvGPUsbyNumaNode(nodes, gpus)
-	// Find all GPUS by common PCIe switch
-	FindNvGPUsbyCommonSwitch(pciTrees, gpus)
-
-	// Convert domainRoots map to slice of PciTree
-	gpuList := make([]*GPUInfo, 0, len(gpus))
-	for _, gpu := range gpus {
-		gpuList = append(gpuList, gpu)
-	}
-	return gpuList
 }
 
 func PrintGPUTopology() {
@@ -589,19 +559,8 @@ func PrintGPUTopology() {
 		fmt.Printf("GPU %d: uuid=%v, BDF=%v, numa_node=%v, domain=%v, sw_id=%v\n", gpu.Index, gpu.UUID, gpu.BDF, gpu.NumaID, gpu.DomainID, gpu.SmallestCommonPCIeSwitchBDF)
 	}
 
-	// Find all GPUS by common PCIe switch
-	gpuNodesbyCommonPcieSWs := FindNvGPUsbyCommonSwitch(pciTrees, gpus)
-	fmt.Printf("Find GPUS by common PCIe switch: \n")
-	for _, sw := range gpuNodesbyCommonPcieSWs {
-		fmt.Printf(" - PCIe Switch: %s, with GPUS: \n", sw.SwitchBDF)
-		for _, gpu := range sw.GPUList {
-			fmt.Printf("GPU %d: uuid=%v, BDF=%v, numa_node=%v, domain=%v, sw_id=%v\n", gpu.Index, gpu.UUID, gpu.BDF, gpu.NumaID, gpu.DomainID, gpu.SmallestCommonPCIeSwitchBDF)
-		}
-		fmt.Println()
-	}
-
 	// Find all GPUS and IBs by common PCIe switch
-	endpointListbyCommonPcieSWs := FindEndpointsbyCommonSwitch(pciTrees, gpus, ibs)
+	endpointListbyCommonPcieSWs := ParseEndpointsbyCommonSwitch(pciTrees, gpus, ibs)
 	fmt.Printf("Find GPUS and IBs by common PCIe switch: \n")
 	for _, sw := range endpointListbyCommonPcieSWs {
 		fmt.Printf(" - PCIe Switch: %s, with GPUS and IBs: \n", sw.SwitchBDF)

@@ -1,5 +1,5 @@
 metrics:
-  port: 19091
+  port: 9091
 
 nvidia:
   query_interval: 30s

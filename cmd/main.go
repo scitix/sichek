@@ -25,7 +25,8 @@ import (
 )
 
 func main() {
-	topotest.CheckGPUTopology()
+	topotest.PrintGPUTopology()
+
 	// rootCmd := command.NewRootCmd()
 	// go metrics.InitPrometheus()
 	// if err := rootCmd.Execute(); err != nil {
