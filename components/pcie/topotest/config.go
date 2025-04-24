@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -28,6 +29,14 @@ type NumaConfig struct {
 type PciSwitch struct {
 	SwitchID string     `json:"switch_id"` // BDF for the PCIe switch
 	BdfList  []*BDFItem `json:"bdf_list"`  // List of BDFs connected to this PCIe switch
+}
+
+func (sw *PciSwitch) String() string {
+	var builder strings.Builder
+	for _, item := range sw.BdfList {
+		builder.WriteString(fmt.Sprintf(" %s: BDF=%s ", item.DeviceType, item.BDF))
+	}
+	return builder.String()
 }
 
 type BDFItem struct {
