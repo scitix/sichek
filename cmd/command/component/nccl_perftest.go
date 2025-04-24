@@ -67,7 +67,7 @@ func NewNcclPerftestCmd() *cobra.Command {
 		},
 	}
 
-	ncclPerftestCmd.Flags().IntP("process-count", "c", 1, "Process count of test")
+	ncclPerftestCmd.Flags().IntP("process-count", "c", 0, "Process count of test")
 	ncclPerftestCmd.Flags().IntP("size", "s", 65536, "Size of message to exchange (default 65536)")
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ncclPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
