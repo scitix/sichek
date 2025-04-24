@@ -59,15 +59,3 @@ func ParseBoolToFloat(b bool) float64 {
 	}
 	return 0.0
 }
-
-func CheckSlicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
