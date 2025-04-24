@@ -1,6 +1,7 @@
 package perftest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -109,8 +110,35 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) int {
 		return 0
 	}
 }
+func getGPUCount() (int, error) {
 
+	var out bytes.Buffer
+	cmd := exec.Command("nvidia-smi", "-L")
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return 0, err
+	}
+
+	output := out.String()
+	lines := strings.Split(output, "\n")
+	count := 0
+	for _, line := range lines {
+		if strings.Contains(line, "GPU") {
+			count++
+		}
+	}
+
+	return count, nil
+}
 func CheckNcclPerf(processCount int, msgSize int, exceptBwGbps float64) error {
+	if processCount == 0 {
+		count, err := getGPUCount()
+		if err != nil {
+			return fmt.Errorf("get processCount err %v", err)
+		}
+		processCount = count
+	}
 	job := buildCmdConfig(processCount, msgSize)
 
 	records, err := runNcclTest(job)
@@ -118,9 +146,7 @@ func CheckNcclPerf(processCount int, msgSize int, exceptBwGbps float64) error {
 		return fmt.Errorf("run fail: %v", err)
 
 	}
-	for _, record := range records {
-		fmt.Printf("record: %v\n", record)
-	}
+
 	if len(records) == 0 {
 		return fmt.Errorf("get no avg bus bandwidth res")
 	}
