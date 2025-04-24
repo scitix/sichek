@@ -32,12 +32,60 @@ pcie_machine:
             bdf: "0001:44:00.0"  
 
     pci_switches:  
+      - switch_id: "0000:40:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:4e:00.0"  
+          - type: "GPU"  
+            bdf: "0000:45:00.0"  
+          - type: "IB"  
+            bdf: "0000:44:00.0"  
+
+      - switch_id: "0000:42:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:45:00.0"  
+          - type: "IB"  
+            bdf: "0000:44:00.0"  
+
+      - switch_id: "0000:18:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:1b:00.0"  
+          - type: "IB"  
+            bdf: "0000:1a:00.0"  
+
+      - switch_id: "0000:16:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:29:00.0"  
+          - type: "GPU"  
+            bdf: "0000:1b:00.0"  
+          - type: "IB"  
+            bdf: "0000:1a:00.0"              
+
+      - switch_id: "0001:18:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0001:1b:00.0"  
+          - type: "IB"  
+            bdf: "0001:1a:00.0"  
+      
       - switch_id: "0001:16:00.0"  
         bdf_list:  
           - type: "GPU"  
             bdf: "0001:24:00.0"  
           - type: "GPU"  
             bdf: "0001:1b:00.0"  
+          - type: "IB"  
+            bdf: "0001:1a:00.0"       
+
+      - switch_id: "0001:42:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0001:45:00.0"  
+          - type: "IB"  
+            bdf: "0001:44:00.0"  
 
       - switch_id: "0001:40:00.0"  
         bdf_list:  
@@ -45,17 +93,5 @@ pcie_machine:
             bdf: "0001:4e:00.0"  
           - type: "GPU"  
             bdf: "0001:45:00.0"  
-
-      - switch_id: "0000:40:00.0"  
-        bdf_list:  
-          - type: "GPU"  
-            bdf: "0000:4e:00.0"  
-          - type: "GPU"  
-            bdf: "0000:45:00.0"  
-
-      - switch_id: "0000:16:00.0"  
-        bdf_list:  
-          - type: "GPU"  
-            bdf: "0000:29:00.0"  
-          - type: "GPU"  
-            bdf: "0000:24:00.0"  
+          - type: "IB"  
+            bdf: "0001:44:00.0"              

@@ -9,41 +9,21 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-func checkNuma(gpus map[string]*GPUInfo, ibs map[string]*IBInfo, numaConfig []*NumaConfig) *common.CheckerResult {
+func checkNuma(devices map[string]*DeviceInfo, numaConfig []*NumaConfig) *common.CheckerResult {
 	res := PciTopoCheckItems[PciTopoNumaCheckerName]
 	var builder strings.Builder
-	expectedNuma := make(map[string]uint64)
 	for _, cfg := range numaConfig {
 		for _, bdfItem := range cfg.BdfList {
-			expectedNuma[bdfItem.BDF] = cfg.NodeID
-		}
-	}
-	for bdf, gpu := range gpus {
-		expectedNumaId, exists := expectedNuma[bdf]
-		if !exists {
-			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("Gpu %d (BDF = %s) Not Found In NumaConfig\n",
-				gpu.Index, gpu.BDF))
-			continue
-		}
-		if gpu.NumaID != expectedNumaId {
-			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("Gpu %d (BDF=%s) belongs to NUMA ID %d, but expected NUMA ID %d\n",
-				gpu.Index, gpu.BDF, gpu.NumaID, expectedNumaId))
-		}
-	}
-	for bdf, ib := range ibs {
-		expectedNumaId, exists := expectedNuma[bdf]
-		if !exists {
-			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("IB %s (BDF = %s) Not Found In NumaConfig\n",
-				ib.Name, ib.BDF))
-			continue
-		}
-		if ib.NumaID != expectedNumaId {
-			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("IB %s (BDF=%s) belongs to NUMA ID %d, but expected NUMA ID %d\n",
-				ib.Name, ib.BDF, ib.NumaID, expectedNumaId))
+			device, exist := devices[bdfItem.BDF]
+			if !exist {
+				res.Status = consts.StatusAbnormal
+				builder.WriteString(fmt.Sprintf("%s (BDF = %s) Not Found\n", bdfItem.DeviceType, bdfItem.BDF))
+				continue
+			}
+			if device.NumaID != cfg.NodeID {
+				res.Status = consts.StatusAbnormal
+				builder.WriteString(fmt.Sprintf("%s %s (BDF=%s) belongs to NUMA ID %d, but expected NUMA ID %d\n", device.Type, device.Name, device.BDF, device.NumaID, cfg.NodeID))
+			}
 		}
 	}
 	res.Detail = builder.String()
@@ -60,10 +40,7 @@ func checkDeviceWithCommonSwitch(switchConfig *PciSwitch, pciSwitch *EndpointInf
 		bdfMap[bdfItem.BDF]++
 	}
 
-	for _, bdfItem := range pciSwitch.GPUList {
-		bdfMap[bdfItem.BDF]--
-	}
-	for _, bdfItem := range pciSwitch.IBList {
+	for _, bdfItem := range pciSwitch.DeviceList {
 		bdfMap[bdfItem.BDF]--
 	}
 
@@ -75,23 +52,19 @@ func checkDeviceWithCommonSwitch(switchConfig *PciSwitch, pciSwitch *EndpointInf
 	return true
 }
 
-func checkPciSwitches(pciTrees []PciTree, gpus map[string]*GPUInfo, ibs map[string]*IBInfo, PciSwitchesConfig []*PciSwitch) *common.CheckerResult {
-	endpointListbyCommonPcieSWs := ParseEndpointsbyCommonSwitch(pciTrees, gpus, ibs)
+func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map[string]*DeviceInfo, PciSwitchesConfig []*PciSwitch) *common.CheckerResult {
+	endpointListbyCommonPcieSWs := ParseEndpointsbyCommonSwitch(pciTrees, nodes, devices)
 	res := PciTopoCheckItems[PciTopoSwitchCheckerName]
-	switchConfigMap := make(map[string]*PciSwitch)
-	for _, cfg := range PciSwitchesConfig {
-		switchConfigMap[cfg.SwitchID] = cfg
-	}
 	var builder strings.Builder
-	for _, sw := range endpointListbyCommonPcieSWs {
-		switchConfig, exist := switchConfigMap[sw.SwitchBDF]
+	for _, cfg := range PciSwitchesConfig {
+		endpointInfoByPCIeSW, exist := endpointListbyCommonPcieSWs[cfg.SwitchBDF]
 		if !exist {
 			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("- SwitchBDF %s not found in PciSwitchConfig\n", sw.SwitchBDF))
+			builder.WriteString(fmt.Sprintf("- SwitchBDF %s not found\n", endpointInfoByPCIeSW.SwitchBDF))
 		} else {
-			if !checkDeviceWithCommonSwitch(switchConfig, sw) {
+			if !checkDeviceWithCommonSwitch(cfg, endpointInfoByPCIeSW) {
 				res.Status = consts.StatusAbnormal
-				builder.WriteString(fmt.Sprintf("- PciSwitch %s Check Failed\n  Expected:\n %s\n  Actual:\n %s\n", switchConfig.SwitchID, switchConfig.String(), sw.String()))
+				builder.WriteString(fmt.Sprintf("- PciSwitch %s Check Failed\n  Expected:\n %s\n  Actual:\n %s\n", cfg.SwitchBDF, cfg.String(), endpointInfoByPCIeSW.String()))
 			}
 		}
 	}
@@ -118,22 +91,42 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 
 	gpus := GetGPUList()
 	// Find all GPUS by numa node
-	FindNvGPUsbyNumaNode(nodes, gpus)
+	FillNvGPUsWithNumaNode(nodes, gpus)
 
 	ibs := GetIBList()
-
+	devices := mergeDeviceMaps(ibs, gpus)
 	device, err := config.GetDeviceID()
 	var checkRes []*common.CheckerResult
 	checkCfg := cfg.PcieTopo[device]
 
-	numaCheckRes := checkNuma(gpus, ibs, checkCfg.NumaConfig)
+	numaCheckRes := checkNuma(devices, checkCfg.NumaConfig)
 	checkRes = append(checkRes, numaCheckRes)
 
-	switchCheckRes := checkPciSwitches(pciTrees, gpus, ibs, checkCfg.PciSwitchesConfig)
+	switchCheckRes := checkPciSwitches(pciTrees, nodes, devices, checkCfg.PciSwitchesConfig)
 	checkRes = append(checkRes, switchCheckRes)
-	res.Checkers = checkRes
-	for _, item := range res.Checkers {
-		fmt.Printf("%+v\n", item)
+	status := consts.StatusNormal
+	for _, item := range checkRes {
+		if item.Status == consts.StatusAbnormal {
+			status = consts.StatusAbnormal
+		}
 	}
+	res.Status = status
+	res.Checkers = checkRes
 	return res, err
+}
+
+func PrintInfo(result *common.Result) {
+	checkerResults := result.Checkers
+	if result.Status == consts.StatusNormal {
+		fmt.Printf("%sPcie Topo Test Passed%s\n", consts.Green, consts.Reset)
+		return
+	}
+	for _, result := range checkerResults {
+		if result.Status == consts.StatusAbnormal {
+			fmt.Printf("%s%s%s\n", consts.Red, result.ErrorName, consts.Reset)
+			fmt.Printf("%s\n", result.Detail)
+		} else {
+			fmt.Printf("%s%s Check Passed %s\n", consts.Green, result.ErrorName, consts.Reset)
+		}
+	}
 }

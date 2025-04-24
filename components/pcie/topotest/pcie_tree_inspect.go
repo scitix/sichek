@@ -34,22 +34,14 @@ type PciTree struct {
 }
 
 // GPUInfo represents information about a GPU
-type GPUInfo struct {
-	BDF                         string //Bus:Device.Function
-	UUID                        string //unique identifier
-	Index                       int    //GPU sequence number
-	NumaID                      uint64 // PCI domain
-	DomainID                    string
-	SmallestCommonPCIeSwitchBDF string // Smallest PCIe switch BDF of the GPU and its neighboring GPU
-}
-
-type IBInfo struct {
-	BDF                         string // Bus:Device.Function
-	BoardID                     string // IB board id
-	Name                        string // IB device name
-	NumaID                      uint64 // NUMA node ID
-	DomainID                    string // PCI domain (0000)
-	SmallestCommonPCIeSwitchBDF string // Shared PCIe switch BDF with GPU, if any
+type DeviceInfo struct {
+	BDF      string //Bus:Device.Function
+	UUID     string //unique identifier
+	Name     string //GPU :sequence number IB:device name
+	NumaID   uint64 // PCI domain
+	Type     string
+	DomainID string
+	BoardID  string
 }
 
 // PCIeSW represents a PCIe switch and the GPUS or IBs connected to it
@@ -60,24 +52,20 @@ type PCIeSW struct {
 
 // GPUInfoByPCIeSW represents PCIe switch and the GPUS connected to it
 type GPUInfoByPCIeSW struct {
-	SwitchBDF string     // BDF of the PCIe switch
-	GPUList   []*GPUInfo // List of GPU nodes connected to this switch
+	SwitchBDF string        // BDF of the PCIe switch
+	GPUList   []*DeviceInfo // List of GPU nodes connected to this switch
 }
 
 // EndpointInfoByPCIeSW represents PCIe switch and the GPUs / IBs connected to it
 type EndpointInfoByPCIeSW struct {
-	SwitchBDF string     // BDF of the PCIe switch
-	GPUList   []*GPUInfo // List of GPU nodes connected to this switch
-	IBList    []*IBInfo  // List of IB nodes connected to this switch
+	SwitchBDF  string        // BDF of the PCIe switch
+	DeviceList []*DeviceInfo // List of GPU/IB nodes connected to this switch
 }
 
 func (sw *EndpointInfoByPCIeSW) String() string {
 	var builder strings.Builder
-	for _, gpu := range sw.GPUList {
-		builder.WriteString(fmt.Sprintf(" GPU %d: BDF=%v ", gpu.Index, gpu.BDF))
-	}
-	for _, ib := range sw.IBList {
-		builder.WriteString(fmt.Sprintf(" IB %s: BDF=%v ", ib.Name, ib.BDF))
+	for _, device := range sw.DeviceList {
+		builder.WriteString(fmt.Sprintf(" %s %s: BDF=%v ", device.Type, device.Name, device.BDF))
 	}
 	return builder.String()
 }
@@ -254,20 +242,20 @@ func BuildPciTrees() (map[string]*PciNode, []PciTree, error) {
 	return nodes, pciTrees, nil
 }
 
-func GetGPUList() map[string]*GPUInfo {
+func GetGPUList() map[string]*DeviceInfo {
 	nvmlInst := nvml.New()
 	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
 		panic(fmt.Sprintf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
 	}
 	defer nvmlInst.Shutdown()
-	gpus := make(map[string]*GPUInfo)
+	gpus := make(map[string]*DeviceInfo)
 	deviceCount, err := nvmlInst.DeviceGetCount()
 	if err != nvml.SUCCESS {
 		panic(fmt.Sprintf("failed to get device count: %v", nvml.ErrorString(err)))
 	}
 	for i := 0; i < deviceCount; i++ {
 		device, err := nvmlInst.DeviceGetHandleByIndex(i)
-		gpu := &GPUInfo{}
+		gpu := &DeviceInfo{}
 		if err != nvml.SUCCESS {
 			fmt.Printf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
 			continue
@@ -277,7 +265,7 @@ func GetGPUList() map[string]*GPUInfo {
 			fmt.Printf("failed to get index for GPU %d: %v", i, nvml.ErrorString(err))
 			continue
 		}
-		gpu.Index = minorNumber
+		gpu.Name = strconv.Itoa(minorNumber)
 		// Get GPU UUID
 		uuid, err := device.GetUUID()
 		if err != nvml.SUCCESS {
@@ -290,16 +278,16 @@ func GetGPUList() map[string]*GPUInfo {
 			fmt.Printf("failed to get PCIe Info for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}
+		gpu.Type = "GPU"
 		gpu.BDF = fmt.Sprintf("%04x:%02x:%02x.0", pciInfo.Domain, pciInfo.Bus, pciInfo.Device)
-		gpu.NumaID = math.MaxUint64              //	Initialize to math.MaxUint64
-		gpu.DomainID = "fffff"                   // Initialize to "ffff" string
-		gpu.SmallestCommonPCIeSwitchBDF = "ffff" // Initializto "ffff"string
+		gpu.NumaID = math.MaxUint64 //	Initialize to math.MaxUint64
+		gpu.DomainID = "fffff"      // Initialize to "ffff" string
 		gpus[gpu.BDF] = gpu
 	}
 	return gpus
 }
 
-func GetIBList() map[string]*IBInfo {
+func GetIBList() map[string]*DeviceInfo {
 	basePath := "/sys/class/infiniband"
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
@@ -307,7 +295,7 @@ func GetIBList() map[string]*IBInfo {
 		return nil
 	}
 
-	ibInfos := make(map[string]*IBInfo)
+	ibInfos := make(map[string]*DeviceInfo)
 	for _, entry := range entries {
 		name := entry.Name()
 
@@ -353,32 +341,31 @@ func GetIBList() map[string]*IBInfo {
 			continue
 		}
 
-		ibInfo := &IBInfo{
-			BDF:                         bdf,
-			BoardID:                     boardIDStr,
-			Name:                        name,
-			NumaID:                      numaNode,
-			DomainID:                    domainID,
-			SmallestCommonPCIeSwitchBDF: "ffff", // Initialize to "ffff" string
+		ibInfo := &DeviceInfo{
+			Type:     "IB",
+			BDF:      bdf,
+			BoardID:  boardIDStr,
+			Name:     name,
+			NumaID:   numaNode,
+			DomainID: domainID,
 		}
 		ibInfos[bdf] = ibInfo
 	}
 	return ibInfos
 }
 
-// FindNvGPUsbyNumaNode identifies all GPU devices in each numa node
-func FindNvGPUsbyNumaNode(nodes map[string]*PciNode, gpus map[string]*GPUInfo) map[uint64][]*GPUInfo {
-	gpuListbyNumaNode := make(map[uint64][]*GPUInfo)
+// FillNvGPUsWithNumaNode identifies all GPU devices in each numa node
+func FillNvGPUsWithNumaNode(nodes map[string]*PciNode, gpus map[string]*DeviceInfo) {
+	gpuListbyNumaNode := make(map[uint64][]*DeviceInfo)
 	for _, node := range nodes {
 		if node.Vendor == 0x10de && node.Class != 0x068000 {
-
 			numaNode := node.NumaID
 			domain := strings.Split(node.BDF, ":")[0] // Extract domainfrom BDF
 			gpu := gpus[node.BDF]
 			gpu.NumaID = numaNode
 			gpu.DomainID = domain
 			if _, exists := gpuListbyNumaNode[numaNode]; !exists {
-				gpuListbyNumaNode[numaNode] = make([]*GPUInfo, 0)
+				gpuListbyNumaNode[numaNode] = make([]*DeviceInfo, 0)
 			}
 			gpuListbyNumaNode[numaNode] = append(gpuListbyNumaNode[numaNode], gpu)
 		}
@@ -402,42 +389,41 @@ func FindNvGPUsbyNumaNode(nodes map[string]*PciNode, gpus map[string]*GPUInfo) m
 			}
 		}
 	}
-	return gpuListbyNumaNode
 }
 
-// findNvGPUsbyPcieTree identifies all GPU devices in each domain root PciTree
-func findNvGPUsbyPcieTree(pciTree *PciTree) []*PciNode {
-	var gpuNodes []*PciNode
-	var traverse func(node *PciNode)
-	traverse = func(node *PciNode) {
-		if node.Vendor == 0x10de && node.Class != 0x068000 {
+// // findNvGPUsbyPcieTree identifies all GPU devices in each domain root PciTree
+// func findNvGPUsbyPcieTree(pciTree *PciTree) []*PciNode {
+// 	var gpuNodes []*PciNode
+// 	var traverse func(node *PciNode)
+// 	traverse = func(node *PciNode) {
+// 		if node.Vendor == 0x10de && node.Class != 0x068000 {
 
-			gpuNodes = append(gpuNodes, node)
-		}
-		for _, child := range node.Children {
-			traverse(child)
-		}
-	}
-	traverse(pciTree.Root)
-	return gpuNodes
-}
+// 			gpuNodes = append(gpuNodes, node)
+// 		}
+// 		for _, child := range node.Children {
+// 			traverse(child)
+// 		}
+// 	}
+// 	traverse(pciTree.Root)
+// 	return gpuNodes
+// }
 
-// findIBsbyPcieTree identifies all IB devices in each domain root PciTree
-func findIBsbyPcieTree(pciTree *PciTree) []*PciNode {
-	var endpointNodes []*PciNode
-	ibs := GetIBList()
-	var traverse func(node *PciNode)
-	traverse = func(node *PciNode) {
-		if _, exist := ibs[node.BDF]; exist {
-			endpointNodes = append(endpointNodes, node)
-		}
-		for _, child := range node.Children {
-			traverse(child)
-		}
-	}
-	traverse(pciTree.Root)
-	return endpointNodes
-}
+// // findIBsbyPcieTree identifies all IB devices in each domain root PciTree
+// func findIBsbyPcieTree(pciTree *PciTree) []*PciNode {
+// 	var endpointNodes []*PciNode
+// 	ibs := GetIBList()
+// 	var traverse func(node *PciNode)
+// 	traverse = func(node *PciNode) {
+// 		if _, exist := ibs[node.BDF]; exist {
+// 			endpointNodes = append(endpointNodes, node)
+// 		}
+// 		for _, child := range node.Children {
+// 			traverse(child)
+// 		}
+// 	}
+// 	traverse(pciTree.Root)
+// 	return endpointNodes
+// }
 
 // FindPathToRoot finds the path to the root for a group of endpoints nodes (GPU or IB) from a given PCIe tree
 func FindPathToRoot(endpoints []*PciNode) map[string][]*PciNode {
@@ -455,11 +441,7 @@ func FindPathToRoot(endpoints []*PciNode) map[string][]*PciNode {
 }
 
 // FindLowestCommonSwitch finds the lowest common switdch for a group of endpoints nodes (GPU or IB) from a given PCIe tree
-func findEndpointLowestCommonSwitch(pciTree *PciTree) map[string]map[string]struct{} {
-	endpoints := findNvGPUsbyPcieTree(pciTree)
-	ibs := findIBsbyPcieTree(pciTree)
-	endpoints = append(endpoints, ibs...)
-
+func findEndpointLowestCommonSwitch(pciTree *PciTree, endpoints []*PciNode) map[string]map[string]struct{} {
 	if len(endpoints) == 0 {
 		return nil
 	}
@@ -510,26 +492,44 @@ func findEndpointLowestCommonSwitch(pciTree *PciTree) map[string]map[string]stru
 }
 
 // findCommonSwitch finds the smallest common PCIe switchh for a group of GPUS
-func ParseEndpointsbyCommonSwitch(pciTrees []PciTree, gpus map[string]*GPUInfo, ibs map[string]*IBInfo) []*EndpointInfoByPCIeSW {
-	endpointListbyCommonPcieSWs := make([]*EndpointInfoByPCIeSW, 0)
+func ParseEndpointsbyCommonSwitch(pciTrees []PciTree, nodes map[string]*PciNode, devices map[string]*DeviceInfo) map[string]*EndpointInfoByPCIeSW {
+	endpointListbyCommonPcieSWs := make(map[string]*EndpointInfoByPCIeSW)
+	endpoints := make([]*PciNode, 0)
+	for _, device := range devices {
+		if node, exist := nodes[device.BDF]; exist {
+			endpoints = append(endpoints, node)
+		}
+	}
 	for _, pciTree := range pciTrees {
-		swIDToBDFMap := findEndpointLowestCommonSwitch(&pciTree)
+		swIDToBDFMap := findEndpointLowestCommonSwitch(&pciTree, endpoints)
 		for swId, bdfSet := range swIDToBDFMap {
-			gpuInfoBySW := &EndpointInfoByPCIeSW{SwitchBDF: swId, GPUList: []*GPUInfo{}, IBList: []*IBInfo{}}
+			deviceInfoBySW := &EndpointInfoByPCIeSW{SwitchBDF: swId, DeviceList: []*DeviceInfo{}}
 			for bdf := range bdfSet {
-				// Check if the endpoint is a GPU
-				if gpu, exist := gpus[bdf]; exist {
-					gpuInfoBySW.GPUList = append(gpuInfoBySW.GPUList, gpu)
-				}
-				// Check if the endpoint is an IB
-				if ib, exist := ibs[bdf]; exist {
-					gpuInfoBySW.IBList = append(gpuInfoBySW.IBList, ib)
+				if gpu, exist := devices[bdf]; exist {
+					deviceInfoBySW.DeviceList = append(deviceInfoBySW.DeviceList, gpu)
 				}
 			}
-			endpointListbyCommonPcieSWs = append(endpointListbyCommonPcieSWs, gpuInfoBySW)
+			endpointListbyCommonPcieSWs[swId] = deviceInfoBySW
 		}
 	}
 	return endpointListbyCommonPcieSWs
+}
+
+func mergeDeviceMaps(map1, map2 map[string]*DeviceInfo) map[string]*DeviceInfo {
+	merged := make(map[string]*DeviceInfo)
+
+	for key, value := range map1 {
+		merged[key] = value
+	}
+
+	for key, value := range map2 {
+		if existingValue, exists := merged[key]; exists {
+			fmt.Printf("Key %s exists, keeping original value: %+v\n", key, existingValue)
+		} else {
+			merged[key] = value
+		}
+	}
+	return merged
 }
 
 func PrintGPUTopology() {
@@ -550,25 +550,22 @@ func PrintGPUTopology() {
 
 	ibs := GetIBList()
 	for _, ib := range ibs {
-		fmt.Printf("IB %s: boardID=%s, BDF=%v, numa_node=%v, domain=%v, sw_id=%v\n", ib.Name, ib.BoardID, ib.BDF, ib.NumaID, ib.DomainID, ib.SmallestCommonPCIeSwitchBDF)
+		fmt.Printf("IB %s: boardID=%s, BDF=%v, numa_node=%v, domain=%v\n", ib.Name, ib.BoardID, ib.BDF, ib.NumaID, ib.DomainID)
 	}
 	gpus := GetGPUList()
 	// Find all GPUS by numa node
-	FindNvGPUsbyNumaNode(nodes, gpus)
+	FillNvGPUsWithNumaNode(nodes, gpus)
 	for _, gpu := range gpus {
-		fmt.Printf("GPU %d: uuid=%v, BDF=%v, numa_node=%v, domain=%v, sw_id=%v\n", gpu.Index, gpu.UUID, gpu.BDF, gpu.NumaID, gpu.DomainID, gpu.SmallestCommonPCIeSwitchBDF)
+		fmt.Printf("GPU %s: uuid=%v, BDF=%v, numa_node=%v, domain=%v\n", gpu.Name, gpu.UUID, gpu.BDF, gpu.NumaID, gpu.DomainID)
 	}
-
+	devices := mergeDeviceMaps(ibs, gpus)
 	// Find all GPUS and IBs by common PCIe switch
-	endpointListbyCommonPcieSWs := ParseEndpointsbyCommonSwitch(pciTrees, gpus, ibs)
+	endpointListbyCommonPcieSWs := ParseEndpointsbyCommonSwitch(pciTrees, nodes, devices)
 	fmt.Printf("Find GPUS and IBs by common PCIe switch: \n")
 	for _, sw := range endpointListbyCommonPcieSWs {
 		fmt.Printf(" - PCIe Switch: %s, with GPUS and IBs: \n", sw.SwitchBDF)
-		for _, gpu := range sw.GPUList {
-			fmt.Printf("GPU %d: uuid=%v, BDF=%v, numa_node=%v, domain=%v\n", gpu.Index, gpu.UUID, gpu.BDF, gpu.NumaID, gpu.DomainID)
-		}
-		for _, ib := range sw.IBList {
-			fmt.Printf("IB %s: boardID=%s, BDF=%v, numa_node=%v, domain=%v\n", ib.Name, ib.BoardID, ib.BDF, ib.NumaID, ib.DomainID)
+		for _, device := range sw.DeviceList {
+			fmt.Printf("%s %s: uuid=%v, BDF=%v, numa_node=%v, domain=%v\n", device.Type, device.Name, device.UUID, device.BDF, device.NumaID, device.DomainID)
 		}
 		fmt.Println()
 	}
