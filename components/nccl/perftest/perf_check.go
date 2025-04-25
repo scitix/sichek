@@ -1,85 +1,76 @@
 package perftest
 
 import (
-	"bytes"
-	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
 	ProcessCount int
 	TestBin      string
-	MsgSize      int
-	NCCLExtraEnv []string
-	Timeout      time.Duration
+	UseNvls      bool
 }
 
-func buildCmdConfig(processCount int, msgSize int) Config {
+func buildCmdConfig(processCount int, useNvls bool) Config {
 	return Config{
 		ProcessCount: processCount,
-		TestBin:      "/usr/local/sihpc/libexec/nccl-tests/all_reduce_perf",
-		MsgSize:      msgSize,
-		Timeout:      10 * time.Minute,
-		NCCLExtraEnv: []string{
-			"NCCL_SOCKET_IFNAME=bond0",
-			"SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1",
-			"NCCL_COLLENT_ENABLE=0",
-			"NCCL_NVLS_ENABLE=0",
-		},
+		TestBin:      "nccl_perf",
+		UseNvls:      useNvls,
 	}
 }
 
-func buildMpiCmd(cfg Config) *exec.Cmd {
-	args := []string{
-		"-np", fmt.Sprint(cfg.ProcessCount),
-		// "--map-by", fmt.Sprintf("ppr:%d:node", cfg.ProcessCount),
-		"--bind-to", "numa",
-		"-mca", "coll_hcoll_enable", "0",
-		"--allow-run-as-root",
+func GetDefaultNcclTestPath(testBin string) (string, error) {
+	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, testBin)
+	_, err := os.Stat(defaultCfgDirPath)
+	if err != nil {
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return "", fmt.Errorf("get curr file path failed")
+		}
+		defaultCfgDirPath = filepath.Join(filepath.Dir(curFile), testBin)
 	}
+	return defaultCfgDirPath, nil
+}
 
-	for _, ev := range cfg.NCCLExtraEnv {
-		args = append(args, "-x", ev)
-	}
-
+func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	// nccl-tests
-	testLine := []string{
-		cfg.TestBin,
-		// "-b", cfg.MsgSize,
-		// "-e", cfg.MsgSize,
-		// "-f", "2",
-		// "-g", "1",
+	testPath, err := GetDefaultNcclTestPath(cfg.TestBin)
+	if err != nil {
+		logrus.WithField("perftest", "nccl").Errorf("GetDefaultNcclTestPath error :%v\n", err)
+		return nil
 	}
-	args = append(args, testLine...)
-
-	cmd := exec.Command("mpirun", args...)
+	args := []string{
+		testPath,
+	}
+	if cfg.ProcessCount != 0 {
+		args = append(args, fmt.Sprintf("-g %d", cfg.ProcessCount))
+	}
+	cmd := exec.Command("bash", args...)
+	if !cfg.UseNvls {
+		cmd.Env = append(os.Environ(), "NCCL_NVLS_ENABLE=0")
+	}
 	return cmd
 }
 
-type Record struct {
-	MsgSize string
-	AlgBW   string
-}
-
 func runNcclTest(cfg Config) ([]float64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
-	defer cancel()
-
-	cmd := buildMpiCmd(cfg)
-
-	fmt.Println("Command:", cmd.String())
-	cmdCtx := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
-	output, err := cmdCtx.CombinedOutput()
+	cmd := buildNcclTestCmd(cfg)
+	logrus.WithField("perftest", "nccl").Infof("Command: %s\n", cmd.String())
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+	logrus.WithField("perftest", "nccl").Infof("output: %s\n", outputStr)
 	if err != nil {
-		return nil, fmt.Errorf("excute error :%v", err)
+		return nil, err
 	}
 
 	var res []float64
-	outputStr := string(output)
 	lines := strings.Split(outputStr, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "Avg bus bandwidth") {
@@ -87,7 +78,7 @@ func runNcclTest(cfg Config) ([]float64, error) {
 			bwStr = strings.Split(bwStr, " ")[0]
 			bw, err := strconv.ParseFloat(bwStr, 64)
 			if err != nil {
-				return res, fmt.Errorf("convert err: %v", err)
+				return nil, fmt.Errorf("parse bandwidth err: %v", err)
 			}
 			res = append(res, bw)
 		}
@@ -110,41 +101,12 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) int {
 		return 0
 	}
 }
-func getGPUCount() (int, error) {
 
-	var out bytes.Buffer
-	cmd := exec.Command("nvidia-smi", "-L")
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return 0, err
-	}
-
-	output := out.String()
-	lines := strings.Split(output, "\n")
-	count := 0
-	for _, line := range lines {
-		if strings.Contains(line, "GPU") {
-			count++
-		}
-	}
-
-	return count, nil
-}
-func CheckNcclPerf(processCount int, msgSize int, exceptBwGbps float64) error {
-	if processCount == 0 {
-		count, err := getGPUCount()
-		if err != nil {
-			return fmt.Errorf("get processCount err %v", err)
-		}
-		processCount = count
-	}
-	job := buildCmdConfig(processCount, msgSize)
-
+func CheckNcclPerf(processCount int, enableNvls bool, exceptBwGbps float64) error {
+	job := buildCmdConfig(processCount, enableNvls)
 	records, err := runNcclTest(job)
 	if err != nil {
-		return fmt.Errorf("run fail: %v", err)
-
+		return fmt.Errorf("run nccl test fail: %v", err)
 	}
 
 	if len(records) == 0 {
