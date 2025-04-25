@@ -51,7 +51,7 @@ func NewNcclPerftestCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
-			size, err := cmd.Flags().GetInt("size")
+			enableNvls, err := cmd.Flags().GetBool("enable-nvls")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
@@ -60,15 +60,16 @@ func NewNcclPerftestCmd() *cobra.Command {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
 
-			err = perftest.CheckNcclPerf(processCount, size, expectedBandwidthGbps)
+			err = perftest.CheckNcclPerf(processCount, enableNvls, expectedBandwidthGbps)
 			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
 				os.Exit(-1)
 			}
 		},
 	}
 
 	ncclPerftestCmd.Flags().IntP("process-count", "c", 0, "Process count of test")
-	ncclPerftestCmd.Flags().IntP("size", "s", 65536, "Size of message to exchange (default 65536)")
+	ncclPerftestCmd.Flags().BoolP("enable-nvls", "e", false, "test with nvlinks")
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ncclPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 

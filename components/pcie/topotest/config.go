@@ -2,10 +2,12 @@ package topotest
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
 
@@ -46,13 +48,17 @@ type BDFItem struct {
 
 func (c *PcieTopoConfig) LoadConfig(file string) error {
 	if file == "" {
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
+		file = filepath.Join(consts.DefaultPodCfgPath, "pcie/topotest/", consts.DefaultSpecCfgName)
+		_, err := os.Stat(file)
+		if err != nil {
+			_, curFile, _, ok := runtime.Caller(0)
+			if !ok {
+				return fmt.Errorf("get curr file path failed")
+			}
+			// Get the directory of the current file
+			nowDir := filepath.Dir(curFile)
+			file = filepath.Join(nowDir, consts.DefaultSpecCfgName)
 		}
-		// Get the directory of the current file
-		nowDir := filepath.Dir(curFile)
-		file = filepath.Join(nowDir, "default_spec.yaml")
 	}
 	err := utils.LoadFromYaml(file, c)
 	if err != nil {

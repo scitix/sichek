@@ -16,12 +16,12 @@ limitations under the License.
 package command
 
 import (
-	"log"
 	"os/exec"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -62,7 +62,7 @@ func getGitCommitWithShell() string {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Fatalf("Failed to get HEAD by `git rev-parse HEAD`: %v", err)
+		logrus.Errorf("Failed to get HEAD by `git rev-parse HEAD`: %v", err)
 	}
 	return strings.TrimSpace(string(output))
 }
