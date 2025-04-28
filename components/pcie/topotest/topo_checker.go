@@ -105,7 +105,7 @@ func CheckGPUTopology(file string, verbos bool) (*common.Result, error) {
 	var checkRes []*common.CheckerResult
 	checkCfg, exist := cfg.PcieTopo[device]
 	if !exist {
-		return nil, fmt.Errorf("device %s topo config not found", err)
+		return nil, fmt.Errorf("device %s topo config not found", device)
 	}
 	numaCheckRes := checkNuma(devices, checkCfg.NumaConfig)
 	checkRes = append(checkRes, numaCheckRes)
