@@ -62,7 +62,7 @@ func (c *PcieTopoConfig) LoadConfig(file string) error {
 	}
 	err := utils.LoadFromYaml(file, c)
 	if err != nil {
-		return fmt.Errorf("failed to load pci topo config: %v", err)
+		return fmt.Errorf("failed to load pci topo config from %s ,error : %v", file, err)
 	}
 
 	return nil

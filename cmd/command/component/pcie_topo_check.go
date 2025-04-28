@@ -56,8 +56,9 @@ func NewPcieTopoCmd() *cobra.Command {
 					logrus.WithField("components", "topo").Info("load default specFile...")
 				}
 			}
-			res, err := topotest.CheckGPUTopology("")
+			res, err := topotest.CheckGPUTopology("", verbose)
 			if err != nil {
+				logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
 				os.Exit(-1)
 			}
 			topotest.PrintInfo(res)
