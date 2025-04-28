@@ -76,11 +76,14 @@ func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map
 	return &res
 }
 
-func CheckGPUTopology(file string) (*common.Result, error) {
+func CheckGPUTopology(file string, verbos bool) (*common.Result, error) {
+	if verbos {
+		PrintGPUTopology()
+	}
 	cfg := &PcieTopoConfig{}
 	err := cfg.LoadConfig(file)
 	if err != nil {
-		fmt.Printf("Load GPUTopology Config Err: %v\n", err)
+		return nil, fmt.Errorf("load GPUTopology Config Err: %v", err)
 	}
 	res := &common.Result{}
 	// Build PCIe trees
@@ -96,9 +99,14 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 	ibs := GetIBList()
 	devices := mergeDeviceMaps(ibs, gpus)
 	device, err := config.GetDeviceID()
+	if err != nil {
+		return nil, fmt.Errorf("get deviceId error: %v", err)
+	}
 	var checkRes []*common.CheckerResult
-	checkCfg := cfg.PcieTopo[device]
-
+	checkCfg, exist := cfg.PcieTopo[device]
+	if !exist {
+		return nil, fmt.Errorf("device %s topo config not found", err)
+	}
 	numaCheckRes := checkNuma(devices, checkCfg.NumaConfig)
 	checkRes = append(checkRes, numaCheckRes)
 
