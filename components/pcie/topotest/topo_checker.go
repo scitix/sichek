@@ -76,27 +76,29 @@ func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map
 	return &res
 }
 
-func CheckGPUTopology(file string, verbos bool) (*common.Result, error) {
-	if verbos {
-		PrintGPUTopology()
-	}
+func CheckGPUTopology(file string) (*common.Result, error) {
 	cfg := &PcieTopoConfig{}
 	err := cfg.LoadConfig(file)
 	if err != nil {
 		return nil, fmt.Errorf("load GPUTopology Config Err: %v", err)
 	}
-	res := &common.Result{}
 	// Build PCIe trees
 	nodes, pciTrees, err := BuildPciTrees()
 	if err != nil {
 		return nil, fmt.Errorf("error building PCIe trees: %v", err)
 	}
 
-	gpus := GetGPUList()
+	gpus, err := GetGPUList()
+	if err != nil {
+		return nil, err
+	}
 	// Find all GPUS by numa node
 	FillNvGPUsWithNumaNode(nodes, gpus)
 
-	ibs := GetIBList()
+	ibs, err := GetIBList()
+	if err != nil {
+		return nil, err
+	}
 	devices := mergeDeviceMaps(ibs, gpus)
 	device, err := config.GetDeviceID()
 	if err != nil {
@@ -118,23 +120,28 @@ func CheckGPUTopology(file string, verbos bool) (*common.Result, error) {
 			status = consts.StatusAbnormal
 		}
 	}
-	res.Status = status
-	res.Checkers = checkRes
+	res := &common.Result{
+		Item:     "Pcie Topo",
+		Status:   status,
+		Checkers: checkRes,
+	}
 	return res, err
 }
 
-func PrintInfo(result *common.Result) {
+func PrintInfo(result *common.Result, verbos bool) bool {
+	if verbos {
+		PrintGPUTopology()
+	}
 	checkerResults := result.Checkers
 	if result.Status == consts.StatusNormal {
 		fmt.Printf("%sPcie Topo Test Passed%s\n", consts.Green, consts.Reset)
-		return
+		return true
 	}
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {
 			fmt.Printf("%s%s%s\n", consts.Red, result.ErrorName, consts.Reset)
 			fmt.Printf("%s\n", result.Detail)
-		} else {
-			fmt.Printf("%s%s Check Passed %s\n", consts.Green, result.ErrorName, consts.Reset)
 		}
 	}
+	return false
 }

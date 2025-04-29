@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
@@ -86,33 +87,57 @@ func runNcclTest(cfg Config) ([]float64, error) {
 	return res, nil
 }
 
-func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) int {
+func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Result {
 	var sum float64
+
+	resItem := NcclPerfCheckItems[NcclPerfCheckerName]
 	for _, bw := range avgBusBandwidths {
 		sum += bw
 	}
 	avgBusBandwidth := sum / float64(len(avgBusBandwidths))
 
 	if avgBusBandwidth < exceptBwGbps {
-		fmt.Printf("NCCL allreduce bandwidth test failed, avgBusBandwidth returned %.2f Gbps, but expected > %.2f Gbps.\n", avgBusBandwidth, exceptBwGbps)
-		return 1
+		resItem.Detail = fmt.Sprintf("NCCL allreduce bandwidth test failed, avgBusBandwidth returned %.2f Gbps, but expected > %.2f Gbps.\n", avgBusBandwidth, exceptBwGbps)
+
 	} else {
-		fmt.Printf("NCCL allreduce bandwidth test passed, avgBusBandwidth = %.2f Gbps.\n", avgBusBandwidth)
-		return 0
+		resItem.Status = consts.StatusAbnormal
+		resItem.Detail = fmt.Sprintf("NCCL allreduce bandwidth test passed, avgBusBandwidth = %.2f Gbps.\n", avgBusBandwidth)
 	}
+	res := &common.Result{
+		Item:     "NcclPerf",
+		Status:   resItem.Status,
+		Level:    resItem.Level,
+		Checkers: []*common.CheckerResult{resItem},
+	}
+	return res
+
 }
 
-func CheckNcclPerf(processCount int, enableNvls bool, exceptBwGbps float64) error {
+func CheckNcclPerf(processCount int, enableNvls bool, exceptBwGbps float64) (*common.Result, error) {
 	job := buildCmdConfig(processCount, enableNvls)
 	records, err := runNcclTest(job)
 	if err != nil {
-		return fmt.Errorf("run nccl test fail: %v", err)
+		return nil, fmt.Errorf("run nccl test fail: %v", err)
 	}
 
 	if len(records) == 0 {
-		return fmt.Errorf("get no avg bus bandwidth res")
+		return nil, fmt.Errorf("get no avg bus bandwidth res")
 	}
-	checkBandwidth(records, exceptBwGbps)
+	res := checkBandwidth(records, exceptBwGbps)
 
-	return nil
+	return res, nil
+}
+
+func PrintInfo(result *common.Result) bool{
+	checkerResults := result.Checkers
+	for _, result := range checkerResults {
+		if result.Status == consts.StatusAbnormal {
+			fmt.Printf("%s%s%s\n", consts.Red, result.Detail, consts.Reset)
+			return false
+		} else {
+			fmt.Printf("%s%s%s\n", consts.Green, result.Detail, consts.Reset)
+			return true
+		}
+	}
+	return true
 }

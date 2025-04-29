@@ -60,11 +60,14 @@ func NewNcclPerftestCmd() *cobra.Command {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
 
-			err = perftest.CheckNcclPerf(processCount, enableNvls, expectedBandwidthGbps)
+			res, err := perftest.CheckNcclPerf(processCount, enableNvls, expectedBandwidthGbps)
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 				os.Exit(-1)
 			}
+			passed := perftest.PrintInfo(res)
+			ComponentStatuses[res.Item] = passed
+
 		},
 	}
 
