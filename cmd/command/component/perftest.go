@@ -35,48 +35,55 @@ func NewIBPerftestCmd() *cobra.Command {
 
 			verbose, err := cmd.Flags().GetBool("verbose")
 			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
+				logrus.WithField("perftest", "infiniband").Errorf("get to ge the verbose: %v", err)
 			}
 			if !verbose {
 				logrus.SetLevel(logrus.ErrorLevel)
 				defer cancel()
 			} else {
 				defer func() {
-					logrus.WithField("component", "infiniband").Info("Run infiniband Cmd context canceled")
+					logrus.WithField("perftest", "infiniband").Info("Run infiniband Cmd context canceled")
 					cancel()
 				}()
 			}
 
 			testType, err := cmd.Flags().GetString("test-type")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("perftest", "infiniband").Error(err)
 			}
 			validTypes := map[string]bool{"ib_read_bw": true, "ib_write_bw": true}
 			if !validTypes[testType] {
-				logrus.WithField("component", "infiniband").Errorf("invalid testType: %s. Allowed values: ib_read_bw, ib_write_bw", testType)
+				logrus.WithField("perftest", "infiniband").Errorf("invalid testType: %s. Allowed values: ib_read_bw, ib_write_bw", testType)
 				os.Exit(-1)
 			}
 			ibDevice, err := cmd.Flags().GetString("ib-dev")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("perftest", "infiniband").Error(err)
 			}
 			size, err := cmd.Flags().GetInt("size")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("perftest", "infiniband").Error(err)
 			}
 			duration, err := cmd.Flags().GetInt("duration")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("perftest", "infiniband").Error(err)
+			}
+			numaAware, err := cmd.Flags().GetBool("numa-aware")
+			if err != nil {
+				logrus.WithField("perftest", "infiniband").Errorf("get to ge the numaAware flag: %v", err)
 			}
 			expectedBandwidthGbps, err := cmd.Flags().GetFloat64("expect-bw")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("perftest", "infiniband").Error(err)
 			}
 
-			err = perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, ibDevice, size, duration, verbose)
+			res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, ibDevice, size, duration, numaAware, verbose)
 			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
 				os.Exit(-1)
 			}
+			passed := perftest.PrintInfo(res, verbose)
+			ComponentStatuses[res.Item] = passed
 		},
 	}
 
@@ -84,6 +91,7 @@ func NewIBPerftestCmd() *cobra.Command {
 	ibPerftestCmd.Flags().StringP("ib-dev", "d", "", "Use IB device <dev> (default all active devices found)")
 	ibPerftestCmd.Flags().IntP("size", "s", 65536, "Size of message to exchange (default 65536)")
 	ibPerftestCmd.Flags().IntP("duration", "D", 10, "Run test for a customized period of seconds (default 5 seconds)")
+	ibPerftestCmd.Flags().BoolP("numa-aware", "n", false, "Run test with numa aware (default 'false`)")
 	ibPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ibPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 

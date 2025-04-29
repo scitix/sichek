@@ -50,12 +50,6 @@ type PCIeSW struct {
 	EndpointList []*PciNode // List of GPU or IBs nodes connected to this switch
 }
 
-// GPUInfoByPCIeSW represents PCIe switch and the GPUS connected to it
-type GPUInfoByPCIeSW struct {
-	SwitchBDF string        // BDF of the PCIe switch
-	GPUList   []*DeviceInfo // List of GPU nodes connected to this switch
-}
-
 // EndpointInfoByPCIeSW represents PCIe switch and the GPUs / IBs connected to it
 type EndpointInfoByPCIeSW struct {
 	SwitchBDF  string        // BDF of the PCIe switch
@@ -242,16 +236,16 @@ func BuildPciTrees() (map[string]*PciNode, []PciTree, error) {
 	return nodes, pciTrees, nil
 }
 
-func GetGPUList() map[string]*DeviceInfo {
+func GetGPUList() (map[string]*DeviceInfo, error) {
 	nvmlInst := nvml.New()
 	if ret := nvmlInst.Init(); ret != nvml.SUCCESS {
-		panic(fmt.Sprintf("failed to initialize NVML: %v", nvml.ErrorString(ret)))
+		return nil, fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	defer nvmlInst.Shutdown()
 	gpus := make(map[string]*DeviceInfo)
 	deviceCount, err := nvmlInst.DeviceGetCount()
 	if err != nvml.SUCCESS {
-		panic(fmt.Sprintf("failed to get device count: %v", nvml.ErrorString(err)))
+		return nil, fmt.Errorf("failed to get device count: %v", nvml.ErrorString(err))
 	}
 	for i := 0; i < deviceCount; i++ {
 		device, err := nvmlInst.DeviceGetHandleByIndex(i)
@@ -284,15 +278,14 @@ func GetGPUList() map[string]*DeviceInfo {
 		gpu.DomainID = "fffff"      // Initialize to "ffff" string
 		gpus[gpu.BDF] = gpu
 	}
-	return gpus
+	return gpus, nil
 }
 
-func GetIBList() map[string]*DeviceInfo {
+func GetIBList() (map[string]*DeviceInfo, error) {
 	basePath := "/sys/class/infiniband"
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
-		logrus.Errorf("failed to read infiniband dir: %v", err)
-		return nil
+		return nil, fmt.Errorf("failed to read infiniband dir: %v", err)
 	}
 
 	ibInfos := make(map[string]*DeviceInfo)
@@ -351,7 +344,7 @@ func GetIBList() map[string]*DeviceInfo {
 		}
 		ibInfos[bdf] = ibInfo
 	}
-	return ibInfos
+	return ibInfos, nil
 }
 
 // FillNvGPUsWithNumaNode identifies all GPU devices in each numa node
@@ -390,40 +383,6 @@ func FillNvGPUsWithNumaNode(nodes map[string]*PciNode, gpus map[string]*DeviceIn
 		}
 	}
 }
-
-// // findNvGPUsbyPcieTree identifies all GPU devices in each domain root PciTree
-// func findNvGPUsbyPcieTree(pciTree *PciTree) []*PciNode {
-// 	var gpuNodes []*PciNode
-// 	var traverse func(node *PciNode)
-// 	traverse = func(node *PciNode) {
-// 		if node.Vendor == 0x10de && node.Class != 0x068000 {
-
-// 			gpuNodes = append(gpuNodes, node)
-// 		}
-// 		for _, child := range node.Children {
-// 			traverse(child)
-// 		}
-// 	}
-// 	traverse(pciTree.Root)
-// 	return gpuNodes
-// }
-
-// // findIBsbyPcieTree identifies all IB devices in each domain root PciTree
-// func findIBsbyPcieTree(pciTree *PciTree) []*PciNode {
-// 	var endpointNodes []*PciNode
-// 	ibs := GetIBList()
-// 	var traverse func(node *PciNode)
-// 	traverse = func(node *PciNode) {
-// 		if _, exist := ibs[node.BDF]; exist {
-// 			endpointNodes = append(endpointNodes, node)
-// 		}
-// 		for _, child := range node.Children {
-// 			traverse(child)
-// 		}
-// 	}
-// 	traverse(pciTree.Root)
-// 	return endpointNodes
-// }
 
 // FindPathToRoot finds the path to the root for a group of endpoints nodes (GPU or IB) from a given PCIe tree
 func FindPathToRoot(endpoints []*PciNode) map[string][]*PciNode {
@@ -548,11 +507,19 @@ func PrintGPUTopology() {
 		os.Exit(1)
 	}
 
-	ibs := GetIBList()
+	ibs, err := GetIBList()
+	if err != nil {
+		fmt.Printf("Error GetIBList: %v\n", err)
+		return
+	}
 	for _, ib := range ibs {
 		fmt.Printf("IB %s: boardID=%s, BDF=%v, numa_node=%v, domain=%v\n", ib.Name, ib.BoardID, ib.BDF, ib.NumaID, ib.DomainID)
 	}
-	gpus := GetGPUList()
+	gpus, err := GetGPUList()
+	if err != nil {
+		fmt.Printf("Error GetGPUList: %v\n", err)
+		return
+	}
 	// Find all GPUS by numa node
 	FillNvGPUsWithNumaNode(nodes, gpus)
 	for _, gpu := range gpus {
