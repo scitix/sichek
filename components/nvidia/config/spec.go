@@ -88,7 +88,7 @@ func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
 	}
 	deviceID, err := GetDeviceID()
 	if err != nil {
-		logrus.WithField("component", "NVIDIA").Errorf("failed t oGetDeviceID: %v", err)
+		logrus.WithField("component", "NVIDIA").Errorf("failed to GetDeviceID: %v", err)
 		return nil
 	}
 	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
