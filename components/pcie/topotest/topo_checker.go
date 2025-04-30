@@ -82,15 +82,21 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load GPUTopology Config Err: %v", err)
 	}
+
 	// Build PCIe trees
 	nodes, pciTrees, err := BuildPciTrees()
 	if err != nil {
 		return nil, fmt.Errorf("error building PCIe trees: %v", err)
 	}
-
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("find no pci nodes")
+	}
 	gpus, err := GetGPUList()
 	if err != nil {
 		return nil, err
+	}
+	if len(gpus) == 0 {
+		return nil, fmt.Errorf("find no gpus")
 	}
 	// Find all GPUS by numa node
 	FillNvGPUsWithNumaNode(nodes, gpus)

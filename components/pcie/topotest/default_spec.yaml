@@ -95,3 +95,58 @@ pcie_machine:
             bdf: "0001:45:00.0"  
           - type: "IB"  
             bdf: "0001:44:00.0"              
+
+  "0x26b510de":  
+    numa_config:  
+      - node_id: 0            # NUMA‑0  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:36:00.0"  
+          - type: "GPU"  
+            bdf: "0000:37:00.0"  
+          - type: "GPU"  
+            bdf: "0000:34:00.0"  
+          - type: "GPU"  
+            bdf: "0000:35:00.0"  
+          - type: "IB"  
+            bdf: "0000:33:00.0"  
+
+      - node_id: 1            # NUMA‑1  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:9b:00.0"  
+          - type: "GPU"  
+            bdf: "0000:9c:00.0"  
+          - type: "GPU"  
+            bdf: "0000:9d:00.0"  
+          - type: "GPU"  
+            bdf: "0000:9e:00.0"  
+          - type: "IB"  
+            bdf: "0000:9a:00.0"  
+    
+    pci_switches:  
+      - switch_id: "0000:31:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:36:00.0"  
+          - type: "GPU"  
+            bdf: "0000:37:00.0"  
+          - type: "GPU"  
+            bdf: "0000:34:00.0"  
+          - type: "GPU"  
+            bdf: "0000:35:00.0"  
+          - type: "IB"  
+            bdf: "0000:33:00.0" 
+
+      - switch_id: "0000:98:00.0"  
+        bdf_list:  
+          - type: "GPU"  
+            bdf: "0000:9b:00.0"  
+          - type: "GPU"  
+            bdf: "0000:9c:00.0"  
+          - type: "GPU"  
+            bdf: "0000:9d:00.0"  
+          - type: "GPU"  
+            bdf: "0000:9e:00.0"  
+          - type: "IB"  
+            bdf: "0000:9a:00.0"  

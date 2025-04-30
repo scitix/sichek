@@ -354,7 +354,11 @@ func FillNvGPUsWithNumaNode(nodes map[string]*PciNode, gpus map[string]*DeviceIn
 		if node.Vendor == 0x10de && node.Class != 0x068000 {
 			numaNode := node.NumaID
 			domain := strings.Split(node.BDF, ":")[0] // Extract domainfrom BDF
-			gpu := gpus[node.BDF]
+			gpu, exist := gpus[node.BDF]
+			if !exist {
+				fmt.Printf("not find gpus for BDF %s\n", node.BDF)
+				continue
+			}
 			gpu.NumaID = numaNode
 			gpu.DomainID = domain
 			if _, exists := gpuListbyNumaNode[numaNode]; !exists {
