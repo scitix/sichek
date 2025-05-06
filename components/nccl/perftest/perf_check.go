@@ -15,16 +15,16 @@ import (
 )
 
 type Config struct {
-	ProcessCount int
-	TestBin      string
-	UseNvls      bool
+	NumGpus int
+	TestBin string
+	UseNvls bool
 }
 
-func buildCmdConfig(processCount int, useNvls bool) Config {
+func buildCmdConfig(numGpus int, useNvls bool) Config {
 	return Config{
-		ProcessCount: processCount,
-		TestBin:      "nccl_perf",
-		UseNvls:      useNvls,
+		NumGpus: numGpus,
+		TestBin: "nccl_perf",
+		UseNvls: useNvls,
 	}
 }
 
@@ -51,9 +51,10 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	args := []string{
 		testPath,
 	}
-	if cfg.ProcessCount != 0 {
-		args = append(args, fmt.Sprintf("-g %d", cfg.ProcessCount))
+	if cfg.NumGpus != 0 {
+		args = append(args, fmt.Sprintf("-g %d", cfg.NumGpus))
 	}
+	fmt.Printf("== Run %d GPU nccl all_reduce test ==\n", cfg.NumGpus)
 	cmd := exec.Command("bash", args...)
 	if !cfg.UseNvls {
 		cmd.Env = append(os.Environ(), "NCCL_NVLS_ENABLE=0")
@@ -113,8 +114,8 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Re
 
 }
 
-func CheckNcclPerf(processCount int, enableNvls bool, exceptBwGbps float64) (*common.Result, error) {
-	job := buildCmdConfig(processCount, enableNvls)
+func CheckNcclPerf(numGpus int, enableNvls bool, exceptBwGbps float64) (*common.Result, error) {
+	job := buildCmdConfig(numGpus, enableNvls)
 	records, err := runNcclTest(job)
 	if err != nil {
 		return nil, fmt.Errorf("run nccl test fail: %v", err)
@@ -128,7 +129,7 @@ func CheckNcclPerf(processCount int, enableNvls bool, exceptBwGbps float64) (*co
 	return res, nil
 }
 
-func PrintInfo(result *common.Result) bool{
+func PrintInfo(result *common.Result) bool {
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {

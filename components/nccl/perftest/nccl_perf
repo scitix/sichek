@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-BASE_DIR=$(cd $(dirname $0) && pwd)
-TEST_DIR=$BASE_DIR/nccl-tests
+TEST_DIR=/usr/local/sihpc/libexec/nccl-tests
 COLL=all_reduce
 while [[ -n $1 ]]; do
   case $1 in
