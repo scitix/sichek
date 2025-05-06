@@ -525,8 +525,8 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
 					consts.Green, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, nvidiaInfo.DeviceUsedCount, consts.Reset)
 			} else {
-				gpuStatusPrint = fmt.Sprintf("%s%d%s GPUs detected, %s%d%s GPUs used",
-					consts.Red, nvidiaInfo.DeviceCount, consts.Reset, consts.Green, nvidiaInfo.DeviceUsedCount, consts.Reset)
+				gpuStatusPrint = fmt.Sprintf("%s%d GPUs detected, %d GPUs lost, %d GPUs used%s",
+					consts.Red, nvidiaInfo.DeviceCount, len(strings.Split(result.Device, ",")), nvidiaInfo.DeviceUsedCount, consts.Reset)
 				gpuStatus[config.HardwareCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 			}
 		case config.SoftwareCheckerName:
