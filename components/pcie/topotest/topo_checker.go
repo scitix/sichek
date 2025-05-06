@@ -60,7 +60,7 @@ func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map
 		endpointInfoByPCIeSW, exist := endpointListbyCommonPcieSWs[cfg.SwitchBDF]
 		if !exist {
 			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("- SwitchBDF %s not found\n", endpointInfoByPCIeSW.SwitchBDF))
+			builder.WriteString(fmt.Sprintf("- SwitchBDF %s not found\n", cfg.SwitchBDF))
 		} else {
 			if !checkDeviceWithCommonSwitch(cfg, endpointInfoByPCIeSW) {
 				res.Status = consts.StatusAbnormal
