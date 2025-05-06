@@ -81,8 +81,6 @@ nfpms:
       dst: /var/sichek/pcie/topotest/
     - src: ./components/nccl/perftest/nccl_perf
       dst: /var/sichek/nccl_perf
-    - src: ./components/nccl/perftest/nccl-tests/*
-      dst: /var/sichek/nccl-tests/      
 
 changelog:
   sort: asc

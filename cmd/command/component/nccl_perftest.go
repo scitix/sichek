@@ -19,6 +19,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nccl/perftest"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
@@ -47,11 +48,15 @@ func NewNcclPerftestCmd() *cobra.Command {
 				}()
 			}
 
-			processCount, err := cmd.Flags().GetInt("process-count")
+			numGpus, err := cmd.Flags().GetInt("num-gpus")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
 			enableNvls, err := cmd.Flags().GetBool("enable-nvls")
+			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
+			}
+			scale, err := cmd.Flags().GetBool("scale-gpus")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
@@ -60,19 +65,34 @@ func NewNcclPerftestCmd() *cobra.Command {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
 
-			res, err := perftest.CheckNcclPerf(processCount, enableNvls, expectedBandwidthGbps)
-			if err != nil {
-				logrus.WithField("perftest", "nccl").Error(err)
+			var res *common.Result
+			exitCode := 0
+			if scale {
+				for g := 2; g <= numGpus; g++ {
+					res, err = perftest.CheckNcclPerf(g, enableNvls, expectedBandwidthGbps)
+					if err != nil {
+						logrus.WithField("perftest", "nccl").Error(err)
+						exitCode = -1
+					}
+				}
+			} else {
+				res, err = perftest.CheckNcclPerf(numGpus, enableNvls, expectedBandwidthGbps)
+				if err != nil {
+					logrus.WithField("perftest", "nccl").Error(err)
+					exitCode = -1
+				}
+			}
+			if exitCode != 0 {
 				os.Exit(-1)
 			}
 			passed := perftest.PrintInfo(res)
 			ComponentStatuses[res.Item] = passed
-
 		},
 	}
 
-	ncclPerftestCmd.Flags().IntP("process-count", "c", 0, "Process count of test")
-	ncclPerftestCmd.Flags().BoolP("enable-nvls", "e", false, "test with nvlinks")
+	ncclPerftestCmd.Flags().IntP("num-gpus", "g", 8, "Max GPU numbers to test")
+	ncclPerftestCmd.Flags().Bool("scale-gpus", false, "Run NCCL test scaling GPU count from 2 to n")
+	ncclPerftestCmd.Flags().BoolP("enable-nvls", "l", false, "test with nvlinks")
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ncclPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
