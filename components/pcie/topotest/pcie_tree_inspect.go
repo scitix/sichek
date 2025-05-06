@@ -180,7 +180,6 @@ func BuildPciTrees() (map[string]*PciNode, []PciTree, error) {
 		if err == nil {
 			numaNode, err = strconv.ParseUint(numaNodeStr, 0, 32)
 			if err != nil {
-				fmt.Printf("Error parse numaNode code for BDF %s: %v\n", bdf, err)
 				continue
 			}
 		} else {
@@ -326,7 +325,7 @@ func GetIBList() (map[string]*DeviceInfo, error) {
 		if err == nil {
 			numaNode, err = strconv.ParseUint(numaNodeStr, 0, 32)
 			if err != nil {
-				fmt.Printf("Error parse numaNode code for BDF %s: %v\n", bdf, err)
+				fmt.Printf("Error parse IB's numaNode code for BDF %s: %v\n", bdf, err)
 				continue
 			}
 		} else {
