@@ -98,6 +98,14 @@ const (
 	StatusAbnormal = "abnormal"
 )
 
+// priority map
+var LevelPriority = map[string]int{
+	LevelInfo:     1,
+	LevelWarning:  2,
+	LevelCritical: 3,
+	LevelFatal:    4,
+}
+
 const (
 	DefaultUserCfgName   = "default_user_config.yaml"
 	DefaultSpecCfgName   = "default_spec.yaml"

@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type ClockEventsChecker struct {
@@ -56,6 +57,7 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if !device.ClockEvents.IsSupported {
+			logrus.WithField("component", "Nvidia-Clock-Events-Checker").Warnf("device is not supported for clock events")
 			return nil, nil
 		}
 		if len(device.ClockEvents.CriticalClockEvents) > 0 {

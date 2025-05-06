@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 
+	"github.com/sirupsen/logrus"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
 
@@ -57,11 +58,12 @@ func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 
 	// Check if any Nvidia GPU is lost
 	lostGPUs, lostReasons := c.checkGPUbyIndex(nvidiaInfo)
-	curGPUNums := len(lostGPUs)
-	if curGPUNums != 0 {
+	lostGPUNums := len(lostGPUs)
+	curGPUNums := c.cfg.GpuNums - lostGPUNums
+	if lostGPUNums != 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("Expected GPU number: %d, Current GPU number: %d, Lost GPU: %v\n%v",
-			c.cfg.GpuNums, curGPUNums, len(lostGPUs), strings.Join(lostReasons, "\n"))
+		result.Detail = fmt.Sprintf("Expected GPU number: %d, Current GPU number: %d, Lost GPU: %v\t\t\n%v",
+			c.cfg.GpuNums, curGPUNums, lostGPUNums, strings.Join(lostReasons, "\n"))
 		result.Device = strings.Join(lostGPUs, ",")
 	} else {
 		result.Status = consts.StatusNormal
@@ -76,7 +78,7 @@ func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]s
 	var lostDeviceIDErrs []string
 	for index := range c.cfg.GpuNums {
 		_, err := c.nvmlInst.DeviceGetHandleByIndex(index)
-		if errors.Is(err, nvml.ERROR_GPU_IS_LOST) || errors.Is(err, nvml.ERROR_UNKNOWN) {
+		if !errors.Is(err, nvml.SUCCESS) {
 			lostDeviceIDErrs = append(lostDeviceIDErrs, fmt.Sprintf("NVIDIA GPU %d Error: %s\n", index, nvml.ErrorString(err)))
 			var devicePodName string
 			if nvidiaInfo.ValiddeviceUUIDFlag {
@@ -91,6 +93,7 @@ func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]s
 				devicePodName = fmt.Sprintf("%d:", index)
 			}
 			lostDeviceIDs = append(lostDeviceIDs, devicePodName)
+			logrus.WithField("componet", "NVIDIA").Infof("DeviceGetHandleByIndex %d with ret = %s", index, nvml.ErrorString(err))
 		}
 	}
 	return lostDeviceIDs, lostDeviceIDErrs
