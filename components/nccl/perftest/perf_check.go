@@ -15,9 +15,11 @@ import (
 )
 
 type Config struct {
-	NumGpus int
-	TestBin string
-	UseNvls bool
+	NumGpus     int
+	TestBin     string
+	beginBuffer string
+	endBuffer   string
+	UseNvls     bool
 }
 
 func buildCmdConfig(numGpus int, useNvls bool) Config {
@@ -53,6 +55,12 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	}
 	if cfg.NumGpus != 0 {
 		args = append(args, fmt.Sprintf("-g %d", cfg.NumGpus))
+	}
+	if cfg.beginBuffer != "" {
+		args = append(args, fmt.Sprintf("-b %s", cfg.beginBuffer))
+	}
+	if cfg.endBuffer != "" {
+		args = append(args, fmt.Sprintf("-e %s", cfg.endBuffer))
 	}
 	fmt.Printf("== Run %d GPU nccl all_reduce test ==\n", cfg.NumGpus)
 	cmd := exec.Command("bash", args...)
@@ -98,10 +106,11 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Re
 	avgBusBandwidth := sum / float64(len(avgBusBandwidths))
 
 	if avgBusBandwidth < exceptBwGbps {
+		resItem.Status = consts.StatusAbnormal
 		resItem.Detail = fmt.Sprintf("NCCL allreduce bandwidth test failed, avgBusBandwidth returned %.2f Gbps, but expected > %.2f Gbps.\n", avgBusBandwidth, exceptBwGbps)
 
 	} else {
-		resItem.Status = consts.StatusAbnormal
+		resItem.Status = consts.StatusNormal
 		resItem.Detail = fmt.Sprintf("NCCL allreduce bandwidth test passed, avgBusBandwidth = %.2f Gbps.\n", avgBusBandwidth)
 	}
 	res := &common.Result{
@@ -114,9 +123,15 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Re
 
 }
 
-func CheckNcclPerf(numGpus int, enableNvls bool, exceptBwGbps float64) (*common.Result, error) {
-	job := buildCmdConfig(numGpus, enableNvls)
-	records, err := runNcclTest(job)
+func CheckNcclPerf(numGpus int, beginBuffer string, endBuffer string, enableNvls bool, exceptBwGbps float64) (*common.Result, error) {
+	jobCfg := Config{
+		NumGpus:     numGpus,
+		TestBin:     "nccl_perf",
+		UseNvls:     enableNvls,
+		beginBuffer: beginBuffer,
+		endBuffer:   endBuffer,
+	}
+	records, err := runNcclTest(jobCfg)
 	if err != nil {
 		return nil, fmt.Errorf("run nccl test fail: %v", err)
 	}

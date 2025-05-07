@@ -52,6 +52,14 @@ func NewNcclPerftestCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 			}
+			beginBuffer, err := cmd.Flags().GetString("begin")
+			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
+			}
+			endBuffer, err := cmd.Flags().GetString("end")
+			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
+			}
 			enableNvls, err := cmd.Flags().GetBool("enable-nvls")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
@@ -69,14 +77,14 @@ func NewNcclPerftestCmd() *cobra.Command {
 			exitCode := 0
 			if scale {
 				for g := 2; g <= numGpus; g++ {
-					res, err = perftest.CheckNcclPerf(g, enableNvls, expectedBandwidthGbps)
+					res, err = perftest.CheckNcclPerf(g, beginBuffer, endBuffer, enableNvls, expectedBandwidthGbps)
 					if err != nil {
 						logrus.WithField("perftest", "nccl").Error(err)
 						exitCode = -1
 					}
 				}
 			} else {
-				res, err = perftest.CheckNcclPerf(numGpus, enableNvls, expectedBandwidthGbps)
+				res, err = perftest.CheckNcclPerf(numGpus, beginBuffer, endBuffer, enableNvls, expectedBandwidthGbps)
 				if err != nil {
 					logrus.WithField("perftest", "nccl").Error(err)
 					exitCode = -1
@@ -91,6 +99,8 @@ func NewNcclPerftestCmd() *cobra.Command {
 	}
 
 	ncclPerftestCmd.Flags().IntP("num-gpus", "g", 8, "Max GPU numbers to test")
+	ncclPerftestCmd.Flags().StringP("begin", "b", "", "begin buffer")
+	ncclPerftestCmd.Flags().StringP("end", "e", "", "end buffer")
 	ncclPerftestCmd.Flags().Bool("scale-gpus", false, "Run NCCL test scaling GPU count from 2 to n")
 	ncclPerftestCmd.Flags().BoolP("enable-nvls", "l", false, "test with nvlinks")
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
