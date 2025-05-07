@@ -17,6 +17,10 @@ spec:
           labels:
             scitix.ai/topo-aware-in-node: "true"
         spec: &job-spec
+          tolerations:
+          - key: "scitix.ai/nodecheck"
+            operator: "Exists"
+            effect: "NoSchedule"
           containers:
           - args:
             - "export NODE_RANK=$RANK && unset RANK && \
