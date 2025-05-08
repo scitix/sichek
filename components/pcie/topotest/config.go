@@ -9,6 +9,7 @@ import (
 
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type PcieTopoConfig struct {
@@ -47,20 +48,28 @@ type BDFItem struct {
 }
 
 func (c *PcieTopoConfig) LoadConfig(file string) error {
-	if file == "" {
-		file = filepath.Join(consts.DefaultPodCfgPath, "pcie/topotest/", consts.DefaultSpecCfgName)
-		_, err := os.Stat(file)
-		if err != nil {
-			_, curFile, _, ok := runtime.Caller(0)
-			if !ok {
-				return fmt.Errorf("get curr file path failed")
-			}
-			// Get the directory of the current file
-			nowDir := filepath.Dir(curFile)
-			file = filepath.Join(nowDir, consts.DefaultSpecCfgName)
+	if file != "" {
+		err := utils.LoadFromYaml(file, c)
+		if err != nil || len(c.PcieTopo) == 0 {
+			logrus.WithField("componet", "pcietopo").Errorf("failed to load pci topo config from %s ,error : %v", file, err)
+		} else {
+			return nil
 		}
 	}
-	err := utils.LoadFromYaml(file, c)
+
+	file = filepath.Join(consts.DefaultPodCfgPath, "pcie/topotest/", consts.DefaultSpecCfgName)
+	_, err := os.Stat(file)
+	if err != nil {
+		_, curFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return fmt.Errorf("get curr file path failed")
+		}
+		// Get the directory of the current file
+		nowDir := filepath.Dir(curFile)
+		file = filepath.Join(nowDir, consts.DefaultSpecCfgName)
+	}
+
+	err = utils.LoadFromYaml(file, c)
 	if err != nil {
 		return fmt.Errorf("failed to load pci topo config from %s ,error : %v", file, err)
 	}
