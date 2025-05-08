@@ -441,6 +441,10 @@ func findEndpointLowestCommonSwitch(pciTree *PciTree, endpoints []*PciNode) map[
 			}
 
 		}
+		if minSwitchIdx == math.MaxInt {
+			// logrus.WithField("component", "pcie").Warnf("find no minSwitchIdx for %s", endpointBDFs[i])
+			continue
+		}
 		sw_id := path1[minSwitchIdx].BDF
 		if _, exists := swIDToBDFMap[sw_id]; !exists {
 			swIDToBDFMap[sw_id] = make(map[string]struct{})
