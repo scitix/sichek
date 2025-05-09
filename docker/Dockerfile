@@ -44,7 +44,11 @@ FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y vim curl tzdata git ca-certificates perftest && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y vim curl tzdata git ca-certificates perftest xz-utils libnuma1 numactl && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -o /tmp/sicl_install.sh https://oss-ap-southeast.scitix.ai/scitix-release/sicl-24.11-1.cuda1262.ubuntu2204.run && \
+    bash /tmp/sicl_install.sh && rm -rf /tmp/sicl_install.sh
 
 ENV NVIDIA_VISIBLE_DEVICES=""
 ENV TZ=UTC

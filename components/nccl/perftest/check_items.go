@@ -16,12 +16,23 @@ limitations under the License.
 package perftest
 
 import (
-	"testing"
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 )
 
-func TestCheckNodeIBPerfHealth(t *testing.T) {
-	_, err := CheckNodeIBPerfHealth("ib_read_bw", 150, "", 65536, 2, false, true)
-	if err != nil {
-		t.Errorf("CheckNodeIBPerfHealth FAILED: %v", err)
-	}
+const (
+	NcclPerfCheckerName = "NcclPerfCheckerName"
+)
+
+// NcclPerfCheckItems is a map of check items for ncclperf
+var NcclPerfCheckItems = map[string]*common.CheckerResult{
+	NcclPerfCheckerName: {
+		Name:        NcclPerfCheckerName,
+		Description: "",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "NcclPerfError",
+		Suggestion:  "Check Nccl Bandwidth",
+	},
 }
