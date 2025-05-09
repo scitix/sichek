@@ -8,8 +8,8 @@ KubeConfig:
   ConfigFile: /root/.kube/config
 FaultToleranceConfig:
   EnableTaskGuardLabel: scitix.ai/taskguard
-  CheckStatusPeriod: 5m
+  CheckStatusPeriod: 1m
   MaxRetryCount: 3
   SiChekNodeAnnotationKey: scitix.ai/sichek
-  LogCheckerRulesPath: etc/log-checker-rules.yaml
+  LogCheckerRulesPath: /opt/taskguard/etc/log-checker-rules.yaml
   LogCheckerLines: 1000
