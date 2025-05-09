@@ -16,12 +16,23 @@ limitations under the License.
 package perftest
 
 import (
-	"testing"
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 )
 
-func TestCheckNodeIBPerfHealth(t *testing.T) {
-	_, err := CheckNodeIBPerfHealth("ib_read_bw", 150, "", 65536, 2, false, true)
-	if err != nil {
-		t.Errorf("CheckNodeIBPerfHealth FAILED: %v", err)
-	}
+const (
+	IbPerfCheckerName         = "IbPerfCheckerName"
+)
+
+// IbPerfCheckItems is a map of check items for ibperf
+var IbPerfCheckItems = map[string]*common.CheckerResult{
+	IbPerfCheckerName: {
+		Name:        IbPerfCheckerName,
+		Description: "",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "IbPerfError",
+		Suggestion:  "Check Ib Bandwidth",
+	},
 }

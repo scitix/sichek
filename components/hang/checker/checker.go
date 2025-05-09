@@ -72,6 +72,8 @@ func (c *HangChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	hangNum := make(map[string]int64)
 	for uuid, curIndicatorStates := range info.Indicators {
 		for indicatorName, indicator := range curIndicatorStates.Indicators {
+			// fmt.Printf("device=%s, indicatorName=%s, value=%d, spec=%ser-than-%d, hang_duration=%s, duration_threshold=%s\n",
+			// 	uuid, indicatorName, indicator.Value, c.spec.Indicators[indicatorName].CompareType, c.spec.Indicators[indicatorName].Threshold, indicator.Duration, c.spec.DurationThreshold)
 			if indicator.Duration >= c.spec.DurationThreshold.Duration {
 				raw = fmt.Sprintf("%sdevice=%s, indicatorName=%s, value=%d, spec=%ser-than-%d, hang_duration=%s, duration_threshold=%s\n",
 					raw, uuid, indicatorName, indicator.Value, c.spec.Indicators[indicatorName].CompareType, c.spec.Indicators[indicatorName].Threshold, indicator.Duration, c.spec.DurationThreshold)
