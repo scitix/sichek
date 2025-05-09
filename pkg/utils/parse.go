@@ -38,7 +38,6 @@ func LoadFromYaml(file string, c interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	err = yaml.Unmarshal(data, c)
 	if err != nil {
 		return err
@@ -54,9 +53,9 @@ func ParseStringToFloat(str string) float64 {
 	return num
 }
 
-func ParseBoolToFloat(b bool) float64 {  
-	if b {  
-		return 1.0  
-	}  
-	return 0.0  
-} 
+func ParseBoolToFloat(b bool) float64 {
+	if b {
+		return 1.0
+	}
+	return 0.0
+}

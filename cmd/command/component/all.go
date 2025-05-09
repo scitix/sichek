@@ -30,6 +30,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
+	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -146,6 +147,14 @@ func NewAllCmd() *cobra.Command {
 				}
 				PrintCheckResults(!eventonly, checkResult)
 			}
+			//check topo
+			res, err := topotest.CheckGPUTopology(specFile)
+			if err != nil {
+				logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
+				return
+			}
+			passed := topotest.PrintInfo(res, !eventonly)
+			ComponentStatuses[res.Item] = passed
 		},
 	}
 

@@ -17,7 +17,8 @@ spec:
       serviceAccountName: scitix-sa-taskguard
       containers:
       - name: taskguard-service
-        image: registry-ap-southeast.scitix.ai/siflow/taskguard:test
+        image: registry-ap-southeast.scitix.ai/hisys/taskguard:v0.0.1
+        imagePullPolicy: Always
         command: ["/bin/bash"]
         args:
           - "-c"

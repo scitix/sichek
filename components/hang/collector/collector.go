@@ -46,7 +46,7 @@ type IndicatorStates struct {
 // DeviceIndicatorStates tracks all hang indicators for all GPU device.
 type DeviceIndicatorStates struct {
 	Indicators map[string]*IndicatorStates // DeviceID -> IndicatorStates
-	LastUpdate time.Time // Last update timestamp for all devices' indicators
+	LastUpdate time.Time                   // Last update timestamp for all devices' indicators
 }
 
 func (s *DeviceIndicatorStates) JSON() (string, error) {
@@ -141,10 +141,10 @@ func (c *HangCollector) Collect(ctx context.Context) (common.Info, error) {
 			switch indicatorName {
 			case "rxpci", "txpci":
 				infoValue = absDiff(curIndicatorStates.Indicators[indicatorName].Value, preIndicatorStates[indicatorName].Value)
+				// fmt.Printf("%s: cur %s = %d, previous %s = %d\n", gpuId, indicatorName, curIndicatorStates.Indicators[indicatorName].Value, indicatorName, preIndicatorStates[indicatorName].Value)
 			default:
 				infoValue = curIndicatorStates.Indicators[indicatorName].Value
 			}
-
 			duration := c.getDuration(indicatorName, infoValue, curIndicatorStates.LastUpdate)
 			if duration == 0 {
 				IndicatorStates[indicatorName] = &IndicatorState{

@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewRootCmd creates and returns the root command (sichek command) instance, configures basic usage information, and adds subcommands.  
+// NewRootCmd creates and returns the root command (sichek command) instance, configures basic usage information, and adds subcommands.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "sichek",
@@ -66,7 +66,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewAllCmd())
 	rootCmd.AddCommand(NewVersionCmd())
 	rootCmd.AddCommand(NewDaemonCmd())
-
+	rootCmd.AddCommand(component.NewPcieTopoCmd())
 	// add perftest subcommand
 	perftestCmd := &cobra.Command{
 		Use:   "perftest",
@@ -75,6 +75,6 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(perftestCmd)
 
 	perftestCmd.AddCommand(component.NewIBPerftestCmd())
-
+	perftestCmd.AddCommand(component.NewNcclPerftestCmd())
 	return rootCmd
 }
