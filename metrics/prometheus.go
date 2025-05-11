@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"net/http"
+	"reflect"
 	"strconv"
 	"sync"
 
@@ -21,8 +22,23 @@ type HealthCheckResMetrics struct {
 	AnnotationResGauge  *GaugeVecMetricExporter
 }
 
+func getHealthCheckResMetricLables() []string {
+	var checkerResult common.CheckerResult
+	labelMap := make(map[string]*StructMetrics)
+	StructToMetricsMap(reflect.ValueOf(checkerResult), "", "json", labelMap)
+	labelNames := make([]string, 0, len(labelMap)+1)
+	labelNames = append(labelNames, "component")
+	for k := range labelMap {
+		if k != "detail" {
+			labelNames = append(labelNames, k)
+		}
+	}
+	return labelNames
+}
+
 func newHealthCheckResMetrics() *HealthCheckResMetrics {
-	HealthCheckResGauge := NewGaugeVecMetricExporter(MetricPrefix, []string{"component_name", "level", "error_name"})
+	healthCheckResMetricLables := getHealthCheckResMetricLables()
+	HealthCheckResGauge := NewGaugeVecMetricExporter(MetricPrefix, healthCheckResMetricLables)
 	AnnotationResGauge := NewGaugeVecMetricExporter(MetricPrefix, []string{"annotaion"})
 
 	return &HealthCheckResMetrics{
@@ -43,13 +59,25 @@ func GetHealthCheckResMetrics() *HealthCheckResMetrics {
 
 func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 	for _, checker := range metrics.Checkers {
+		labelMap := make(map[string]*StructMetrics)
+		StructToMetricsMap(reflect.ValueOf(checker), "", "json", labelMap)
+		labelVals := make([]string, 0, len(m.HealthCheckResGauge.labelKeys)+1)
+		for _, k := range m.HealthCheckResGauge.labelKeys {
+			switch k {
+			case "component":
+				labelVals = append(labelVals, metrics.Item)
+			default:
+				labelVals = append(labelVals, labelMap[k].StrLabel)
+			}
+		}
 		if checker.Status == consts.StatusAbnormal {
-			m.HealthCheckResGauge.SetMetric("healthcheck_results", []string{metrics.Item, checker.Level, checker.ErrorName}, 1.0)
+			m.HealthCheckResGauge.SetMetric(checker.ErrorName, labelVals, 1.0)
 		} else {
-			m.HealthCheckResGauge.SetMetric("healthcheck_results", []string{metrics.Item, checker.Level, checker.ErrorName}, 0.0)
+			m.HealthCheckResGauge.SetMetric(checker.ErrorName, labelVals, 0.0)
 		}
 	}
 }
+
 func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }

@@ -8,7 +8,7 @@ namespace: default
 image:
   repository: registry-ap-southeast.scitix.ai/hisys/sichek
   pullPolicy: Always #IfNotPresent
-  tag: "v0.4.0"
+  tag: "v0.4.1"
 
 mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
 nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified

@@ -3,6 +3,8 @@ package metrics
 import (
 	"reflect"
 	"testing"
+
+	"github.com/scitix/sichek/components/common"
 )
 
 func TestNewGaugeVecMetricExporter(t *testing.T) {
@@ -171,4 +173,55 @@ func TestSanitizeMetricName(t *testing.T) {
 			t.Errorf("expected sanitized name %s, got %s", expected, output)
 		}
 	}
+}
+
+func TestGetHealthCheckResMetricLables(t *testing.T) {
+	healthCheckResMetricLables := getHealthCheckResMetricLables()
+	labelSet := make(map[string]struct{})
+	for _, label := range healthCheckResMetricLables {
+		labelSet[label] = struct{}{}
+	}
+	expectedLabels := []string{"name", "description", "device", "spec", "curr", "status", "level", "suggestion", "error_name"}
+	for _, label := range expectedLabels {
+		if _, ok := labelSet[label]; !ok {
+			t.Fatalf("Expected to have label=%s, it doesn't exist", label)
+		}
+	}
+	if _, ok := labelSet["detail"]; ok {
+		t.Fatalf("Expected to have label=detail, it exists")
+	}
+	t.Logf("healthCheckResMetricLables=%v", healthCheckResMetricLables)
+}
+
+func TestCheckerResultReflect(t *testing.T) {
+	checkerResult := common.CheckerResult{
+		Name:        "testName",
+		Description: "testDescp",
+		Device:      "testDevice",
+		Spec:        "testSpec",
+		Curr:        "testCurr",
+		Status:      "testStatus",
+		Level:       "testLevel",
+		Suggestion:  "testSuggestion",
+		Detail:      "testDetail",
+		ErrorName:   "testErrorName",
+	}
+
+	labelMap := make(map[string]*StructMetrics)
+	StructToMetricsMap(reflect.ValueOf(checkerResult), "", "json", labelMap)
+	labelValues := make([]string, 0, len(labelMap))
+	for k := range labelMap {
+		labelValues = append(labelValues, labelMap[k].StrLabel)
+	}
+	labelSet := make(map[string]struct{})
+	for _, labelVal := range labelValues {
+		labelSet[labelVal] = struct{}{}
+	}
+	expectedLabelVals := []string{"testName", "testDescp", "testDevice", "testSpec", "testCurr", "testStatus", "testLevel", "testSuggestion", "testDetail", "testErrorName"}
+	for _, labelVal := range expectedLabelVals {
+		if _, ok := labelSet[labelVal]; !ok {
+			t.Fatalf("Expected to have label value %s, it doesn't exist", labelVal)
+		}
+	}
+	t.Logf("labelValues=%v", labelValues)
 }
