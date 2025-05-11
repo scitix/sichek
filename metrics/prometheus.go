@@ -66,6 +66,8 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 			switch k {
 			case "component":
 				labelVals = append(labelVals, metrics.Item)
+			case "node":
+				continue
 			default:
 				labelVals = append(labelVals, labelMap[k].StrLabel)
 			}

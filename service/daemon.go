@@ -97,7 +97,7 @@ func (d *DaemonService) Run() {
 func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan *common.Result) {
 	defer func() {
 		if err := recover(); err != nil {
-			logrus.WithField("daemon", "run").Errorf("monitorComponent panic,err is %v\n", err)
+			logrus.WithField("daemon", "run").Errorf("monitorComponent %s panic,err is %v\n", componentName, err)
 		}
 	}()
 	d.componentsStatusLock.Lock()
