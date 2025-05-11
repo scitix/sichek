@@ -457,7 +457,7 @@ func findEndpointLowestCommonSwitch(pciTree *PciTree, endpoints []*PciNode) map[
 	return swIDToBDFMap
 }
 
-// findCommonSwitch finds the smallest common PCIe switchh for a group of GPUS
+// findCommonSwitch finds the smallest common PCIe switchs for a group of endpoints, likes GPUs/IBs
 func ParseEndpointsbyCommonSwitch(pciTrees []PciTree, nodes map[string]*PciNode, devices map[string]*DeviceInfo) map[string]*EndpointInfoByPCIeSW {
 	endpointListbyCommonPcieSWs := make(map[string]*EndpointInfoByPCIeSW)
 	endpoints := make([]*PciNode, 0)
