@@ -29,7 +29,7 @@ func getHealthCheckResMetricLables() []string {
 	labelNames := make([]string, 0, len(labelMap)+1)
 	labelNames = append(labelNames, "component")
 	for k := range labelMap {
-		if k != "detail" {
+		if k != "detail" && k != "error_name" {
 			labelNames = append(labelNames, k)
 		}
 	}
@@ -74,8 +74,6 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 		}
 		if checker.Status == consts.StatusAbnormal {
 			m.HealthCheckResGauge.SetMetric(checker.ErrorName, labelVals, 1.0)
-		} else {
-			m.HealthCheckResGauge.SetMetric(checker.ErrorName, labelVals, 0.0)
 		}
 	}
 }
