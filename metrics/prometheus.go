@@ -74,6 +74,8 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 		}
 		if checker.Status == consts.StatusAbnormal {
 			m.HealthCheckResGauge.SetMetric(checker.ErrorName, labelVals, 1.0)
+		} else {
+			m.HealthCheckResGauge.ResetMetric(checker.ErrorName)
 		}
 	}
 }
