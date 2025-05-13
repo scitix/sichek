@@ -109,7 +109,7 @@ func (e *GaugeVecMetricExporter) SetMetric(name string, labelVals []string, valu
 	gaugeVec.WithLabelValues(labelVals...).Set(value)
 }
 
-// ResetMetric deletes all metrics in this vector.
+// ResetMetric deletes all metrics in this GaugeVec.
 func (e *GaugeVecMetricExporter) ResetMetric(name string) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
