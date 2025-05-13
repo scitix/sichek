@@ -181,7 +181,7 @@ func TestGetHealthCheckResMetricLables(t *testing.T) {
 	for _, label := range healthCheckResMetricLables {
 		labelSet[label] = struct{}{}
 	}
-	expectedLabels := []string{"name", "description", "device", "spec", "curr", "status", "level", "suggestion", "error_name"}
+	expectedLabels := []string{"name", "description", "device", "spec", "curr", "status", "level", "suggestion"}
 	for _, label := range expectedLabels {
 		if _, ok := labelSet[label]; !ok {
 			t.Fatalf("Expected to have label=%s, it doesn't exist", label)
