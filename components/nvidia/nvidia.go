@@ -538,15 +538,15 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", consts.Red, nvidiaInfo.SoftwareInfo.CUDAVersion, consts.Reset)
 				gpuStatus[config.SoftwareCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 			}
-		case config.GpuPersistenceCheckerName:
+		case config.GpuPersistencedCheckerName:
 			if result.Status == consts.StatusNormal {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", consts.Green, result.Curr, consts.Reset)
 				if result.Curr != "Enabled" {
-					gpuStatus[config.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", consts.Yellow, result.Detail, consts.Reset)
+					gpuStatus[config.GpuPersistencedCheckerName] = fmt.Sprintf("%s%s%s", consts.Yellow, result.Detail, consts.Reset)
 				}
 			} else {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", consts.Red, result.Curr, consts.Reset)
-				gpuStatus[config.GpuPersistenceCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+				gpuStatus[config.GpuPersistencedCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 			}
 		case config.GpuPStateCheckerName:
 			if result.Status == consts.StatusNormal {

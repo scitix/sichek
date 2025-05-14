@@ -27,7 +27,6 @@ func getHealthCheckResMetricLables() []string {
 	labelMap := make(map[string]*StructMetrics)
 	StructToMetricsMap(reflect.ValueOf(checkerResult), "", "json", labelMap)
 	labelNames := make([]string, 0, len(labelMap)+1)
-	labelNames = append(labelNames, "component")
 	for k := range labelMap {
 		if k != "detail" && k != "error_name" {
 			labelNames = append(labelNames, k)
@@ -64,18 +63,17 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 		labelVals := make([]string, 0, len(m.HealthCheckResGauge.labelKeys)+1)
 		for _, k := range m.HealthCheckResGauge.labelKeys {
 			switch k {
-			case "component":
-				labelVals = append(labelVals, metrics.Item)
 			case "node":
 				continue
 			default:
 				labelVals = append(labelVals, labelMap[k].StrLabel)
 			}
 		}
+		metricName := metrics.Item + "_" + checker.ErrorName
 		if checker.Status == consts.StatusAbnormal {
-			m.HealthCheckResGauge.SetMetric(checker.ErrorName, labelVals, 1.0)
+			m.HealthCheckResGauge.SetMetric(metricName, labelVals, 1.0)
 		} else {
-			m.HealthCheckResGauge.ResetMetric(checker.ErrorName)
+			m.HealthCheckResGauge.ResetMetric(metricName)
 		}
 	}
 }
