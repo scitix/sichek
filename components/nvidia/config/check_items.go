@@ -34,7 +34,7 @@ const (
 	AppClocksCheckerName                 = "app-clocks"
 	ClockEventsCheckerName               = "clock-events"
 	NvlinkCheckerName                    = "nvlink"
-	GpuPersistenceCheckerName            = "persistence"
+	GpuPersistencedCheckerName           = "persistenced"
 	GpuPStateCheckerName                 = "pstate"
 	HardwareCheckerName                  = "hardware"
 	PCIeCheckerName                      = "pcie"
@@ -107,14 +107,14 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		ErrorName:   "HighTemperature",
 		Suggestion:  "Observing the performance of application",
 	},
-	GpuPersistenceCheckerName: {
-		Name:        GpuPersistenceCheckerName,
+	GpuPersistencedCheckerName: {
+		Name:        GpuPersistencedCheckerName,
 		Description: "Check verifies if the Nvidia GPU persistence mode is enabled and working correctly",
 		Status:      "",
 		Level:       consts.LevelWarning,
 		Detail:      "",
 		ErrorName:   "GPUPersistenceModeNotEnabled",
-		Suggestion:  "run `nvidia-smi -pm 1` to auto enable the persistence mode. Ideally this will be done automatically online",
+		Suggestion:  "run `nvidia-persistenced` to auto enable the persistence mode. Ideally this will be done automatically online",
 	},
 	GpuPStateCheckerName: {
 		Name:        GpuPStateCheckerName,

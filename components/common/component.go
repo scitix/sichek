@@ -61,17 +61,16 @@ func (r *Result) JSON() (string, error) {
 }
 
 type CheckerResult struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Device      string            `json:"device"`
-	Spec        string            `json:"spec"`
-	Curr        string            `json:"curr"`
-	Status      string            `json:"status"`
-	Level       string            `json:"level"`
-	Suggestion  string            `json:"suggest"`
-	Detail      string            `json:"detail"`
-	ErrorName   string            `json:"error_name"`
-	Labels      map[string]string `json:"labels"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Device      string `json:"device"`
+	Spec        string `json:"spec"`
+	Curr        string `json:"curr"`
+	Status      string `json:"status"`
+	Level       string `json:"level"`
+	Suggestion  string `json:"suggestion"`
+	Detail      string `json:"detail"`
+	ErrorName   string `json:"error_name"`
 }
 
 func (c *CheckerResult) JSON() ([]byte, error) {

@@ -125,8 +125,8 @@ func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map
 }
 
 func CheckGPUTopology(file string) (*common.Result, error) {
-	cfg := &PcieTopoConfig{}
-	err := cfg.LoadConfig(file)
+	spec := &PcieTopoSpec{}
+	err := spec.LoadSpec(file)
 	if err != nil {
 		return nil, fmt.Errorf("load GPUTopology Config Err: %v", err)
 	}
@@ -159,7 +159,7 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 		return nil, fmt.Errorf("get deviceId error: %v", err)
 	}
 	var checkRes []*common.CheckerResult
-	checkCfg, exist := cfg.PcieTopo[device]
+	checkCfg, exist := spec.PcieTopo[device]
 	if !exist {
 		return nil, fmt.Errorf("device %s topo config not found", device)
 	}

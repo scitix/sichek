@@ -142,7 +142,7 @@ func Check(ctx context.Context, componentName string, data any, checkers []Check
 		}
 		resResult.Checkers = append(resResult.Checkers, checkItem)
 		if checkItem.Status == consts.StatusAbnormal {
-			logrus.WithField("component", componentName).Warnf("check Item:%s, status:%s", checkItem.Name, status)
+			logrus.WithField("component", componentName).Warnf("Abnormal check result: %s, %s", checkItem.Name, checkItem.Detail)
 			status = consts.StatusAbnormal
 			if consts.LevelPriority[level] > consts.LevelPriority[checkItem.Level] {
 				level = checkItem.Level
