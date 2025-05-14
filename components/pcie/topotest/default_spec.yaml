@@ -1,5 +1,5 @@
-pcie_machine:  
-  "0x233010de":  
+pcie_topo:  
+  "0x233010de":  # Temporarily use GPU ID to replace machine id
     numa_config:  
       - node_id: 0            # NUMA‑0  
         gpu_count: 4

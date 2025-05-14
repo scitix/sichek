@@ -35,7 +35,7 @@ type GpuPersistenceChecker struct {
 
 func NewGpuPersistenceChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
 	return &GpuPersistenceChecker{
-		name: config.GpuPersistenceCheckerName,
+		name: config.GpuPersistencedCheckerName,
 		cfg:  cfg,
 	}, nil
 }
@@ -57,7 +57,7 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
 
-	result := config.GPUCheckItems[config.GpuPersistenceCheckerName]
+	result := config.GPUCheckItems[config.GpuPersistencedCheckerName]
 
 	// Check if all the Nvidia GPUs have persistence mode enabled
 	var disableGpus []string
@@ -71,7 +71,7 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 				devicePodName = fmt.Sprintf("%s:", device.UUID)
 			}
 			disableGpus = append(disableGpus, fmt.Sprintf("GPU %d", device.Index))
-			_, err := utils.ExecCommand(ctx, "nvidia-smi", "-i", fmt.Sprintf("%d", device.Index), "-pm", "1")
+			_, err := utils.ExecCommand(ctx, "nvidia-persistenced")
 			if err != nil {
 				result.Detail += fmt.Sprintf("GPU %d:  Failed to enable persistence mode: %s\n", device.Index, err.Error())
 				failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)

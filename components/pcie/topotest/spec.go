@@ -11,8 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type PcieTopoConfig struct {
-	PcieTopo map[string]*MachineConfig `json:"pcie_machine"`
+type PcieTopoSpec struct {
+	PcieTopo map[string]*MachineConfig `json:"pcie_topo"`
 }
 
 // PciDevice represents the device configuration
@@ -38,10 +38,10 @@ type BDFItem struct {
 	BDF        string `json:"bdf"`
 }
 
-func (c *PcieTopoConfig) LoadConfig(file string) error {
+func (s *PcieTopoSpec) LoadSpec(file string) error {
 	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || len(c.PcieTopo) == 0 {
+		err := utils.LoadFromYaml(file, s)
+		if err != nil || len(s.PcieTopo) == 0 {
 			logrus.WithField("componet", "pcietopo").Errorf("failed to load pci topo config from %s ,error : %v", file, err)
 		} else {
 			return nil
@@ -59,7 +59,7 @@ func (c *PcieTopoConfig) LoadConfig(file string) error {
 		nowDir := filepath.Dir(curFile)
 		file = filepath.Join(nowDir, consts.DefaultSpecCfgName)
 	}
-	err = utils.LoadFromYaml(file, c)
+	err = utils.LoadFromYaml(file, s)
 	if err != nil {
 		return fmt.Errorf("failed to load pci topo config from %s ,error : %v", file, err)
 	}
