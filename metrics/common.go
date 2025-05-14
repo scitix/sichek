@@ -109,6 +109,18 @@ func (e *GaugeVecMetricExporter) SetMetric(name string, labelVals []string, valu
 	gaugeVec.WithLabelValues(labelVals...).Set(value)
 }
 
+// ResetMetric deletes all metrics in this GaugeVec.
+func (e *GaugeVecMetricExporter) ResetMetric(name string) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	fullName := sanitizeMetricName(e.prefix + "_" + name)
+	// Check if the metric already exists, if not create and register it
+	gaugeVec, exists := e.MetricsMap[fullName]
+	if exists {
+		gaugeVec.Reset()
+	}
+}
+
 // StructToMetricsMap This recursively flattens the struct into a map where each field is represented by a string path and its corresponding value.
 func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[string]*StructMetrics) {
 	// Dereference pointers

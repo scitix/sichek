@@ -35,7 +35,7 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 		config.PCIeCheckerName:            NewPCIeChecker,
 		// config.HardwareCheckerName:                  NewHardwareChecker,
 		config.SoftwareCheckerName:                  NewSoftwareChecker,
-		config.GpuPersistenceCheckerName:            NewGpuPersistenceChecker,
+		config.GpuPersistencedCheckerName:           NewGpuPersistenceChecker,
 		config.GpuPStateCheckerName:                 NewGpuPStateChecker,
 		config.NvlinkCheckerName:                    NewNvlinkChecker,
 		config.AppClocksCheckerName:                 NewAppClocksChecker,
