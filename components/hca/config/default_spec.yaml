@@ -70,9 +70,9 @@ hca:
       pcie_mrr: "4096"
     DEL0000000036:
       hca_type: "MT4129"
-      board_id: "DEL0000000036"
+      board_id: "NVIDIA ConnectX-7 HHHL Adapter card, 400GbE / NDR IB (default mode), Single-port OSFP, PCIe 5.0 x16, Crypto Disabled, Secure Boot Enabled"
       fw_ver: ">=20.39.2048"
-      vpd: "NVIDIA ConnectX-7 HHHL Adapter card, 400GbE / NDR IB (default mode), Single-port OSFP, PCIe 5.0 x16, Crypto Disabled, Secure Boot Enabled"
+      vpd: "N"
       net_port: 1
       port_speed: "400 Gb/sec (4X NDR)"
       phy_state: "LinkUp"
