@@ -29,6 +29,7 @@ const (
 	FilesystemUnmountCheckerName   = "filesystem_unmount"
 	ExpelledFromClusterCheckerName = "expelled_from_cluster"
 	UnauthorizedCheckerName        = "unauthorized"
+	Bond0Lost					   = "bond0_lost"
 )
 
 var GPFSCheckItems = map[string]common.CheckerResult{
@@ -119,5 +120,16 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Detail:      "",
 		ErrorName:   "GPFSUnauthorized",
 		Suggestion:  "Check GPFS authorization status",
+	},
+	UnauthorizedCheckerName: {
+		Name:        Bond0Lost,
+		Description: "bond0 not active",
+		Device:      "",
+		Spec:        "0",
+		Status:      "",
+		Level:       consts.LevelWarning,
+		Detail:      "",
+		ErrorName:   "Bond0Lost",
+		Suggestion:  "Check GPFS ether network",
 	},
 }
