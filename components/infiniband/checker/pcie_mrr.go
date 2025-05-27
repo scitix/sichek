@@ -85,9 +85,7 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIEMRR)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEMRR)
-		}
-		// auto fix if the curr not match the spec
-		if hcaSpec.PCIEMRR != hwInfo.PCIEMRR {
+			// auto fix if the curr not match the spec
 			ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
 		}
 	}
