@@ -29,7 +29,7 @@ const (
 	FilesystemUnmountCheckerName   = "filesystem_unmount"
 	ExpelledFromClusterCheckerName = "expelled_from_cluster"
 	UnauthorizedCheckerName        = "unauthorized"
-	Bond0Lost					   = "bond0_lost"
+	Bond0Lost                      = "bond0_lost"
 )
 
 var GPFSCheckItems = map[string]common.CheckerResult{
