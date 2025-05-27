@@ -40,6 +40,7 @@ type InfinibandSpec struct {
 }
 
 type InfinibandSpecItem struct {
+	HCANum         int                                  `json:"hca_num"`
 	IBDevs         []string                             `json:"ib_devs"`
 	NetDevs        []string                             `json:"net_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo            `json:"sw_deps"`

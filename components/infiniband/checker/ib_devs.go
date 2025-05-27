@@ -80,5 +80,12 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		result.Status = consts.StatusNormal
 	}
 
+	if len(infinibandInfo.IBDevs) != c.spec.HCANum {
+		result.Status = consts.StatusAbnormal
+		result.Detail = fmt.Sprintf("IB devices count mismatch, expected %d, got %d", len(c.spec.IBDevs), len(infinibandInfo.IBDevs))
+	} else {
+		result.Status = consts.StatusNormal
+	}
+
 	return &result, nil
 }

@@ -1,6 +1,7 @@
 infiniband:
   clusters:
     default:
+      hca_num: 9
       ib_devs:
         - mlx5_0
         - mlx5_1
