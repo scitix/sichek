@@ -42,3 +42,14 @@ hang:
         smclk:
           threshold: 1900
           compare: high
+    - model: "0x233510de"
+      override:
+        pwr:
+          threshold: 160
+          compare: low
+        gclk:
+          threshold: 1900
+          compare: high
+        smclk:
+          threshold: 1900
+          compare: high
