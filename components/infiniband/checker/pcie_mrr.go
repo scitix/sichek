@@ -88,6 +88,10 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			// auto fix if the curr not match the spec
 			ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
 		}
+		// auto fix if the curr not match the spec
+		if hcaSpec.PCIEMRR != hwInfo.PCIEMRR {
+			ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
+		}
 	}
 
 	result.Curr = strings.Join(curr, ",")
