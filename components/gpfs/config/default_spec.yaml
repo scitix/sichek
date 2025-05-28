@@ -12,7 +12,7 @@ gpfs:
       name: "RDMA"
       description: "node VERBS RDMA error"
       log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(VERBS RDMA failed to start)"
+      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)|(VERBS RDMA failed to start)"
     quorum_connection:
       name: "quorum_connection"
       log_file: "/var/adm/ras/mmfs.log.latest"
