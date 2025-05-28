@@ -86,7 +86,7 @@ func TestIsTaskPodHangFromSiChek(t *testing.T) {
 			"fatal": []*annotation{
 				&annotation{
 					ErrorName: "test_hang",
-					Devcie:    "gpu1:test-pod",
+					Device:    "gpu1:test-pod",
 				},
 			},
 		},

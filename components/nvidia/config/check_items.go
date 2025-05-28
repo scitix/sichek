@@ -177,7 +177,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "RemmapedRowsPending",
-		Suggestion:  "Reset the GPU devcie",
+		Suggestion:  "Reset the GPU device",
 	},
 	RemmapedRowsFailureCheckerName: {
 		Name:        RemmapedRowsFailureCheckerName,
@@ -195,7 +195,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "SRAMVolatileUncorrectable",
-		Suggestion:  "Reset the GPU devcie",
+		Suggestion:  "Reset the GPU device",
 	},
 	SRAMAggUncorrectableCheckerName: {
 		Name:        SRAMAggUncorrectableCheckerName,
