@@ -12,7 +12,7 @@ gpfs:
       name: "RDMA"
       description: "node VERBS RDMA error"
       log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)"
+      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)|(VERBS RDMA failed to start)"
     quorum_connection:
       name: "quorum_connection"
       log_file: "/var/adm/ras/mmfs.log.latest"
@@ -33,3 +33,7 @@ gpfs:
       name: "unauthorized"
       log_file: "/var/adm/ras/mmfs.log.latest"
       regexp: "cluster is not authorized"
+    bond0_lost:
+      name: "bond0_lost"
+      log_file: "/var/log/syslog"
+      regexp: "bond0: now running without any active interface"
