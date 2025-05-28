@@ -44,7 +44,7 @@ type SiChekResult struct {
 
 type annotation struct {
 	ErrorName string `json:"error_name"`
-	Devcie    string `json:"device"`
+	Device    string `json:"device"`
 }
 
 func (c *Controller) getSiChekResultFromNode(nodeName string) SiChekResult {
@@ -60,9 +60,9 @@ func (c *Controller) getSiChekResultFromNode(nodeName string) SiChekResult {
 		return res
 	}
 
-	nodeInfo := obj.(*corev1.Node)
-	if err != nil {
-		logx.Errorf("failed to get node info, node: %s, err: %s", nodeName, err.Error())
+	nodeInfo, ok := obj.(*corev1.Node)
+	if !ok {
+		logx.Errorf("failed to get node info, node: %s", nodeName)
 		return res
 	}
 
@@ -83,8 +83,9 @@ func (c *Controller) getSiChekResultFromNode(nodeName string) SiChekResult {
 func (c *Controller) isTaskPodHealthy(nodeName, podName string) bool {
 	siChekRes := c.getSiChekResultFromNode(nodeName)
 
-	chekSlick := []map[string][]*annotation{
+	chekSlice := []map[string][]*annotation{
 		siChekRes.NCCL,
+		siChekRes.Hang,
 		siChekRes.NVIDIA,
 		siChekRes.Infiniband,
 		siChekRes.Ethernet,
@@ -94,7 +95,7 @@ func (c *Controller) isTaskPodHealthy(nodeName, podName string) bool {
 		siChekRes.Dmesg,
 	}
 
-	for _, item := range chekSlick {
+	for _, item := range chekSlice {
 		if item == nil {
 			continue
 		}
@@ -104,10 +105,10 @@ func (c *Controller) isTaskPodHealthy(nodeName, podName string) bool {
 			}
 			for _, annotation := range annotations {
 				logx.Infof("check pod %s status from sichek, annotation %v", podName, annotation)
-				if len(annotation.Devcie) == 0 {
+				if len(annotation.Device) == 0 {
 					return false
 				}
-				deviceSlice := strings.Split(annotation.Devcie, ",")
+				deviceSlice := strings.Split(annotation.Device, ",")
 				for _, device := range deviceSlice {
 					deviceInfo := strings.Split(device, ":")
 					if len(deviceInfo) == 2 && (len(deviceInfo[1]) == 0 || deviceInfo[1] == podName) {
@@ -135,10 +136,10 @@ func (c *Controller) isTaskPodHangFromSiChek(nodeName, podName string) bool {
 		}
 		for _, annotation := range annotations {
 			logx.Infof("check pod %s hang status from sichek, annotation %v", podName, annotation)
-			if len(annotation.Devcie) == 0 {
+			if len(annotation.Device) == 0 {
 				return true
 			}
-			deviceSlice := strings.Split(annotation.Devcie, ",")
+			deviceSlice := strings.Split(annotation.Device, ",")
 			for _, device := range deviceSlice {
 				deviceInfo := strings.Split(device, ":")
 				if len(deviceInfo) == 2 && (len(deviceInfo[1]) == 0 || deviceInfo[1] == podName) {
