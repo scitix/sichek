@@ -4,7 +4,7 @@ hang:
   duration_threshold: 60s
   level: warn
   query_interval_after_abnormal: 10s
-  abnormal_detected_times: 10
+  abnormal_detected_times: 5
   check_items:
     pwr:
       threshold: 100
@@ -25,10 +25,10 @@ hang:
       threshold: 5
       compare: low
     rxpci:
-      threshold: 20 # MB/s
+      threshold: 300 # MB/s
       compare: low
     txpci:
-      threshold: 20 # MB/s
+      threshold: 300 # MB/s
       compare: low
   check_items_by_model:
     - model: "0x233010de"

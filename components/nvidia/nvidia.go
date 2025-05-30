@@ -55,9 +55,10 @@ type component struct {
 
 	xidPoller *XidEventPoller
 
-	serviceMtx    sync.RWMutex
-	running       bool
-	resultChannel chan *common.Result
+	healthCheckMtx sync.Mutex
+	serviceMtx     sync.RWMutex
+	running        bool
+	resultChannel  chan *common.Result
 
 	metrics *metrics.NvidiaMetrics
 }
@@ -219,6 +220,8 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
+	c.healthCheckMtx.Lock()
+	defer c.healthCheckMtx.Unlock()
 	if c.nvmlInst == nil {
 		err := ReNewNvml(c)
 		// Check again after reinitialization

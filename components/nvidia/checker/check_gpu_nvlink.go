@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 var NOTSUPPORT = "Not Supported"
@@ -71,19 +72,30 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			devicePodName = fmt.Sprintf("%s:", device.UUID)
 		}
 		if device.NVLinkStates.NVlinkSupported != c.cfg.Nvlink.NVlinkSupported {
+			logrus.Warnf("GPU %d: NVlinkSupported is `%t`, while expected `%t`",
+				device.Index, device.NVLinkStates.NVlinkSupported, c.cfg.Nvlink.NVlinkSupported)
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: NVlinkSupported is `%t`, while expected `%t`\n",
 				device.Index, device.NVLinkStates.NVlinkSupported, c.cfg.Nvlink.NVlinkSupported))
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
 		if device.NVLinkStates.NvlinkNum != c.cfg.Nvlink.NvlinkNum {
+			logrus.Warnf("GPU %d: NVlinkNum is `%d`, while expected `%d`",
+				device.Index, device.NVLinkStates.NvlinkNum, c.cfg.Nvlink.NvlinkNum)
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: NVlinkNum is `%d`, while expected `%d`\n",
 				device.Index, device.NVLinkStates.NvlinkNum, c.cfg.Nvlink.NvlinkNum))
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
 		if !device.NVLinkStates.AllFeatureEnabled {
-			failedReason = append(failedReason, fmt.Sprintf("GPU %d: Not All NVlink Features Are Enabled\n", device.Index))
+			var disabledLinks []int
+			for _, link := range device.NVLinkStates.NVLinkStates {
+				if !link.FeatureEnabled {
+					disabledLinks = append(disabledLinks, link.LinkNo)
+				}
+			}
+			logrus.Warnf("GPU %d: Not All NVlink Features Are Enabled. Disabled links: %v", device.Index, disabledLinks)
+			failedReason = append(failedReason, fmt.Sprintf("GPU %d: Not All NVlink Features Are Enabled. Disabled links: %v\n", device.Index, disabledLinks))
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
