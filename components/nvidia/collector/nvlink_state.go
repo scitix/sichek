@@ -17,7 +17,6 @@ package collector
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
@@ -27,9 +26,9 @@ import (
 )
 
 type NVLinkState struct {
-	NVlinkSupported      bool `json:"nvlink_supported"`
-	FeatureEnabled       bool `json:"feature_enabled"`
-	LinkNo               int  `json:"link_no"`
+	NVlinkSupported bool `json:"nvlink_supported"`
+	FeatureEnabled  bool `json:"feature_enabled"`
+	LinkNo          int  `json:"link_no"`
 }
 
 type NVLinkStates struct {
@@ -56,7 +55,7 @@ func (nvlinkStates *NVLinkStates) JSON() ([]byte, error) {
 func (nvlinkStates *NVLinkStates) ToString() string {
 	jsonData, err := json.MarshalIndent(nvlinkStates, "", "  ")
 	if err != nil {
-		fmt.Printf("Error converting struct to JSON: %v\n", err)
+		logrus.Errorf("Error converting struct to JSON: %v", err)
 		return ""
 	}
 	return string(jsonData)
@@ -65,32 +64,31 @@ func (nvlinkStates *NVLinkStates) ToString() string {
 func (nvlinkStates *NVLinkStates) Get(dev nvml.Device, uuid string) error {
 	for link := 0; link < int(nvml.NVLINK_MAX_LINKS); link++ {
 		var nvlinkState NVLinkState
-		err := nvlinkState.Get(dev, uuid, link)
-		if !errors.Is(err, nvml.SUCCESS) {
-			if errors.Is(err, nvml.ERROR_INVALID_ARGUMENT) {
-				// No more nvlink links to query
-				break
-			}
-			if errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
-				// No nvlink support or No more nvlink links to query
-				break
-			}
-			return fmt.Errorf("error getting nvlink state: %v", err)
-		} else {
+		ret := nvlinkState.Get(dev, uuid, link)
+		switch ret {
+		case nvml.SUCCESS:
 			if nvlinkState.NVlinkSupported {
 				nvlinkStates.NVLinkStates = append(nvlinkStates.NVLinkStates, nvlinkState)
 			}
+		case nvml.ERROR_INVALID_ARGUMENT, nvml.ERROR_NOT_SUPPORTED:
+			// No more nvlink links to query or no nvlink support
+			break
+		default:
+			return fmt.Errorf("get nvlink state failed: %v", ret)
 		}
 	}
+	// If we reach here, it means we have queried all links or encountered an error
 	nvlinkStates.NvlinkNum = len(nvlinkStates.NVLinkStates)
 	nvlinkStates.NVlinkSupported = nvlinkStates.NvlinkNum > 0
 	nvlinkStates.AllFeatureEnabled = nvlinkStates.getAllFeatureEnabled()
+	// logrus.Infof("Collector GPU %s NVLink states: %s", uuid, nvlinkStates.ToString())
 	return nil
 }
 
 func (nvlinkStates *NVLinkStates) getAllFeatureEnabled() bool {
 	for _, nvlinkState := range nvlinkStates.NVLinkStates {
 		if !nvlinkState.FeatureEnabled {
+			logrus.Warnf("NVLink link %d feature is supported but not enabled", nvlinkState.LinkNo)
 			return false
 		}
 	}
@@ -100,18 +98,19 @@ func (nvlinkStates *NVLinkStates) getAllFeatureEnabled() bool {
 func (nvlinkState *NVLinkState) Get(device nvml.Device, uuid string, linkNo int) nvml.Return {
 	nvlinkState.LinkNo = linkNo
 	// Get NVLink feature enabled status, like nvidia-smi nvlink --status
-	state, err := device.GetNvLinkState(linkNo)
-	if errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+	enableState, ret := device.GetNvLinkState(linkNo)
+	switch ret {
+	case nvml.SUCCESS:
+		nvlinkState.NVlinkSupported = true
+		nvlinkState.FeatureEnabled = enableState == nvml.FEATURE_ENABLED
+	case nvml.ERROR_NOT_SUPPORTED:
 		nvlinkState.NVlinkSupported = false
-		return err
-	} else if !errors.Is(err, nvml.SUCCESS) {
+		nvlinkState.FeatureEnabled = false
+	case nvml.ERROR_INVALID_ARGUMENT:
 		// Ignore invalid argument error for non-existing links
-		if !errors.Is(err, nvml.ERROR_INVALID_ARGUMENT) {
-			logrus.Errorf("failed to get NVLink state for GPU %v link %d: %v", uuid, linkNo, err.String())
-		}
-		return err
+		logrus.Infof("GPU %s NVLink link %d is invalid or isActive is NULL ", uuid, linkNo)
+	default:
+		logrus.Errorf("error getting NVLink state for GPU %s link %d: %s", uuid, linkNo, ret.String())
 	}
-	nvlinkState.NVlinkSupported = true
-	nvlinkState.FeatureEnabled = state == nvml.FEATURE_ENABLED
 	return nvml.SUCCESS
 }

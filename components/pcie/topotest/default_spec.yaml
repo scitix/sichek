@@ -50,3 +50,18 @@ pcie_topo:
       - gpu: 2
         ib: 1
         count: 2  
+
+  "0x233510de":
+    numa_config:
+      - node_id: 0            # NUMA0
+        gpu_count: 4
+        ib_count: 4
+
+      - node_id: 1            # NUMA1
+        gpu_count: 4
+        ib_count: 5
+
+    pci_switches:
+      - gpu: 1
+        ib: 1
+        count: 8

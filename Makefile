@@ -61,8 +61,8 @@ release:
 	--build-arg GO_VERSION=${GO_VERSION} \
 	--build-arg BUILD_TIME=${BUILD_TIME} \
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
-	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
-	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+	-t registry-ap-southeast.scitix.ai/hpc/sichek:${VERSION} -f docker/Dockerfile .
+	docker push registry-ap-southeast.scitix.ai/hpc/sichek:${VERSION}
 
 clean:
 	rm -f build/bin/*
