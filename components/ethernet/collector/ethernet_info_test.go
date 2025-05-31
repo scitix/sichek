@@ -29,3 +29,8 @@ func TestGetIBInfo(t *testing.T) {
 	t.Logf("EthInfo: %s", common.ToString(ethInfo))
 
 }
+
+// GetEthInfo returns the EthernetInfo itself or a processed version as needed.
+func (e *EthernetInfo) GetEthInfo() *EthernetInfo {
+	return e
+}

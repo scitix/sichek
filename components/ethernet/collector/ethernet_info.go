@@ -17,6 +17,7 @@ package collector
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -26,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/sirupsen/logrus"
 )
 
@@ -119,7 +121,23 @@ func (i *EthernetInfo) GetEthDevs() []string {
 	return mgtIface
 }
 
-func (i *EthernetInfo) GetEthInfo() *EthernetInfo {
+func NewEthCollector() (*EthernetInfo, error) {
+	var EthInfo EthernetInfo
+	info, err := EthInfo.Collect(context.Background())
+	if err != nil {
+		logrus.WithField("component", "ethetnet").Errorf("Failed to collect ethetnet info: %v", err)
+		return nil, fmt.Errorf("failed to collect ethetnet info: %w", err)
+	}
+	IBInfoPtr, ok := info.(*EthernetInfo)
+	if !ok {
+
+		logrus.WithField("component", "ethetnet").Errorf("Failed to cast collected info to ethetnet type")
+		return nil, fmt.Errorf("failed to cast collected info to ethetnet type")
+	}
+	return IBInfoPtr, nil
+}
+
+func (i *EthernetInfo) Collect(ctx context.Context) (common.Info, error) {
 	var ethInfo EthernetInfo
 	ethInfo.EthDevs = ethInfo.GetEthDevs()
 
@@ -134,7 +152,11 @@ func (i *EthernetInfo) GetEthInfo() *EthernetInfo {
 
 	ethInfo.EthHardWareInfo = allEthHWInfo
 	ethInfo.Time = time.Now()
-	return &ethInfo
+	return &ethInfo, nil
+}
+
+func (i *EthernetInfo) Name() string {
+	return "EthernetCollector"
 }
 
 func GetFileCnt(path string) []string {

@@ -47,8 +47,8 @@ type component struct {
 	cfg           *config.EthernetUserConfig
 	cfgMutex      sync.RWMutex
 
-	// collector common.Collector
-	checkers []common.Checker
+	collector common.Collector
+	checkers  []common.Checker
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -95,10 +95,11 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 	ethernetSpec := specCfg.EthernetSpec
 	checkers, err := checker.NewCheckers(cfg, ethernetSpec)
 
-	var info collector.EthernetInfo
+	collector, err := collector.NewEthCollector()
 	if err != nil {
-		logrus.WithField("component", "ethernet").Infof("fail to get the ib spec err %v", err)
+		logrus.WithField("component", "ethernet").WithError(err).Error("failed to create ethernet collector")
 	}
+
 	var ethernetMetrics *metrics.EthernetMetrics
 	if cfg.Ethernet.EnableMetrics {
 		ethernetMetrics = metrics.NewEthernetMetrics()
@@ -107,10 +108,10 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 		ctx:           ctx,
 		cancel:        cancel,
 		spec:          specCfg,
-		info:          info.GetEthInfo(),
 		componentName: consts.ComponentNameEthernet,
 		checkers:      checkers,
 		cfg:           cfg,
+		collector:     collector,
 		cacheBuffer:   make([]*common.Result, cfg.Ethernet.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:     0,
