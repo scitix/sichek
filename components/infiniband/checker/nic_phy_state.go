@@ -36,7 +36,7 @@ type IBPhyStateChecker struct {
 func NewIBPhyStateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBPhyStateChecker{
 		id:   consts.CheckerIDInfinibandFW,
-		name: config.ChekIBPhyState,
+		name: config.CheckIBPhyState,
 		spec: specCfg,
 	}, nil
 }

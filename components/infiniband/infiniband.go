@@ -138,7 +138,8 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	InfinibandInfo, ok := c.info.(*collector.InfinibandInfo)
+	IbInfo, ok := c.info.(*collector.InfinibandInfo)
+	InfinibandInfo := IbInfo.GetIBInfo(ctx)
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
@@ -279,26 +280,26 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		}
 
 		switch result.Name {
-		case config.ChekIBOFED:
+		case config.CheckIBOFED:
 			ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", statusColor, result.Curr, consts.Reset)
 		case config.CheckIBKmod:
 			ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Loaded", consts.Reset)
 			if result.Status != consts.StatusNormal {
 				ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Not Loaded Correctly", consts.Reset)
 			}
-		case config.ChekIBFW:
+		case config.CheckIBFW:
 			fwVersion := extractAndDeduplicate(result.Curr)
 			fwVersionPrint = fmt.Sprintf("FW Version: %s%s%s", statusColor, fwVersion, consts.Reset)
-		case config.ChekIBPortSpeed:
+		case config.CheckIBPortSpeed:
 			portSpeed := extractAndDeduplicate(result.Curr)
 			ibPortSpeedPrint = fmt.Sprintf("IB Port Speed: %s%s%s", statusColor, portSpeed, consts.Reset)
-		case config.ChekIBPhyState:
+		case config.CheckIBPhyState:
 			phyState := "LinkUp"
 			if result.Status != consts.StatusNormal {
 				phyState = "Not All LinkUp"
 			}
 			phyStatPrint = fmt.Sprintf("Phy State: %s%s%s", statusColor, phyState, consts.Reset)
-		case config.ChekIBState:
+		case config.CheckIBState:
 			ibState := "Active"
 			if result.Status != consts.StatusNormal {
 				ibState = "Not All Active"

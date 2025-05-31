@@ -36,7 +36,7 @@ type NetOperstateChecker struct {
 func NewNetOperstateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &NetOperstateChecker{
 		id:   consts.CheckerNetOperstate,
-		name: config.ChekNetOperstate,
+		name: config.CheckNetOperstate,
 		spec: specCfg,
 	}, nil
 }

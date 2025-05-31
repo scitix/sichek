@@ -37,7 +37,7 @@ type IBFirmwareChecker struct {
 func NewFirmwareChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBFirmwareChecker{
 		id:          consts.CheckerIDInfinibandFW,
-		name:        config.ChekIBFW,
+		name:        config.CheckIBFW,
 		spec:        *specCfg,
 		description: "check the nic fw",
 	}, nil

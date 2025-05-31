@@ -36,7 +36,7 @@ type IBPortSpeedChecker struct {
 func NewIBPortSpeedChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBPortSpeedChecker{
 		id:   consts.CheckerIDInfinibandPortSpeed,
-		name: config.ChekIBPortSpeed,
+		name: config.CheckIBPortSpeed,
 		spec: specCfg,
 	}, nil
 }

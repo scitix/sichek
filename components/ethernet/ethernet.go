@@ -126,7 +126,8 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	ethernetInfo, ok := c.info.(*collector.EthernetInfo)
+	ethInfo, ok := c.info.(*collector.EthernetInfo)
+	ethernetInfo := ethInfo.GetEthInfo()
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
 	}

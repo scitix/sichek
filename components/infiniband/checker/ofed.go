@@ -38,7 +38,7 @@ type IBOFEDChecker struct {
 func NewIBOFEDChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
 	return &IBOFEDChecker{
 		id:          consts.CheckerIDInfinibandOFED,
-		name:        config.ChekIBOFED,
+		name:        config.CheckIBOFED,
 		spec:        *specCfg,
 		description: "check the rdma ofed",
 	}, nil
