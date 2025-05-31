@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -43,7 +44,7 @@ var (
 
 type InfinibandInfo struct {
 	HCAPCINum      int                          `json:"hca_pci_num"`
-	IBDevs         []string                     `json:"ib_dev"`
+	IBDevs         map[string]string            `json:"ib_dev"`
 	IBHardWareInfo []IBHardWareInfo             `json:"ib_hardware_info"`
 	IBSoftWareInfo IBSoftWareInfo               `json:"ib_software_info"`
 	PCIETreeInfo   []PCIETreeInfo               `json:"pcie_tree_info"`
@@ -104,15 +105,23 @@ func (i *InfinibandInfo) JSON() (string, error) {
 	return string(data), nil
 }
 
-func (i *InfinibandInfo) GetIBdevs() []string {
+func (i *InfinibandInfo) GetIBdevs() map[string]string {
 	allIBDevs := GetFileCnt(IBSYSPathPre)
-	var IBDevs []string
+
+	IBDevs := make(map[string]string)
 	for _, IBDev := range allIBDevs {
 		if strings.Contains(IBDev, "bond") {
 			continue
 		}
-		IBDevs = append(IBDevs, IBDev)
+		netPath := filepath.Join(IBSYSPathPre, IBDev, "device/net")
+		if _, err := os.Stat(netPath); os.IsNotExist(err) {
+			logrus.WithField("component", "infiniband").Infof("No net directory found for IB device %s, skipping", IBDev)
+			continue
+		}
+		ibNetDev := GetFileCnt(netPath)[0]
+		IBDevs[IBDev] = ibNetDev
 	}
+
 	return IBDevs
 }
 
@@ -198,6 +207,10 @@ func GetIBCounter(IBDev string, counterType string) (map[string]uint64, error) {
 	}
 
 	return Counters, nil
+}
+
+func (i *InfinibandInfo) Name() string {
+	return i.Name()
 }
 
 func (i *InfinibandInfo) GetIBCounters(IBDev string) map[string]uint64 {
@@ -444,7 +457,24 @@ func (i *InfinibandInfo) GetKernelModule() []string {
 	return installedModule
 }
 
-func (i *InfinibandInfo) GetIBInfo(ctx context.Context) *InfinibandInfo {
+func NewIBCollector() (*InfinibandInfo, error) {
+	var IBInfo InfinibandInfo
+	info, err := IBInfo.Collect(context.Background())
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to collect Infiniband info: %v", err)
+		return nil, fmt.Errorf("failed to collect Infiniband info: %w", err)
+	}
+
+	IBInfoPtr, ok := info.(*InfinibandInfo)
+	if !ok {
+		logrus.WithField("component", "infiniband").Errorf("Failed to cast collected info to InfinibandInfo type")
+		return nil, fmt.Errorf("failed to cast collected info to InfinibandInfo type")
+	}
+
+	return IBInfoPtr, nil
+}
+
+func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	var IBInfo InfinibandInfo
 	var IBSWInfo IBSoftWareInfo
 
@@ -456,7 +486,7 @@ func (i *InfinibandInfo) GetIBInfo(ctx context.Context) *InfinibandInfo {
 	IBInfo.HCAPCINum = len(IBInfo.IBDevs)
 	IBHWInfo := make([]IBHardWareInfo, 0, len(IBInfo.IBDevs))
 	IBCounters := make(map[string]map[string]uint64, len(IBInfo.IBDevs))
-	for _, IBDev := range IBInfo.IBDevs {
+	for IBDev := range IBInfo.IBDevs {
 		var perIBHWInfo IBHardWareInfo
 		perIBHWInfo.IBDev = IBDev
 		perIBHWInfo.NetOperstate = i.GetNetOperstate(IBDev)
@@ -522,7 +552,7 @@ func (i *InfinibandInfo) GetIBInfo(ctx context.Context) *InfinibandInfo {
 	IBInfo.IBSoftWareInfo = IBSWInfo
 	IBInfo.IBCounters = IBCounters
 	IBInfo.Time = time.Now()
-	return &IBInfo
+	return &IBInfo, nil
 }
 
 func IsModuleLoaded(moduleName string) bool {

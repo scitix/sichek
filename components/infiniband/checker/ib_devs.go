@@ -18,7 +18,6 @@ package checker
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
@@ -52,7 +51,6 @@ func (c *IBDevsChecker) GetSpec() common.CheckerSpec {
 }
 
 func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-
 	infinibandInfo, ok := data.(*collector.InfinibandInfo)
 	if !ok {
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
@@ -60,32 +58,22 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	result := config.InfinibandCheckItems[c.name]
 
-	failedHcas := make([]string, 0)
-	IBDevSet := make(map[string]struct{})
-	for _, hca := range c.spec.IBDevs {
-		IBDevSet[hca] = struct{}{}
-	}
-
-	for _, hca := range infinibandInfo.IBDevs {
-		if _, found := IBDevSet[hca]; !found {
-			failedHcas = append(failedHcas, hca)
+	for mlxSpecDev := range c.spec.IBDevs {
+		netDev, found := infinibandInfo.IBDevs[mlxSpecDev]
+		if !found {
+			result.Detail = fmt.Sprintf("IB device %s has unexpected value %s, expected %s", mlxSpecDev, netDev, mlxSpecDev)
+			return &result, nil
+		} else {
+			expectedNetDev := c.spec.IBDevs[mlxSpecDev]
+			if netDev != expectedNetDev {
+				result.Status = consts.StatusAbnormal
+				result.Detail = fmt.Sprintf("IB Net device %s has unexpected value %s, expected %s", infinibandInfo.IBDevs[mlxSpecDev], netDev, expectedNetDev)
+				return &result, nil
+			}
 		}
 	}
-
-	if len(failedHcas) > 0 {
-		result.Status = consts.StatusAbnormal
-		result.Device = strings.Join(failedHcas, ",")
-		result.Detail = fmt.Sprintf("Unexpected IB devices %v, expected IB devices : %v", infinibandInfo.IBDevs, c.spec.IBDevs)
-	} else {
-		result.Status = consts.StatusNormal
-	}
-
-	if len(infinibandInfo.IBDevs) != c.spec.HCANum {
-		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("IB devices count mismatch, expected %d, got %d", len(c.spec.IBDevs), len(infinibandInfo.IBDevs))
-	} else {
-		result.Status = consts.StatusNormal
-	}
-
+	fmt.Println(result)
+	result.Status = consts.StatusNormal
+	result.Detail = fmt.Sprintf("IB device %s is normal", c.spec.IBDevs)
 	return &result, nil
 }

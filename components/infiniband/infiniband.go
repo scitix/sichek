@@ -46,15 +46,13 @@ type component struct {
 	componentName string
 	cfg           *config.InfinibandUserConfig
 	cfgMutex      sync.RWMutex
-
-	// collector common.Collector
-	checkers []common.Checker
-
-	cacheMtx    sync.RWMutex
-	cacheBuffer []*common.Result
-	cacheInfo   []common.Info
-	currIndex   int64
-	cacheSize   int64
+	collector     common.Collector
+	checkers      []common.Checker
+	cacheMtx      sync.RWMutex
+	cacheBuffer   []*common.Result
+	cacheInfo     []common.Info
+	currIndex     int64
+	cacheSize     int64
 
 	service *common.CommonService
 	metrics *metrics.IBMetrics
@@ -107,19 +105,24 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		return nil, err
 	}
 
-	var info collector.InfinibandInfo
 	var infinibandMetrics *metrics.IBMetrics
 	if cfg.Infiniband.EnableMetrics {
 		infinibandMetrics = metrics.NewInfinibandMetrics()
 	}
+
+	collector, err := collector.NewIBCollector()
+	if err != nil {
+		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
+	}
+
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
 		spec:          ibSpec,
 		componentName: consts.ComponentNameInfiniband,
-		info:          info.GetIBInfo(ctx),
 		checkers:      checkers,
 		cfg:           cfg,
+		collector:     collector,
 		cacheBuffer:   make([]*common.Result, cfg.Infiniband.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.Infiniband.CacheSize),
 		currIndex:     0,
@@ -138,20 +141,28 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	InfinibandInfo, ok := c.info.(*collector.InfinibandInfo)
+	info, err := c.collector.Collect(ctx)
+	if err != nil {
+		logrus.WithField("component", "Infiniband").Errorf("failed to collect Infiniband info: %v", err)
+		return nil, err
+	}
+
+	InfinibandInfo, ok := info.(*collector.InfinibandInfo)
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
+
 	if c.cfg.Infiniband.EnableMetrics {
 		c.metrics.ExportMetrics(InfinibandInfo)
 	}
+
 	result := common.Check(ctx, c.componentName, InfinibandInfo, c.checkers)
-	info, err := InfinibandInfo.JSON()
+	infoJson, err := InfinibandInfo.JSON()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert infiniband info to JSON: %w", err)
 	}
-	result.RawData = info
 
+	result.RawData = infoJson
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = InfinibandInfo
 	c.cacheBuffer[c.currIndex] = result

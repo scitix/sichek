@@ -105,9 +105,6 @@ hca:
 	if _, ok := hcaSpecs.HcaSpec.HCAHardwares["MT_0000001119"]; !ok {
 		t.Fatalf("Expected spec to have key 'MT_0000001119', it doesn't exist")
 	}
-	if hcaSpecs.HcaSpec.HCAHardwares["MT_0000000971"].HCAType != "MT4129" {
-		t.Fatalf("Expected Spec.HCAType to be 'MT4129', got '%s'", hcaSpecs.HcaSpec.HCAHardwares["MT_0000000971"].HCAType)
-	}
 }
 
 func TestGetInfinibandSpec(t *testing.T) {

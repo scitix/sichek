@@ -41,8 +41,7 @@ type InfinibandSpec struct {
 
 type InfinibandSpecItem struct {
 	HCANum         int                                  `json:"hca_num"`
-	IBDevs         []string                             `json:"ib_devs"`
-	NetDevs        []string                             `json:"net_devs"`
+	IBDevs         map[string]string                    `json:"ib_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo            `json:"sw_deps"`
 	PCIeACS        string                               `json:"pcie_acs"`
 	HCAs           map[string]*collector.IBHardWareInfo `json:"hca_specs"`
@@ -78,8 +77,12 @@ func (s *InfinibandSpecConfig) LoadHCASpec(hcaSpecs *config.HCASpecConfig) error
 	for clusterName, detail := range s.InfinibandSpec.Clusters {
 		for psid, hcaSpec := range detail.HCAs {
 			if hcaSpec.BoardID == "" {
-				if _, ok := hcaSpecs.HcaSpec.HCAHardwares[psid]; ok {
-					s.InfinibandSpec.Clusters[clusterName].HCAs[psid] = hcaSpecs.HcaSpec.HCAHardwares[psid]
+				if hcaInfo, ok := hcaSpecs.HcaSpec.HCAHardwares[psid]; ok {
+					if ibInfo, ok := any(hcaInfo).(*collector.IBHardWareInfo); ok {
+						s.InfinibandSpec.Clusters[clusterName].HCAs[psid] = ibInfo
+					} else {
+						return fmt.Errorf("hca %s in cluster %s is not of type *collector.IBHardWareInfo", psid, clusterName)
+					}
 				} else {
 					return fmt.Errorf("hca %s in cluster %s is not found in hca_spec or cluster spec yaml file", psid, clusterName)
 				}
