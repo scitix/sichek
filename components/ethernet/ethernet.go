@@ -97,7 +97,7 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 
 	collector, err := collector.NewEthCollector()
 	if err != nil {
-		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
+		logrus.WithField("component", "ethernet").WithError(err).Error("failed to create ethernet collector")
 	}
 
 	var ethernetMetrics *metrics.EthernetMetrics
@@ -105,10 +105,9 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 		ethernetMetrics = metrics.NewEthernetMetrics()
 	}
 	component := &component{
-		ctx:    ctx,
-		cancel: cancel,
-		spec:   specCfg,
-		// info:          info.GetEthInfo(),
+		ctx:           ctx,
+		cancel:        cancel,
+		spec:          specCfg,
 		componentName: consts.ComponentNameEthernet,
 		checkers:      checkers,
 		cfg:           cfg,
