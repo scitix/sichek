@@ -61,6 +61,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	for mlxSpecDev := range c.spec.IBDevs {
 		netDev, found := infinibandInfo.IBDevs[mlxSpecDev]
 		if !found {
+			result.Status = consts.StatusAbnormal
 			result.Detail = fmt.Sprintf("IB device %s has unexpected value %s, expected %s", mlxSpecDev, netDev, mlxSpecDev)
 			return &result, nil
 		} else {
@@ -72,7 +73,6 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			}
 		}
 	}
-	fmt.Println(result)
 	result.Status = consts.StatusNormal
 	result.Detail = fmt.Sprintf("IB device %s is normal", c.spec.IBDevs)
 	return &result, nil
