@@ -52,7 +52,6 @@ func (c *IBDevsChecker) GetSpec() common.CheckerSpec {
 }
 
 func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-
 	infinibandInfo, ok := data.(*collector.InfinibandInfo)
 	if !ok {
 		return nil, fmt.Errorf("invalid InfinibandInfo type")
@@ -60,27 +59,22 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	result := config.InfinibandCheckItems[c.name]
 
-	failedHcas := make([]string, 0)
-	IBDevSet := make(map[string]struct{})
-	for _, hca := range infinibandInfo.IBDevs {
-		IBDevSet[hca] = struct{}{}
-	}
-
-	for _, hca := range c.spec.IBDevs {
-		if _, found := IBDevSet[hca]; !found {
-			failedHcas = append(failedHcas, hca)
+	var mismatchPairs []string
+	for expectedMlx5, expectedIb := range c.spec.IBDevs {
+		actualIb, found := infinibandInfo.IBDevs[expectedMlx5]
+		if !found {
+			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
+			continue
+		}
+		if actualIb != expectedIb {
+			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
 		}
 	}
 
-	if len(failedHcas) > 0 {
-		if len(infinibandInfo.IBDevs) != len(c.spec.IBDevs) {
-			result = config.InfinibandCheckItems[config.CheckIBNUM]
-		} else {
-			result = config.InfinibandCheckItems[config.CheckIBDevs]
-		}
+	if len(mismatchPairs) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Device = strings.Join(failedHcas, ",")
-		result.Detail = fmt.Sprintf("Unexpected IB devices %v, expected IB devices : %v", infinibandInfo.IBDevs, c.spec.IBDevs)
+		result.Device = strings.Join(mismatchPairs, ",")
+		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", infinibandInfo.IBDevs, c.spec.IBDevs)
 	} else {
 		result.Status = consts.StatusNormal
 	}

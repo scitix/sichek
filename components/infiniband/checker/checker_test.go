@@ -37,6 +37,9 @@ func TestIbChecker_Check(t *testing.T) {
 		t.Fatalf("failed to get cluster spec config: %v", err)
 	}
 	jsonData, err := json.MarshalIndent(clusterSpec, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal clusterSpec to JSON: %v", err)
+	}
 	t.Logf("clusterSpec: %v", string(jsonData))
 	// Create a new AppClocksChecker
 	checkers, err := NewCheckers(cfg, clusterSpec)
@@ -47,8 +50,15 @@ func TestIbChecker_Check(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Run the Check method
-	var ibCollector collector.InfinibandInfo
-	ibInfo := ibCollector.GetIBInfo(context.Background())
+	ibCollector, err := collector.NewIBCollector()
+	if err != nil {
+		t.Fatalf("failed to create NewIBCollector: %v", err)
+	}
+	ibInfo, err := ibCollector.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
 	for _, checker := range checkers {
 		result, err := checker.Check(ctx, ibInfo)
 		if err != nil {

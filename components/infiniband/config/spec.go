@@ -35,8 +35,7 @@ type InfinibandSpecs struct {
 }
 
 type InfinibandSpec struct {
-	IBDevs         []string                   		`json:"ib_devs"`
-	NetDevs        []string                   		`json:"net_devs"`
+	IBDevs         map[string]string           		`json:"ib_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo  		`json:"sw_deps"`
 	PCIeACS        string                     		`json:"pcie_acs"`
 	HCAs           map[string]*hcaConfig.HCASpec 	`json:"hca_specs"`

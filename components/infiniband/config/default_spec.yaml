@@ -1,15 +1,10 @@
 infiniband:
   default:
     ib_devs:
-      - mlx5_0
-      - mlx5_1
-      - mlx5_2
-      - mlx5_3
-    eth_devs:
-      - ib0
-      - ib1
-      - ib2
-      - ib3
+      mlx5_0: ib0
+      mlx5_1: ib1
+      mlx5_2: ib2
+      mlx5_3: ib3
     sw_deps:
       kernel_module:
         - "rdma_ucm"

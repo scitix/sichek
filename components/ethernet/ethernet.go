@@ -47,8 +47,8 @@ type component struct {
 	cfg           *config.EthernetUserConfig
 	cfgMutex      sync.RWMutex
 
-	// collector common.Collector
-	checkers []common.Checker
+	collector common.Collector
+	checkers  []common.Checker
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -95,10 +95,11 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 	ethernetSpec := specCfg.EthernetSpec
 	checkers, err := checker.NewCheckers(cfg, ethernetSpec)
 
-	var info collector.EthernetInfo
+	collector, err := collector.NewEthCollector()
 	if err != nil {
-		logrus.WithField("component", "ethernet").Infof("fail to get the ib spec err %v", err)
+		logrus.WithField("component", "ethernet").WithError(err).Error("failed to create ethernet collector")
 	}
+
 	var ethernetMetrics *metrics.EthernetMetrics
 	if cfg.Ethernet.EnableMetrics {
 		ethernetMetrics = metrics.NewEthernetMetrics()
@@ -107,10 +108,10 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 		ctx:           ctx,
 		cancel:        cancel,
 		spec:          specCfg,
-		info:          info.GetEthInfo(),
 		componentName: consts.ComponentNameEthernet,
 		checkers:      checkers,
 		cfg:           cfg,
+		collector:     collector,
 		cacheBuffer:   make([]*common.Result, cfg.Ethernet.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.Ethernet.CacheSize),
 		currIndex:     0,
@@ -126,21 +127,26 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	ethInfo, ok := c.info.(*collector.EthernetInfo)
-	ethernetInfo := ethInfo.GetEthInfo()
+	info, err := c.collector.Collect(ctx)
+	if err != nil {
+		logrus.WithField("component", "ethernet").Errorf("failed to collect ethernet info: %v", err)
+		return nil, err
+	}
+
+	ethernetInfo, ok := info.(*collector.EthernetInfo)
 	if !ok {
-		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
+		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", info)
 	}
 	if c.cfg.Ethernet.EnableMetrics {
 		c.metrics.ExportMetrics(ethernetInfo)
 	}
 	result := common.Check(ctx, c.Name(), ethernetInfo, c.checkers)
 
-	info, err := ethernetInfo.JSON()
-	if err != nil {
-		return nil, err
-	}
-	result.RawData = info
+	// info, err = ethernetInfo.JSON()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// result.RawData = info
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = ethernetInfo

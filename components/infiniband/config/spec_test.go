@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,10 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"testing"
+  "encoding/json"
+  "fmt"
+  "os"
+  "testing"
 
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
 )
@@ -43,50 +43,11 @@ nvidia:
     name: NVIDIA H100 80GB HBM3
     gpu_nums: 8
     gpu_memory: 80
-    pcie:
-      pci_gen: 5
-      pci_width: 16
-    software:
-      driver_version: "535.129.03"
-      cuda_version: "12.0"
-      vbios_version: "96.00.89.00.01"
-      nvidiafabric_manager: "535.129.03"
-    dependence:
-      pcie-acs: disable
-      iommu: disable
-      nv-peermem: enable
-      nv_fabricmanager: active
-      cpu_performance: enable
-    MaxClock:
-      Graphics: 1410 # MHz
-      Memory: 1593 # MHz
-      SM: 1410 # MHz
-    nvlink:
-      nvlink_supported: true
-      active_nvlink_num: 12
-      total_replay_errors: 0
-      total_recovery_errors: 0
-      total_crc_errors: 0
-    state:
-      persistence: enable
-      pstate: 0
-    memory_errors_threshold:
-      remapped_uncorrectable_errors: 512
-      sram_volatile_uncorrectable_errors: 0
-      sram_aggregate_uncorrectable_errors: 4
-      sram_volatile_correctable_errors: 10000000
-      sram_aggregate_correctable_errors: 10000000
-    temperature_threshold:
-      gpu: 75
-      memory: 95
 infiniband:
   cluster_name:
     ib_devs:
-      - mlx5_0
-      - mlx5_1
-    eth_devs:
-      - ibs18
-      - ibs20
+      mlx5_0: ibs18
+      mlx5_1: ibs20
     sw_deps:
       kernel_module:
         - "rdma_ucm"
@@ -181,50 +142,11 @@ nvidia:
     name: NVIDIA H100 80GB HBM3
     gpu_nums: 8
     gpu_memory: 80
-    pcie:
-      pci_gen: 5
-      pci_width: 16
-    software:
-      driver_version: "535.129.03"
-      cuda_version: "12.0"
-      vbios_version: "96.00.89.00.01"
-      nvidiafabric_manager: "535.129.03"
-    dependence:
-      pcie-acs: disable
-      iommu: disable
-      nv-peermem: enable
-      nv_fabricmanager: active
-      cpu_performance: enable
-    MaxClock:
-      Graphics: 1410 # MHz
-      Memory: 1593 # MHz
-      SM: 1410 # MHz
-    nvlink:
-      nvlink_supported: true
-      active_nvlink_num: 12
-      total_replay_errors: 0
-      total_recovery_errors: 0
-      total_crc_errors: 0
-    state:
-      persistence: enable
-      pstate: 0
-    memory_errors_threshold:
-      remapped_uncorrectable_errors: 512
-      sram_volatile_uncorrectable_errors: 0
-      sram_aggregate_uncorrectable_errors: 4
-      sram_volatile_correctable_errors: 10000000
-      sram_aggregate_correctable_errors: 10000000
-    temperature_threshold:
-      gpu: 75
-      memory: 95
 infiniband:
   default:
     ib_devs:
-      - mlx5_0
-      - mlx5_1
-    eth_devs:
-      - ibs18
-      - ibs20
+      mlx5_0: ibs18
+      mlx5_1: ibs20
     sw_deps:
       kernel_module:
         - "rdma_ucm"

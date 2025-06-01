@@ -140,14 +140,14 @@ func getActiveIBDevices() ([]collector.IBHardWareInfo, error) {
 	var info collector.InfinibandInfo
 	ibDevs := info.GetIBdevs()
 	var activeDevices []collector.IBHardWareInfo
-	for _, IBDev := range ibDevs {
+	for mlxDev, _ := range ibDevs {
 		var hwInfo collector.IBHardWareInfo
-		if len(info.GetPhyStat(IBDev)) >= 1 {
-			hwInfo.PhyState = info.GetPhyStat(IBDev)[0]
-			hwInfo.PortState = info.GetIBStat(IBDev)[0]
-			hwInfo.NumaNode = info.GetNumaNode(IBDev)[0]
-			hwInfo.CPULists = info.GetCPUList(IBDev)[0]
-			hwInfo.IBDev = IBDev
+		if len(info.GetPhyStat(mlxDev)) >= 1 {
+			hwInfo.PhyState = info.GetPhyStat(mlxDev)[0]
+			hwInfo.PortState = info.GetIBStat(mlxDev)[0]
+			hwInfo.NumaNode = info.GetNumaNode(mlxDev)[0]
+			hwInfo.CPULists = info.GetCPUList(mlxDev)[0]
+			hwInfo.IBDev = mlxDev
 		}
 
 		if strings.Contains(hwInfo.PhyState, "LinkUp") && strings.Contains(hwInfo.PortState, "ACTIVE") {
