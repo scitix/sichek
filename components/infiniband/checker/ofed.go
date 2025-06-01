@@ -31,11 +31,11 @@ import (
 type IBOFEDChecker struct {
 	id          string
 	name        string
-	spec        config.InfinibandSpecItem
+	spec        config.InfinibandSpec
 	description string
 }
 
-func NewIBOFEDChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBOFEDChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBOFEDChecker{
 		id:          consts.CheckerIDInfinibandOFED,
 		name:        config.CheckIBOFED,
@@ -150,9 +150,13 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	curr := infinibandInfo.IBSoftWareInfo.OFEDVer
 	spec := c.spec.IBSoftWareInfo.OFEDVer
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			logrus.Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hca := c.spec.HCAs[hwInfo.BoardID]
-		if hca.OFEDVer != "" {
-			spec = hca.OFEDVer
+		if hca.Hardware.OFEDVer != "" {
+			spec = hca.Hardware.OFEDVer
 			logrus.Warnf("use the IB device's OFED spec to check the system OFED version")
 		}
 	}

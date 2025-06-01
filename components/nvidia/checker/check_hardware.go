@@ -26,17 +26,17 @@ import (
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 
-	"github.com/sirupsen/logrus"
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/sirupsen/logrus"
 )
 
 type HardwareChecker struct {
 	name     string
-	cfg      *config.NvidiaSpecItem
+	cfg      *config.NvidiaSpec
 	nvmlInst nvml.Interface
 }
 
-func NewHardwareChecker(cfg *config.NvidiaSpecItem, nvmlInst nvml.Interface) (common.Checker, error) {
+func NewHardwareChecker(cfg *config.NvidiaSpec, nvmlInst nvml.Interface) (common.Checker, error) {
 	return &HardwareChecker{
 		name:     config.HardwareCheckerName,
 		cfg:      cfg,
@@ -93,7 +93,7 @@ func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]s
 				devicePodName = fmt.Sprintf("%d:", index)
 			}
 			lostDeviceIDs = append(lostDeviceIDs, devicePodName)
-			logrus.WithField("componet", "NVIDIA").Infof("DeviceGetHandleByIndex %d with ret = %s", index, nvml.ErrorString(err))
+			logrus.WithField("component", "nvidia").Infof("DeviceGetHandleByIndex %d with ret = %s", index, nvml.ErrorString(err))
 		}
 	}
 	return lostDeviceIDs, lostDeviceIDErrs

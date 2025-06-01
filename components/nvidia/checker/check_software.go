@@ -27,10 +27,10 @@ import (
 
 type SoftwareChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewSoftwareChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewSoftwareChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &SoftwareChecker{
 		name: config.SoftwareCheckerName,
 		cfg:  cfg,

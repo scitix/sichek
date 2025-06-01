@@ -30,11 +30,11 @@ import (
 type IBFirmwareChecker struct {
 	id          string
 	name        string
-	spec        config.InfinibandSpecItem
+	spec        config.InfinibandSpec
 	description string
 }
 
-func NewFirmwareChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewFirmwareChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBFirmwareChecker{
 		id:          consts.CheckerIDInfinibandFW,
 		name:        config.CheckIBFW,
@@ -76,14 +76,18 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 	var spec []string
 	var curr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			logrus.Warnf("hca %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.FWVer)
+		spec = append(spec, hcaSpec.Hardware.FWVer)
 		curr = append(curr, hwInfo.FWVer)
-		pass := common.CompareVersion(hcaSpec.FWVer, hwInfo.FWVer)
+		pass := common.CompareVersion(hcaSpec.Hardware.FWVer, hwInfo.FWVer)
 		if !pass {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			errMsg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.FWVer)
+			errMsg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.Hardware.FWVer)
 			logrus.WithField("component", "infiniband").Warnf("%s", errMsg)
 			detail = append(detail, errMsg)
 		}

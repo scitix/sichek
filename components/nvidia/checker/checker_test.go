@@ -35,7 +35,7 @@ import (
 var nvidiaInfo *collector.NvidiaInfo
 var nvmlInst nvml.Interface
 var nvidiaUserCfg config.NvidiaUserConfig
-var nvidiaSpecCfg *config.NvidiaSpecItem
+var nvidiaSpecCfg *config.NvidiaSpec
 
 // setup function to initialize shared resources
 func setup() error {
@@ -75,9 +75,8 @@ memory:
 	if err != nil || nvidiaUserCfg.Nvidia == nil {
 		return fmt.Errorf("NewComponent load user config failed: err=%v, nvidiaUserCfg.Nvidia=%v", err, nvidiaUserCfg.Nvidia)
 	}
-	var nvidiaSpecCfgs config.NvidiaSpecConfig
-	nvidiaSpecCfg = nvidiaSpecCfgs.GetSpec("")
-	if nvidiaSpecCfg == nil {
+	nvidiaSpecCfg, err = config.LoadSpec("")
+	if err != nil {
 		return fmt.Errorf("failed to get NvidiaSpecConfig")
 	}
 	// Initialize NVML

@@ -26,10 +26,10 @@ import (
 
 type NVFabricManagerChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewNVFabricManagerChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewNVFabricManagerChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &NVFabricManagerChecker{
 		name: config.NVFabricManagerCheckerName,
 		cfg:  cfg,
@@ -54,6 +54,8 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 	if !active {
 		result.Status = consts.StatusAbnormal
 		result.Detail = "Nvidia FabricManager is not active, please check to restart Nvidia FabricManager"
+		result.Curr = "NotActive"
+		result.Spec = "Active"
 	} else {
 		result.Status = consts.StatusNormal
 		result.Curr = "Active"

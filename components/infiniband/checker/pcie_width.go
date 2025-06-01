@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -29,11 +30,11 @@ import (
 type IBPCIEWidthChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPCIEWidthChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBPCIEWidthChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPCIEWidthChecker{
 		id:   consts.CheckerIDInfinibandFW,
 		name: config.CheckPCIEWidth,
@@ -75,13 +76,17 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 	var faiedHcasSpec []string
 	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			log.Printf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.PCIEWidth)
+		spec = append(spec, hcaSpec.Hardware.PCIEWidth)
 		curr = append(curr, hwInfo.PCIEWidth)
-		if hwInfo.PCIEWidth != hcaSpec.PCIEWidth {
+		if hwInfo.PCIEWidth != hcaSpec.Hardware.PCIEWidth {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIEWidth)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIEWidth)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEWidth)
 		}
 	}

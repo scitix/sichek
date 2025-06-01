@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -29,11 +30,11 @@ import (
 type IBPortSpeedChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPortSpeedChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBPortSpeedChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPortSpeedChecker{
 		id:   consts.CheckerIDInfinibandPortSpeed,
 		name: config.CheckIBPortSpeed,
@@ -75,13 +76,17 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	var faiedHcasSpec []string
 	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			log.Printf("HCA spec for board ID %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.PortSpeed)
+		spec = append(spec, hcaSpec.Hardware.PortSpeed)
 		curr = append(curr, hwInfo.PortSpeed)
-		if hwInfo.PortSpeed != hcaSpec.PortSpeed {
+		if hwInfo.PortSpeed != hcaSpec.Hardware.PortSpeed {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PortSpeed)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PortSpeed)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PortSpeed)
 		}
 	}

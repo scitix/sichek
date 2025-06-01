@@ -45,7 +45,7 @@ func (c *DmesgSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.DmesgSpec == nil {
-			logrus.WithField("componet", "dmesg").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+			logrus.WithField("component", "dmesg").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "dmesg").Infof("loaded spec from YAML file %s", file)
 			return nil

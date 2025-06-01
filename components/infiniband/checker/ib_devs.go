@@ -28,11 +28,11 @@ import (
 
 type IBDevsChecker struct {
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBDevsChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBDevsChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBDevsChecker{
 		name: config.CheckIBDevs,
 		spec: specCfg,
@@ -84,6 +84,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	} else {
 		result.Status = consts.StatusNormal
 	}
-
+	result.Spec = strings.Join(c.spec.IBDevs, ",")
+	result.Curr = strings.Join(infinibandInfo.IBDevs, ",")
 	return &result, nil
 }

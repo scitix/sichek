@@ -21,8 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpecItem) ([]common.Checker, error) {
-	checkerConstructors := map[string]func(*config.InfinibandSpecItem) (common.Checker, error){
+func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec) ([]common.Checker, error) {
+	checkerConstructors := map[string]func(*config.InfinibandSpec) (common.Checker, error){
 		config.CheckIBOFED: NewIBOFEDChecker,
 		// config.CheckIBNUM:           dependence.NewIOMMUChecker,
 		config.CheckIBFW:        NewFirmwareChecker,

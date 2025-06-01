@@ -28,10 +28,10 @@ import (
 
 type SRAMVolatileUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewSRAMVolatileUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewSRAMVolatileUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &SRAMVolatileUncorrectableChecker{
 		name: config.SRAMVolatileUncorrectableCheckerName,
 		cfg:  cfg,

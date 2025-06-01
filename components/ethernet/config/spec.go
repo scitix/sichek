@@ -48,7 +48,7 @@ func (c *EthernetSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.EthernetSpec == nil {
-			logrus.WithField("componet", "ethernet").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+			logrus.WithField("component", "ethernet").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "ethernet").Infof("loaded spec from YAML file %s", file)
 			return nil

@@ -32,12 +32,7 @@ func TestIbChecker_Check(t *testing.T) {
 	if err != nil || cfg.Infiniband == nil {
 		t.Fatalf("failed to load default config: %v", err)
 	}
-	specCfg := &config.InfinibandSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml("")
-	if err != nil {
-		t.Fatalf("failed to load default spec config: %v", err)
-	}
-	clusterSpec, err := specCfg.GetClusterInfinibandSpec()
+	clusterSpec, err := config.LoadSpec("")
 	if err != nil {
 		t.Fatalf("failed to get cluster spec config: %v", err)
 	}

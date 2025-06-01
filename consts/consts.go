@@ -39,6 +39,8 @@ const (
 	ComponentNameNCCL       = "nccl"
 	ComponentIDHCA          = "13"
 	ComponentNameHCA        = "hca"
+	ComponentIDPCIE         = "14"
+	ComponentNamePCIE       = "pcie"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"
@@ -82,7 +84,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNameNCCL, ComponentNameHang,
+		ComponentNameNCCL, ComponentNameHang, ComponentNamePCIE,
 	}
 )
 
@@ -107,10 +109,11 @@ var LevelPriority = map[string]int{
 }
 
 const (
-	DefaultUserCfgName   = "default_user_config.yaml"
-	DefaultSpecCfgName   = "default_spec.yaml"
-	DefaultSpecCfgSuffix = "_spec.yaml"
-	DefaultPodCfgPath    = "/var/sichek/"
+	DefaultUserCfgName       = "default_user_config.yaml"
+	DefaultSpecCfgName       = "default_spec.yaml"
+	DefaultSpecCfgSuffix     = "_spec.yaml"
+	DefaultProductionCfgPath = "/var/sichek"
+	DefaultOssCfgPath        = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
 )
 
 const (

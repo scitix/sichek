@@ -44,7 +44,7 @@ func (c *NcclSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.NcclSpec == nil {
-			logrus.WithField("componet", "nccl").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+			logrus.WithField("component", "nccl").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "nccl").Infof("loaded spec from YAML file %s", file)
 			return nil

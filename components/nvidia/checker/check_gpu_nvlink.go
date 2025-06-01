@@ -31,10 +31,10 @@ var NOTSUPPORT = "Not Supported"
 
 type NvlinkChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewNvlinkChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewNvlinkChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &NvlinkChecker{
 		name: config.NvlinkCheckerName,
 		cfg:  cfg,

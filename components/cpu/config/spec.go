@@ -45,7 +45,7 @@ func (c *CpuSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.CpuSpec == nil {
-			logrus.WithField("componet", "cpu").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+			logrus.WithField("component", "cpu").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "cpu").Infof("loaded spec from YAML file %s", file)
 			return nil

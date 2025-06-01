@@ -28,10 +28,10 @@ import (
 
 type SRAMHighcorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewSRAMHighcorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewSRAMHighcorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &SRAMHighcorrectableChecker{
 		name: config.SRAMHighcorrectableCheckerName,
 		cfg:  cfg,
