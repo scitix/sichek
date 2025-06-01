@@ -78,6 +78,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	} else {
 		result.Status = consts.StatusNormal
 	}
-
+	result.Spec = strings.Join(c.spec.IBDevs, ",")
+	result.Curr = strings.Join(infinibandInfo.IBDevs, ",")
 	return &result, nil
 }

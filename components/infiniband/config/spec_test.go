@@ -21,23 +21,23 @@ import (
   "os"
   "testing"
 
-  hcaConfig "github.com/scitix/sichek/components/hca/config"
+	hcaConfig "github.com/scitix/sichek/components/hca/config"
 )
 
 func TestGetHCASpec(t *testing.T) {
-  // Create temporary spec file
-  specFile, err := os.CreateTemp("", "spec_*.yaml")
-  if err != nil {
-    t.Fatalf("Failed to create temp spec file: %v", err)
-  }
-  defer func(name string) {
-    err := os.Remove(name)
-    if err != nil {
-      t.Errorf("Failed to close temp spec file: %v", err)
-    }
-  }(specFile.Name())
-  // Write sample data to the temporary files
-  specData := `
+	// Create temporary spec file
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to close temp spec file: %v", err)
+		}
+	}(specFile.Name())
+	// Write sample data to the temporary files
+	specData := `
 nvidia:
   "0x233010de":
     name: NVIDIA H100 80GB HBM3
@@ -81,62 +81,62 @@ infiniband:
           pcie_acs: "disable"
           pcie_mrr: "4096"
 `
-  if _, err := specFile.Write([]byte(specData)); err != nil {
-    t.Fatalf("Failed to write to temp spec file: %v", err)
-  }
-  ibSpecs := &InfinibandSpecs{}
-  err = ibSpecs.tryLoadFromFile(specFile.Name())
-  if err != nil {
-    t.Fatalf("Failed to get spec: %v", err)
-  }
-  // Convert the config struct to a pretty-printed JSON string and print it
-  jsonData, err := json.MarshalIndent(ibSpecs, "", "  ")
-  if err != nil {
-    t.Fatalf("Failed to marshal config to JSON: %v", err)
-  }
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}
+	ibSpecs := &InfinibandSpecs{}
+	err = ibSpecs.tryLoadFromFile(specFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to get spec: %v", err)
+	}
+	// Convert the config struct to a pretty-printed JSON string and print it
+	jsonData, err := json.MarshalIndent(ibSpecs, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config to JSON: %v", err)
+	}
 
-  fmt.Printf("spec JSON:\n%s\n", string(jsonData))
+	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
-  // Validate the returned spec
-  if len(ibSpecs.Specs) != 1 {
-    t.Fatalf("Expected spec at least have 1 entry, got %d", len(ibSpecs.Specs))
-  }
-  if _, ok := ibSpecs.Specs["cluster_name"]; !ok {
-    t.Fatalf("Expected spec to have key 'cluster_name', it doesn't exist")
-  }
-  if _, ok := ibSpecs.Specs["cluster_name"].HCAs["MT_0000001119"]; !ok {
-    t.Fatalf("Expected spec to have key 'MT_0000001119', it doesn't exist")
-  }
-  hcaSpec := ibSpecs.Specs["cluster_name"].HCAs["MT_0000001119"]
-  if hcaSpec.Hardware.BoardID != "MT_0000001119" {
-    t.Fatalf("Expected BoardID 'MT_0000001119', got '%s'", hcaSpec.Hardware.BoardID)
-  }
-  if hcaSpec.Hardware.FWVer != "28.42.1000" {
-    t.Fatalf("Expected FwVer '28.42.1000', got '%s'", hcaSpec.Hardware.FWVer)
-  }
-  if hcaSpec.Hardware.PCIEWidth != "16" {
-    t.Fatalf("Expected PcieWidth '16', got '%s'", hcaSpec.Hardware.PCIEWidth)
-  }
-  if hcaSpec.Hardware.PCIESpeed != "16.0 GT/s PCIe" {
-    t.Fatalf("Expected PcieSpeed '16.0 GT/s PCIe', got '%s'", hcaSpec.Hardware.PCIESpeed)
-  }
+	// Validate the returned spec
+	if len(ibSpecs.Specs) != 1 {
+		t.Fatalf("Expected spec at least have 1 entry, got %d", len(ibSpecs.Specs))
+	}
+	if _, ok := ibSpecs.Specs["cluster_name"]; !ok {
+		t.Fatalf("Expected spec to have key 'cluster_name', it doesn't exist")
+	}
+	if _, ok := ibSpecs.Specs["cluster_name"].HCAs["MT_0000001119"]; !ok {
+		t.Fatalf("Expected spec to have key 'MT_0000001119', it doesn't exist")
+	}
+	hcaSpec := ibSpecs.Specs["cluster_name"].HCAs["MT_0000001119"]
+	if hcaSpec.Hardware.BoardID != "MT_0000001119" {
+		t.Fatalf("Expected BoardID 'MT_0000001119', got '%s'", hcaSpec.Hardware.BoardID)
+	}
+	if hcaSpec.Hardware.FWVer != "28.42.1000" {
+		t.Fatalf("Expected FwVer '28.42.1000', got '%s'", hcaSpec.Hardware.FWVer)
+	}
+	if hcaSpec.Hardware.PCIEWidth != "16" {
+		t.Fatalf("Expected PcieWidth '16', got '%s'", hcaSpec.Hardware.PCIEWidth)
+	}
+	if hcaSpec.Hardware.PCIESpeed != "16.0 GT/s PCIe" {
+		t.Fatalf("Expected PcieSpeed '16.0 GT/s PCIe', got '%s'", hcaSpec.Hardware.PCIESpeed)
+	}
 }
 
 func TestGetDefaultHcaSpec(t *testing.T) {
-  // Create temporary files for testing
-  specFile, err := os.CreateTemp("", "spec_*.yaml")
-  if err != nil {
-    t.Fatalf("Failed to create temp spec file: %v", err)
-  }
-  defer func(name string) {
-    err := os.Remove(name)
-    if err != nil {
-      t.Errorf("Failed to close temp spec file: %v", err)
-    }
-  }(specFile.Name())
+	// Create temporary files for testing
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to close temp spec file: %v", err)
+		}
+	}(specFile.Name())
 
-  // Write sample data to the temporary files
-  specData := `
+	// Write sample data to the temporary files
+	specData := `
 nvidia:
   "0x233010de":
     name: NVIDIA H100 80GB HBM3
@@ -163,62 +163,62 @@ infiniband:
     hca_specs: 
       MT_0000000970: {}
 `
-  if _, err := specFile.Write([]byte(specData)); err != nil {
-    t.Fatalf("Failed to write to temp spec file: %v", err)
-  }
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}
 
-  // Test the LoadSpec function
-  nic, err := hcaConfig.GetBoardIDs()
-  if err != nil {
-    t.Skip("Skipping test due to error in GetBoardIDs: ", err)
-  }
-  nicSet := make(map[string]struct{})
-  for _, n := range nic {
-    nicSet[n] = struct{}{}
-  }
-  if _, ok := nicSet["MT_0000000970"]; !ok {
-    t.Skip("Skipping test because MT_0000000970 is not in the list of NICs")
-  }
-  spec, err := LoadSpec(specFile.Name())
-  if err != nil {
-    t.Fatalf("Failed to get spec: %v", err)
-  }
-  // Convert the config struct to a pretty-printed JSON string and print it
-  jsonData, err := json.MarshalIndent(spec, "", "  ")
-  if err != nil {
-    t.Fatalf("Failed to marshal config to JSON: %v", err)
-  }
+	// Test the LoadSpec function
+	nic, err := hcaConfig.GetBoardIDs()
+	if err != nil {
+		t.Skip("Skipping test due to error in GetBoardIDs: ", err)
+	}
+	nicSet := make(map[string]struct{})
+	for _, n := range nic {
+		nicSet[n] = struct{}{}
+	}
+	if _, ok := nicSet["MT_0000000970"]; !ok {
+		t.Skip("Skipping test because MT_0000000970 is not in the list of NICs")
+	}
+	spec, err := LoadSpec(specFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to get spec: %v", err)
+	}
+	// Convert the config struct to a pretty-printed JSON string and print it
+	jsonData, err := json.MarshalIndent(spec, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config to JSON: %v", err)
+	}
 
-  t.Logf("spec JSON:\n%s\n", string(jsonData))
+	t.Logf("spec JSON:\n%s\n", string(jsonData))
 
-  // Validate the returned spec
-  hcaSpecs := spec.HCAs
-  if _, ok := hcaSpecs["MT_0000000970"]; !ok {
-    t.Fatalf("Expected spec to have key 'MT_0000000970', it doesn't exist")
-  }
-  hcaSpec := hcaSpecs["MT_0000000970"]
-  if hcaSpec.Hardware.BoardID != "MT_0000000970" {
-    t.Fatalf("Expected BoardID 'MT_0000000970', got '%s'", hcaSpec.Hardware.BoardID)
-  }
-  if hcaSpec.Hardware.FWVer != "28.39.2048" {
-    t.Fatalf("Expected FwVer '28.39.2048', got '%s'", hcaSpec.Hardware.FWVer)
-  }
-  if hcaSpec.Hardware.PCIEWidth != "16" {
-    t.Fatalf("Expected PcieWidth '16', got '%s'", hcaSpec.Hardware.PCIEWidth)
-  }
-  if hcaSpec.Hardware.PCIESpeed != "32.0 GT/s PCIe" {
-    t.Fatalf("Expected PcieSpeed '32.0 GT/s PCIe', got '%s'", hcaSpec.Hardware.PCIESpeed)
-  }
+	// Validate the returned spec
+	hcaSpecs := spec.HCAs
+	if _, ok := hcaSpecs["MT_0000000970"]; !ok {
+		t.Fatalf("Expected spec to have key 'MT_0000000970', it doesn't exist")
+	}
+	hcaSpec := hcaSpecs["MT_0000000970"]
+	if hcaSpec.Hardware.BoardID != "MT_0000000970" {
+		t.Fatalf("Expected BoardID 'MT_0000000970', got '%s'", hcaSpec.Hardware.BoardID)
+	}
+	if hcaSpec.Hardware.FWVer != "28.39.2048" {
+		t.Fatalf("Expected FwVer '28.39.2048', got '%s'", hcaSpec.Hardware.FWVer)
+	}
+	if hcaSpec.Hardware.PCIEWidth != "16" {
+		t.Fatalf("Expected PcieWidth '16', got '%s'", hcaSpec.Hardware.PCIEWidth)
+	}
+	if hcaSpec.Hardware.PCIESpeed != "32.0 GT/s PCIe" {
+		t.Fatalf("Expected PcieSpeed '32.0 GT/s PCIe', got '%s'", hcaSpec.Hardware.PCIESpeed)
+	}
 }
 
 func TestGetClusterInfinibandSpec(t *testing.T) {
-  clusterSpec, err := LoadSpec("")
-  if err != nil {
-    t.Fatalf("Failed to get spec: %v", err)
-  }
-  jsonData, err := json.MarshalIndent(clusterSpec, "", "  ")
-  if err != nil {
-    t.Fatalf("Failed to marshal config to JSON: %v", err)
-  }
-  fmt.Printf("spec JSON:\n%s\n", string(jsonData))
+	clusterSpec, err := LoadSpec("")
+	if err != nil {
+		t.Fatalf("Failed to get spec: %v", err)
+	}
+	jsonData, err := json.MarshalIndent(clusterSpec, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config to JSON: %v", err)
+	}
+	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 }
