@@ -42,7 +42,7 @@ func (c *GpfsSpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.GpfsSpec == nil {
-			logrus.WithField("componet", "gpfs").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+			logrus.WithField("component", "gpfs").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "gpfs").Infof("loaded spec from YAML file %s", file)
 			return nil

@@ -1,13 +1,13 @@
 nvidia:
-  "0x233510de":
-    name: NVIDIA H200 141GB HBM3e
+  "0x232c10de":
+    name: NVIDIA H20 141GB HBM3e
     gpu_nums: 8
     gpu_memory: 141
     software:
-      driver_version: ">=570.86.15"
-      cuda_version: ">=12.8"
-      vbios_version: "96.00.89.00.01"
-      fabricmanager_version: "570.86.15"
+      driver_version: ">=550.144.03"
+      cuda_version: ">=12.4"
+      vbios_version: "96.00.C3.00.02"
+      fabricmanager_version: "550.144.03"
     dependence:
       pcie_acs: disable
       iommu: off

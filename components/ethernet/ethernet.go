@@ -127,20 +127,26 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	ethernetInfo, ok := c.info.(*collector.EthernetInfo)
+	info, err := c.collector.Collect(ctx)
+	if err != nil {
+		logrus.WithField("component", "ethernet").Errorf("failed to collect ethernet info: %v", err)
+		return nil, err
+	}
+
+	ethernetInfo, ok := info.(*collector.EthernetInfo)
 	if !ok {
-		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", c.info)
+		return nil, fmt.Errorf("expected c.info to be of type *collector.EthernetInfo, got %T", info)
 	}
 	if c.cfg.Ethernet.EnableMetrics {
 		c.metrics.ExportMetrics(ethernetInfo)
 	}
 	result := common.Check(ctx, c.Name(), ethernetInfo, c.checkers)
 
-	info, err := ethernetInfo.JSON()
-	if err != nil {
-		return nil, err
-	}
-	result.RawData = info
+	// info, err = ethernetInfo.JSON()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// result.RawData = info
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = ethernetInfo

@@ -85,7 +85,7 @@ func NewNvidiaCmd() *cobra.Command {
 			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
 			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
-				logrus.WithField("component", "Nvidia").Error(err)
+				logrus.WithField("component", "nvidia").Error(err)
 				return
 			}
 			result, err := RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)

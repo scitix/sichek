@@ -153,7 +153,7 @@ func NewAllCmd() *cobra.Command {
 				logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
 				return
 			}
-			passed := topotest.PrintInfo(res, !eventonly)
+			passed := topotest.PrintInfo(res, !eventonly && verbos)
 			ComponentStatuses[res.Item] = passed
 		},
 	}

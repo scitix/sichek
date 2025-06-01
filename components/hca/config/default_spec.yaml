@@ -1,6 +1,6 @@
 hca:
-  hardwares:
-    MT_0000000970:
+  MT_0000000970:
+    hardware:
       hca_type: "MT4129"
       board_id: "MT_0000000970"
       fw_ver: "28.39.2048"
@@ -17,9 +17,13 @@ hca:
       pcie_tree_speed: "32"
       pcie_acs: "disable"
       pcie_mrr: "4096"
-    MT_0000000971:
+    perf:
+      one_way_bw: 360 # Gbps
+      avg_latency_us: 1.0 # us
+  MT_0000000971:
+    hardware:
       hca_type: "MT4129"
-      board_id: "MT_0000000970"
+      board_id: "MT_0000000971"
       fw_ver: "28.39.2048"
       vpd: "P45646-001 / HPE InfiniBand NDR200 1-port OSFP PCIe5 x16 MCX75310AAS-HEAT Adapter"
       net_port: 1
@@ -34,7 +38,11 @@ hca:
       pcie_tree_speed: "32"
       pcie_acs: "disable"
       pcie_mrr: "4096"
-    MT_0000001119:
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 1.5 # us
+  MT_0000001119:
+    hardware:
       hca_type: "MT4129"
       board_id: "MT_0000001119"
       fw_ver: "28.42.1000"
@@ -51,7 +59,11 @@ hca:
       pcie_tree_speed: "16"
       pcie_acs: "disable"
       pcie_mrr: "4096"
-    MT_0000000838:
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 1.5 # us
+  MT_0000000838:
+    hardware:
       hca_type: "MT4129"
       board_id: "MT_0000000838"
       fw_ver: ">=28.39.2048"
@@ -68,7 +80,11 @@ hca:
       pcie_tree_speed: "32"
       pcie_acs: "disable"
       pcie_mrr: "4096"
-    DEL0000000036:
+    perf:
+      one_way_bw: 360 # Gbps
+      avg_latency_us: 1.0 # us
+  DEL0000000036:
+    hardware:
       hca_type: "MT4129"
       board_id: "DEL0000000036"
       fw_ver: ">=20.39.2048"
@@ -85,7 +101,11 @@ hca:
       pcie_tree_speed: "32"
       pcie_acs: "disable"
       pcie_mrr: "4096"
-    MT_0000000223:
+    perf:
+      one_way_bw: 360 # Gbps
+      avg_latency_us: 1.0 # us
+  MT_0000000223:
+    hardware:
       hca_type: "MT4123"
       board_id: "MT_0000000223"
       fw_ver: ">=20.39.2048"
@@ -102,4 +122,6 @@ hca:
       pcie_tree_speed: "16"
       pcie_acs: "disable"
       pcie_mrr: "4096"
-
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 1.5 # us

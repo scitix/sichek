@@ -125,24 +125,6 @@ func (i *InfinibandInfo) GetIBdevs() map[string]string {
 	return IBDevs
 }
 
-func (i *InfinibandInfo) GetHCANum() int {
-	cmd := exec.Command("lspci")
-	output, err := cmd.Output()
-	if err != nil {
-		return 0
-	}
-
-	counter := 0
-	lines := strings.Split(string(output), "\n")
-
-	for _, line := range lines {
-		if strings.Contains(line, "Mell") && !strings.Contains(line, "MT27710") {
-			counter++
-		}
-	}
-	return counter
-}
-
 func (i *InfinibandInfo) GetIBdev2NetDev(IBDev string) []string {
 	return i.GetSysCnt(IBDev, "device/net")
 }
@@ -481,7 +463,6 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	IBSWInfo.OFEDVer = i.GetOFEDInfo(ctx)
 	IBSWInfo.KernelModule = i.GetKernelModule()
 
-	// IBInfo.HCAPCINum = IBInfo.GetHCANum() // ???
 	IBInfo.IBDevs = IBInfo.GetIBdevs()
 	IBInfo.HCAPCINum = len(IBInfo.IBDevs)
 	IBHWInfo := make([]IBHardWareInfo, 0, len(IBInfo.IBDevs))

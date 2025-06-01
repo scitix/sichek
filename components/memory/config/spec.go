@@ -44,7 +44,7 @@ func (c *MemorySpecConfig) LoadSpecConfigFromYaml(file string) error {
 	if file != "" {
 		err := utils.LoadFromYaml(file, c)
 		if err != nil || c.MemorySpec == nil {
-			logrus.WithField("componet", "memory").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+			logrus.WithField("component", "memory").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
 		} else {
 			logrus.WithField("component", "memory").Infof("loaded spec from YAML file %s", file)
 			return nil

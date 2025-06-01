@@ -82,7 +82,7 @@ func (c *HangSpecConfig) LoadSpecConfigFromYaml(specFile string) error {
 	if specFile != "" {
 		err := utils.LoadFromYaml(specFile, c)
 		if err != nil || c.HangSpec == nil {
-			logrus.WithField("componet", "hang").Errorf("failed to load hang spec from YAML file %s: %v, try to load from default config", specFile, err)
+			logrus.WithField("component", "hang").Errorf("failed to load hang spec from YAML file %s: %v, try to load from default config", specFile, err)
 		} else {
 			logrus.WithField("component", "hang").Infof("loaded hang spec from YAML file %s", specFile)
 			return nil

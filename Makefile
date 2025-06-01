@@ -4,7 +4,7 @@ GO := go
 INSTALL_DIR := /usr/local/bin
 VERSION_MAJOR := 0
 VERSION_MINOR := 4
-VERSION_PATCH := 2
+VERSION_PATCH := 3
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
 BUILD_TIME := $(shell date -u '+%Y-%m-%d')
@@ -61,8 +61,8 @@ release:
 	--build-arg GO_VERSION=${GO_VERSION} \
 	--build-arg BUILD_TIME=${BUILD_TIME} \
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
-	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
-	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+	-t registry-ap-southeast.scitix.ai/hpc/sichek:${VERSION} -f docker/Dockerfile .
+	docker push registry-ap-southeast.scitix.ai/hpc/sichek:${VERSION}
 
 clean:
 	rm -f build/bin/*

@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
@@ -27,11 +28,11 @@ import (
 
 type IBDevsChecker struct {
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBDevsChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBDevsChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBDevsChecker{
 		name: config.CheckIBDevs,
 		spec: specCfg,
@@ -58,22 +59,25 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	result := config.InfinibandCheckItems[c.name]
 
-	for mlxSpecDev := range c.spec.IBDevs {
-		netDev, found := infinibandInfo.IBDevs[mlxSpecDev]
+	var mismatchPairs []string
+	for expectedMlx5, expectedIb := range c.spec.IBDevs {
+		actualIb, found := infinibandInfo.IBDevs[expectedMlx5]
 		if !found {
-			result.Status = consts.StatusAbnormal
-			result.Detail = fmt.Sprintf("IB device %s has unexpected value %s, expected %s", mlxSpecDev, netDev, mlxSpecDev)
-			return &result, nil
-		} else {
-			expectedNetDev := c.spec.IBDevs[mlxSpecDev]
-			if netDev != expectedNetDev {
-				result.Status = consts.StatusAbnormal
-				result.Detail = fmt.Sprintf("IB Net device %s has unexpected value %s, expected %s", infinibandInfo.IBDevs[mlxSpecDev], netDev, expectedNetDev)
-				return &result, nil
-			}
+			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
+			continue
+		}
+		if actualIb != expectedIb {
+			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
 		}
 	}
-	result.Status = consts.StatusNormal
-	result.Detail = fmt.Sprintf("IB device %s is normal", c.spec.IBDevs)
+
+	if len(mismatchPairs) > 0 {
+		result.Status = consts.StatusAbnormal
+		result.Device = strings.Join(mismatchPairs, ",")
+		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", infinibandInfo.IBDevs, c.spec.IBDevs)
+	} else {
+		result.Status = consts.StatusNormal
+	}
+
 	return &result, nil
 }
