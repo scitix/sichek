@@ -62,19 +62,19 @@ type CheckerSpec interface {
 	// LoadFromYaml(file string) error
 }
 
-// GetDefaultConfigFiles returns the config directory and files for the given component.
-func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
-	// Try production path first: /var/sichek/default_spec.yaml
+// GetDevDefaultConfigFiles returns the default config dir and and extract default spec for the given component.
+// for production environment, it checks the default config path (e.g., /var/sichek/config/xx-component).
+// for development environment, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
+func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
+	// Try production path first: /var/sichek/config/xx-component
 	defaultCfgDirPath := filepath.Join(consts.DefaultProductionCfgPath, component)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
-		// run on host use local config
 		_, curFile, _, ok := runtime.Caller(0)
 		if !ok {
 			return "", nil, fmt.Errorf("get curr file path failed")
 		}
-		// Fall back to development path,
-		// Locate current file: project/component/config
+		// Locate current file: /repo/component/xx-component/config
 		commonDir := filepath.Dir(curFile)
 		defaultCfgDirPath = filepath.Join(filepath.Dir(commonDir), component, "config")
 	}
@@ -97,22 +97,6 @@ func LoadFromProductionDefaultSpec(spec interface{}) error {
 		return fmt.Errorf("failed to read production config spec %s: %w", defaultProductionCfgPath, err)
 	}
 	return nil
-}
-
-// GetDevDefaultConfigFiles checks and extract default spec from development env based on caller path.
-func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
-	_, curFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", nil, fmt.Errorf("failed to get current caller path")
-	}
-	// Locate: project/component/config
-	commonDir := filepath.Dir(curFile)
-	defaultCfgDirPath := filepath.Join(filepath.Dir(commonDir), component, "config")
-	files, err := os.ReadDir(defaultCfgDirPath)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to read development config directory: %w", err)
-	}
-	return defaultCfgDirPath, files, nil
 }
 
 // LoadFromOssSpec downloads and parses a YAML spec from a given URL into the provided spec structure.
@@ -146,26 +130,10 @@ func LoadSpecFromOss(url string, spec interface{}) error {
 	return nil
 }
 
-// DefaultComponentConfig loads the default configuration for a given component from a YAML file.
-func DefaultComponentConfig(component string, config interface{}, filename string) error {
-	defaultCfgDirPath, files, err := GetDefaultConfigFiles(component)
-	if err != nil {
-		return fmt.Errorf("failed to get default config files: %v", err)
-	}
-	for _, file := range files {
-		if file.Name() == filename {
-			defaultCfgPath := filepath.Join(defaultCfgDirPath, file.Name())
-			err = utils.LoadFromYaml(defaultCfgPath, config)
-			return err
-		}
-	}
-	return fmt.Errorf("failed to find default config file: %s", filename)
-}
-
 // LoadUserConfig loads the default user config from production default dir or dev default dir based on runtime.Caller
 func LoadDefaultEventRules(eventRule interface{}, component string) error {
 	// 1. try to load default config from production default dir
-	defaultEventRuleCfg := filepath.Join(consts.DefaultProductionEventRulePath, component, consts.DefaultEventRuleName)
+	defaultEventRuleCfg := filepath.Join(consts.DefaultProductionCfgPath, component, consts.DefaultEventRuleName)
 	_, err := os.Stat(defaultEventRuleCfg)
 	if err == nil {
 		err := utils.LoadFromYaml(defaultEventRuleCfg, eventRule)
@@ -179,7 +147,7 @@ func LoadDefaultEventRules(eventRule interface{}, component string) error {
 		return fmt.Errorf("get curr file path failed")
 	}
 	// Get the directory of the current file
-	commonDir := filepath.Dir(curFile)	
+	commonDir := filepath.Dir(curFile)
 	defaultEventRuleCfg = filepath.Join(filepath.Dir(commonDir), component, "config", consts.DefaultEventRuleName)
 	err = utils.LoadFromYaml(defaultEventRuleCfg, eventRule)
 	return err

@@ -95,7 +95,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelWarning,
 		Detail:      "Driver and CUDA versions match expected configuration",
-		ErrorName:   "SoftwareVersionInCorrect",
+		ErrorName:   "SoftwareVersionIncorrect",
 		Suggestion:  "Update the software to the expected version",
 	},
 	GpuTemperatureCheckerName: {
@@ -113,7 +113,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelWarning,
 		Detail:      "NVIDIA Persistenced Mode is enabled",
-		ErrorName:   "GPUPersistenceModeNotEnabled",
+		ErrorName:   "GPUPersistencedModeNotEnabled",
 		Suggestion:  "run `nvidia-persistenced` to auto enable the persistence mode. Ideally this will be done automatically online",
 	},
 	GpuPStateCheckerName: {
@@ -194,7 +194,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "No volatile uncorrectable SRAM errors detected",
-		ErrorName:   "SRAMVolatileUncorrectableErrors",	
+		ErrorName:   "SRAMVolatileUncorrectableErrors",
 		Suggestion:  "Reset the GPU device",
 	},
 	SRAMAggUncorrectableCheckerName: {

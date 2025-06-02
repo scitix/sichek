@@ -43,6 +43,7 @@ func LoadSpec(file string) (*HCASpecs, error) {
 	}
 
 	// 2. try to Load default spec from production env if no file specified
+	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
 	if err == nil {
 		return FilterSpecsForLocalHost(s)
@@ -50,7 +51,9 @@ func LoadSpec(file string) (*HCASpecs, error) {
 		logrus.WithField("component", "HCA").Warnf("%v", err)
 	}
 
-	// 3. try to load default spec from default config directory based on caller path
+	// 3. try to load default spec from default config directory
+	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
+	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
 	err = s.tryLoadFromDevConfig()
 	if err == nil {
 		return FilterSpecsForLocalHost(s)

@@ -21,16 +21,16 @@ import (
 )
 
 const (
-	NOIBFOUND        = "no_ib_found"
-	CheckIBOFED      = "check_ib_ofed"
-	CheckIBNUM       = "check_ib_num"
-	CheckIBFW        = "check_ib_fw"
-	CheckIBState     = "check_ib_state"
-	CheckIBPhyState  = "check_ib_phy_state"
-	CheckNetOperstate    = "check_net_operstate"
-	CheckIBPortSpeed = "check_ib_port_speed"
-	CheckIBKmod      = "check_ib_kmod"
-	CheckIBDevs      = "check_ib_devs"
+	NOIBFOUND         = "no_ib_found"
+	CheckIBOFED       = "check_ib_ofed"
+	CheckIBNUM        = "check_ib_num"
+	CheckIBFW         = "check_ib_fw"
+	CheckIBState      = "check_ib_state"
+	CheckIBPhyState   = "check_ib_phy_state"
+	CheckNetOperstate = "check_net_operstate"
+	CheckIBPortSpeed  = "check_ib_port_speed"
+	CheckIBKmod       = "check_ib_kmod"
+	CheckIBDevs       = "check_ib_devs"
 
 	CheckPCIEACS       = "check_pcie_acs"
 	CheckPCIEMRR       = "check_pcie_mrr"
@@ -118,7 +118,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Description: "Check if PCIe link speed is optimal",
 		Level:       consts.LevelCritical,
 		Detail:      "PCIe speed matches device spec",
-		ErrorName:   "PCIELinkSpeedIncorrect",
+		ErrorName:   "PCIELinkSpeedDegraded",
 		Suggestion:  "Ensure PCIe slot and firmware support correct speed",
 	},
 	CheckPCIEWidth: {
@@ -134,7 +134,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Description: "Check full PCIe tree speed to root complex",
 		Level:       consts.LevelCritical,
 		Detail:      "PCIe path to root complex supports full speed",
-		ErrorName:   "PCIETreeSpeedIncorrect",
+		ErrorName:   "PCIETreeSpeedDegraded",
 		Suggestion:  "Check upstream PCIe device speed and configuration",
 	},
 	CheckPCIETreeWidth: {

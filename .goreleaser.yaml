@@ -58,27 +58,27 @@ nfpms:
     bindir: "{{ .Env.INSTALL_DIR }}"
     contents:
     - src: ./components/cpu/config/*.yaml
-      dst: /var/sichek/cpu/
+      dst: /var/sichek/config/cpu/
     - src: ./components/dmesg/config/*.yaml
-      dst: /var/sichek/dmesg/
+      dst: /var/sichek/config/dmesg/
     - src: ./components/gpfs/config/*.yaml
-      dst: /var/sichek/gpfs/
+      dst: /var/sichek/config/gpfs/
     - src: ./components/hang/config/*.yaml
-      dst: /var/sichek/hang/
+      dst: /var/sichek/config/hang/
     - src: ./components/infiniband/config/*.yaml
-      dst: /var/sichek/infiniband/
+      dst: /var/sichek/config/infiniband/
     - src: ./components/memory/config/*.yaml
-      dst: /var/sichek/memory/
+      dst: /var/sichek/config/memory/
     - src: ./components/nccl/config/*.yaml
-      dst: /var/sichek/nccl/
+      dst: /var/sichek/config/nccl/
     - src: ./components/nvidia/config/*.yaml
-      dst: /var/sichek/nvidia/
+      dst: /var/sichek/config/nvidia/
     - src: ./components/hca/config/*.yaml
-      dst: /var/sichek/hca/
+      dst: /var/sichek/config/hca/
     - src: ./config/*.yaml
-      dst: /var/sichek/config
+      dst: /var/sichek/config/
     - src: ./components/pcie/topotest/*.yaml
-      dst: /var/sichek/pcie/topotest/
+      dst: /var/sichek/config/pcie/topotest/
     - src: ./components/nccl/perftest/nccl_perf
       dst: /var/sichek/nccl_perf
     - src: ./test/get_ib_info.sh

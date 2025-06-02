@@ -23,7 +23,7 @@ type Config struct {
 }
 
 func GetDefaultNcclTestPath(testBin string) (string, error) {
-	defaultCfgDirPath := filepath.Join(consts.DefaultProductionCfgPath, testBin)
+	defaultCfgDirPath := filepath.Join(consts.DefaultProductionPath, testBin)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
 		_, curFile, _, ok := runtime.Caller(0)

@@ -109,15 +109,14 @@ var LevelPriority = map[string]int{
 }
 
 const (
-	DefaultUserCfgName             = "default_user_config.yaml"
-	DefaultSpecCfgName             = "default_spec.yaml"
-	DefaultSpecSuffix              = "_spec.yaml"
-	DefaultEventRuleName           = "default_event_rules.yaml"
-	DefaultEventRuleSuffix         = "_rules.yaml"
-	DefaultProductionPath          = "/var/sichek"
-	DefaultProductionCfgPath       = "/var/sichek/configs"
-	DefaultProductionEventRulePath = "/var/sichek/log_rules"
-	DefaultOssCfgPath              = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
+	DefaultUserCfgName       = "default_user_config.yaml"
+	DefaultSpecCfgName       = "default_spec.yaml"
+	DefaultSpecSuffix        = "_spec.yaml"
+	DefaultEventRuleName     = "default_event_rules.yaml"
+	DefaultEventRuleSuffix   = "_rules.yaml"
+	DefaultProductionPath    = "/var/sichek"
+	DefaultProductionCfgPath = "/var/sichek/config"
+	DefaultOssCfgPath        = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
 )
 
 const (

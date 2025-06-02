@@ -32,9 +32,11 @@ cpu:
 
 ### Load Priority
 
-1. CLI-specified file
-2. Production default: `/var/sicheck/configs/default_user_config.yaml`
-3. Dev default: based on `runtime.Caller` → `<repo>/component/config/default_user_config.yaml`
+1. user-specified file
+2. Production default: `/var/sicheck/config/default_user_config.yaml`
+3. Dev default: 
+  - for production env: `/var/sichek/config/xx-component/default_user_config.yaml`
+  - for development env: based on `runtime.Caller` → `path-to-sichek/component/config/default_user_config.yaml`
 
 ### Example Loader
 
@@ -55,6 +57,8 @@ Spec files define expected hardware layouts and characteristics. Each component 
   - Production default locations (`tryLoadFromDefault() error`)
 
   - Developer config directories (`tryLoadFromDevConfig() error`)
+    - for production env: `/var/sichek/config/xx-component/*_spec.yaml`
+    - for development env: based on `runtime.Caller` → `path-to-sichek/component/config/*_spec.yaml`
 
   - Cloud-based OSS fallback (e.g., when spec for a specific board ID is missing)
 
@@ -70,9 +74,11 @@ The spec loading process follows a multi-stage fallback strategy:
 
 1. **User-provided YAML file**: If a spec file path is explicitly provided, attempt to parse and load it.
 
-2. **Production default spec**: If no file is provided or the previous step fails, load from a default production path (e.g., /var/sichek/config).
+2. **Production default spec**: If no file is provided or the previous step fails, load from a default production path (e.g., `/var/sichek/config/default_spec.yaml`).
 
-3. **Developer config directory**: If running in a development environment or test setup, scan a predefined config directory for `_spec.yaml` files(e.g., `path-to-sichek/component/hca/config/_spec.yaml`).
+3. **Developer config directory**: 
+  - If running in a production environment, scan a predefined config directory for `_spec.yaml` files(e.g., `/var/sichek/config/xx-component/*_spec.yaml`).
+  - If running in a development environment, scan a predefined config directory for `_spec.yaml` files(e.g., `path-to-sichek/component/xx=component/config/*_spec.yaml`).
 
 4. **OSS fallback for missing hardware specs**: If the local hardware (e.g., a specific HCA board ID) is not found in the current spec set, attempt to load it from an OSS (Object Storage Service) by fetching a YAML file for that specific ID.
 
@@ -131,7 +137,7 @@ cpu:
 
 ### Load Priority
 
-1. Production default: `/var/sicheck/event_rules/<component>/default_event_rules.yaml`
+1. Production default: `/var/sicheck/config/<component>/default_event_rules.yaml`
 2. Dev fallback: based on `runtime.Caller` → `<repo>/<component>/config/default_event_rules.yaml`
 
 ### Example Loader
@@ -142,21 +148,36 @@ err := LoadDefaultEventRules(&rules, "cpu")
 
 ---
 
-## 📁 Recommended Directory Structure
+## Directory Structure
+### For production environment
+```
+/var/sichek/
+├── config/
+│   └── default_user_config.yaml        # global default user config
+│   └── default_spec.yaml               # global default specification
+│   ├── nvidia/
+│   │   ├── *_spec.yaml                  # GPU hardware spec
+│   └── hca/
+│   |   ├── *_spec.yaml                  # HCA hardware spec
+│   └── hang/
+│       └── event_rules.yaml             # Event rules for GPU hang detection
+```
 
+### For development environment
 ```
 project-root/
 ├── config/
 │   └── user_config.yaml                     # Runtime control (global)
 ├── components/
-│   ├── gpu/
+│   ├── nvidia/
 │   │   └── config/
-│   │       ├── _spec.yaml                  # GPU hardware spec
-│   │       └── rules.yaml                  # Event detection rules
+│   │       ├── *_spec.yaml                  # GPU hardware spec
 │   └── hca/
+│   |   └── config/
+│   |       ├── *_spec.yaml                  # HCA hardware spec
+│   └── hang/
 │       └── config/
-│           ├── _spec.yaml                  # HCA board-level spec
-│           └── rules.yaml                  # Event rules for IB logs
+│           └── event_rules.yaml             # Event rules for GPU hang detection
 ```
 
 ---
