@@ -138,7 +138,7 @@ func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
 	defaultDevCfgDirPath, files, err := common.GetDevDefaultConfigFiles(consts.ComponentNameNvidia)
 	if err == nil {
 		for _, file := range files {
-			if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			if strings.HasSuffix(file.Name(), consts.DefaultSpecSuffix) {
 				specs := &NvidiaSpecs{}
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)

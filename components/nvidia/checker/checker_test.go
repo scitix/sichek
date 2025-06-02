@@ -71,7 +71,7 @@ memory:
 		return fmt.Errorf("Failed to write to temp config file: %v", err)
 	}
 
-	err = common.LoadComponentUserConfig(configFile.Name(), &nvidiaUserCfg)
+	err = common.LoadUserConfig(configFile.Name(), &nvidiaUserCfg)
 	if err != nil || nvidiaUserCfg.Nvidia == nil {
 		return fmt.Errorf("NewComponent load user config failed: err=%v, nvidiaUserCfg.Nvidia=%v", err, nvidiaUserCfg.Nvidia)
 	}

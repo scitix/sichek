@@ -78,7 +78,15 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	} else {
 		result.Status = consts.StatusNormal
 	}
-	result.Spec = strings.Join(c.spec.IBDevs, ",")
-	result.Curr = strings.Join(infinibandInfo.IBDevs, ",")
+	var specSlice []string
+	for mlxDev, ibDev := range c.spec.IBDevs {
+		specSlice = append(specSlice, mlxDev+":"+ibDev)
+	}
+	result.Spec = strings.Join(specSlice, ",")
+	var ibDevsSlice []string
+	for mlxDev, ibDev := range infinibandInfo.IBDevs {
+		ibDevsSlice = append(ibDevsSlice, mlxDev+":"+ibDev)
+	}
+	result.Curr = strings.Join(ibDevsSlice, ",")
 	return &result, nil
 }

@@ -1,4 +1,7 @@
-# Component Spec Loading Framework
+# Configuration System Overview
+This document describes the configuration system used in this project, which is designed to support modular health checking, extensibility across hardware components, and environment-aware fallback mechanisms.
+
+
 This document describes a unified and extensible mechanism for loading hardware specifications (spec) used by different components (e.g., HCA, GPU). Each component maintains a structured spec file describing hardware-specific characteristics, which are dynamically loaded and filtered based on the local host.
 
 ## Overview

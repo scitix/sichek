@@ -20,39 +20,30 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
-type MemorySpecConfig struct {
-	MemorySpec *MemorySpec `yaml:"memory" json:"memory"`
+type CpuEventRules struct {
+	Rules *CpuEventRule `yaml:"cpu" json:"cpu"`
 }
 
-type MemorySpec struct {
-	EventCheckers map[string]*MemoryEventConfig `json:"event_checkers" yaml:"event_checkers"`
+type CpuEventRule struct {
+	EventCheckers map[string]*CPUEventConfig `json:"event_checkers" yaml:"event_checkers"`
 }
 
-type MemoryEventConfig struct {
+type CPUEventConfig struct {
 	Name        string `json:"name" yaml:"name"`
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 	LogFile     string `json:"log_file" yaml:"log_file"`
 	Regexp      string `json:"regexp" yaml:"regexp"`
 	Level       string `json:"level" yaml:"level"`
+	Suggestion  string `json:"suggestion" yaml:"suggestion"`
 }
 
-func (c *MemorySpecConfig) LoadSpecConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.MemorySpec == nil {
-			logrus.WithField("component", "memory").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "memory").Infof("loaded spec from YAML file %s", file)
-			return nil
-		}
+func LoadDefaultEventRules() (*CpuEventRule, error) {
+	eventRules := &CpuEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameCPU)
+	if err == nil && eventRules.Rules != nil {
+		return eventRules.Rules, nil
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameMemory, c, consts.DefaultSpecCfgName)
-	if err != nil || c.MemorySpec == nil {
-		return fmt.Errorf("failed to load default memory spec: %v", err)
-	}
-	return nil
+	return nil, fmt.Errorf("failed to load eventRules: %v", err)
 }

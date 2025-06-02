@@ -81,7 +81,7 @@ func newEthernetComponent(cfgFile string, specFile string) (comp *component, err
 		}
 	}()
 	cfg := &config.EthernetUserConfig{}
-	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Ethernet == nil {
 		logrus.WithField("component", "ethernet").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewEthernetComponent get user config failed")

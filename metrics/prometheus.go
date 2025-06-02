@@ -85,7 +85,7 @@ func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 func InitPrometheus(cfgFile string) {
 	// Initialize the metrics config
 	cfg := &MetricsUserConfig{}
-	err := common.LoadComponentUserConfig(cfgFile, cfg)
+	err := common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Metrics == nil {
 		logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed or cfg is nil: %v", err)
 	}

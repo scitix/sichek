@@ -28,7 +28,7 @@ import (
 func TestIbChecker_Check(t *testing.T) {
 	cfg := &config.InfinibandUserConfig{}
 
-	err := common.LoadComponentUserConfig("", cfg)
+	err := common.LoadUserConfig("", cfg)
 	if err != nil || cfg.Infiniband == nil {
 		t.Fatalf("failed to load default config: %v", err)
 	}

@@ -65,7 +65,7 @@ func LoadSpec(file string) (*PcieTopoSpec, error) {
 	} else {
 		logrus.WithField("component", "pcie").Warnf("%v", err)
 	}
-	return nil, fmt.Errorf("failed to load pcie topo spec from any source, please check the configuration")
+	return nil, fmt.Errorf("failed to load pcie_topo spec from any source, please check the configuration")
 }
 
 func (s *PcieTopoSpecs) tryLoadFromFile(file string) error {
@@ -107,7 +107,7 @@ func (s *PcieTopoSpecs) tryLoadFromDevConfig() error {
 	defaultDevCfgDirPath, files, err := common.GetDevDefaultConfigFiles(consts.ComponentNamePCIE)
 	if err == nil {
 		for _, file := range files {
-			if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			if strings.HasSuffix(file.Name(), consts.DefaultSpecSuffix) {
 				specs := &PcieTopoSpecs{}
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)

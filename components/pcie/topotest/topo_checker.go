@@ -44,12 +44,12 @@ func checkNuma(devices map[string]*DeviceInfo, numaConfig []*config.NumaConfig) 
 
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d GPU count mismatch: expected %d, got %d\n",
-			cfg.NodeID, cfg.GPUCount, stat.GPUCount))
+				cfg.NodeID, cfg.GPUCount, stat.GPUCount))
 		}
 		if stat.IBCount != cfg.IBCount {
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d IB count mismatch: expected %d, got %d\n",
-			cfg.NodeID, cfg.IBCount, stat.IBCount))
+				cfg.NodeID, cfg.IBCount, stat.IBCount))
 		}
 	}
 
@@ -166,7 +166,7 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 		}
 	}
 	res := &common.Result{
-		Item:     "Pcie Topo",
+		Item:     "pcie_topo",
 		Status:   status,
 		Checkers: checkRes,
 	}
@@ -179,7 +179,7 @@ func PrintInfo(result *common.Result, verbos bool) bool {
 	}
 	checkerResults := result.Checkers
 	if result.Status == consts.StatusNormal {
-		fmt.Printf("%sPcie Topo Test Passed%s\n", consts.Green, consts.Reset)
+		// fmt.Printf("%spcie_topo Test Passed%s\n", consts.Green, consts.Reset)
 		return true
 	}
 	for _, result := range checkerResults {

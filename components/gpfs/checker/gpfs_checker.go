@@ -29,7 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.GpfsSpec) ([]common.Checker, error) {
+func NewCheckers(cfg *config.GpfsEventRule) ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
 	for name, cfg := range cfg.EventCheckers {
 		checker, err := NewEventChecker(cfg)

@@ -35,10 +35,10 @@ type InfinibandSpecs struct {
 }
 
 type InfinibandSpec struct {
-	IBDevs         map[string]string           		`json:"ib_devs"`
-	IBSoftWareInfo *collector.IBSoftWareInfo  		`json:"sw_deps"`
-	PCIeACS        string                     		`json:"pcie_acs"`
-	HCAs           map[string]*hcaConfig.HCASpec 	`json:"hca_specs"`
+	IBDevs         map[string]string             `json:"ib_devs"`
+	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps"`
+	PCIeACS        string                        `json:"pcie_acs"`
+	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs"`
 }
 
 func LoadSpec(file string) (*InfinibandSpec, error) {
@@ -109,7 +109,7 @@ func (s *InfinibandSpecs) tryLoadFromDevConfig() error {
 	defaultDevCfgDirPath, files, err := common.GetDevDefaultConfigFiles(consts.ComponentNameInfiniband)
 	if err == nil {
 		for _, file := range files {
-			if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			if strings.HasSuffix(file.Name(), consts.DefaultSpecSuffix) {
 				specs := &InfinibandSpecs{}
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)

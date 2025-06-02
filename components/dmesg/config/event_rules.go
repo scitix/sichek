@@ -20,15 +20,13 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
-type DmesgSpecConfig struct {
-	DmesgSpec *DmesgSpec `yaml:"dmesg" json:"dmesg"`
+type DmesgEventRules struct {
+	Rules *DmesgEventRule `yaml:"dmesg" json:"dmesg"`
 }
 
-type DmesgSpec struct {
+type DmesgEventRule struct {
 	DmesgFileName []string                     `json:"file_name" yaml:"file_name"`
 	DmesgCmd      [][]string                   `json:"cmd" yaml:"cmd"`
 	EventCheckers map[string]*DmesgErrorConfig `json:"event_checkers" yaml:"event_checkers"`
@@ -41,19 +39,11 @@ type DmesgErrorConfig struct {
 	Level       string `json:"level" yaml:"level"`
 }
 
-func (c *DmesgSpecConfig) LoadSpecConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.DmesgSpec == nil {
-			logrus.WithField("component", "dmesg").Warnf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "dmesg").Infof("loaded spec from YAML file %s", file)
-			return nil
-		}
+func LoadDefaultEventRules() (*DmesgEventRule, error) {
+	eventRules := &DmesgEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameDmesg)
+	if err == nil && eventRules.Rules != nil {
+		return eventRules.Rules, nil
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameDmesg, c, consts.DefaultSpecCfgName)
-	if err != nil || c.DmesgSpec == nil {
-		return fmt.Errorf("failed to load default ethernet spec: %v", err)
-	}
-	return nil
+	return nil, fmt.Errorf("failed to load eventRules: %v", err)
 }

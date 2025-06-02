@@ -16,13 +16,10 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type CompareType string
@@ -32,11 +29,11 @@ const (
 	CompareHigh CompareType = "high"
 )
 
-type HangSpecConfig struct {
-	HangSpec *HangSpec `yaml:"hang" json:"hang"`
+type HangEventRules struct {
+	Rules *HangEventRule `yaml:"hang" json:"hang"`
 }
 
-type HangSpec struct {
+type HangEventRule struct {
 	Name                       string                    `json:"name" yaml:"name"`
 	Description                string                    `json:"description,omitempty" yaml:"description,omitempty"`
 	DurationThreshold          common.Duration           `json:"duration_threshold" yaml:"duration_threshold"`
@@ -57,40 +54,46 @@ type IndicatorModelOverride struct {
 	Override map[string]*HangIndicator `yaml:"override" json:"override"`
 }
 
-func (c *HangSpecConfig) GetSpec(specFile string) error {
-	err := c.LoadSpecConfigFromYaml(specFile)
+func LoadDefaultEventRules() (*HangEventRule, error) {
+	eventRules := &HangEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameHang)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	deviceID, err := config.GetDeviceID()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for _, m := range c.HangSpec.IndicatorsByModel {
+	for _, m := range eventRules.Rules.IndicatorsByModel {
 		if m.Model == deviceID {
 			for k, override := range m.Override {
 				clone := *override
-				c.HangSpec.Indicators[k] = &clone
+				eventRules.Rules.Indicators[k] = &clone
 			}
 			break
 		}
 	}
-	return nil
+	return eventRules.Rules, nil
 }
 
-func (c *HangSpecConfig) LoadSpecConfigFromYaml(specFile string) error {
-	if specFile != "" {
-		err := utils.LoadFromYaml(specFile, c)
-		if err != nil || c.HangSpec == nil {
-			logrus.WithField("component", "hang").Errorf("failed to load hang spec from YAML file %s: %v, try to load from default config", specFile, err)
-		} else {
-			logrus.WithField("component", "hang").Infof("loaded hang spec from YAML file %s", specFile)
-			return nil
+func LoadEventRules(file string) (*HangEventRule, error) {
+	eventRules := &HangEventRules{}
+	err := utils.LoadFromYaml(file, eventRules)
+	if err != nil {
+		return nil, err
+	}
+	deviceID, err := config.GetDeviceID()
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range eventRules.Rules.IndicatorsByModel {
+		if m.Model == deviceID {
+			for k, override := range m.Override {
+				clone := *override
+				eventRules.Rules.Indicators[k] = &clone
+			}
+			break
 		}
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameHang, c, consts.DefaultSpecCfgName)
-	if err != nil || c.HangSpec == nil {
-		return fmt.Errorf("failed to load default hang spec: %v", err)
-	}
-	return nil
+	return eventRules.Rules, nil
 }

@@ -65,7 +65,7 @@ type CheckerSpec interface {
 // GetDefaultConfigFiles returns the config directory and files for the given component.
 func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	// Try production path first: /var/sichek/default_spec.yaml
-	defaultCfgDirPath := consts.DefaultProductionCfgPath
+	defaultCfgDirPath := filepath.Join(consts.DefaultProductionCfgPath, component)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
 		// run on host use local config
@@ -162,31 +162,59 @@ func DefaultComponentConfig(component string, config interface{}, filename strin
 	return fmt.Errorf("failed to find default config file: %s", filename)
 }
 
-// LoadComponentUserConfig loads the default configuration for a given component from a YAML file.
-func LoadComponentUserConfig(file string, config interface{}) error {
+// LoadUserConfig loads the default user config from production default dir or dev default dir based on runtime.Caller
+func LoadDefaultEventRules(eventRule interface{}, component string) error {
+	// 1. try to load default config from production default dir
+	defaultEventRuleCfg := filepath.Join(consts.DefaultProductionEventRulePath, component, consts.DefaultEventRuleName)
+	_, err := os.Stat(defaultEventRuleCfg)
+	if err == nil {
+		err := utils.LoadFromYaml(defaultEventRuleCfg, eventRule)
+		if err == nil {
+			return nil
+		}
+	}
+	// 2. try to load default config from default config directory based on caller path
+	_, curFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("get curr file path failed")
+	}
+	// Get the directory of the current file
+	commonDir := filepath.Dir(curFile)	
+	defaultEventRuleCfg = filepath.Join(filepath.Dir(commonDir), component, "config", consts.DefaultEventRuleName)
+	err = utils.LoadFromYaml(defaultEventRuleCfg, eventRule)
+	return err
+}
+
+// LoadUserConfig loads the user config from provided file or production default dir or dev default dir based on runtime.Caller
+func LoadUserConfig(file string, config interface{}) error {
+	// 1. Load config from provided file
 	if file != "" {
 		err := utils.LoadFromYaml(file, config)
 		if err == nil {
 			return nil
 		}
 	}
-	defaultCfgPath := filepath.Join(consts.DefaultProductionCfgPath, "config", consts.DefaultUserCfgName)
-	_, err := os.Stat(defaultCfgPath)
-	if err != nil {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
+	// 2. try to load default config from production env if no file specified
+	defaultUserCfg := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
+	_, err := os.Stat(defaultUserCfg)
+	if err == nil {
+		err := utils.LoadFromYaml(defaultUserCfg, config)
+		if err == nil {
+			return nil
 		}
-		// Get the directory of the current file
-		commonDir := filepath.Dir(curFile)
-		sichekDir := filepath.Dir(filepath.Dir(commonDir))
-
-		defaultCfgPath = filepath.Join(sichekDir, "config", consts.DefaultUserCfgName)
 	}
-	err = utils.LoadFromYaml(defaultCfgPath, config)
-	return err
+	// 3. try to load default spec from default config directory based on caller path
+	_, curFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("get curr file path failed")
+	}
+	// Get the directory of the current file
+	commonDir := filepath.Dir(curFile)
+	sichekDir := filepath.Dir(filepath.Dir(commonDir))
 
+	defaultUserCfg = filepath.Join(sichekDir, "config", consts.DefaultUserCfgName)
+	err = utils.LoadFromYaml(defaultUserCfg, config)
+	return err
 }
 
 // FreqController controls the frequency of component queries.

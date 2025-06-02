@@ -100,7 +100,7 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 	defaultDevCfgDirPath, files, err := common.GetDevDefaultConfigFiles(consts.ComponentNameHCA)
 	if err == nil {
 		for _, file := range files {
-			if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
+			if strings.HasSuffix(file.Name(), consts.DefaultSpecSuffix) {
 				specs := &HCASpecs{}
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)

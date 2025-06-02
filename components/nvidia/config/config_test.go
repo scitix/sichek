@@ -273,7 +273,7 @@ nvidia:
 
 	// Test the NvidiaConfig function
 	cfg := &NvidiaUserConfig{}
-	err = common.LoadComponentUserConfig(userConfigFile.Name(), cfg)
+	err = common.LoadUserConfig(userConfigFile.Name(), cfg)
 	if err != nil || cfg.Nvidia == nil {
 		t.Fatalf("Failed to load user config: %v", err)
 	}
@@ -340,11 +340,11 @@ memory:
 		t.Fatalf("Failed to write to temp user config file: %v", err)
 	}
 
-	// Test the LoadComponentUserConfig function
+	// Test the LoadUserConfig function
 	cfg := &NvidiaUserConfig{}
-	err = common.LoadComponentUserConfig(userConfigFile.Name(), cfg)
+	err = common.LoadUserConfig(userConfigFile.Name(), cfg)
 	if err != nil {
-		t.Fatalf("LoadComponentUserConfig() returned an error: %v", err)
+		t.Fatalf("LoadUserConfig() returned an error: %v", err)
 	}
 
 	// Validate the loaded configuration
@@ -365,10 +365,10 @@ memory:
 func TestLoadComponentUserConfig_WithInvalidFile(t *testing.T) {
 	// Test with an invalid file path
 	cfg := &NvidiaUserConfig{}
-	err := common.LoadComponentUserConfig("invalid_file_path.yaml", cfg)
+	err := common.LoadUserConfig("invalid_file_path.yaml", cfg)
 	// Validate the loaded configuration with default config values)
 	if err != nil {
-		t.Fatalf("Expected LoadComponentUserConfig() with default config, got: %v", err)
+		t.Fatalf("Expected LoadUserConfig() with default config, got: %v", err)
 	}
 	if cfg.Nvidia == nil {
 		t.Fatalf("Expected Nvidia config to be non-nil")
@@ -387,9 +387,9 @@ func TestLoadComponentUserConfig_WithInvalidFile(t *testing.T) {
 func TestLoadComponentUserConfig_WithDefaultConfig(t *testing.T) {
 	// Simulate the absence of a user-provided file to test loading the default config
 	cfg := &NvidiaUserConfig{}
-	err := common.LoadComponentUserConfig("", cfg)
+	err := common.LoadUserConfig("", cfg)
 	if err != nil {
-		t.Fatalf("LoadComponentUserConfig() returned an error: %v", err)
+		t.Fatalf("LoadUserConfig() returned an error: %v", err)
 	}
 
 	// Validate the loaded configuration with default config values)

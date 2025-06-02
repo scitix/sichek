@@ -41,12 +41,12 @@ func (o *Output) JSON() (string, error) {
 
 type MemoryCollector struct {
 	name string
-	cfg  *config.MemorySpec
+	cfg  *config.MemoryEventRule
 
 	filter *filter.FileFilter
 }
 
-func NewCollector(cfg *config.MemorySpec) (*MemoryCollector, error) {
+func NewCollector(cfg *config.MemoryEventRule) (*MemoryCollector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)

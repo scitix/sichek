@@ -84,7 +84,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNameNCCL, ComponentNameHang, ComponentNamePCIE,
+		ComponentNameNCCL, ComponentNameHang,
 	}
 )
 
@@ -109,11 +109,15 @@ var LevelPriority = map[string]int{
 }
 
 const (
-	DefaultUserCfgName       = "default_user_config.yaml"
-	DefaultSpecCfgName       = "default_spec.yaml"
-	DefaultSpecCfgSuffix     = "_spec.yaml"
-	DefaultProductionCfgPath = "/var/sichek"
-	DefaultOssCfgPath        = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
+	DefaultUserCfgName             = "default_user_config.yaml"
+	DefaultSpecCfgName             = "default_spec.yaml"
+	DefaultSpecSuffix              = "_spec.yaml"
+	DefaultEventRuleName           = "default_event_rules.yaml"
+	DefaultEventRuleSuffix         = "_rules.yaml"
+	DefaultProductionPath          = "/var/sichek"
+	DefaultProductionCfgPath       = "/var/sichek/configs"
+	DefaultProductionEventRulePath = "/var/sichek/log_rules"
+	DefaultOssCfgPath              = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
 )
 
 const (
