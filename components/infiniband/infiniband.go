@@ -138,7 +138,8 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	InfinibandInfo, ok := c.info.(*collector.InfinibandInfo)
+	IbInfo, ok := c.info.(*collector.InfinibandInfo)
+	InfinibandInfo := IbInfo.GetIBInfo(ctx)
 	if !ok {
 		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
 	}
