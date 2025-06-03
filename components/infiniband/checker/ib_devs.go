@@ -62,17 +62,23 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	failedHcas := make([]string, 0)
 	IBDevSet := make(map[string]struct{})
-	for _, hca := range c.spec.IBDevs {
+	for _, hca := range infinibandInfo.IBDevs {
 		IBDevSet[hca] = struct{}{}
 	}
 
-	for _, hca := range infinibandInfo.IBDevs {
+	for _, hca := range c.spec.IBDevs {
 		if _, found := IBDevSet[hca]; !found {
 			failedHcas = append(failedHcas, hca)
 		}
 	}
 
 	if len(failedHcas) > 0 {
+		if len(infinibandInfo.IBDevs) != len(c.spec.IBDevs) {
+			result = config.InfinibandCheckItems[config.ChekIBNUM]
+		} else {
+			result = config.InfinibandCheckItems[config.CheckIBDevs]
+		}
+
 		result.Status = consts.StatusAbnormal
 		result.Device = strings.Join(failedHcas, ",")
 		result.Detail = fmt.Sprintf("Unexpected IB devices %v, expected IB devices : %v", infinibandInfo.IBDevs, c.spec.IBDevs)

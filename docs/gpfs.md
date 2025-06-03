@@ -55,4 +55,10 @@
  - Criticality: Warning
  - Suggestion: Contact the administrator and request access.
 
+ ### 9. Bond0 Lost
+
+ - Node bond0 is not active, GPFS control communication will failed.
+ - Criticality: Warning
+ - Suggestion: Check GPFS node ether network.
+
  By analyzing these events, system administrators maintain the health and reliability of GPFS filesystems on node.

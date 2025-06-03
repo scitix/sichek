@@ -30,6 +30,12 @@ const (
 	ExpelledFromClusterCheckerName = "expelled_from_cluster"
 	UnauthorizedCheckerName        = "unauthorized"
 	Bond0LostCheckerName           = "bond0_lost"
+	GPFSInstalledCheckerName	   = "gpfs-installed"
+	NodeInClusterCheckerName	   = "node-in-cluster"
+	GPFSStartedCheckerName		   = "gpfs-started"
+	GPFSMountedCheckerName		   = "gpfs-mounted"
+	GPFSHealthCheckerName		   = "gpfs-health"
+	GPFSRdmaNetworkCheckerName	   = "gpfs-rdma-network"
 )
 
 var GPFSCheckItems = map[string]common.CheckerResult{
@@ -131,5 +137,59 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Detail:      "",
 		ErrorName:   "Bond0Lost",
 		Suggestion:  "Check GPFS ether network",
+	},
+	GPFSInstalledCheckerName: {
+		Name: GPFSInstalledCheckerName,
+		Description: "Check if GPFS software installed",
+		Status: "",
+		Level: consts.LevelCritical,
+		Detail: "",
+		ErrorName: "GPFSNotInstalled",
+		Suggestion: "Install GPFS software",
+	},
+	NodeInClusterCheckerName: {
+		Name: NodeInClusterCheckerName,
+		Description: "Check if node is in GPFS cluster",
+		Status: "",
+		Level: consts.LevelCritical,
+		Detail: "",
+		ErrorName: "GPFSNotInCluster",
+		Suggestion: "Add node to GPFS cluster",
+	},
+	GPFSStartedCheckerName: {
+		Name: GPFSStartedCheckerName,
+		Description: "Check if GPFS software started",
+		Status: "",
+		Level: consts.LevelCritical,
+		Detail: "",
+		ErrorName: "GPFSNotStarted",
+		Suggestion: "Start GPFS software",
+	},
+	GPFSMountedCheckerName: {
+		Name: GPFSMountedCheckerName,
+		Description: "Check if GPFS mounted",
+		Status: "",
+		Level: consts.LevelCritical,
+		Detail: "",
+		ErrorName: "GPFSNotMounted",
+		Suggestion: "Mount GPFS filesystem",
+	},
+	GPFSHealthCheckerName: {
+		Name: GPFSHealthCheckerName,
+		Description: "Check if GPFS node is healthy",
+		Status: "",
+		Level: consts.LevelCritical,
+		Detail: "",
+		ErrorName: "GPFSNodeNotHealthy",
+		Suggestion: "Check mmhealth and GPFS log for details",
+	},
+	GPFSRdmaNetworkCheckerName: {
+		Name: GPFSRdmaNetworkCheckerName,
+		Description: "Check if GPFS using RDMA",
+		Status: "",
+		Level: consts.LevelCritical,
+		Detail: "",
+		ErrorName: "GPFSRDMAError",
+		Suggestion: "Check node RDMA network and GPFS log",
 	},
 }
