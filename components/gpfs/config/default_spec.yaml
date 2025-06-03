@@ -37,3 +37,10 @@ gpfs:
       name: "bond0_lost"
       log_file: "/var/log/syslog"
       regexp: "bond0: now running without any active interface"
+  xstor_health_checkers:
+    - gpfs-installed
+    - node-in-cluster
+    - gpfs-started
+    - gpfs-mounted
+    - gpfs-health
+    - gpfs-rdma-network

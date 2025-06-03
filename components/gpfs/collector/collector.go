@@ -20,29 +20,23 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/pkg/utils/filter"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
-
-type GPFSInfo struct {
-	FilterResults map[string][]*filter.FilterResult `json:"filter_results"`
-	Time          time.Time                         `json:"time"`
-}
-
-func (i *GPFSInfo) JSON() (string, error) {
-	data, err := json.Marshal(i)
-	return string(data), err
-}
 
 type GPFSCollector struct {
 	name string
 	cfg  *config.GpfsSpec
 
 	filter *filter.FileFilter
+	xstorHealth XStorHealthInfo
 }
 
 func NewGPFSCollector(cfg *config.GpfsSpec) (*GPFSCollector, error) {
@@ -68,16 +62,44 @@ func NewGPFSCollector(cfg *config.GpfsSpec) (*GPFSCollector, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &GPFSCollector{
+	collector := &GPFSCollector{
 		name:   "GPFSCollector",
 		cfg:    cfg,
 		filter: filterPointer,
-	}, nil
+	}
+	
+	if len(cfg.XStorHealthCheckers) > 0 {
+		collector.xstorHealth = XStorHealthInfo{
+			HealthItems: make(map[string]*GPFSXStorHealthItem),
+		}
+	}
+
+	return collector, nil
 }
 
 func (c *GPFSCollector) Name() string {
 	return c.name
+}
+
+func (c *GPFSCollector) getXStorHealthInfo(ctx context.Context) error {
+	if len(c.cfg.XStorHealthCheckers) == 0 {
+		return nil
+	}
+
+	xstorHealthOutput, err := utils.ExecCommand(ctx, "xstor-health basic-check", "--output-format", "sicheck")
+	if err != nil {
+		return fmt.Errorf("exec xstor-health failed: %v", err)
+	}
+	healthItemStrs := strings.Split(string(xstorHealthOutput), "\n")
+	for _, itemStr := range healthItemStrs {
+		var item GPFSXStorHealthItem
+		err := json.Unmarshal([]byte(itemStr), &item)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal %s to GPFSXStorHealthItem", itemStr)
+		}
+		c.xstorHealth.HealthItems[item.Item] = &item
+	}
+	return nil
 }
 
 func (c *GPFSCollector) Collect(ctx context.Context) (common.Info, error) {
@@ -86,10 +108,18 @@ func (c *GPFSCollector) Collect(ctx context.Context) (common.Info, error) {
 	for _, res := range filterRes {
 		filterResMap[res.Name] = append(filterResMap[res.Name], &res)
 	}
+	event_info := EventInfo{
+		FilterResults: filterResMap,
+	}
+	err := c.getXStorHealthInfo(ctx)
+	if err != nil {
+		logrus.WithField("component", "GPFS-Collector").Errorf("failed to get XStorHealthInfo: %v", err)
+	}
 
 	info := &GPFSInfo{
-		FilterResults: filterResMap,
-		Time:          time.Now(),
+		Time:          	 time.Now(),
+		EventInfo:		 event_info,
+		XStorHealthInfo: c.xstorHealth,
 	}
 
 	return info, nil
