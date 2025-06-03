@@ -42,6 +42,7 @@ type InfinibandSpec struct {
 }
 
 func LoadSpec(file string) (*InfinibandSpec, error) {
+	logrus.WithField("component", "infiniband").Warnf("load from YAML file %s", file)
 	s := &InfinibandSpecs{}
 	// 1. Load spec from provided file
 	if file != "" {
@@ -156,7 +157,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 	var ibSpec *InfinibandSpec
 	if specs != nil && specs.Specs != nil {
 		clusterName := extractClusterName()
-		if spec, ok := specs.Specs[clusterName]; !ok {
+		if spec, ok := specs.Specs[clusterName]; ok {
 			ibSpec = spec
 		} else {
 			// If no specific cluster specification is found, fall back to the default specification
@@ -188,12 +189,15 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			}
 		}
 		// load specified hca spec based on the hca on the node
+
 		hcaSpecs, err := hcaConfig.LoadSpec(file)
+
 		if err != nil {
 			logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
 			return nil, err
 		}
 		ibSpec.HCAs = hcaSpecs.HcaSpec
+
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)

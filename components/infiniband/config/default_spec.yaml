@@ -5,6 +5,11 @@ infiniband:
       mlx5_1: ib1
       mlx5_2: ib2
       mlx5_3: ib3
+      mlx5_4: ib4
+      mlx5_5: ib5
+      mlx5_6: ib6
+      mlx5_7: ib7
+      mlx5_8: ib8
     sw_deps:
       kernel_module:
         - "rdma_ucm"
@@ -17,7 +22,7 @@ infiniband:
         - "ib_cm"
         - "ib_core"
         - "mlxfw"
-      ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
+      ofed_ver: "MLNX_OFED_LINUX-24.10-2.1.8.0"
     pcie_acs: "disable"
     hca_specs:
       MT_0000000970: {}

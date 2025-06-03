@@ -93,6 +93,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
+	fmt.Println("debug ib spec:", ibSpec)
 
 	checkers, err := checker.NewCheckers(cfg, ibSpec)
 	if err != nil {
@@ -152,12 +153,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	result := common.Check(ctx, c.componentName, InfinibandInfo, c.checkers)
-	// infoJson, err := InfinibandInfo.JSON()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to convert infiniband info to JSON: %w", err)
-	// }
+	infoJson, err := InfinibandInfo.JSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert infiniband info to JSON: %w", err)
+	}
 
-	// result.RawData = infoJson
+	result.RawData = infoJson
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = InfinibandInfo
 	c.cacheBuffer[c.currIndex] = result

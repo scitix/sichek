@@ -45,7 +45,7 @@ func LoadSpec(file string) (*HCASpecs, error) {
 	// 2. try to Load default spec from production env if no file specified
 	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
-	if err == nil {
+	if err != nil {
 		return FilterSpecsForLocalHost(s)
 	} else {
 		logrus.WithField("component", "HCA").Warnf("%v", err)
@@ -83,8 +83,12 @@ func (s *HCASpecs) tryLoadFromFile(file string) error {
 func (s *HCASpecs) tryLoadFromDefault() error {
 	specs := &HCASpecs{}
 	err := common.LoadFromProductionDefaultSpec(specs)
-	if err != nil || specs.HcaSpec == nil {
+	if err != nil {
 		return fmt.Errorf("%v", err)
+	}
+
+	if specs.HcaSpec == nil {
+		return fmt.Errorf("YAML file loaded but contains no hca section")
 	}
 	if s.HcaSpec == nil {
 		s.HcaSpec = make(map[string]*HCASpec)
