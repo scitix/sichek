@@ -77,8 +77,8 @@ nfpms:
       dst: /var/sichek/config/hca/
     - src: ./config/*.yaml
       dst: /var/sichek/config/
-    - src: ./components/pcie/topotest/*.yaml
-      dst: /var/sichek/config/pcie/topotest/
+    - src: ./components/pcie/config/*.yaml
+      dst: /var/sichek/config/pcie/
     - src: ./components/nccl/perftest/nccl_perf
       dst: /var/sichek/nccl_perf
     - src: ./test/get_ib_info.sh

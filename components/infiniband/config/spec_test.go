@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-  http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,10 @@ limitations under the License.
 package config
 
 import (
-  "encoding/json"
-  "fmt"
-  "os"
-  "testing"
+	"encoding/json"
+	"fmt"
+	"os"
+	"testing"
 
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
 )
@@ -168,9 +168,9 @@ infiniband:
 	}
 
 	// Test the LoadSpec function
-	nic, err := hcaConfig.GetBoardIDs()
+	nic, err := hcaConfig.GetIBBoardIDs()
 	if err != nil {
-		t.Skip("Skipping test due to error in GetBoardIDs: ", err)
+		t.Skip("Skipping test due to error in GetIBBoardIDs: ", err)
 	}
 	nicSet := make(map[string]struct{})
 	for _, n := range nic {
