@@ -75,17 +75,21 @@ func LoadSpec(file string) (*NvidiaSpec, error) {
 	// 1. Load spec from provided file
 	if file != "" {
 		err := s.tryLoadFromFile(file)
-		if err == nil {
+		if err == nil && s.Specs != nil {
 			return FilterSpec(s)
 		} else {
-			logrus.WithField("component", "nvidia").Warnf("failed to load from YAML file %s: %v", file, err)
+			logrus.WithField("component", "nvidia").Warnf("%v", err)
 		}
 	}
 	// 2. try to Load default spec from production env if no file specified
 	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
-	if err == nil {
-		return FilterSpec(s)
+	if err == nil && s.Specs != nil {
+		spec, err := FilterSpec(s)
+		if err == nil {
+			return spec, nil
+		}
+		logrus.WithField("component", "nvidia").Warnf("failed to filter specs from default production top spec")
 	} else {
 		logrus.WithField("component", "nvidia").Warnf("%v", err)
 	}
@@ -94,10 +98,14 @@ func LoadSpec(file string) (*NvidiaSpec, error) {
 	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
 	err = s.tryLoadFromDevConfig()
-	if err == nil {
+	if err == nil && s.Specs != nil {
 		return FilterSpec(s)
 	} else {
-		logrus.WithField("component", "nvidia").Warnf("%v", err)
+		if err != nil {
+			logrus.WithField("component", "nvidia").Warnf("failed to load from default dev directory: %v", err)
+		} else {
+			logrus.WithField("component", "nvidia").Warnf("default dev spec loaded but contains no nvidia section")
+		}
 	}
 	return nil, fmt.Errorf("failed to load NVIDIA spec from any source, please check the configuration")
 }
@@ -124,6 +132,10 @@ func (s *NvidiaSpecs) tryLoadFromDefault() error {
 	if err != nil {
 		return fmt.Errorf("%v", err)
 	}
+	if specs.Specs == nil {
+		return fmt.Errorf("default production top spec loaded but contains no nvidia section")
+	}
+
 	if s.Specs == nil {
 		s.Specs = make(map[string]*NvidiaSpec)
 	}
@@ -133,7 +145,7 @@ func (s *NvidiaSpecs) tryLoadFromDefault() error {
 			s.Specs[id] = spec
 		}
 	}
-	logrus.WithField("component", "nvidia").Infof("loaded default spec")
+	logrus.WithField("component", "nvidia").Infof("loaded default production top spec")
 	return nil
 }
 
@@ -146,7 +158,10 @@ func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)
 				if err != nil || specs.Specs == nil {
-					return fmt.Errorf("failed to load nvidia spec from YAML file %s: %v", filePath, err)
+					// If the file is not found or does not contain HCA specs, log the error
+					// and continue to the next file.
+					logrus.WithField("component", "nvidia").Warnf("failed to load nvidia spec from YAML file %s: %v", filePath, err)
+					continue
 				}
 				if s.Specs == nil {
 					s.Specs = make(map[string]*NvidiaSpec)

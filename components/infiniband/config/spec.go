@@ -48,15 +48,18 @@ func LoadSpec(file string) (*InfinibandSpec, error) {
 		err := s.tryLoadFromFile(file)
 		if err == nil && s.Specs != nil {
 			return FilterSpec(s, file)
-		} else {
-			logrus.WithField("component", "infiniband").Warnf("failed to load from YAML file %s: %v", file, err)
 		}
+		logrus.WithField("component", "infiniband").Warnf("%v", err)
 	}
 	// 2. try to Load default spec from production env if no file specified
 	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
-	if err == nil {
-		return FilterSpec(s, file)
+	if err == nil && s.Specs != nil {
+		spec, err := FilterSpec(s, file)
+		if err == nil {
+			return spec, nil
+		}
+		logrus.WithField("component", "infiniband").Warnf("failed to filter specs from default production top spec")
 	} else {
 		logrus.WithField("component", "infiniband").Warnf("%v", err)
 	}
@@ -65,10 +68,14 @@ func LoadSpec(file string) (*InfinibandSpec, error) {
 	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
 	err = s.tryLoadFromDevConfig()
-	if err == nil {
+	if err == nil && s.Specs != nil {
 		return FilterSpec(s, file)
 	} else {
-		logrus.WithField("component", "infiniband").Warnf("%v", err)
+		if err != nil {
+			logrus.WithField("component", "infiniband").Warnf("%v", err)
+		} else {
+			logrus.WithField("component", "infiniband").Warnf("default spec loaded but contains no infiniband section")
+		}
 	}
 
 	return nil, fmt.Errorf("failed to load infiniband spec from any source, please check the configuration")
@@ -82,7 +89,6 @@ func (s *InfinibandSpecs) tryLoadFromFile(file string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
 	}
-
 	if s.Specs == nil {
 		return fmt.Errorf("YAML file %s loaded but contains no infiniband section", file)
 	}
@@ -93,8 +99,11 @@ func (s *InfinibandSpecs) tryLoadFromFile(file string) error {
 func (s *InfinibandSpecs) tryLoadFromDefault() error {
 	specs := &InfinibandSpecs{}
 	err := common.LoadSpecFromProductionPath(specs)
-	if err != nil || specs.Specs == nil {
-		return fmt.Errorf("%v", err)
+	if err != nil {
+		return err
+	}
+	if specs.Specs == nil {
+		return fmt.Errorf("default top spec loaded but contains no infiniband section")
 	}
 	if s.Specs == nil {
 		s.Specs = make(map[string]*InfinibandSpec)
@@ -104,7 +113,7 @@ func (s *InfinibandSpecs) tryLoadFromDefault() error {
 			s.Specs[clusterName] = spec
 		}
 	}
-	logrus.WithField("component", "infiniband").Infof("loaded default spec")
+	logrus.WithField("component", "infiniband").Infof("loaded default production top spec")
 	return nil
 }
 
@@ -156,7 +165,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 	var ibSpec *InfinibandSpec
 	if specs != nil && specs.Specs != nil {
 		clusterName := extractClusterName()
-		if spec, ok := specs.Specs[clusterName]; !ok {
+		if spec, ok := specs.Specs[clusterName]; ok {
 			ibSpec = spec
 		} else {
 			// If no specific cluster specification is found, fall back to the default specification
@@ -187,13 +196,37 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				}
 			}
 		}
-		// load specified hca spec based on the hca on the node
-		hcaSpecs, err := hcaConfig.LoadSpec(file)
+		// Get the board IDs of the IB devices in the host
+		ibDevs, err := hcaConfig.GetIBBoardIDs()
 		if err != nil {
-			logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
 			return nil, err
 		}
-		ibSpec.HCAs = hcaSpecs.HcaSpec
+		allExist := true
+		for _, boardID := range ibDevs {
+			spec, exists := ibSpec.HCAs[boardID]
+			if !exists || spec == nil {
+				logrus.WithField("component", "HCA").
+					Warnf("spec for board ID %s not found in current spec, trying to load from HCA configs", boardID)
+				allExist = false
+				break
+			}
+			if spec.Hardware.BoardID != boardID {
+				logrus.WithField("component", "HCA").
+					Warnf("spec for board ID %s does not match the hardware board ID %s, trying to load from HCA configs", boardID, spec.Hardware.BoardID)
+				allExist = false
+				break
+			}
+		}
+
+		if !allExist {
+			// load specified hca spec based on the hca on the node
+			hcaSpecs, err := hcaConfig.LoadSpec(file)
+			if err != nil {
+				logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
+				return nil, err
+			}
+			ibSpec.HCAs = hcaSpecs.HcaSpec
+		}
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)

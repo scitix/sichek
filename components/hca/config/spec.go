@@ -37,28 +37,36 @@ func LoadSpec(file string) (*HCASpecs, error) {
 		err := s.tryLoadFromFile(file)
 		if err == nil && s.HcaSpec != nil {
 			return FilterSpecsForLocalHost(s)
-		} else {
-			logrus.WithField("component", "HCA").Warnf("%v", err)
 		}
+		logrus.WithField("component", "hca").Warnf("%v", err)
 	}
 
 	// 2. try to Load default spec from production env if no file specified
 	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
-	if err == nil {
-		return FilterSpecsForLocalHost(s)
+	if err == nil && s.HcaSpec != nil {
+		spec, err := FilterSpecsForLocalHost(s)
+		if err == nil {
+			logrus.WithField("component", "hca").Infof("loaded default production top spec")
+			return spec, nil
+		}
+		logrus.WithField("component", "hca").Warnf("failed to filter specs from default production top spec")
 	} else {
-		logrus.WithField("component", "HCA").Warnf("%v", err)
+		logrus.WithField("component", "hca").Warnf("%v", err)
 	}
 
 	// 3. try to load default spec from default config directory
 	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
 	err = s.tryLoadFromDevConfig()
-	if err == nil {
+	if err == nil && s.HcaSpec != nil {
 		return FilterSpecsForLocalHost(s)
 	} else {
-		logrus.WithField("component", "HCA").Warnf("%v", err)
+		if err != nil {
+			logrus.WithField("component", "hca").Warnf("failed to load from default dev directory: %v", err)
+		} else {
+			logrus.WithField("component", "hca").Warnf("default dev spec loaded but contains no hca section")
+		}
 	}
 
 	return nil, fmt.Errorf("failed to load HCA spec from any source, please check the configuration")
@@ -72,20 +80,23 @@ func (s *HCASpecs) tryLoadFromFile(file string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
 	}
-
 	if s.HcaSpec == nil {
 		return fmt.Errorf("YAML file %s loaded but contains no hca section", file)
 	}
-	logrus.WithField("component", "HCA").Infof("loaded default spec")
+	logrus.WithField("component", "hca").Infof("loaded default spec")
 	return nil
 }
 
 func (s *HCASpecs) tryLoadFromDefault() error {
 	specs := &HCASpecs{}
 	err := common.LoadSpecFromProductionPath(specs)
-	if err != nil || specs.HcaSpec == nil {
-		return fmt.Errorf("%v", err)
+	if err != nil {
+		return err
 	}
+	if specs.HcaSpec == nil {
+		return fmt.Errorf("default production top spec loaded but contains no hca section")
+	}
+	// Merge the loaded specs with the existing ones
 	if s.HcaSpec == nil {
 		s.HcaSpec = make(map[string]*HCASpec)
 	}
@@ -95,7 +106,7 @@ func (s *HCASpecs) tryLoadFromDefault() error {
 			s.HcaSpec[hcaName] = spec
 		}
 	}
-	logrus.WithField("component", "HCA").Infof("loaded default spec")
+	logrus.WithField("component", "hca").Infof("loaded default production top spec")
 	return nil
 }
 
@@ -108,7 +119,10 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)
 				if err != nil || specs.HcaSpec == nil {
-					return fmt.Errorf("failed to load from YAML file %s: %v", filePath, err)
+					// If the file is not found or does not contain HCA specs, log the error
+					// and continue to the next file.
+					logrus.WithField("component", "hca").Warnf("failed to load HCA spec from YAML file %s: %v", filePath, err)
+					continue
 				}
 				if s.HcaSpec == nil {
 					s.HcaSpec = make(map[string]*HCASpec)
@@ -146,10 +160,10 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 			result.HcaSpec[ibDevBoardId] = spec
 		} else {
 			// If the spec is not found in the current spec, try to load it from OSS
-			logrus.WithField("component", "HCA").Warnf("spec for board ID %s not found in current spec, trying to load from OSS", ibDevBoardId)
+			logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec, trying to load from OSS", ibDevBoardId)
 			tmpSpecs := &HCASpecs{}
 			url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameHCA, ibDevBoardId)
-			logrus.WithField("component", "HCA").Infof("Loading spec from OSS for board ID %s: %s", ibDevBoardId, url)
+			logrus.WithField("component", "hca").Infof("Loading spec from OSS for board ID %s: %s", ibDevBoardId, url)
 			// Attempt to load spec from OSS
 			err := common.LoadSpecFromOss(url, tmpSpecs)
 			if err == nil && tmpSpecs.HcaSpec != nil {
@@ -157,12 +171,12 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 				if spec, ok := tmpSpecs.HcaSpec[ibDevBoardId]; ok {
 					result.HcaSpec[ibDevBoardId] = spec
 				} else {
-					logrus.WithField("component", "HCA").Warnf("spec for board ID %s not found in OSS, skipping", ibDevBoardId)
+					logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in OSS, skipping", ibDevBoardId)
 					missing = append(missing, ibDevBoardId)
 					continue
 				}
 			} else {
-				logrus.WithField("component", "HCA").Errorf("failed to load spec from OSS for board ID %s: %v", ibDevBoardId, err)
+				logrus.WithField("component", "hca").Errorf("failed to load spec from OSS for board ID %s: %v", ibDevBoardId, err)
 				missing = append(missing, ibDevBoardId)
 			}
 		}

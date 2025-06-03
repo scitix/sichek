@@ -87,7 +87,7 @@ func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 
 // LoadSpecFromProductionPath checks and extract top default spec from production env.
 func LoadSpecFromProductionPath(spec interface{}) error {
-	defaultProductionCfgPath := filepath.Join(consts.DefaultProductionCfgPath, "config", consts.DefaultSpecCfgName)
+	defaultProductionCfgPath := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultSpecCfgName)
 	_, err := os.Stat(defaultProductionCfgPath)
 	if err != nil {
 		return fmt.Errorf("production config path not found: %w", err)

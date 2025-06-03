@@ -13,13 +13,13 @@ import (
 )
 
 // PciDevice represents the device configuration
+type PcieTopoSpecs struct {
+	Specs map[string]*PcieTopoSpec `json:"pcie_topo"`
+}
+
 type PcieTopoSpec struct {
 	NumaConfig        []*NumaConfig `json:"numa_config"`
 	PciSwitchesConfig []*PciSwitch  `json:"pci_switches"`
-}
-
-type PcieTopoSpecs struct {
-	Specs map[string]*PcieTopoSpec `json:"pcie_topo"`
 }
 
 type NumaConfig struct {
@@ -44,17 +44,21 @@ func LoadSpec(file string) (*PcieTopoSpec, error) {
 	// 1. Load spec from provided file
 	if file != "" {
 		err := s.tryLoadFromFile(file)
-		if err == nil {
+		if err == nil && s.Specs != nil {
 			return FilterSpec(s)
 		} else {
-			logrus.WithField("component", "pcie").Warnf("failed to load from YAML file %s: %v", file, err)
+			logrus.WithField("component", "pcie").Warnf("%v", err)
 		}
 	}
 	// 2. try to Load default spec from production env if no file specified
 	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
-	if err == nil {
-		return FilterSpec(s)
+	if err == nil && s.Specs != nil {
+		spec, err := FilterSpec(s)
+		if err == nil {
+			return spec, nil
+		}
+		logrus.WithField("component", "pcie").Warnf("failed to filter specs from default production top spec")
 	} else {
 		logrus.WithField("component", "pcie").Warnf("%v", err)
 	}
@@ -63,10 +67,14 @@ func LoadSpec(file string) (*PcieTopoSpec, error) {
 	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
 	err = s.tryLoadFromDevConfig()
-	if err == nil {
+	if err == nil && s.Specs != nil {
 		return FilterSpec(s)
 	} else {
-		logrus.WithField("component", "pcie").Warnf("%v", err)
+		if err != nil {
+			logrus.WithField("component", "pcie").Warnf("failed to load from default dev directory: %v", err)
+		} else {
+			logrus.WithField("component", "pcie").Warnf("default dev spec loaded but contains no pcie_topo section")
+		}
 	}
 	return nil, fmt.Errorf("failed to load pcie_topo spec from any source, please check the configuration")
 }
@@ -79,19 +87,21 @@ func (s *PcieTopoSpecs) tryLoadFromFile(file string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
 	}
-
 	if s.Specs == nil {
-		return fmt.Errorf("YAML file %s loaded but contains no hca section", file)
+		return fmt.Errorf("YAML file %s loaded but contains no pcie_topo section", file)
 	}
-	logrus.WithField("component", "HCA").Infof("loaded default spec")
+	logrus.WithField("component", "pcie").Infof("loaded default spec")
 	return nil
 }
 
 func (s *PcieTopoSpecs) tryLoadFromDefault() error {
 	specs := &PcieTopoSpecs{}
 	err := common.LoadSpecFromProductionPath(specs)
-	if err != nil || specs.Specs == nil {
+	if err != nil {
 		return fmt.Errorf("%v", err)
+	}
+	if specs.Specs == nil {
+		return fmt.Errorf("default production top spec loaded but contains no pcie_topo section")
 	}
 	if s.Specs == nil {
 		s.Specs = make(map[string]*PcieTopoSpec)
@@ -102,7 +112,7 @@ func (s *PcieTopoSpecs) tryLoadFromDefault() error {
 			s.Specs[id] = spec
 		}
 	}
-	logrus.WithField("component", "HCA").Infof("loaded default spec")
+	logrus.WithField("component", "pcie").Infof("loaded default production top spec")
 	return nil
 }
 
@@ -115,7 +125,10 @@ func (s *PcieTopoSpecs) tryLoadFromDevConfig() error {
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)
 				if err != nil || specs.Specs == nil {
-					return fmt.Errorf("failed to load from YAML file %s: %v", filePath, err)
+					// If the file is not found or does not contain pcie topo specs, log the error
+					// and continue to the next file.
+					logrus.WithField("component", "pcie").Warnf("failed to load pcie spec from YAML file %s: %v", filePath, err)
+					continue
 				}
 				if s.Specs == nil {
 					s.Specs = make(map[string]*PcieTopoSpec)
@@ -133,7 +146,7 @@ func (s *PcieTopoSpecs) tryLoadFromDevConfig() error {
 
 func FilterSpec(s *PcieTopoSpecs) (*PcieTopoSpec, error) {
 	if s == nil || s.Specs == nil {
-		return nil, fmt.Errorf("NvidiaSpecs is nil or empty")
+		return nil, fmt.Errorf("pcie topo spec is nil or empty")
 	}
 	localDeviceID, err := nvconfig.GetDeviceID()
 	if err != nil {

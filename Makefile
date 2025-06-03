@@ -18,7 +18,7 @@ LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
 
 all:
 	mkdir -p build/bin/
-	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -o build/bin/$(PROJECT_NAME) cmd/main.go
+	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -gcflags "all=-N -l" -o build/bin/$(PROJECT_NAME) cmd/main.go
 
 debug:
 	mkdir -p build/bin/
