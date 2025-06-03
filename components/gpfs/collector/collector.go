@@ -86,16 +86,20 @@ func (c *GPFSCollector) getXStorHealthInfo(ctx context.Context) error {
 		return nil
 	}
 
-	xstorHealthOutput, err := utils.ExecCommand(ctx, "xstor-health basic-check", "--output-format", "sicheck")
+	xstorHealthOutput, err := utils.ExecCommand(ctx, "xstor-health", "basic-check", "--output-format", "sicheck")
 	if err != nil {
 		return fmt.Errorf("exec xstor-health failed: %v", err)
 	}
 	healthItemStrs := strings.Split(string(xstorHealthOutput), "\n")
 	for _, itemStr := range healthItemStrs {
+		if len(itemStr) == 0 {
+			continue
+		}
 		var item GPFSXStorHealthItem
 		err := json.Unmarshal([]byte(itemStr), &item)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal %s to GPFSXStorHealthItem", itemStr)
+			logrus.WithField("component", "GPFS-Collector").Errorf("failed to unmarshal %s to GPFSXStorHealthItem", itemStr)
+			continue
 		}
 		c.xstorHealth.HealthItems[item.Item] = &item
 	}
