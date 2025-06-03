@@ -29,7 +29,8 @@ type GpfsSpecConfig struct {
 }
 
 type GpfsSpec struct {
-	EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	EventCheckers 		map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
+	XStorHealthCheckers []string					`json:"xstor_health_checkers" yaml:"xstor_health_checkers"`
 }
 
 type GPFSEventConfig struct {
