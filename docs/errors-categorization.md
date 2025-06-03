@@ -1,4 +1,4 @@
-# HealthCheck Fatal Error
+# HealthCheck Error Categorization
 
 Sichek categorizes errors into three main types: **Fatal**, **Critical**, and **Warning**. Each error type includes a description and recommended actions.
 - **Fatal**: Stop the task immediately and resubmit it.
