@@ -23,6 +23,8 @@ import (
 	"github.com/scitix/sichek/components/gpfs/collector"
 	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
+
+	"github.com/sirupsen/logrus"
 )
 
 type XStorHealthChecker struct {
@@ -59,20 +61,21 @@ func (c *XStorHealthChecker) Check(ctx context.Context, data any) (*common.Check
 		return &result, fmt.Errorf("invalid gpfsInfo type")
 	}
 
-	status := consts.StatusNormal
 	item, ok := gpfsInfo.XStorHealthInfo.HealthItems[c.name]
 	if !ok {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Empty %s check result", c.name)
 		return &result, nil
 	}
-	if item.Curr != item.Spec {
-		status = consts.StatusAbnormal
+	if item.Status != consts.StatusNormal {
+		result.Status = consts.StatusAbnormal
+		logrus.WithField("components", "GPFS-XStorHealth").Errorf("XStorHealth check %s failed, spec: %s, curr: %s", c.name,  item.Spec, item.Curr)
+	} else {
+		result.Status =  consts.StatusNormal
 	}
 	result.Device = item.Dev
 	result.Curr = item.Curr
 	result.Spec = item.Spec
-	result.Status = status
 	result.Detail = item.Detail
 
 	return &result, nil
