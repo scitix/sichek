@@ -82,7 +82,7 @@ func (s *HCASpecs) tryLoadFromFile(file string) error {
 
 func (s *HCASpecs) tryLoadFromDefault() error {
 	specs := &HCASpecs{}
-	err := common.LoadFromProductionDefaultSpec(specs)
+	err := common.LoadSpecFromProductionPath(specs)
 	if err != nil || specs.HcaSpec == nil {
 		return fmt.Errorf("%v", err)
 	}

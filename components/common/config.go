@@ -70,11 +70,11 @@ func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	defaultCfgDirPath := filepath.Join(consts.DefaultProductionCfgPath, component)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
+		// fallback to dev env based on runtime.Caller: /repo/component/xx-component/config
 		_, curFile, _, ok := runtime.Caller(0)
 		if !ok {
 			return "", nil, fmt.Errorf("get curr file path failed")
 		}
-		// Locate current file: /repo/component/xx-component/config
 		commonDir := filepath.Dir(curFile)
 		defaultCfgDirPath = filepath.Join(filepath.Dir(commonDir), component, "config")
 	}
@@ -85,8 +85,8 @@ func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	return defaultCfgDirPath, files, nil
 }
 
-// LoadFromProductionDefaultSpec checks and extract default spec from production env.
-func LoadFromProductionDefaultSpec(spec interface{}) error {
+// LoadSpecFromProductionPath checks and extract top default spec from production env.
+func LoadSpecFromProductionPath(spec interface{}) error {
 	defaultProductionCfgPath := filepath.Join(consts.DefaultProductionCfgPath, "config", consts.DefaultSpecCfgName)
 	_, err := os.Stat(defaultProductionCfgPath)
 	if err != nil {

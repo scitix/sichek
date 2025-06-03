@@ -76,7 +76,7 @@ func LoadSpec(file string) (*NvidiaSpec, error) {
 	if file != "" {
 		err := s.tryLoadFromFile(file)
 		if err == nil {
-			return FilterSpecForLocalGpu(s)
+			return FilterSpec(s)
 		} else {
 			logrus.WithField("component", "nvidia").Warnf("failed to load from YAML file %s: %v", file, err)
 		}
@@ -85,7 +85,7 @@ func LoadSpec(file string) (*NvidiaSpec, error) {
 	// e.g., /var/sichek/config/default_spec.yaml
 	err := s.tryLoadFromDefault()
 	if err == nil {
-		return FilterSpecForLocalGpu(s)
+		return FilterSpec(s)
 	} else {
 		logrus.WithField("component", "nvidia").Warnf("%v", err)
 	}
@@ -95,7 +95,7 @@ func LoadSpec(file string) (*NvidiaSpec, error) {
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
 	err = s.tryLoadFromDevConfig()
 	if err == nil {
-		return FilterSpecForLocalGpu(s)
+		return FilterSpec(s)
 	} else {
 		logrus.WithField("component", "nvidia").Warnf("%v", err)
 	}
@@ -120,7 +120,7 @@ func (s *NvidiaSpecs) tryLoadFromFile(file string) error {
 
 func (s *NvidiaSpecs) tryLoadFromDefault() error {
 	specs := &NvidiaSpecs{}
-	err := common.LoadFromProductionDefaultSpec(specs)
+	err := common.LoadSpecFromProductionPath(specs)
 	if err != nil {
 		return fmt.Errorf("%v", err)
 	}
@@ -162,7 +162,8 @@ func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
 	return err
 }
 
-func FilterSpecForLocalGpu(s *NvidiaSpecs) (*NvidiaSpec, error) {
+// FilterSpec retrieves the NVIDIA spec for the local GPU device ID.
+func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
 	localDeviceID, err := GetDeviceID()
 	if err != nil {
 		return nil, err

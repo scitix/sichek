@@ -92,7 +92,7 @@ func (s *InfinibandSpecs) tryLoadFromFile(file string) error {
 
 func (s *InfinibandSpecs) tryLoadFromDefault() error {
 	specs := &InfinibandSpecs{}
-	err := common.LoadFromProductionDefaultSpec(specs)
+	err := common.LoadSpecFromProductionPath(specs)
 	if err != nil || specs.Specs == nil {
 		return fmt.Errorf("%v", err)
 	}
