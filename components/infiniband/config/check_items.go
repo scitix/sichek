@@ -118,7 +118,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Description: "Check if PCIe link speed is optimal",
 		Level:       consts.LevelCritical,
 		Detail:      "PCIe speed matches device spec",
-		ErrorName:   "PCIELinkSpeedDegraded",
+		ErrorName:   "PCIELinkSpeedDownDegraded",
 		Suggestion:  "Ensure PCIe slot and firmware support correct speed",
 	},
 	CheckPCIEWidth: {
@@ -134,7 +134,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Description: "Check full PCIe tree speed to root complex",
 		Level:       consts.LevelCritical,
 		Detail:      "PCIe path to root complex supports full speed",
-		ErrorName:   "PCIETreeSpeedDegraded",
+		ErrorName:   "PCIETreeSpeedDownDegraded",
 		Suggestion:  "Check upstream PCIe device speed and configuration",
 	},
 	CheckPCIETreeWidth: {
