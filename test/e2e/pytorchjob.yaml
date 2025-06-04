@@ -28,7 +28,7 @@ spec:
                DEEP_LEARNING_EXAMPLES_DIR=/workspace/deep_learning_examples \
                BASE_RESULTS_DIR=/workspace/deep_learning_examples/results \
                RUN_ID=0923t2258 GBS=128 MBS=4 PP=1 TP=1 MAX_STEPS=128 \
-               ENABLE_CKPT=0 MOCK_DATA=true GPUS_PER_NODE=2 \
+               ENABLE_CKPT=0 MOCK_DATA=true GPUS_PER_NODE=8 \
                bash /workspace/deep_learning_examples/training/Megatron-LM/llm/gpt3/run_meg_lm_gpt3_5b_2k_bf16.sh"
             command:
             - /usr/bin/env
@@ -50,14 +50,14 @@ spec:
             name: pytorch
             resources:
               limits:
-                cpu: "20"
-                memory: 200Gi
-                nvidia.com/gpu: "2"
+                cpu: "80"
+                memory: 800Gi
+                nvidia.com/gpu: "8"
                 rdma/hca_shared_devices_all: "1"
               requests:
-                cpu: "20"
-                memory: 200Gi
-                nvidia.com/gpu: "2"
+                cpu: "80"
+                memory: 800Gi
+                nvidia.com/gpu: "8"
                 rdma/hca_shared_devices_all: "1"
             securityContext:
               capabilities:
