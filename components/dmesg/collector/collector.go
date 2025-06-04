@@ -30,11 +30,11 @@ import (
 
 type DmesgCollector struct {
 	name   string
-	cfg    *config.DmesgSpec
+	cfg    *config.DmesgEventRule
 	filter *filter.Filter
 }
 
-func NewDmesgCollector(cfg *config.DmesgSpec) (*DmesgCollector, error) {
+func NewDmesgCollector(cfg *config.DmesgEventRule) (*DmesgCollector, error) {
 
 	if len(cfg.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")

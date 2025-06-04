@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -29,14 +30,14 @@ import (
 type IBPhyStateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPhyStateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBPhyStateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPhyStateChecker{
 		id:   consts.CheckerIDInfinibandFW,
-		name: config.ChekIBPhyState,
+		name: config.CheckIBPhyState,
 		spec: specCfg,
 	}, nil
 }
@@ -74,10 +75,14 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			log.Printf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.PhyState)
+		spec = append(spec, hcaSpec.Hardware.PhyState)
 		curr = append(curr, hwInfo.PhyState)
-		if !strings.Contains(hwInfo.PhyState, hcaSpec.PhyState) {
+		if !strings.Contains(hwInfo.PhyState, hcaSpec.Hardware.PhyState) {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}

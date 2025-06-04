@@ -40,12 +40,12 @@ func (i *GPFSInfo) JSON() (string, error) {
 
 type GPFSCollector struct {
 	name string
-	cfg  *config.GpfsSpec
+	cfg  *config.GpfsEventRule
 
 	filter *filter.FileFilter
 }
 
-func NewGPFSCollector(cfg *config.GpfsSpec) (*GPFSCollector, error) {
+func NewGPFSCollector(cfg *config.GpfsEventRule) (*GPFSCollector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)

@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package topotest
+package config
 
 import (
 	"github.com/scitix/sichek/components/common"
@@ -33,7 +33,7 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "Numa-Device RelationError",
+		ErrorName:   "NumaDeviceRelationError",
 		Suggestion:  "Check Device Topo",
 	},
 	PciTopoSwitchCheckerName: {
@@ -42,7 +42,7 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "Switch-Device RelationError",
+		ErrorName:   "SwitchDeviceRelationError",
 		Suggestion:  "Check Device Topo",
 	},
 }

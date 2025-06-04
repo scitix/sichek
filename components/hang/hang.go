@@ -84,20 +84,18 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		logrus.WithField("component", "hang").WithError(err).Error("failed to load HangUserConfig")
 		return nil, err
 	}
-	specCfg := &config.HangSpecConfig{}
-	err = specCfg.GetSpec(specFile)
+	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
 		logrus.WithField("component", "hang").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-	hangSpec := specCfg.HangSpec
-	hangCollector, err := collector.NewHangCollector(hangCfg, hangSpec)
+	hangCollector, err := collector.NewHangCollector(hangCfg, eventRules)
 	if err != nil {
 		logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
 		return nil, err
 	}
 
-	hangChecker := checker.NewHangChecker(hangCfg, hangSpec)
+	hangChecker := checker.NewHangChecker(hangCfg, eventRules)
 
 	freqController := common.GetFreqController()
 	freqController.RegisterModule(consts.ComponentNameHang, hangCfg)

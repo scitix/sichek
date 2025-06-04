@@ -17,12 +17,16 @@ package common
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"sigs.k8s.io/yaml"
 
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -58,17 +62,19 @@ type CheckerSpec interface {
 	// LoadFromYaml(file string) error
 }
 
-// GetDefaultConfigFiles returns the default configuration directory and the files inside it.
-func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
-	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, component)
+// GetDevDefaultConfigFiles returns the default config dir and and extract default spec for the given component.
+// for production environment, it checks the default config path (e.g., /var/sichek/config/xx-component).
+// for development environment, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
+func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
+	// Try production path first: /var/sichek/config/xx-component
+	defaultCfgDirPath := filepath.Join(consts.DefaultProductionCfgPath, component)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
-		// run on host use local config
+		// fallback to dev env based on runtime.Caller: /repo/component/xx-component/config
 		_, curFile, _, ok := runtime.Caller(0)
 		if !ok {
 			return "", nil, fmt.Errorf("get curr file path failed")
 		}
-		// Get the directory of the current file
 		commonDir := filepath.Dir(curFile)
 		defaultCfgDirPath = filepath.Join(filepath.Dir(commonDir), component, "config")
 	}
@@ -79,47 +85,104 @@ func GetDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	return defaultCfgDirPath, files, nil
 }
 
-// DefaultComponentConfig loads the default configuration for a given component from a YAML file.
-func DefaultComponentConfig(component string, config interface{}, filename string) error {
-	defaultCfgDirPath, files, err := GetDefaultConfigFiles(component)
+// LoadSpecFromProductionPath checks and extract top default spec from production env.
+func LoadSpecFromProductionPath(spec interface{}) error {
+	defaultProductionCfgPath := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultSpecCfgName)
+	_, err := os.Stat(defaultProductionCfgPath)
 	if err != nil {
-		return fmt.Errorf("failed to get default config files: %v", err)
+		return fmt.Errorf("production config path not found: %w", err)
 	}
-	for _, file := range files {
-		if file.Name() == filename {
-			defaultCfgPath := filepath.Join(defaultCfgDirPath, file.Name())
-			err = utils.LoadFromYaml(defaultCfgPath, config)
-			return err
-		}
+	err = utils.LoadFromYaml(defaultProductionCfgPath, spec)
+	if err != nil {
+		return fmt.Errorf("failed to read production config spec %s: %w", defaultProductionCfgPath, err)
 	}
-	return fmt.Errorf("failed to find default config file: %s", filename)
+	return nil
 }
 
-// DefaultComponentConfig loads the default configuration for a given component from a YAML file.
-func LoadComponentUserConfig(file string, config interface{}) error {
+// LoadFromOssSpec downloads and parses a YAML spec from a given URL into the provided spec structure.
+func LoadSpecFromOss(url string, spec interface{}) error {
+	if url == "" {
+		return fmt.Errorf("url is empty")
+	}
+	if !(len(url) >= 7 && (url[:7] == "http://" || url[:8] == "https://")) {
+		return fmt.Errorf("unsupported URL scheme (must start with http:// or https://): %s", url)
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to fetch spec from %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status %d while fetching %s", resp.StatusCode, url)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read body from %s: %w", url, err)
+	}
+
+	if err := yaml.Unmarshal(data, spec); err != nil {
+		return fmt.Errorf("failed to unmarshal YAML from %s: %w", url, err)
+	}
+
+	return nil
+}
+
+// LoadUserConfig loads the default user config from production default dir or dev default dir based on runtime.Caller
+func LoadDefaultEventRules(eventRule interface{}, component string) error {
+	// 1. try to load default config from production default dir
+	defaultEventRuleCfg := filepath.Join(consts.DefaultProductionCfgPath, component, consts.DefaultEventRuleName)
+	_, err := os.Stat(defaultEventRuleCfg)
+	if err == nil {
+		err := utils.LoadFromYaml(defaultEventRuleCfg, eventRule)
+		if err == nil {
+			return nil
+		}
+	}
+	// 2. try to load default config from default config directory based on caller path
+	_, curFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("get curr file path failed")
+	}
+	// Get the directory of the current file
+	commonDir := filepath.Dir(curFile)
+	defaultEventRuleCfg = filepath.Join(filepath.Dir(commonDir), component, "config", consts.DefaultEventRuleName)
+	err = utils.LoadFromYaml(defaultEventRuleCfg, eventRule)
+	return err
+}
+
+// LoadUserConfig loads the user config from provided file or production default dir or dev default dir based on runtime.Caller
+func LoadUserConfig(file string, config interface{}) error {
+	// 1. Load config from provided file
 	if file != "" {
 		err := utils.LoadFromYaml(file, config)
 		if err == nil {
 			return nil
 		}
 	}
-	defaultCfgPath := filepath.Join(consts.DefaultPodCfgPath, "config", consts.DefaultUserCfgName)
-	_, err := os.Stat(defaultCfgPath)
-	if err != nil {
-		// run on host use local config
-		_, curFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return fmt.Errorf("get curr file path failed")
+	// 2. try to load default config from production env if no file specified
+	defaultUserCfg := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
+	_, err := os.Stat(defaultUserCfg)
+	if err == nil {
+		err := utils.LoadFromYaml(defaultUserCfg, config)
+		if err == nil {
+			return nil
 		}
-		// Get the directory of the current file
-		commonDir := filepath.Dir(curFile)
-		sichekDir := filepath.Dir(filepath.Dir(commonDir))
-
-		defaultCfgPath = filepath.Join(sichekDir, "config", consts.DefaultUserCfgName)
 	}
-	err = utils.LoadFromYaml(defaultCfgPath, config)
-	return err
+	// 3. try to load default spec from default config directory based on caller path
+	_, curFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("get curr file path failed")
+	}
+	// Get the directory of the current file
+	commonDir := filepath.Dir(curFile)
+	sichekDir := filepath.Dir(filepath.Dir(commonDir))
 
+	defaultUserCfg = filepath.Join(sichekDir, "config", consts.DefaultUserCfgName)
+	err = utils.LoadFromYaml(defaultUserCfg, config)
+	return err
 }
 
 // FreqController controls the frequency of component queries.

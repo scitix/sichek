@@ -20,15 +20,13 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
-type NcclSpecConfig struct {
-	NcclSpec *NcclSpec `yaml:"nccl" json:"nccl"`
+type NcclEventRules struct {
+	Rules *NcclEventRule `yaml:"nccl" json:"nccl"`
 }
 
-type NcclSpec struct {
+type NcclEventRule struct {
 	DirPath       string                      `json:"log_dir" yaml:"log_dir"`
 	EventCheckers map[string]*NCCLErrorConfig `json:"event_checkers" yaml:"event_checkers"`
 }
@@ -40,19 +38,11 @@ type NCCLErrorConfig struct {
 	Level       string `json:"level" yaml:"level"`
 }
 
-func (c *NcclSpecConfig) LoadSpecConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.NcclSpec == nil {
-			logrus.WithField("componet", "nccl").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "nccl").Infof("loaded spec from YAML file %s", file)
-			return nil
-		}
+func LoadDefaultEventRules() (*NcclEventRule, error) {
+	eventRules := &NcclEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameNCCL)
+	if err == nil && eventRules.Rules != nil {
+		return eventRules.Rules, nil
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameNCCL, c, consts.DefaultSpecCfgName)
-	if err != nil || c.NcclSpec == nil {
-		return fmt.Errorf("failed to load default nccl spec: %v", err)
-	}
-	return nil
+	return nil, fmt.Errorf("failed to load eventRules: %v", err)
 }

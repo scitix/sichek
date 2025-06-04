@@ -20,15 +20,13 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
-type GpfsSpecConfig struct {
-	GpfsSpec *GpfsSpec `yaml:"gpfs" json:"gpfs"`
+type GpfsEventRules struct {
+	Rules *GpfsEventRule `yaml:"gpfs" json:"gpfs"`
 }
 
-type GpfsSpec struct {
+type GpfsEventRule struct {
 	EventCheckers map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
 }
 
@@ -38,19 +36,11 @@ type GPFSEventConfig struct {
 	Regexp  string `json:"regexp" yaml:"regexp"`
 }
 
-func (c *GpfsSpecConfig) LoadSpecConfigFromYaml(file string) error {
-	if file != "" {
-		err := utils.LoadFromYaml(file, c)
-		if err != nil || c.GpfsSpec == nil {
-			logrus.WithField("componet", "gpfs").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
-		} else {
-			logrus.WithField("component", "gpfs").Infof("loaded spec from YAML file %s", file)
-			return nil
-		}
+func LoadDefaultEventRules() (*GpfsEventRule, error) {
+	eventRules := &GpfsEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameGpfs)
+	if err == nil && eventRules.Rules != nil {
+		return eventRules.Rules, nil
 	}
-	err := common.DefaultComponentConfig(consts.ComponentNameGpfs, c, consts.DefaultSpecCfgName)
-	if err != nil || c.GpfsSpec == nil {
-		return fmt.Errorf("failed to load default gpfs spec: %v", err)
-	}
-	return nil
+	return nil, fmt.Errorf("failed to load eventRules: %v", err)
 }

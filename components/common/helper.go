@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/consts"
@@ -122,4 +123,26 @@ func (t *Timer) Total() {
 		"func":  t.name,
 		"total": total,
 	}).Info("Total execution time")
+}
+
+func ExtractAndDeduplicate(curr string) string {
+	// Split the string by ';'
+	values := strings.Split(curr, ",")
+
+	// Use a map to store unique values
+	uniqueValues := make(map[string]struct{})
+	for _, value := range values {
+		if value != "" { // Ignore empty strings
+			uniqueValues[value] = struct{}{}
+		}
+	}
+
+	// Collect keys from the map into a slice
+	result := make([]string, 0, len(uniqueValues))
+	for key := range uniqueValues {
+		result = append(result, key)
+	}
+
+	// Join the unique values back into a single string
+	return strings.Join(result, ",")
 }

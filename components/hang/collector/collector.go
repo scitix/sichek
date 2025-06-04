@@ -61,7 +61,7 @@ type HangCollector struct {
 	name string
 
 	cfg  *config.HangUserConfig
-	spec *config.HangSpec
+	spec *config.HangEventRule
 
 	devIndicatorStates *DeviceIndicatorStates
 	LastUpdate         time.Time // Timestamp of the last update
@@ -69,7 +69,7 @@ type HangCollector struct {
 	nvidiaComponent common.Component
 }
 
-func NewHangCollector(cfg *config.HangUserConfig, spec *config.HangSpec) (*HangCollector, error) {
+func NewHangCollector(cfg *config.HangUserConfig, spec *config.HangEventRule) (*HangCollector, error) {
 	var nvidiaComponent common.Component
 	var err error
 	if !cfg.Hang.Mock {
