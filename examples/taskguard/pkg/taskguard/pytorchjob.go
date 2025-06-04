@@ -18,31 +18,61 @@ package taskguard
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
+	"time"
 
 	trainingv1 "github.com/kubeflow/training-operator/pkg/apis/kubeflow.org/v1"
+	trainingclient "github.com/kubeflow/training-operator/pkg/client/clientset/versioned"
+	traininginformers "github.com/kubeflow/training-operator/pkg/client/informers/externalversions"
+	traininglisters "github.com/kubeflow/training-operator/pkg/client/listers/kubeflow.org/v1"
 	"github.com/zeromicro/go-zero/core/logx"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
 )
 
-const (
-	LabelKubeflowJobName    string = "training.kubeflow.org/job-name"
-	LabelKubeflowJobPodType string = "training.kubeflow.org/replica-type"
-	LabelPytorchJobName     string = "job-name"
-)
+type PytorchJobInformerGroup struct {
+	InformerFactory traininginformers.SharedInformerFactory
+	Informer        cache.SharedIndexInformer
+	Lister          traininglisters.PyTorchJobLister
+}
+
+func NewPytorchJobInformerGroup(client *trainingclient.Clientset, resyncPeriod time.Duration) *PytorchJobInformerGroup {
+	pjInformerFactory := traininginformers.NewSharedInformerFactory(
+		client,
+		resyncPeriod,
+	)
+	pjInformer := pjInformerFactory.Kubeflow().V1().PyTorchJobs().Informer()
+	pjLister := pjInformerFactory.Kubeflow().V1().PyTorchJobs().Lister()
+	return &PytorchJobInformerGroup{
+		InformerFactory: pjInformerFactory,
+		Informer:        pjInformer,
+		Lister:          pjLister,
+	}
+}
+
+func (g *PytorchJobInformerGroup) MustStart(ctx context.Context) {
+	g.InformerFactory.Start(ctx.Done())
+	for informerType, ok := range g.InformerFactory.WaitForCacheSync(ctx.Done()) {
+		if !ok {
+			log.Fatalf("timed out waiting for pytorchjob informer factory cache sync, informer type is %v", informerType)
+		}
+	}
+	logx.Info("pytorchjob informer factory cache sync finished")
+}
+
+func (g *PytorchJobInformerGroup) AddEventHandler(handler cache.ResourceEventHandler) (cache.ResourceEventHandlerRegistration, error) {
+	return g.Informer.AddEventHandler(handler)
+}
+
+func (g *PytorchJobInformerGroup) ListPytorchJobsByLabels(namespace string, lbs labels.Set) ([]*trainingv1.PyTorchJob, error) {
+	return g.Lister.PyTorchJobs(namespace).List(lbs.AsSelector())
+}
 
 func (c *Controller) addPytorchJob(obj any) {
-	utd, ok := obj.(*unstructured.Unstructured)
+	pj, ok := obj.(*trainingv1.PyTorchJob)
 	if !ok {
-		return
-	}
-	pj := new(trainingv1.PyTorchJob)
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(utd.UnstructuredContent(), pj)
-	if err != nil {
-		logx.Errorf("failed to get pytorchjob object from unstructured content")
 		return
 	}
 
@@ -58,7 +88,7 @@ func (c *Controller) addPytorchJob(obj any) {
 	}
 
 	ctx := context.Background()
-	pods, err := c.getPytorchJobPods(ctx, pj.Namespace, pj.Name)
+	pods, err := c.pod.ListPytorchJobPods(pj.Namespace, pj.Name)
 	if err != nil {
 		logx.Errorf("failed to get pytorchjob pods, err: %s", err.Error())
 		return
@@ -78,59 +108,49 @@ func (c *Controller) addPytorchJob(obj any) {
 }
 
 func (c *Controller) updatePytorchJob(oldObj, newObj any) {
-	oldUtd, ok := oldObj.(*unstructured.Unstructured)
+	oldPj, ok := oldObj.(*trainingv1.PyTorchJob)
 	if !ok {
 		return
 	}
-	newUtd, ok := newObj.(*unstructured.Unstructured)
+	newPj, ok := newObj.(*trainingv1.PyTorchJob)
 	if !ok {
-		return
-	}
-
-	var oldPytorchJob, newPytorchJob trainingv1.PyTorchJob
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(oldUtd.UnstructuredContent(), &oldPytorchJob)
-	if err != nil {
-		logx.Errorf("failed to get old pytorchjob object from unstructured content")
-		return
-	}
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(newUtd.UnstructuredContent(), &newPytorchJob)
-	if err != nil {
-		logx.Errorf("failed to get new pytorchjob object from unstructured content")
 		return
 	}
 
 	// early stop
-	if oldPytorchJob.ResourceVersion == newPytorchJob.ResourceVersion {
+	if oldPj.ResourceVersion == newPj.ResourceVersion {
 		return
 	}
-	newPjConditions := newPytorchJob.Status.Conditions
+	newPjConditions := newPj.Status.Conditions
 	newPjConditionsLen := len(newPjConditions)
 	if newPjConditionsLen == 0 {
 		return
 	}
-	oldPjConditions := oldPytorchJob.Status.Conditions
+	oldPjConditions := oldPj.Status.Conditions
 	oldPjConditionsLen := len(oldPjConditions)
-	if oldPjConditionsLen > 0 && oldPjConditions[oldPjConditionsLen-1].Type == newPjConditions[newPjConditionsLen-1].Type && oldPjConditions[oldPjConditionsLen-1].Message == newPjConditions[newPjConditionsLen-1].Message {
+	if oldPjConditionsLen > 0 &&
+		oldPjConditions[oldPjConditionsLen-1].Type == newPjConditions[newPjConditionsLen-1].Type &&
+		oldPjConditions[oldPjConditionsLen-1].Message == newPjConditions[newPjConditionsLen-1].Message {
 		return
 	}
 
 	jobStatusObj := newPjConditions[newPjConditionsLen-1]
 	if jobStatusObj.Type == trainingv1.JobFailed {
 		ctx := context.Background()
-		pods, err := c.getPytorchJobPods(ctx, newPytorchJob.Namespace, newPytorchJob.Name)
+		pods, err := c.pod.ListPytorchJobPods(newPj.Namespace, newPj.Name)
 		if err != nil {
 			logx.Errorf("failed to get pytorchjob pods, err: %s", err.Error())
 			return
 		}
 		for _, pod := range pods {
-			nodeHealthy := c.isTaskPodHealthy(pod.Spec.NodeName, pod.Name)
-			if !nodeHealthy {
-				logx.Infof("retry to resubmit pytorchjob since node unhealthy, namespace: %s, name: %s", newPytorchJob.Namespace, newPytorchJob.Name)
-				_, err := c.resubmitPytorchJob(ctx, &newPytorchJob, pods, true)
+			podHealthy := c.isTaskPodHealthy(pod.Spec.NodeName, pod.Name)
+			if !podHealthy {
+				logx.Infof("retry to resubmit pytorchjob since unhealthy, namespace: %s, name: %s", newPj.Namespace, newPj.Name)
+				_, err := c.resubmitPytorchJob(ctx, newPj, pods, true)
 				if err != nil {
-					logx.Errorf("failed to resubmit pytorchjob, namespace: %s, name: %s, err: %s", newPytorchJob.Namespace, newPytorchJob.Name, err)
+					logx.Errorf("failed to resubmit pytorchjob, namespace: %s, name: %s, err: %s", newPj.Namespace, newPj.Name, err)
 				} else {
-					logx.Infof("task pytorchjob %s resubmit succeed", newPytorchJob.Name)
+					logx.Infof("task pytorchjob %s resubmit succeed", newPj.Name)
 				}
 				break
 			}
@@ -138,7 +158,7 @@ func (c *Controller) updatePytorchJob(oldObj, newObj any) {
 	}
 }
 
-func (c *Controller) resubmitPytorchJob(ctx context.Context, pj *trainingv1.PyTorchJob, pods []v1.Pod, hasFailed bool) (bool, error) {
+func (c *Controller) resubmitPytorchJob(ctx context.Context, pj *trainingv1.PyTorchJob, pods []*corev1.Pod, hasFailed bool) (bool, error) {
 	var err error
 	var retryIndex int
 
@@ -164,6 +184,7 @@ func (c *Controller) resubmitPytorchJob(ctx context.Context, pj *trainingv1.PyTo
 	}
 
 	// change task retry index and create a new task
+	pjCopy := (*pj).DeepCopy()
 	newPj := &trainingv1.PyTorchJob{}
 	newPj.APIVersion = pj.APIVersion
 	newPj.Kind = pj.Kind
@@ -178,11 +199,11 @@ func (c *Controller) resubmitPytorchJob(ctx context.Context, pj *trainingv1.PyTo
 	if pj.Labels == nil {
 		newPj.Labels = make(map[string]string)
 	} else {
-		newPj.Labels = pj.DeepCopy().Labels
+		newPj.Labels = pjCopy.Labels
 	}
 	newPj.Labels[LabelRetryIndex] = strconv.Itoa(retryIndex + 1)
-	newPj.Annotations = pj.DeepCopy().Annotations
-	newPj.Spec = *pj.Spec.DeepCopy()
+	newPj.Annotations = pjCopy.Annotations
+	newPj.Spec = *pjCopy.Spec.DeepCopy()
 
 	_, err = c.k8sClient.CreatePytorchJob(ctx, pj.Namespace, newPj)
 	if err != nil {
@@ -194,9 +215,9 @@ func (c *Controller) resubmitPytorchJob(ctx context.Context, pj *trainingv1.PyTo
 }
 
 // make task failed to delete one worker pod
-func (c *Controller) killPytorchJob(ctx context.Context, pj *trainingv1.PyTorchJob, pods []v1.Pod) error {
+func (c *Controller) killPytorchJob(ctx context.Context, pj *trainingv1.PyTorchJob, pods []*corev1.Pod) error {
 	for _, pod := range pods {
-		if pod.Labels[LabelKubeflowJobPodType] != "worker" {
+		if pod.Labels[trainingv1.ReplicaTypeLabel] != PytorchJobReplicaTypeWorker {
 			continue
 		}
 		err := c.k8sClient.DeletePod(ctx, pj.Namespace, pod.Name)
@@ -206,14 +227,5 @@ func (c *Controller) killPytorchJob(ctx context.Context, pj *trainingv1.PyTorchJ
 		}
 		break
 	}
-
 	return nil
-}
-
-func (c *Controller) getPytorchJobPods(ctx context.Context, jobNamespace, jobName string) ([]v1.Pod, error) {
-	lbs := labels.Set{
-		LabelKubeflowJobName: jobName,
-	}
-
-	return c.k8sClient.ListPodsByLabels(ctx, jobNamespace, lbs)
 }

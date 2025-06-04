@@ -1,6 +1,0 @@
-errors:
-  - "OutOfMemoryError"
-  - "DistError"
-  - "DistBackendError"
-  - "DistNetworkError"
-  - "DistStoreError"
