@@ -242,7 +242,7 @@ var CriticalXidEvent = map[uint64]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "xid63-UcePending",
+		ErrorName:   "xid63-ECCRowremapperPending",
 		Suggestion:  "Reset the GPU device",
 	},
 	64: {

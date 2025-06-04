@@ -55,7 +55,7 @@ func TestIsTaskPodHealthy(t *testing.T) {
 		NCCL: map[string][]*annotation{
 			"fatal": []*annotation{
 				&annotation{
-					ErrorName: "test_err",
+					ErrorName: "TestErr",
 				},
 			},
 		},
@@ -85,7 +85,7 @@ func TestIsTaskPodHangFromSiChek(t *testing.T) {
 		Hang: map[string][]*annotation{
 			"fatal": []*annotation{
 				&annotation{
-					ErrorName: "test_hang",
+					ErrorName: "TestHang",
 					Device:    "gpu1:test-pod",
 				},
 			},
