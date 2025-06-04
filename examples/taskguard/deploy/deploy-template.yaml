@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: default
+  namespace: scitix
   name: taskguard
   labels:
     project: scitix
@@ -31,14 +31,13 @@ spec:
       containers:
         - name: main
           image: "registry-ap-southeast.scitix.ai/siflow/taskguard:test"
-          command: ["/usr/bin/env", "bash", "-c"]
+          imagePullPolicy: Always
+          command:
+            - "./taskguard"
           workingDir: /opt/taskguard
           env:
             - name: TZ
               value: CST-8
-          args:
-            - |
-              ./taskguard
           resources:
             limits:
               cpu: "8"
@@ -50,11 +49,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: default
   name: taskguard
+  namespace: scitix
   labels:
     project: scitix
-    app: taskguard-metrics
+    app: taskguard
 spec:
   type: ClusterIP
   selector:
@@ -63,4 +62,4 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
-      name: metrics
+      name: http

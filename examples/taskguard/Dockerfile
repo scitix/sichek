@@ -13,7 +13,7 @@ COPY pkg/ pkg/
 COPY main.go main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -o bin/taskguard
 
-FROM rockylinux:8
+FROM gcr.io/distroless/static:nonroot
 
 COPY etc/*.yaml /opt/taskguard/etc/
 COPY --from=base /go/src/taskguard/bin/taskguard /opt/taskguard/taskguard

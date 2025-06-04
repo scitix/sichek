@@ -16,9 +16,7 @@ limitations under the License.
 package k8s
 
 import (
-	"bytes"
 	"context"
-	"io"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// pods
 func (c *Client) DeletePod(ctx context.Context, namespace, podName string) error {
 	err := c.CoreClient.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
 	if err != nil {
@@ -48,23 +45,4 @@ func (c *Client) ListPodsByLabels(ctx context.Context, namespace string, labelSe
 		return nil, err
 	}
 	return pods.Items, nil
-}
-
-func (c *Client) GetPodLogs(ctx context.Context, namespace, podName, containerName string, tailLines int64) (string, error) {
-	req := c.CoreClient.CoreV1().Pods(namespace).GetLogs(podName, &v1.PodLogOptions{
-		Container: containerName,
-		TailLines: &tailLines,
-	})
-	podLogs, err := req.Stream(context.TODO())
-	if err != nil {
-		return "", err
-	}
-	defer podLogs.Close()
-
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, podLogs)
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
 }

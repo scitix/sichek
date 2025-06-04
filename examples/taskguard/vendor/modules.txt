@@ -66,6 +66,14 @@ github.com/json-iterator/go
 # github.com/kubeflow/training-operator v1.8.0
 ## explicit; go 1.22
 github.com/kubeflow/training-operator/pkg/apis/kubeflow.org/v1
+github.com/kubeflow/training-operator/pkg/client/clientset/versioned
+github.com/kubeflow/training-operator/pkg/client/clientset/versioned/scheme
+github.com/kubeflow/training-operator/pkg/client/clientset/versioned/typed/kubeflow.org/v1
+github.com/kubeflow/training-operator/pkg/client/informers/externalversions
+github.com/kubeflow/training-operator/pkg/client/informers/externalversions/internalinterfaces
+github.com/kubeflow/training-operator/pkg/client/informers/externalversions/kubeflow.org
+github.com/kubeflow/training-operator/pkg/client/informers/externalversions/kubeflow.org/v1
+github.com/kubeflow/training-operator/pkg/client/listers/kubeflow.org/v1
 # github.com/mailru/easyjson v0.7.7
 ## explicit; go 1.12
 github.com/mailru/easyjson/buffer
@@ -93,9 +101,6 @@ github.com/pelletier/go-toml/v2/internal/characters
 github.com/pelletier/go-toml/v2/internal/danger
 github.com/pelletier/go-toml/v2/internal/tracker
 github.com/pelletier/go-toml/v2/unstable
-# github.com/pmezard/go-difflib v1.0.0
-## explicit
-github.com/pmezard/go-difflib/difflib
 # github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13
 github.com/sirupsen/logrus
@@ -105,9 +110,6 @@ github.com/spaolacci/murmur3
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.9.0
-## explicit; go 1.17
-github.com/stretchr/testify/assert
 # github.com/zeromicro/go-zero v1.6.6
 ## explicit; go 1.19
 github.com/zeromicro/go-zero/core/color
@@ -376,9 +378,6 @@ k8s.io/client-go/applyconfigurations/storage/v1
 k8s.io/client-go/applyconfigurations/storage/v1alpha1
 k8s.io/client-go/applyconfigurations/storage/v1beta1
 k8s.io/client-go/discovery
-k8s.io/client-go/dynamic
-k8s.io/client-go/dynamic/dynamicinformer
-k8s.io/client-go/dynamic/dynamiclister
 k8s.io/client-go/informers
 k8s.io/client-go/informers/admissionregistration
 k8s.io/client-go/informers/admissionregistration/v1
@@ -621,3 +620,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
+# github.com/kubeflow/training-operator/pkg/client => github.com/kubeflow/training-operator v1.8.0

@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -50,23 +49,13 @@ type annotation struct {
 func (c *Controller) getSiChekResultFromNode(nodeName string) SiChekResult {
 	var res SiChekResult
 
-	obj, exists, err := c.nodeInformer.GetStore().GetByKey(nodeName)
+	node, err := c.node.GetNodeByName(nodeName)
 	if err != nil {
-		logx.Errorf("failed to get node info, node: %s, err: %s", nodeName, err.Error())
-		return res
-	}
-	if !exists {
-		logx.Errorf("node %s does not exist", nodeName)
+		logx.Errorf("failed to get node %s info, err: %s", nodeName, err.Error())
 		return res
 	}
 
-	nodeInfo, ok := obj.(*corev1.Node)
-	if !ok {
-		logx.Errorf("failed to get node info, node: %s", nodeName)
-		return res
-	}
-
-	siChekResultStr, ok := nodeInfo.Annotations[c.config.SiChekNodeAnnotationKey]
+	siChekResultStr, ok := node.Annotations[c.config.SiChekNodeAnnotationKey]
 	if !ok {
 		return res
 	}
@@ -147,7 +136,6 @@ func (c *Controller) isTaskPodHangFromSiChek(nodeName, podName string) bool {
 					return true
 				}
 			}
-
 		}
 	}
 

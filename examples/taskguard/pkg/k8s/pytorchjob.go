@@ -13,30 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package k8s
 
 import (
 	"context"
-	"flag"
 
-	"github.com/scitix/taskguard/pkg/cfg"
-	"github.com/scitix/taskguard/pkg/svc"
-	"github.com/scitix/taskguard/pkg/taskguard"
-
-	"github.com/zeromicro/go-zero/core/conf"
+	trainingv1 "github.com/kubeflow/training-operator/pkg/apis/kubeflow.org/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var configFile = flag.String("f", "etc/config.yaml", "the config file")
-
-func Main() {
-	flag.Parse()
-
-	var c cfg.Config
-	conf.MustLoad(*configFile, &c, conf.UseEnv())
-
-	svcCtx := svc.NewServiceContext(c)
-	ctx := context.Background()
-
-	// create and start task guard for fault tolerance
-	taskguard.MustNewController(svcCtx).RunOrDie(ctx)
+func (c *Client) CreatePytorchJob(ctx context.Context, namespace string, pj *trainingv1.PyTorchJob) (*trainingv1.PyTorchJob, error) {
+	return c.TrainingV1Client.KubeflowV1().PyTorchJobs(namespace).Create(ctx, pj, metav1.CreateOptions{})
 }
