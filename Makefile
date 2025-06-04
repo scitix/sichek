@@ -15,6 +15,7 @@ LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
            -X 'cmd/command/version.GitCommit=$(GIT_COMMIT)' \
            -X 'cmd/command/version.GoVersion=$(GO_VERSION)' \
            -X 'cmd/command/version.BuildTime=$(BUILD_TIME)'
+TASKGUARD_VERISON := v0.1.0
 
 all:
 	mkdir -p build/bin/
@@ -61,8 +62,14 @@ release:
 	--build-arg GO_VERSION=${GO_VERSION} \
 	--build-arg BUILD_TIME=${BUILD_TIME} \
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
-	-t registry-ap-southeast.scitix.ai/hpc/sichek:${VERSION} -f docker/Dockerfile .
-	docker push registry-ap-southeast.scitix.ai/hpc/sichek:${VERSION}
+	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+
+taskguard:
+	docker build \
+	-t registry-ap-southeast.scitix.ai/hisys/taskguard:${TASKGUARD_VERISON} \
+	-f examples/taskguard/Dockerfile examples/taskguard
+	docker push registry-ap-southeast.scitix.ai/hisys/taskguard:${TASKGUARD_VERISON}
 
 clean:
 	rm -f build/bin/*
