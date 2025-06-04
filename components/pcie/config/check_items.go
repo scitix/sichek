@@ -33,7 +33,7 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "Numa-Device RelationError",
+		ErrorName:   "NumaDeviceRelationError",
 		Suggestion:  "Check Device Topo",
 	},
 	PciTopoSwitchCheckerName: {
@@ -42,7 +42,7 @@ var PciTopoCheckItems = map[string]common.CheckerResult{
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
 		Detail:      "",
-		ErrorName:   "Switch-Device RelationError",
+		ErrorName:   "SwitchDeviceRelationError",
 		Suggestion:  "Check Device Topo",
 	},
 }
