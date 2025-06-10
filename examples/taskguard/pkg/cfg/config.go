@@ -21,17 +21,15 @@ import (
 
 type KubeConfig struct {
 	CheckStatusPeriod time.Duration `json:",default=5m"`
-	ResyncPeriod      time.Duration `json:",default=30m"`
 	ConfigFile        string        `json:",default=''"`
 }
 
 type FaultToleranceConfig struct {
+	ResyncPeriod            time.Duration `json:",default=30m"`
 	CheckStatusPeriod       time.Duration `json:",default=5m"`
 	EnableTaskGuardLabel    string        `json:",optional"`
 	MaxRetryCount           int           `json:",default=3"`
 	SiChekNodeAnnotationKey string        `json:",default=scitix.ai/sicheck"`
-	LogCheckerRulesPath     string        `json:",default=etc/log-checker-rules.yaml"`
-	LogCheckerLines         int64         `json:",default=1000"`
 }
 
 type Config struct {
