@@ -99,13 +99,14 @@ func (c *Controller) RunOrDie(ctx context.Context) {
 
 func (c *Controller) checkTaskStatusPeriodically(ctx context.Context, checkPeriod time.Duration) {
 	logx.Info("Start auto fault tolerance checking")
+	logx.Infof("enable taskguard label %s", c.config.EnableTaskGuardLabel)
+
 	wait.Until(func() {
 		logx.Info("Auto fault tolerance checking")
 
 		// check pytorchjobs with taskguard label
 		lbs := labels.Set{}
 		if len(c.config.EnableTaskGuardLabel) != 0 {
-			logx.Infof("enable taskguard label %s", c.config.EnableTaskGuardLabel)
 			lbs = labels.Set{
 				c.config.EnableTaskGuardLabel: "true",
 			}
@@ -123,7 +124,7 @@ func (c *Controller) checkTaskStatusPeriodically(ctx context.Context, checkPerio
 			jobConditionsLen := len(jobConditions)
 
 			if jobConditionsLen > 0 && jobConditions[jobConditionsLen-1].Type == trainingv1.JobRunning {
-				logx.Infof("parse pytorchjob %s, namespace: %s", jobName, jobNamespace)
+				logx.Infof("running pytorchjob %s, namespace: %s", jobName, jobNamespace)
 				jobPods, err := c.pod.ListPytorchJobPods(jobNamespace, jobName)
 				if err != nil {
 					logx.Errorf("failed to get pytorchjob pods, err: %s", err.Error())

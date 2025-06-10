@@ -17,7 +17,6 @@ package taskguard
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -93,18 +92,8 @@ func (c *Controller) isTaskPodHealthy(nodeName, podName string) bool {
 				continue
 			}
 			for _, annotation := range annotations {
-				logx.Infof("check pod %s status from sichek, annotation %v", podName, annotation)
-				if len(annotation.Device) == 0 {
-					return false
-				}
-				deviceSlice := strings.Split(annotation.Device, ",")
-				for _, device := range deviceSlice {
-					deviceInfo := strings.Split(device, ":")
-					if len(deviceInfo) == 2 && (len(deviceInfo[1]) == 0 || deviceInfo[1] == podName) {
-						logx.Infof("pod %s in node %s unhealthy with %s", podName, nodeName, annotation.ErrorName)
-						return false
-					}
-				}
+				logx.Infof("pod %s unhealthy from sichek, annotation %+v", podName, annotation)
+				return false
 			}
 		}
 	}
@@ -124,18 +113,8 @@ func (c *Controller) isTaskPodHangFromSiChek(nodeName, podName string) bool {
 			continue
 		}
 		for _, annotation := range annotations {
-			logx.Infof("check pod %s hang status from sichek, annotation %v", podName, annotation)
-			if len(annotation.Device) == 0 {
-				return true
-			}
-			deviceSlice := strings.Split(annotation.Device, ",")
-			for _, device := range deviceSlice {
-				deviceInfo := strings.Split(device, ":")
-				if len(deviceInfo) == 2 && (len(deviceInfo[1]) == 0 || deviceInfo[1] == podName) {
-					logx.Infof("pod %s in node %s has hang issue of %s", podName, nodeName, annotation.ErrorName)
-					return true
-				}
-			}
+			logx.Infof("pod %s hang from sichek, annotation %+v", podName, annotation)
+			return true
 		}
 	}
 

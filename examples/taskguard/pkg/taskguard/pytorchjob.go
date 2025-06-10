@@ -136,7 +136,7 @@ func (c *Controller) updatePytorchJob(oldObj, newObj any) {
 
 	jobStatusObj := newPjConditions[newPjConditionsLen-1]
 	if jobStatusObj.Type == trainingv1.JobFailed {
-		ctx := context.Background()
+		logx.Infof("failed pytorchjob %s, namespace: %s", newPj.Name, newPj.Namespace)
 		pods, err := c.pod.ListPytorchJobPods(newPj.Namespace, newPj.Name)
 		if err != nil {
 			logx.Errorf("failed to get pytorchjob pods, err: %s", err.Error())
@@ -146,7 +146,7 @@ func (c *Controller) updatePytorchJob(oldObj, newObj any) {
 			podHealthy := c.isTaskPodHealthy(pod.Spec.NodeName, pod.Name)
 			if !podHealthy {
 				logx.Infof("retry to resubmit pytorchjob since unhealthy, namespace: %s, name: %s", newPj.Namespace, newPj.Name)
-				_, err := c.resubmitPytorchJob(ctx, newPj, pods, true)
+				_, err := c.resubmitPytorchJob(context.Background(), newPj, pods, true)
 				if err != nil {
 					logx.Errorf("failed to resubmit pytorchjob, namespace: %s, name: %s, err: %s", newPj.Namespace, newPj.Name, err)
 				} else {
