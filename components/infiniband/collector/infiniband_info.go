@@ -105,11 +105,24 @@ func (i *InfinibandInfo) JSON() (string, error) {
 	return string(data), nil
 }
 
+func (i *InfinibandInfo) GetPFDevs(IBDev []string) []string {
+	PFDevs := make([]string, 0)
+	for _, IBDev := range IBDev {
+		sriovTotalVFsPath := path.Join(IBSYSPathPre, IBDev, "device/sriov_totalvfs")
+		_, err := os.Stat(sriovTotalVFsPath)
+		if err == nil {
+			PFDevs = append(PFDevs, IBDev)
+		}
+	}
+	return PFDevs
+}
+
 func (i *InfinibandInfo) GetIBdevs() map[string]string {
 	allIBDevs := GetFileCnt(IBSYSPathPre)
+	PFDevs := i.GetPFDevs(allIBDevs)
 
 	IBDevs := make(map[string]string)
-	for _, IBDev := range allIBDevs {
+	for _, IBDev := range PFDevs {
 		if strings.Contains(IBDev, "bond") {
 			continue
 		}
