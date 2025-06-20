@@ -45,3 +45,16 @@ func TestNCCL(t *testing.T) {
 	t.Logf("test nccl analysis result: %s", js)
 	t.Logf("Running time: %ds", time.Since(start))
 }
+
+func TestGetRunningPodFilePaths(t *testing.T) {
+	// Create the component
+	component := &component{}
+
+	// Call the method under test
+	result, err := component.GetRunningPodFilePaths("/var/log/pods")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Logf("result: %v", result)
+}
