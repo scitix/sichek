@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/memory/checker"
+	filter "github.com/scitix/sichek/components/common/eventfilter"
 	"github.com/scitix/sichek/components/memory/collector"
 	"github.com/scitix/sichek/components/memory/config"
 	"github.com/scitix/sichek/components/memory/metrics"
@@ -40,6 +40,7 @@ type component struct {
 	componentName string
 	collector     common.Collector
 	checkers      []common.Checker
+	filter        *filter.EventFilter
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -88,20 +89,15 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 		logrus.WithField("component", "memory").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	collectorPointer, err := collector.NewCollector(eventRules)
+	collectorPointer, err := collector.NewCollector()
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers := make([]common.Checker, 0)
-	for name, spec := range eventRules.EventCheckers {
-		memChecker, err := checker.NewMemoryChecker(spec)
-		if err != nil {
-			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)
-			return nil, err
-		}
-		checkers = append(checkers, memChecker)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNameMemory, eventRules, 1, 100)
+	if err != nil {
+		return nil, err
 	}
 	var memoryMetrics *metrics.MemoryMetrics
 	if memoryCfg.Memory.EnableMetrics {
@@ -112,7 +108,8 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 		cancel:        cancel,
 		componentName: consts.ComponentNameMemory,
 		collector:     collectorPointer,
-		checkers:      checkers,
+		checkers:      nil,
+		filter:        filterPointer,
 		cfg:           memoryCfg,
 		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),
 		cacheInfo:     make([]common.Info, memoryCfg.Memory.CacheSize),
@@ -144,6 +141,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		c.metrics.ExportMetrics(memInfo.Info)
 	}
 	result := common.Check(ctx, c.componentName, memInfo, c.checkers)
+	eventResult := c.filter.Check()
+	if eventResult != nil {
+		result.Checkers = append(result.Checkers, eventResult.Checkers...)
+		if eventResult.Status == consts.StatusAbnormal {
+			result.Status = consts.StatusAbnormal
+			if consts.LevelPriority[result.Level] < consts.LevelPriority[eventResult.Level] {
+				result.Level = eventResult.Level
+			}
+		}
+	}
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
 	c.cacheBuffer[c.currIndex] = result

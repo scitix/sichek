@@ -47,6 +47,17 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+type EventRuleGroup map[string]*EventRuleConfig
+
+type EventRuleConfig struct {
+	Name        string `json:"name" yaml:"name"`
+	LogFile     string `json:"log_file" yaml:"log_file"`
+	Regexp      string `json:"regexp" yaml:"regexp"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	Level       string `json:"level" yaml:"level"`
+	Suggestion  string `json:"suggestion,omitempty" yaml:"suggestion,omitempty"`
+}
+
 // ComponentUserConfig defines the methods for getting and setting user configuration.
 type ComponentUserConfig interface {
 	GetQueryInterval() Duration
