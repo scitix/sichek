@@ -21,11 +21,12 @@ import (
 )
 
 const (
-	IbPerfCheckerName         = "IbPerfCheckerName"
+	IbPerfCheckerName   = "IbPerfCheckerName"
+	NcclPerfCheckerName = "NcclPerfCheckerName"
 )
 
-// IbPerfCheckItems is a map of check items for ibperf
-var IbPerfCheckItems = map[string]*common.CheckerResult{
+// PerfCheckItems is a map of check items for ibperf and ncclperf
+var PerfCheckItems = map[string]*common.CheckerResult{
 	IbPerfCheckerName: {
 		Name:        IbPerfCheckerName,
 		Description: "",
@@ -34,5 +35,14 @@ var IbPerfCheckItems = map[string]*common.CheckerResult{
 		Detail:      "",
 		ErrorName:   "IbPerfError",
 		Suggestion:  "Check Ib Bandwidth",
+	},
+	NcclPerfCheckerName: {
+		Name:        NcclPerfCheckerName,
+		Description: "",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "NcclPerfError",
+		Suggestion:  "Check Nccl Bandwidth",
 	},
 }

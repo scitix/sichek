@@ -22,8 +22,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/dmesg/checker"
-	"github.com/scitix/sichek/components/dmesg/collector"
+	filter "github.com/scitix/sichek/components/common/eventfilter"
 	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -39,8 +38,7 @@ type component struct {
 	cfg      *config.DmesgUserConfig
 	cfgMutex sync.Mutex
 
-	collector common.Collector
-	checker   common.Checker
+	filter *filter.CommandFilter
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -87,12 +85,13 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		logrus.WithField("component", "dmesg").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	collectorPointer, err := collector.NewDmesgCollector(eventRules)
-	if err != nil {
-		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
+	if len(eventRules.EventCheckers) == 0 {
+		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
-
-	dmesgChecker := checker.NewDmesgChecker(eventRules)
+	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers, 5000)
+	if err != nil {
+		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create Dmesg CommandFilter")
+	}
 
 	component := &component{
 		ctx:           ctx,
@@ -100,8 +99,7 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		componentName: consts.ComponentNameDmesg,
 		cfg:           dmsgCfg,
 
-		collector: collectorPointer,
-		checker:   dmesgChecker,
+		filter: commandFilter,
 
 		cacheResultBuffer: make([]*common.Result, dmsgCfg.Dmesg.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, dmsgCfg.Dmesg.CacheSize),
@@ -117,39 +115,21 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	info, err := c.collector.Collect(ctx)
-	if err != nil {
-		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Collect(ctx)")
-		return &common.Result{}, err
-	}
-
-	checkRes, err := c.checker.Check(ctx, info)
-	if err != nil {
-		logrus.WithField("component", "dmesg").WithError(err).Error("failed to Check()")
-		return &common.Result{}, err
-	}
-
-	resResult := &common.Result{
-		Item:       consts.ComponentNameDmesg,
-		Status:     checkRes.Status,
-		Level:      checkRes.Level,
-		Suggestion: checkRes.Suggestion,
-		Checkers:   []*common.CheckerResult{checkRes},
-		Time:       time.Now(),
-	}
+	result := c.filter.Check()
+	result.Item = consts.ComponentNameDmesg
 
 	c.cacheMtx.Lock()
-	c.cacheResultBuffer[c.currIndex%c.cacheSize] = resResult
-	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
+	c.cacheResultBuffer[c.currIndex%c.cacheSize] = result
+	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = nil
 	c.currIndex++
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "dmesg").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "dmesg").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {

@@ -20,7 +20,7 @@ import (
 	"os"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nccl/perftest"
+	"github.com/scitix/sichek/components/infiniband/perftest"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -93,7 +93,7 @@ func NewNcclPerftestCmd() *cobra.Command {
 			if exitCode != 0 {
 				os.Exit(-1)
 			}
-			passed := perftest.PrintInfo(res)
+			passed := perftest.PrintNcclPerfInfo(res)
 			ComponentStatuses[res.Item] = passed
 		},
 	}

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	filter "github.com/scitix/sichek/components/common/eventfilter"
 	"github.com/scitix/sichek/components/cpu/checker"
 	"github.com/scitix/sichek/components/cpu/collector"
 	"github.com/scitix/sichek/components/cpu/config"
@@ -41,6 +42,7 @@ type component struct {
 
 	collector common.Collector
 	checkers  []common.Checker
+	filter    *filter.EventFilter
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -89,13 +91,13 @@ func newComponent(cfgFile string, specFile string) (comp *component, err error) 
 		logrus.WithField("component", "cpu").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	collectorPointer, err := collector.NewCpuCollector(ctx, eventRules)
+	collectorPointer, err := collector.NewCpuCollector(ctx)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(eventRules)
+	checkers, err := checker.NewCheckers()
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create checkers failed: %v", err)
 		return nil, err
@@ -104,12 +106,18 @@ func newComponent(cfgFile string, specFile string) (comp *component, err error) 
 	if cfg.CPU.EnableMetrics {
 		cpuMetrics = metrics.NewCpuMetrics()
 	}
+
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNameCPU, eventRules, 1, 100)
+	if err != nil {
+		return nil, err
+	}
 	comp = &component{
 		ctx:           ctx,
 		cancel:        cancel,
 		componentName: consts.ComponentNameCPU,
 		collector:     collectorPointer,
 		checkers:      checkers,
+		filter:        filterPointer,
 		cfg:           cfg,
 		cacheBuffer:   make([]*common.Result, cfg.CPU.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.CPU.CacheSize),
@@ -141,6 +149,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		c.metrics.ExportMetrics(cpuInfo)
 	}
 	result := common.Check(ctx, c.Name(), cpuInfo, c.checkers)
+	eventResult := c.filter.Check()
+	if eventResult != nil {
+		result.Checkers = append(result.Checkers, eventResult.Checkers...)
+		if eventResult.Status == consts.StatusAbnormal {
+			result.Status = consts.StatusAbnormal
+			if consts.LevelPriority[result.Level] < consts.LevelPriority[eventResult.Level] {
+				result.Level = eventResult.Level
+			}
+		}
+	}
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info

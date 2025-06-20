@@ -27,16 +27,8 @@ type DmesgEventRules struct {
 }
 
 type DmesgEventRule struct {
-	DmesgFileName []string                     `json:"file_name" yaml:"file_name"`
-	DmesgCmd      [][]string                   `json:"cmd" yaml:"cmd"`
-	EventCheckers map[string]*DmesgErrorConfig `json:"event_checkers" yaml:"event_checkers"`
-}
-
-type DmesgErrorConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
+	DmesgCmd      []string              `json:"cmd" yaml:"cmd"`
+	EventCheckers common.EventRuleGroup `json:"event_checkers" yaml:"event_checkers"`
 }
 
 func LoadDefaultEventRules() (*DmesgEventRule, error) {

@@ -13,19 +13,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nccl
+package podlog
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nccl/checker"
-	"github.com/scitix/sichek/components/nccl/collector"
-	"github.com/scitix/sichek/components/nccl/config"
+	filter "github.com/scitix/sichek/components/common/eventfilter"
+	"github.com/scitix/sichek/components/podlog/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/k8s"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
@@ -36,10 +39,10 @@ type component struct {
 	cancel        context.CancelFunc
 	componentName string
 	cfg           *config.NCCLUserConfig
+	eventRule     *config.PodLogEventRule
 	cfgMutex      sync.Mutex
 
-	collector common.Collector
-	checker   common.Checker
+	podResourceMapper *k8s.PodResourceMapper
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -87,22 +90,16 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		logrus.WithField("component", "nccl").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	ncclCollector, err := collector.NewNCCLCollector(eventRules)
-	if err != nil {
-		logrus.WithField("component", "nccl").WithError(err).Error("failed to create NCCLCollector")
-		return nil, err
-	}
 
-	ncclChecker := checker.NewNCCLChecker(ncclCfg)
-
+	podResourceMapper := k8s.NewPodResourceMapper()
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
-		componentName: consts.ComponentNameNCCL,
+		componentName: consts.ComponentNamePodLog,
 		cfg:           ncclCfg,
+		eventRule:     eventRules,
 
-		collector: ncclCollector,
-		checker:   ncclChecker,
+		podResourceMapper: podResourceMapper,
 
 		cacheResultBuffer: make([]*common.Result, ncclCfg.NCCL.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, ncclCfg.NCCL.CacheSize),
@@ -118,40 +115,97 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	info, err := c.collector.Collect(ctx)
+	allFiles, err := c.GetRunningPodFilePaths(c.eventRule.DirPath)
 	if err != nil {
+		logrus.WithError(err).Errorf("failed to walkdir in %s", c.eventRule.DirPath)
+		return nil, err
+	}
+
+	joinedLogFiles := strings.Join(allFiles, ",")
+	for _, eventChecker := range c.eventRule.EventCheckers {
+		if eventChecker != nil {
+			eventChecker.LogFile = joinedLogFiles
+		}
+	}
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodLog, c.eventRule.EventCheckers, 5000, 0)
+	if err != nil {
+		logrus.WithError(err).Error("failed to create filter in NCCLCollector")
+		return nil, err
+	}
+	defer filterPointer.Close()
+
+	result := filterPointer.Check()
+	if result == nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to Collect(ctx)")
-		return &common.Result{}, err
+		return nil, err
 	}
-
-	checkRes, err := c.checker.Check(ctx, info)
-	if err != nil {
-		logrus.WithField("component", "nccl").WithError(err).Error("failed to Check()")
-		return &common.Result{}, err
-	}
-
-	resResult := &common.Result{
-		Item:       consts.ComponentNameNCCL,
-		Node:       "NCCLLog",
-		Status:     checkRes.Status,
-		Level:      checkRes.Level,
-		Suggestion: checkRes.Suggestion,
-		Checkers:   []*common.CheckerResult{checkRes},
-		Time:       time.Now(),
-	}
-
 	c.cacheMtx.Lock()
-	c.cacheResultBuffer[c.currIndex%c.cacheSize] = resResult
-	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
+	c.cacheResultBuffer[c.currIndex%c.cacheSize] = result
+	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = nil
 	c.currIndex++
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal {
 		logrus.WithField("component", "nccl").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "nccl").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
+}
+
+func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
+	deviceToPodMap, err := c.podResourceMapper.GetDeviceToPodMap()
+	if err != nil {
+		logrus.WithField("component", "nccl").WithError(err).Error("failed to GetDeviceToPodMap")
+		return nil, err
+	}
+	runningPodSet := make(map[string]struct{})
+	for podName := range deviceToPodMap {
+		runningPodSet[podName] = struct{}{}
+	}
+	// Walk through the directory to find valid pod log files
+	runningPodFilePaths := make([]string, 0)
+	allFiles := make(map[string]struct{})
+
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			logrus.WithField("component", "nccl").WithError(walkErr).Errorf("skip dir %s", path)
+			return nil // Skip the path if there is an error
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(path, ".gz") {
+			return nil // Skip gzipped files
+		}
+		if _, exists := allFiles[path]; exists {
+			return nil // Skip if the file has already been processed
+		}
+		allFiles[path] = struct{}{}
+		if !strings.HasSuffix(path, ".log") {
+			logrus.WithField("component", "nccl").Debugf("skip file %s, not a log file", path)
+			return nil // Skip if the file is not a log file
+		}
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			logrus.WithField("component", "nccl").WithError(err).Errorf("failed to get absolute path for %s", path)
+			return nil // Skip if we can't get the absolute path
+		}
+		podName, err := getPodNameFromFileName(absPath)
+		if err != nil {
+			logrus.WithError(err).Warnf("cannot extract podName from %s", absPath)
+			return nil
+		}
+		if _, exists := runningPodSet[podName]; exists {
+			runningPodFilePaths = append(runningPodFilePaths, absPath)
+		}
+		return nil
+	})
+	if err != nil {
+		logrus.WithField("component", "nccl").WithError(err).Errorf("failed to walk dir %s", dir)
+		return nil, fmt.Errorf("failed to walk dir %s: %w", dir, err)
+	}
+	return runningPodFilePaths, err
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -227,7 +281,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		switch result.Name {
 		case "NCCLTimeoutChecker":
 			if result.Status == consts.StatusAbnormal {
-				ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+				ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%sDetect NCCLTimeout in pod %s%s", consts.Red, result.Device, consts.Reset)
 			}
 		}
 	}
@@ -240,4 +294,16 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		fmt.Printf("\t%s\n", v)
 	}
 	return false
+}
+
+func getPodNameFromFileName(fileName string) (string, error) {
+	paths := strings.Split(fileName, "/")
+	if len(paths) < 5 {
+		return "", fmt.Errorf("invalid fileName format=%s, expected at least four '/' character", fileName)
+	}
+	parts := strings.Split(paths[4], "_")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid fileName format=%s, expected at least one '_' character", fileName)
+	}
+	return parts[1], nil
 }

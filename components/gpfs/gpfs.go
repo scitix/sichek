@@ -22,8 +22,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/gpfs/checker"
-	"github.com/scitix/sichek/components/gpfs/collector"
+	filter "github.com/scitix/sichek/components/common/eventfilter"
 	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -38,8 +37,7 @@ type component struct {
 	cfg           *config.GpfsUserConfig
 	cfgMutex      sync.Mutex
 
-	collector common.Collector
-	checkers  []common.Checker
+	filter *filter.EventFilter
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -87,15 +85,9 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 		logrus.WithField("component", "gpfs").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	collectorPointer, err := collector.NewGPFSCollector(eventRules)
-	if err != nil {
-		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
-		return nil, err
-	}
 
-	checkers, err := checker.NewCheckers(eventRules)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNameGpfs, eventRules, 1, 100)
 	if err != nil {
-		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create checkers failed: %v", err)
 		return nil, err
 	}
 
@@ -103,8 +95,7 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 		ctx:           ctx,
 		cancel:        cancel,
 		componentName: consts.ComponentNameGpfs,
-		collector:     collectorPointer,
-		checkers:      checkers,
+		filter:        filterPointer,
 		cfg:           cfg,
 		cacheBuffer:   make([]*common.Result, cfg.Gpfs.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.Gpfs.CacheSize),
@@ -121,19 +112,10 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	info, err := c.collector.Collect(ctx)
-	if err != nil {
-		logrus.WithField("component", "gpfs").Errorf("failed to collect gpfs info: %v", err)
-		return nil, err
-	}
-	gpfsInfo, ok := info.(*collector.GPFSInfo)
-	if !ok {
-		logrus.WithField("component", "gpfs").Errorf("wrong gpfs collector info type")
-		return nil, err
-	}
-	result := common.Check(ctx, c.componentName, gpfsInfo, c.checkers)
+	result := c.filter.Check()
+	result.Item = c.componentName
+	result.Time = time.Now()
 	c.cacheMtx.Lock()
-	c.cacheInfo[c.currIndex] = info
 	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
@@ -209,11 +191,6 @@ func (c *component) GetTimeout() time.Duration {
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	checkAllPassed := true
-	_, ok := info.(*collector.GPFSInfo)
-	if !ok {
-		logrus.WithField("component", "Gpfs").Errorf("invalid data type, expected GPFSInfo")
-		return false
-	}
 	var mountPrint string
 	gpfsEvent := make(map[string]string)
 

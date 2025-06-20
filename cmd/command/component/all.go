@@ -28,9 +28,9 @@ import (
 	"github.com/scitix/sichek/components/gpfs"
 	"github.com/scitix/sichek/components/hang"
 	"github.com/scitix/sichek/components/infiniband"
-	"github.com/scitix/sichek/components/nccl"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/pcie/topotest"
+	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -193,11 +193,11 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Nvidia GPU HealthCheck")
 		}
 		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
-	case consts.ComponentNameNCCL:
+	case consts.ComponentNamePodLog:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing NCCL HealthCheck")
 		}
-		return nccl.NewComponent(cfgFile, specFile)
+		return podlog.NewComponent(cfgFile, specFile)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}

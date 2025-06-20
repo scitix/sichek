@@ -18,14 +18,14 @@ package component
 import (
 	"context"
 
-	"github.com/scitix/sichek/components/nccl"
+	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-func NewNCCLCmd() *cobra.Command {
+func NewPodLogCmd() *cobra.Command {
 	ncclCmd := &cobra.Command{
 		Use:     "nccl",
 		Aliases: []string{"nc"},
@@ -62,7 +62,7 @@ func NewNCCLCmd() *cobra.Command {
 					logrus.WithField("components", "NCCL").Info("load default specFile...")
 				}
 			}
-			component, err := nccl.NewComponent(cfgFile, specFile)
+			component, err := podlog.NewComponent(cfgFile, specFile)
 			if err != nil {
 				logrus.WithField("component", "NCCL").Error(err)
 				return
