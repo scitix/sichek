@@ -19,7 +19,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 )
 
-type NCCLUserConfig struct {
+type PodLogUserConfig struct {
 	NCCL *NCCLConfig `json:"nccl" yaml:"nccl"`
 }
 
@@ -28,10 +28,10 @@ type NCCLConfig struct {
 	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
 }
 
-func (c *NCCLUserConfig) GetQueryInterval() common.Duration {
+func (c *PodLogUserConfig) GetQueryInterval() common.Duration {
 	return c.NCCL.QueryInterval
 }
 
-func (c *NCCLUserConfig) SetQueryInterval(newInterval common.Duration) {
+func (c *PodLogUserConfig) SetQueryInterval(newInterval common.Duration) {
 	c.NCCL.QueryInterval = newInterval
 }

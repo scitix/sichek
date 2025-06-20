@@ -38,7 +38,7 @@ type component struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	componentName string
-	cfg           *config.NCCLUserConfig
+	cfg           *config.PodLogUserConfig
 	eventRule     *config.PodLogEventRule
 	cfgMutex      sync.Mutex
 
@@ -79,7 +79,7 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		}
 	}()
 
-	ncclCfg := &config.NCCLUserConfig{}
+	ncclCfg := &config.PodLogUserConfig{}
 	err = common.LoadUserConfig(cfgFile, ncclCfg)
 	if err != nil || ncclCfg.NCCL == nil {
 		logrus.WithField("component", "nccl").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
@@ -138,6 +138,17 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if result == nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to Collect(ctx)")
 		return nil, err
+	}
+	for _, checkerResult := range result.Checkers {
+		if checkerResult.Status == consts.StatusAbnormal {
+			fileNameList := strings.Split(checkerResult.Device, ",")
+			podNameList := make([]string, 0, len(fileNameList))
+			for _, fileName := range fileNameList {
+				podName, _ := getPodNameFromFileName(fileName)
+				podNameList = append(podNameList, podName)
+			}
+			checkerResult.Device = strings.Join(podNameList, ",")
+		}
 	}
 	c.cacheMtx.Lock()
 	c.cacheResultBuffer[c.currIndex%c.cacheSize] = result
@@ -256,7 +267,7 @@ func (c *component) Stop() error {
 
 func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.NCCLUserConfig)
+	config, ok := cfg.(*config.PodLogUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nccl")
 	}
@@ -285,13 +296,24 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			}
 		}
 	}
-	utils.PrintTitle("NCCL Error", "-")
-	if len(ncclEvents) == 0 {
-		fmt.Printf("%sNo NCCL event detected%s\n", consts.Green, consts.Reset)
-		return true
+	utils.PrintTitle("PodLog Error", "-")
+	checkAllPassed := true
+	for _, checkerResult := range checkerResults {
+		switch checkerResult.Name {
+		case "NCCLTimeoutChecker":
+			if result.Status == consts.StatusAbnormal {
+				checkAllPassed = false
+				fmt.Printf("\t%sNCCL timeout detected%s\n", consts.Red, consts.Reset)
+				fmt.Printf("\tAffected Pods  : %s\n", checkerResult.Device)
+				fmt.Printf("\tTimeout Count  : %s\n", checkerResult.Curr)
+				if checkerResult.Suggestion != "" {
+					fmt.Printf("\tSuggestion     : %s\n", checkerResult.Suggestion)
+				}
+			}
+		}
 	}
-	for _, v := range ncclEvents {
-		fmt.Printf("\t%s\n", v)
+	if checkAllPassed {
+		fmt.Printf("%sNo PodLog Error detected%s\n", consts.Green, consts.Reset)
 	}
 	return false
 }
