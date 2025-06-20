@@ -29,16 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type NvidiaSpecConfig struct {
-	NvidiaSpec *NvidiaSpec `json:"nvidia" yaml:"nvidia"`
-	// Other fields like `infiniband` can be added here if needed
-}
-
 type NvidiaSpec struct {
-	NvidiaSpecMap map[int32]*NvidiaSpecItem `json:"nvidia_spec" yaml:"nvidia_spec"`
-}
-
-type NvidiaSpecItem struct {
 	Name                 string                 `json:"name" yaml:"name"`
 	GpuNums              int                    `json:"gpu_nums" yaml:"gpu_nums"`
 	GpuMemory            int                    `json:"gpu_memory" yaml:"gpu_memory"`
@@ -50,7 +41,12 @@ type NvidiaSpecItem struct {
 	State                collector.StatesInfo   `json:"state" yaml:"state"`
 	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold" yaml:"memory_errors_threshold"`
 	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold" yaml:"temperature_threshold"`
-	CriticalXidEvents    map[int]string         `json:"critical_xid_events" yaml:"critical_xid_events"`
+	CriticalXidEvents    map[int]string         `json:"critical_xid_events,omitempty" yaml:"critical_xid_events,omitempty"`
+	Perf                 map[string]float64     `json:"perf,omitempty" yaml:"perf,omitempty"`
+}
+
+type NvidiaSpecs struct {
+	Specs map[string]*NvidiaSpec `json:"nvidia" yaml:"nvidia"`
 }
 
 type Dependence struct {
@@ -74,72 +70,138 @@ type TemperatureThreshold struct {
 	Memory int `json:"memory" yaml:"memory"`
 }
 
-func (s *NvidiaSpecConfig) GetSpec(specFile string) *NvidiaSpecItem {
-	err := s.LoadSpecConfigFromYaml(specFile)
-	if err != nil {
-		logrus.WithField("component", "NVIDIA").Errorf("Failed to load Nvidia config from %s: %v", specFile, err)
-		return nil
-	}
-	formatedNvidiaSpecsMap := make(map[string]*NvidiaSpecItem)
-	for gpuId, nvidiaSpec := range s.NvidiaSpec.NvidiaSpecMap {
-		logrus.WithField("component", "NVIDIA").Infof("parsed spec for gpu_id: 0x%x", gpuId)
-		gpuIdHex := fmt.Sprintf("0x%x", gpuId)
-		formatedNvidiaSpecsMap[gpuIdHex] = nvidiaSpec
-	}
-	deviceID, err := GetDeviceID()
-	if err != nil {
-		logrus.WithField("component", "NVIDIA").Errorf("failed to GetDeviceID: %v", err)
-		return nil
-	}
-	if _, ok := formatedNvidiaSpecsMap[deviceID]; !ok {
-		logrus.WithField("component", "NVIDIA").Errorf("failed to find spec file for deviceID: %s", deviceID)
-		return nil
-	}
-	return formatedNvidiaSpecsMap[deviceID]
-}
-
-func (s *NvidiaSpecConfig) LoadSpecConfigFromYaml(file string) error {
+func LoadSpec(file string) (*NvidiaSpec, error) {
+	s := &NvidiaSpecs{}
+	// 1. Load spec from provided file
 	if file != "" {
-		err := utils.LoadFromYaml(file, s)
-		if err != nil || s.NvidiaSpec == nil {
-			logrus.WithField("componet", "nvidia").Errorf("failed to load spec from YAML file %s: %v, try to load from default config", file, err)
+		err := s.tryLoadFromFile(file)
+		if err == nil && s.Specs != nil {
+			return FilterSpec(s)
+		} else {
+			logrus.WithField("component", "nvidia").Warnf("%v", err)
 		}
 	}
-	err := s.LoadDefaultSpec()
-	if err != nil || s.NvidiaSpec == nil {
-		return fmt.Errorf("failed to load default nvidia spec: %v", err)
+	// 2. try to Load default spec from production env if no file specified
+	// e.g., /var/sichek/config/default_spec.yaml
+	err := s.tryLoadFromDefault()
+	if err == nil && s.Specs != nil {
+		spec, err := FilterSpec(s)
+		if err == nil {
+			return spec, nil
+		}
+		logrus.WithField("component", "nvidia").Warnf("failed to filter specs from default production top spec")
+	} else {
+		logrus.WithField("component", "nvidia").Warnf("%v", err)
 	}
+
+	// 3. try to load default spec from default config directory
+	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
+	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
+	err = s.tryLoadFromDevConfig()
+	if err == nil && s.Specs != nil {
+		return FilterSpec(s)
+	} else {
+		if err != nil {
+			logrus.WithField("component", "nvidia").Warnf("failed to load from default dev directory: %v", err)
+		} else {
+			logrus.WithField("component", "nvidia").Warnf("default dev spec loaded but contains no nvidia section")
+		}
+	}
+	return nil, fmt.Errorf("failed to load NVIDIA spec from any source, please check the configuration")
+}
+
+func (s *NvidiaSpecs) tryLoadFromFile(file string) error {
+	if file == "" {
+		return fmt.Errorf("file path is empty")
+	}
+	err := utils.LoadFromYaml(file, s)
+	if err != nil {
+		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
+	}
+
+	if s.Specs == nil {
+		return fmt.Errorf("YAML file %s loaded but contains no nvidia section", file)
+	}
+	logrus.WithField("component", "nvidia").Infof("loaded default spec")
 	return nil
 }
 
-func (s *NvidiaSpecConfig) LoadDefaultSpec() error {
-	if s.NvidiaSpec == nil {
-		s.NvidiaSpec = &NvidiaSpec{
-			NvidiaSpecMap: make(map[int32]*NvidiaSpecItem),
+func (s *NvidiaSpecs) tryLoadFromDefault() error {
+	specs := &NvidiaSpecs{}
+	err := common.LoadSpecFromProductionPath(specs)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+	if specs.Specs == nil {
+		return fmt.Errorf("default production top spec loaded but contains no nvidia section")
+	}
+
+	if s.Specs == nil {
+		s.Specs = make(map[string]*NvidiaSpec)
+	}
+
+	for id, spec := range specs.Specs {
+		if _, ok := s.Specs[id]; !ok {
+			s.Specs[id] = spec
 		}
 	}
-	defaultCfgDirPath, files, err := common.GetDefaultConfigFiles(consts.ComponentNameNvidia)
-	if err != nil {
-		return fmt.Errorf("failed to get default nvidia config files: %v", err)
-	}
-	// // Traverse files and load YAML files with default spec suffix
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), consts.DefaultSpecCfgSuffix) {
-			nvidiaSpec := &NvidiaSpecConfig{}
-			filePath := filepath.Join(defaultCfgDirPath, file.Name())
-			err := utils.LoadFromYaml(filePath, nvidiaSpec)
-			if err != nil || nvidiaSpec.NvidiaSpec == nil {
-				return fmt.Errorf("failed to load nvidia spec from YAML file %s: %v", filePath, err)
-			}
-			for gpuId, nvidiaSpec := range nvidiaSpec.NvidiaSpec.NvidiaSpecMap {
-				if _, ok := s.NvidiaSpec.NvidiaSpecMap[gpuId]; !ok {
-					s.NvidiaSpec.NvidiaSpecMap[gpuId] = nvidiaSpec
+	logrus.WithField("component", "nvidia").Infof("loaded default production top spec")
+	return nil
+}
+
+func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
+	defaultDevCfgDirPath, files, err := common.GetDevDefaultConfigFiles(consts.ComponentNameNvidia)
+	if err == nil {
+		for _, file := range files {
+			if strings.HasSuffix(file.Name(), consts.DefaultSpecSuffix) {
+				specs := &NvidiaSpecs{}
+				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
+				err := utils.LoadFromYaml(filePath, specs)
+				if err != nil || specs.Specs == nil {
+					// If the file is not found or does not contain HCA specs, log the error
+					// and continue to the next file.
+					logrus.WithField("component", "nvidia").Warnf("failed to load nvidia spec from YAML file %s: %v", filePath, err)
+					continue
+				}
+				if s.Specs == nil {
+					s.Specs = make(map[string]*NvidiaSpec)
+				}
+				for id, spec := range specs.Specs {
+					if _, ok := s.Specs[id]; !ok {
+						s.Specs[id] = spec
+					}
 				}
 			}
-
 		}
 	}
-	return nil
+	return err
+}
+
+// FilterSpec retrieves the NVIDIA spec for the local GPU device ID.
+func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
+	localDeviceID, err := GetDeviceID()
+	if err != nil {
+		return nil, err
+	}
+	var nvSpec *NvidiaSpec
+	if spec, ok := s.Specs[localDeviceID]; ok {
+		nvSpec = spec
+	} else {
+		nvidiaSpec := &NvidiaSpecs{}
+		url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameNvidia, localDeviceID)
+		logrus.WithField("component", "nvidia").Infof("Loading spec from OSS for gpu %s: %s", localDeviceID, url)
+		err := common.LoadSpecFromOss(url, nvidiaSpec)
+		if err == nil && nvidiaSpec.Specs != nil {
+			if spec, ok := nvidiaSpec.Specs[localDeviceID]; ok {
+				nvSpec = spec
+			} else {
+				return nil, fmt.Errorf("failed to find NVIDIA spec for local GPU %s in OSS", localDeviceID)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to load NVIDIA spec from OSS: %v", err)
+		}
+	}
+	return nvSpec, nil
 }
 
 func GetDeviceID() (string, error) {
@@ -159,12 +221,12 @@ func GetDeviceID() (string, error) {
 	for i := 0; i < deviceCount; i++ {
 		device, err := nvmlInst.DeviceGetHandleByIndex(i)
 		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "NVIDIA").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
+			logrus.WithField("component", "nvidia").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}
 		pciInfo, err := device.GetPciInfo()
 		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "NVIDIA").Errorf("failed to get PCIe Info  for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
+			logrus.WithField("component", "nvidia").Errorf("failed to get PCIe Info  for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
 			continue
 		}
 		deviceID = fmt.Sprintf("0x%x", pciInfo.PciDeviceId)

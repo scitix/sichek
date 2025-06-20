@@ -22,16 +22,8 @@ type Config struct {
 	UseNvls     bool
 }
 
-func buildCmdConfig(numGpus int, useNvls bool) Config {
-	return Config{
-		NumGpus: numGpus,
-		TestBin: "nccl_perf",
-		UseNvls: useNvls,
-	}
-}
-
 func GetDefaultNcclTestPath(testBin string) (string, error) {
-	defaultCfgDirPath := filepath.Join(consts.DefaultPodCfgPath, testBin)
+	defaultCfgDirPath := filepath.Join(consts.DefaultProductionPath, testBin)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
 		_, curFile, _, ok := runtime.Caller(0)

@@ -21,16 +21,15 @@ import (
 
 	"github.com/scitix/taskguard/pkg/cfg"
 
-	"k8s.io/client-go/dynamic"
+	trainingclient "github.com/kubeflow/training-operator/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
-	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
-	CoreClient    *kubernetes.Clientset
-	DynamicClient dynamic.Interface
+	CoreClient       *kubernetes.Clientset
+	TrainingV1Client *trainingclient.Clientset
 }
 
 func GetKubeConfig(c cfg.KubeConfig) *rest.Config {
@@ -55,13 +54,9 @@ func GetKubeConfig(c cfg.KubeConfig) *rest.Config {
 func MustNewClient(c cfg.KubeConfig) *Client {
 	config := GetKubeConfig(c)
 	coreClient := kubernetes.NewForConfigOrDie(config)
-	dynamicClient := dynamic.NewForConfigOrDie(config)
+	trainingV1Client := trainingclient.NewForConfigOrDie(config)
 	return &Client{
-		CoreClient:    coreClient,
-		DynamicClient: dynamicClient,
+		CoreClient:       coreClient,
+		TrainingV1Client: trainingV1Client,
 	}
-}
-
-func (c *Client) CoordinationV1Client() coordinationv1.CoordinationV1Interface {
-	return c.CoreClient.CoordinationV1()
 }

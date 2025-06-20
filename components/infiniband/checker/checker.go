@@ -21,15 +21,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpecItem) ([]common.Checker, error) {
-	checkerConstructors := map[string]func(*config.InfinibandSpecItem) (common.Checker, error){
-		config.ChekIBOFED: NewIBOFEDChecker,
-		// config.ChekIBNUM:           dependence.NewIOMMUChecker,
-		config.ChekIBFW:        NewFirmwareChecker,
-		config.ChekIBState:     NewIBStateChecker,
-		config.ChekIBPhyState:  NewIBPhyStateChecker,
-		config.ChekIBPortSpeed: NewIBPortSpeedChecker,
-		// config.ChekNetOperstate: NewNetOperstateChecker,
+func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec) ([]common.Checker, error) {
+	checkerConstructors := map[string]func(*config.InfinibandSpec) (common.Checker, error){
+		config.CheckIBOFED: NewIBOFEDChecker,
+		// config.CheckIBNUM:           dependence.NewIOMMUChecker,
+		config.CheckIBFW:        NewFirmwareChecker,
+		config.CheckIBState:     NewIBStateChecker,
+		config.CheckIBPhyState:  NewIBPhyStateChecker,
+		config.CheckIBPortSpeed: NewIBPortSpeedChecker,
+		// config.CheckNetOperstate: NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
 		config.CheckPCIEMRR:   NewPCIEMRRChecker,
 		config.CheckPCIESpeed: NewIBPCIESpeedChecker,

@@ -78,26 +78,24 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 	}()
 
 	memoryCfg := &config.MemoryUserConfig{}
-	err = common.LoadComponentUserConfig(cfgFile, memoryCfg)
+	err = common.LoadUserConfig(cfgFile, memoryCfg)
 	if err != nil || memoryCfg.Memory == nil {
 		logrus.WithField("component", "memory").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewMemoryComponent get user config failed")
 	}
-	specCfg := &config.MemorySpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(specFile)
+	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "memory").Errorf("NewComponent load spec config failed: %v", err)
+		logrus.WithField("component", "memory").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	memorySpec := specCfg.MemorySpec
-	collectorPointer, err := collector.NewCollector(memorySpec)
+	collectorPointer, err := collector.NewCollector(eventRules)
 	if err != nil {
 		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create collector failed: %v", err)
 		return nil, err
 	}
 
 	checkers := make([]common.Checker, 0)
-	for name, spec := range memorySpec.EventCheckers {
+	for name, spec := range eventRules.EventCheckers {
 		memChecker, err := checker.NewMemoryChecker(spec)
 		if err != nil {
 			logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checker %s failed: %v", name, err)

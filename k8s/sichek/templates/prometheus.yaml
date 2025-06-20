@@ -14,7 +14,7 @@ spec:
     role: leader
   ports:
     - name: metrics  
-      port: 9091   # Metrics port  
+      port: 19091   # Metrics port  
       targetPort: metrics  # Port exposed in the container  
 {{- end }}
 ---

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/components/pcie/config"
 	"github.com/scitix/sichek/consts"
 )
 
@@ -15,8 +15,8 @@ type NumaCount struct {
 	IBCount  int
 }
 
-func checkNuma(devices map[string]*DeviceInfo, numaConfig []*NumaConfig) *common.CheckerResult {
-	res := PciTopoCheckItems[PciTopoNumaCheckerName]
+func checkNuma(devices map[string]*DeviceInfo, numaConfig []*config.NumaConfig) *common.CheckerResult {
+	res := config.PciTopoCheckItems[config.PciTopoNumaCheckerName]
 	var builder strings.Builder
 	numaCount := make(map[uint64]*NumaCount)
 
@@ -34,30 +34,30 @@ func checkNuma(devices map[string]*DeviceInfo, numaConfig []*NumaConfig) *common
 		numaCount[device.NumaID] = stat
 	}
 
-	for _, config := range numaConfig {
-		stat, ok := numaCount[uint64(config.NodeID)]
+	for _, cfg := range numaConfig {
+		stat, ok := numaCount[uint64(cfg.NodeID)]
 		if !ok {
 			res.Status = consts.StatusAbnormal
-			builder.WriteString(fmt.Sprintf("NUMA node %d missing in actual data\n", config.NodeID))
+			builder.WriteString(fmt.Sprintf("NUMA node %d missing in actual data\n", cfg.NodeID))
 		}
-		if stat.GPUCount != config.GPUCount {
+		if stat.GPUCount != cfg.GPUCount {
 
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d GPU count mismatch: expected %d, got %d\n",
-				config.NodeID, config.GPUCount, stat.GPUCount))
+				cfg.NodeID, cfg.GPUCount, stat.GPUCount))
 		}
-		if stat.IBCount != config.IBCount {
+		if stat.IBCount != cfg.IBCount {
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d IB count mismatch: expected %d, got %d\n",
-				config.NodeID, config.IBCount, stat.IBCount))
+				cfg.NodeID, cfg.IBCount, stat.IBCount))
 		}
 	}
 
 	// check if actual has extra nodes not in expected
 	for nodeID := range numaCount {
 		found := false
-		for _, config := range numaConfig {
-			if config.NodeID == nodeID {
+		for _, cfg := range numaConfig {
+			if cfg.NodeID == nodeID {
 				found = true
 				break
 			}
@@ -75,7 +75,7 @@ func checkNuma(devices map[string]*DeviceInfo, numaConfig []*NumaConfig) *common
 	return &res
 }
 
-func summarizeSwitchConfig(config []*PciSwitch) map[string]int {
+func summarizeSwitchConfig(config []*config.PciSwitch) map[string]int {
 	counts := make(map[string]int)
 	for _, c := range config {
 		key := fmt.Sprintf("gpu_%d&&ib_%d", c.GPU, c.IB)
@@ -102,9 +102,9 @@ func summarizeActualSwitch(pciSwitch map[string]*EndpointInfoByPCIeSW) map[strin
 	return counts
 }
 
-func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map[string]*DeviceInfo, PciSwitchesConfig []*PciSwitch) *common.CheckerResult {
+func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map[string]*DeviceInfo, PciSwitchesConfig []*config.PciSwitch) *common.CheckerResult {
 	endpointListbyCommonPcieSWs := ParseEndpointsbyCommonSwitch(pciTrees, nodes, devices)
-	res := PciTopoCheckItems[PciTopoSwitchCheckerName]
+	res := config.PciTopoCheckItems[config.PciTopoSwitchCheckerName]
 	var builder strings.Builder
 
 	expected := summarizeSwitchConfig(PciSwitchesConfig)
@@ -125,8 +125,7 @@ func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map
 }
 
 func CheckGPUTopology(file string) (*common.Result, error) {
-	spec := &PcieTopoSpec{}
-	err := spec.LoadSpec(file)
+	spec, err := config.LoadSpec(file)
 	if err != nil {
 		return nil, fmt.Errorf("load GPUTopology Config Err: %v", err)
 	}
@@ -154,19 +153,11 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 		return nil, err
 	}
 	devices := mergeDeviceMaps(ibs, gpus)
-	device, err := config.GetDeviceID()
-	if err != nil {
-		return nil, fmt.Errorf("get deviceId error: %v", err)
-	}
 	var checkRes []*common.CheckerResult
-	checkCfg, exist := spec.PcieTopo[device]
-	if !exist {
-		return nil, fmt.Errorf("device %s topo config not found", device)
-	}
-	numaCheckRes := checkNuma(devices, checkCfg.NumaConfig)
+	numaCheckRes := checkNuma(devices, spec.NumaConfig)
 	checkRes = append(checkRes, numaCheckRes)
 
-	switchCheckRes := checkPciSwitches(pciTrees, nodes, devices, checkCfg.PciSwitchesConfig)
+	switchCheckRes := checkPciSwitches(pciTrees, nodes, devices, spec.PciSwitchesConfig)
 	checkRes = append(checkRes, switchCheckRes)
 	status := consts.StatusNormal
 	for _, item := range checkRes {
@@ -175,7 +166,7 @@ func CheckGPUTopology(file string) (*common.Result, error) {
 		}
 	}
 	res := &common.Result{
-		Item:     "Pcie Topo",
+		Item:     "pcie_topo",
 		Status:   status,
 		Checkers: checkRes,
 	}
@@ -188,7 +179,7 @@ func PrintInfo(result *common.Result, verbos bool) bool {
 	}
 	checkerResults := result.Checkers
 	if result.Status == consts.StatusNormal {
-		fmt.Printf("%sPcie Topo Test Passed%s\n", consts.Green, consts.Reset)
+		// fmt.Printf("%spcie_topo Test Passed%s\n", consts.Green, consts.Reset)
 		return true
 	}
 	for _, result := range checkerResults {

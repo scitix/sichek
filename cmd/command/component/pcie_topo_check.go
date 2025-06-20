@@ -29,7 +29,7 @@ func NewPcieTopoCmd() *cobra.Command {
 
 	pcieTopoCmd := &cobra.Command{
 		Use:   "topo",
-		Short: "Perform Pcie Topo tests",
+		Short: "Perform pcie_topo check",
 		Run: func(cmd *cobra.Command, args []string) {
 			_, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 
