@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/k8s"
 )
 
 func TestNCCL(t *testing.T) {
@@ -48,7 +49,10 @@ func TestNCCL(t *testing.T) {
 
 func TestGetRunningPodFilePaths(t *testing.T) {
 	// Create the component
-	component := &component{}
+	podResourceMapper := k8s.NewPodResourceMapper()
+	component := &component{
+		podResourceMapper: podResourceMapper,
+	}
 
 	// Call the method under test
 	result, err := component.GetRunningPodFilePaths("/var/log/pods")
