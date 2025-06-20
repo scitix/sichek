@@ -30,10 +30,10 @@ import (
 
 type GpuPersistenceChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewGpuPersistenceChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewGpuPersistenceChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &GpuPersistenceChecker{
 		name: config.GpuPersistencedCheckerName,
 		cfg:  cfg,

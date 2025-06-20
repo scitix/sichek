@@ -130,7 +130,6 @@ func checkCPUPerformance() (bool, error) {
 			}
 			cpuPerformanceEnable = false
 			errCpus = append(errCpus, file)
-			// logrus.WithField("component", "Nvidia").Errorf("CPU %s is in %s mode", file, cpu_mode)
 		}
 	}
 	// ret := fmt.Errorf("the following CPUs is not in performance mode: %v", err_cpus)
@@ -167,7 +166,7 @@ func setCPUMode(mode string) error {
 		_, err = f.WriteString(mode)
 		if err != nil {
 			ret = fmt.Errorf("failed to write %s to %s: %v", mode, file, err)
-			logrus.WithField("component", "Nvidia").Errorf("%v", ret)
+			logrus.WithField("component", "cpu").Errorf("%v", ret)
 			continue
 		}
 	}

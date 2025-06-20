@@ -28,10 +28,10 @@ import (
 
 type RemmapedRowsPendingChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewRemmapedRowsPendingChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewRemmapedRowsPendingChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &RemmapedRowsPendingChecker{
 		name: config.RemmapedRowsPendingCheckerName,
 		cfg:  cfg,

@@ -27,10 +27,10 @@ import (
 
 type NvPeerMemChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewNvPeerMemChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewNvPeerMemChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &NvPeerMemChecker{
 		name: config.NvPeerMemCheckerName,
 		cfg:  cfg,

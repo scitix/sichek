@@ -27,10 +27,10 @@ import (
 
 type IOMMUChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewIOMMUChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewIOMMUChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &IOMMUChecker{
 		name: config.IOMMUCheckerName,
 		cfg:  cfg,

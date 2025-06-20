@@ -20,241 +20,145 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-var (
-	NOIBFOUND          = "No IB device found"
-	ChekIBOFED         = "ofed"
-	ChekIBNUM          = "ib_num"
-	ChekIBFW           = "ib_fw"
-	ChekIBState        = "ib_state"
-	ChekIBPhyState     = "ib_phy_state"
-	ChekIBPortSpeed    = "ib_port_speed"
-	ChekNetOperstate   = "net_operstate"
-	CheckPCIEACS       = "pcie_acs"
-	CheckPCIEMRR       = "pcie_mrr"
-	CheckPCIESpeed     = "pcie_speed"
-	CheckPCIEWidth     = "pcie_width"
-	CheckPCIETreeSpeed = "pcie_tree_speed"
-	CheckPCIETreeWidth = "pcie_tree_width"
-	CheckIBKmod        = "ib_kmod"
-	CheckIBDevs        = "ib_devs"
-	checkDes           = map[string]string{
-		ChekIBOFED:         "check the ofed is in spec",
-		ChekIBNUM:          "check the ib num is equal to pci detected",
-		ChekIBFW:           "check the fw is same ver in spec",
-		ChekIBState:        "check the ib state",
-		ChekIBPhyState:     "check the ib phy state",
-		ChekNetOperstate:   "check the net operstate state",
-		ChekIBPortSpeed:    "check the ib port speed",
-		CheckPCIEACS:       "check the pcie acs is disabled",
-		CheckPCIEMRR:       "check the pcie mrr is right setting",
-		CheckPCIESpeed:     "check the pcie speed is right setting",
-		CheckPCIEWidth:     "check the pcie width is right setting",
-		CheckPCIETreeSpeed: "check the pcie tree speed is right setting",
-		CheckPCIETreeWidth: "check the pcie tree width is right setting",
-		CheckIBKmod:        "check the kernel module of ib",
-		CheckIBDevs:        "check the ib dev list",
-	}
-	checkLevel = map[string]string{
-		ChekIBOFED:         consts.LevelWarning,
-		ChekIBNUM:          consts.LevelCritical,
-		ChekIBFW:           consts.LevelWarning,
-		ChekIBState:        consts.LevelCritical,
-		ChekIBPhyState:     consts.LevelCritical,
-		ChekNetOperstate:   consts.LevelCritical,
-		ChekIBPortSpeed:    consts.LevelCritical,
-		CheckPCIEACS:       consts.LevelCritical,
-		CheckPCIEMRR:       consts.LevelCritical,
-		CheckPCIESpeed:     consts.LevelCritical,
-		CheckPCIEWidth:     consts.LevelCritical,
-		CheckPCIETreeSpeed: consts.LevelCritical,
-		CheckPCIETreeWidth: consts.LevelCritical,
-		CheckIBKmod:        consts.LevelCritical,
-		CheckIBDevs:        consts.LevelWarning,
-	}
-	errName = map[string]string{
-		ChekIBOFED:         "OFEDVerisonNotMatch",
-		ChekIBNUM:          "IBNUMNotMatch",
-		ChekIBFW:           "IBFWVersionNotMatch",
-		ChekIBState:        "IBStateIsNotActive",
-		ChekIBPhyState:     "IBPhyStateIsNotLINKUP",
-		ChekNetOperstate:   "IBNetOperStateIsNotUP",
-		ChekIBPortSpeed:    "IBPortSpeedIsNotMAX",
-		CheckIBKmod:        "IBKernelModuleNotInstalledCompletely",
-		CheckPCIEACS:       "PCIEACSIsNotDisabled",
-		CheckPCIEMRR:       "PCIEMrrIsNotRight",
-		CheckPCIESpeed:     "PCIESpeedIsNotRight",
-		CheckPCIEWidth:     "PCIEWidthIsNotRight",
-		CheckPCIETreeSpeed: "PCIETreeSpeedIsNotRight",
-		CheckPCIETreeWidth: "PCIETreeWidthIsNotRight",
-	}
-	checkAction = map[string]string{
-		ChekIBOFED:         "update the ofed",
-		ChekIBNUM:          "check the nic status",
-		ChekIBFW:           "update the fw version",
-		ChekIBState:        "ib state is not active, check opensm status",
-		ChekIBPhyState:     "ib link is not link up, check link status",
-		ChekNetOperstate:   "ib net operstate is not correct, check net operstate status",
-		ChekIBPortSpeed:    "ib port speed is not set max",
-		CheckPCIEACS:       "pcie acs is not disable, need to disable",
-		CheckPCIEMRR:       "pcie mrr is not set right, set mrr to 4096",
-		CheckPCIESpeed:     "need check the ibcard pcie speed",
-		CheckPCIEWidth:     "need check the ibcard pcie width",
-		CheckPCIETreeSpeed: "need check the ibcard pcie tree speed",
-		CheckPCIETreeWidth: "need check the ibcard pcie Width speed",
-		CheckIBKmod:        "need check the kernel module is all installed",
-		CheckIBDevs:        "check the ib dev list",
-	}
-	checkDetail = map[string]string{
-		ChekIBOFED:         "the ofed is right version",
-		ChekIBNUM:          "all nic is active",
-		ChekIBFW:           "all ib use the same fw version include in spec",
-		ChekIBState:        "all ib state is active",
-		ChekIBPhyState:     "all ib phy link status is up",
-		ChekNetOperstate:   "all net operstate status is correct",
-		ChekIBPortSpeed:    "all ib port speed is right in spec",
-		CheckPCIEACS:       "system all pcie acs is disabled",
-		CheckPCIEMRR:       "ib mrr is set right(4096)",
-		CheckPCIESpeed:     "ib pcie speed is right",
-		CheckPCIEWidth:     "ib pcie width is right",
-		CheckPCIETreeSpeed: "ib pcie tree speed is right",
-		CheckPCIETreeWidth: "ib pcie tree width is right",
-		CheckIBKmod:        "ib kernel module is all installed",
-	}
+const (
+	NOIBFOUND         = "no_ib_found"
+	CheckIBOFED       = "check_ib_ofed"
+	CheckIBNUM        = "check_ib_num"
+	CheckIBFW         = "check_ib_fw"
+	CheckIBState      = "check_ib_state"
+	CheckIBPhyState   = "check_ib_phy_state"
+	CheckNetOperstate = "check_net_operstate"
+	CheckIBPortSpeed  = "check_ib_port_speed"
+	CheckIBKmod       = "check_ib_kmod"
+	CheckIBDevs       = "check_ib_devs"
+
+	CheckPCIEACS       = "check_pcie_acs"
+	CheckPCIEMRR       = "check_pcie_mrr"
+	CheckPCIESpeed     = "check_pcie_speed"
+	CheckPCIEWidth     = "check_pcie_width"
+	CheckPCIETreeSpeed = "check_pcie_tree_speed"
+	CheckPCIETreeWidth = "check_pcie_tree_width"
 )
 
 var InfinibandCheckItems = map[string]common.CheckerResult{
-	ChekIBOFED: {
-		Name:        ChekIBOFED,
-		Description: checkDes[ChekIBOFED],
-		Status:      "",
-		Level:       checkLevel[ChekIBOFED],
-		Detail:      checkDetail[ChekIBOFED],
-		ErrorName:   errName[ChekIBOFED],
-		Suggestion:  checkAction[ChekIBOFED],
+	CheckIBOFED: {
+		Name:        CheckIBOFED,
+		Description: "Check if the installed OFED version matches the specification",
+		Level:       consts.LevelWarning,
+		Detail:      "OFED version is within specification",
+		ErrorName:   "OFEDVersionMismatch",
+		Suggestion:  "Upgrade or reinstall OFED to match specification",
 	},
-	ChekIBNUM: {
-		Name:        ChekIBNUM,
-		Description: checkDes[ChekIBNUM],
-		Status:      "",
-		Level:       checkLevel[ChekIBNUM],
-		Detail:      checkDetail[ChekIBNUM],
-		ErrorName:   errName[ChekIBNUM],
-		Suggestion:  checkAction[ChekIBNUM],
+	CheckIBNUM: {
+		Name:        CheckIBNUM,
+		Description: "Check if the number of IB devices matches PCI scan",
+		Level:       consts.LevelCritical,
+		Detail:      "All expected IB NICs are detected",
+		ErrorName:   "IBDeviceCountMismatch",
+		Suggestion:  "Check PCIe status or IB NIC connectivity",
 	},
-	ChekIBFW: {
-		Name:        ChekIBFW,
-		Description: checkDes[ChekIBFW],
-		Status:      "",
-		Level:       checkLevel[ChekIBFW],
-		Detail:      checkDetail[ChekIBFW],
-		ErrorName:   errName[ChekIBFW],
-		Suggestion:  checkAction[ChekIBFW],
+	CheckIBFW: {
+		Name:        CheckIBFW,
+		Description: "Check if firmware version matches the specification",
+		Level:       consts.LevelWarning,
+		Detail:      "Firmware version is consistent with spec",
+		ErrorName:   "IBFirmwareVersionMismatch",
+		Suggestion:  "Update firmware to match version in specification",
 	},
-	ChekIBState: {
-		Name:        ChekIBState,
-		Description: checkDes[ChekIBState],
-		Status:      "",
-		Level:       checkLevel[ChekIBState],
-		Detail:      checkDetail[ChekIBState],
-		ErrorName:   errName[ChekIBState],
-		Suggestion:  checkAction[ChekIBState],
+	CheckIBState: {
+		Name:        CheckIBState,
+		Description: "Check if all IB ports are in ACTIVE state",
+		Level:       consts.LevelCritical,
+		Detail:      "All IB ports are in ACTIVE state",
+		ErrorName:   "IBStateNotActive",
+		Suggestion:  "Check OpenSM and IB connection",
 	},
-	ChekIBPhyState: {
-		Name:        ChekIBPhyState,
-		Description: checkDes[ChekIBPhyState],
-		Status:      "",
-		Level:       checkLevel[ChekIBPhyState],
-		Detail:      checkDetail[ChekIBPhyState],
-		ErrorName:   errName[ChekIBPhyState],
-		Suggestion:  checkAction[ChekIBPhyState],
+	CheckIBPhyState: {
+		Name:        CheckIBPhyState,
+		Description: "Check if all IB physical states are LINK_UP",
+		Level:       consts.LevelCritical,
+		Detail:      "All IB ports have LINK_UP physical state",
+		ErrorName:   "IBPhyStateNotLinkUp",
+		Suggestion:  "Verify IB cable and link status",
 	},
-	ChekNetOperstate: {
-		Name:        ChekNetOperstate,
-		Description: checkDes[ChekNetOperstate],
-		Status:      "",
-		Level:       checkLevel[ChekNetOperstate],
-		Detail:      checkDetail[ChekNetOperstate],
-		ErrorName:   errName[ChekNetOperstate],
-		Suggestion:  checkAction[ChekNetOperstate],
+	CheckNetOperstate: {
+		Name:        CheckNetOperstate,
+		Description: "Check if network operstate is UP",
+		Level:       consts.LevelCritical,
+		Detail:      "Network operstate is UP",
+		ErrorName:   "IBNetOperStateNotUP",
+		Suggestion:  "Check network interface and driver",
 	},
-	ChekIBPortSpeed: {
-		Name:        ChekIBPortSpeed,
-		Description: checkDes[ChekIBPortSpeed],
-		Status:      "",
-		Level:       checkLevel[ChekIBPortSpeed],
-		Detail:      checkDetail[ChekIBPortSpeed],
-		ErrorName:   errName[ChekIBPortSpeed],
-		Suggestion:  checkAction[ChekIBPortSpeed],
+	CheckIBPortSpeed: {
+		Name:        CheckIBPortSpeed,
+		Description: "Check if IB port speed is set to maximum",
+		Level:       consts.LevelCritical,
+		Detail:      "All IB ports run at maximum speed",
+		ErrorName:   "IBPortSpeedNotMax",
+		Suggestion:  "Ensure IB speed settings are correct in firmware",
 	},
 	CheckPCIEACS: {
 		Name:        CheckPCIEACS,
-		Description: checkDes[CheckPCIEACS],
-		Status:      "",
-		Level:       checkLevel[CheckPCIEACS],
-		Detail:      checkDetail[CheckPCIEACS],
-		ErrorName:   errName[CheckPCIEACS],
-		Suggestion:  checkAction[CheckPCIEACS],
+		Description: "Check if PCIe ACS is disabled",
+		Level:       consts.LevelCritical,
+		Detail:      "PCIe ACS is disabled on all IB paths",
+		ErrorName:   "PCIEACSNotDisabled",
+		Suggestion:  "Disable ACS in BIOS or kernel settings",
 	},
 	CheckPCIEMRR: {
 		Name:        CheckPCIEMRR,
-		Description: checkDes[CheckPCIEMRR],
-		Status:      "",
-		Level:       checkLevel[CheckPCIEMRR],
-		Detail:      checkDetail[CheckPCIEMRR],
-		ErrorName:   errName[CheckPCIEMRR],
-		Suggestion:  checkAction[CheckPCIEMRR],
+		Description: "Check if PCIe Max Read Request (MRR) is set correctly (4096)",
+		Level:       consts.LevelCritical,
+		Detail:      "PCIe MRR is set correctly (4096)",
+		ErrorName:   "PCIEMRRIncorrect",
+		Suggestion:  "Set MRR to 4096 via system config",
 	},
 	CheckPCIESpeed: {
 		Name:        CheckPCIESpeed,
-		Description: checkDes[CheckPCIESpeed],
-		Status:      "",
-		Level:       checkLevel[CheckPCIESpeed],
-		Detail:      checkDetail[CheckPCIESpeed],
-		ErrorName:   errName[CheckPCIESpeed],
-		Suggestion:  checkAction[CheckPCIESpeed],
+		Description: "Check if PCIe link speed is optimal",
+		Level:       consts.LevelCritical,
+		Detail:      "PCIe speed matches device spec",
+		ErrorName:   "PCIELinkSpeedDownDegraded",
+		Suggestion:  "Ensure PCIe slot and firmware support correct speed",
 	},
 	CheckPCIEWidth: {
 		Name:        CheckPCIEWidth,
-		Description: checkDes[CheckPCIEWidth],
-		Status:      "",
-		Level:       checkLevel[CheckPCIEWidth],
-		Detail:      checkDetail[CheckPCIEWidth],
-		ErrorName:   errName[CheckPCIEWidth],
-		Suggestion:  checkAction[CheckPCIEWidth],
+		Description: "Check if PCIe link width is optimal",
+		Level:       consts.LevelCritical,
+		Detail:      "PCIe width matches device spec",
+		ErrorName:   "PCIELinkWidthIncorrect",
+		Suggestion:  "Verify PCIe lane configuration in BIOS",
 	},
 	CheckPCIETreeSpeed: {
 		Name:        CheckPCIETreeSpeed,
-		Description: checkDes[CheckPCIETreeSpeed],
-		Status:      "",
-		Level:       checkLevel[CheckPCIETreeSpeed],
-		Detail:      checkDetail[CheckPCIETreeSpeed],
-		ErrorName:   errName[CheckPCIETreeSpeed],
-		Suggestion:  checkAction[CheckPCIETreeSpeed],
+		Description: "Check full PCIe tree speed to root complex",
+		Level:       consts.LevelCritical,
+		Detail:      "PCIe path to root complex supports full speed",
+		ErrorName:   "PCIETreeSpeedDownDegraded",
+		Suggestion:  "Check upstream PCIe device speed and configuration",
 	},
 	CheckPCIETreeWidth: {
 		Name:        CheckPCIETreeWidth,
-		Description: checkDes[CheckPCIETreeWidth],
-		Status:      "",
-		Level:       checkLevel[CheckPCIETreeWidth],
-		Detail:      checkDetail[CheckPCIETreeWidth],
-		ErrorName:   errName[CheckPCIETreeWidth],
-		Suggestion:  checkAction[CheckPCIETreeWidth],
+		Description: "Check full PCIe tree width to root complex",
+		Level:       consts.LevelCritical,
+		Detail:      "PCIe path to root complex supports full width",
+		ErrorName:   "PCIETreeWidthIncorrect",
+		Suggestion:  "Check PCIe switch and topology configuration",
 	},
 	CheckIBKmod: {
 		Name:        CheckIBKmod,
-		Description: checkDes[CheckIBKmod],
-		Status:      "",
-		Level:       checkLevel[CheckIBKmod],
-		Detail:      checkDetail[CheckIBKmod],
-		ErrorName:   errName[CheckIBKmod],
-		Suggestion:  checkAction[CheckIBKmod],
+		Description: "Check if all required IB kernel modules are installed",
+		Level:       consts.LevelCritical,
+		Detail:      "All IB kernel modules are loaded",
+		ErrorName:   "IBKernelModulesNotAllInstalled",
+		Suggestion:  "Install or reload missing kernel modules",
 	},
 	CheckIBDevs: {
 		Name:        CheckIBDevs,
-		Description: checkDes[CheckIBDevs],
-		Status:      "",
-		Level:       checkLevel[CheckIBDevs],
-		ErrorName:   errName[CheckIBDevs],
-		Suggestion:  checkAction[CheckIBDevs],
+		Description: "Check if IB device names match expectation",
+		Level:       consts.LevelWarning,
+		Detail:      "IB device names are consistent",
+		ErrorName:   "IBDeviceNameMismatch",
+		Suggestion:  "Verify udev or naming rules",
 	},
 }

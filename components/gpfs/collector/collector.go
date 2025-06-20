@@ -33,13 +33,13 @@ import (
 
 type GPFSCollector struct {
 	name string
-	cfg  *config.GpfsSpec
+	cfg  *config.GpfsEventRule
 
 	filter *filter.FileFilter
 	xstorHealth XStorHealthInfo
 }
 
-func NewGPFSCollector(cfg *config.GpfsSpec) (*GPFSCollector, error) {
+func NewGPFSCollector(cfg *config.GpfsEventRule) (*GPFSCollector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)

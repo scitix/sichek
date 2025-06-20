@@ -30,11 +30,11 @@ import (
 type IBKmodChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBKmodChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBKmodChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBKmodChecker{
 		id:   consts.CheckerIDInfinibandFW,
 		name: config.CheckIBKmod,
@@ -77,7 +77,7 @@ func (c *IBKmodChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	spec = strings.Join(c.spec.IBSoftWareInfo.KernelModule, ",")
 	if utils.IsNvidiaGPUExist() {
-		spec += "nvidia_peermem"
+		spec += ",nvidia_peermem"
 	}
 	curr = strings.Join(infinibandInfo.IBSoftWareInfo.KernelModule, ",")
 

@@ -38,6 +38,5 @@ func Main() {
 	ctx := context.Background()
 
 	// create and start task guard for fault tolerance
-	taskGuard := taskguard.MustNewController(svcCtx)
-	taskGuard.RunOrDie(ctx)
+	taskguard.MustNewController(svcCtx).RunOrDie(ctx)
 }
