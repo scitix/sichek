@@ -143,8 +143,13 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		if checkerResult.Status == consts.StatusAbnormal {
 			fileNameList := strings.Split(checkerResult.Device, ",")
 			podNameList := make([]string, 0, len(fileNameList))
+			podNameMap := make(map[string]struct{})
 			for _, fileName := range fileNameList {
 				podName, _ := getPodNameFromFileName(fileName)
+				if _, exists := podNameMap[podName]; exists {
+					continue // Skip if podName already exists
+				}
+				podNameMap[podName] = struct{}{} // Add podName to map
 				podNameList = append(podNameList, podName)
 			}
 			checkerResult.Device = strings.Join(podNameList, ",")
@@ -171,8 +176,8 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 		return nil, err
 	}
 	runningPodSet := make(map[string]struct{})
-	for podName := range deviceToPodMap {
-		runningPodSet[podName] = struct{}{}
+	for _, podInfo := range deviceToPodMap {
+		runningPodSet[podInfo.PodName] = struct{}{}
 	}
 	// Walk through the directory to find valid pod log files
 	runningPodFilePaths := make([]string, 0)
