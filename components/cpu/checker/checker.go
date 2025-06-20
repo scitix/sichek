@@ -22,7 +22,7 @@ import (
 	"github.com/scitix/sichek/components/cpu/config"
 )
 
-func NewCheckers(cfg *config.CpuSpec) ([]common.Checker, error) {
+func NewCheckers(cfg *config.CpuEventRule) ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
 	checker, err := NewCPUPerfChecker()
 	if err != nil {

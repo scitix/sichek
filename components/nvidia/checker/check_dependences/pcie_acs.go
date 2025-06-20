@@ -28,10 +28,10 @@ import (
 
 type PCIeACSChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewPCIeACSChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewPCIeACSChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &PCIeACSChecker{
 		name: config.PCIeACSCheckerName,
 		cfg:  cfg,

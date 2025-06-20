@@ -28,10 +28,10 @@ import (
 
 type SRAMAggUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewSRAMAggUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &SRAMAggUncorrectableChecker{
 		name: config.SRAMAggUncorrectableCheckerName,
 		cfg:  cfg,

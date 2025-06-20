@@ -28,10 +28,10 @@ import (
 
 type AppClocksChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewAppClocksChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewAppClocksChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &AppClocksChecker{
 		name: config.AppClocksCheckerName,
 		cfg:  cfg,

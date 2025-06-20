@@ -33,7 +33,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
           - name: metrics
-            containerPort: 9091
+            containerPort: 19091
           command: ["/bin/bash"]
           args:
             - "-c"
@@ -48,13 +48,6 @@ spec:
             value: none
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          env:
-          - name: NODE_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
-          - name: NVIDIA_VISIBLE_DEVICES
-            value: none
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

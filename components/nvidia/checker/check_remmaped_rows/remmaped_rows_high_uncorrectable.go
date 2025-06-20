@@ -28,10 +28,10 @@ import (
 
 type RemmapedRowsUncorrectableChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewRemmapedRowsUncorrectableChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &RemmapedRowsUncorrectableChecker{
 		name: config.RemmapedRowsUncorrectableCheckerName,
 		cfg:  cfg,

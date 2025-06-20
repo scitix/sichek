@@ -23,6 +23,7 @@ import (
 
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+
 	// "github.com/scitix/sichek/pkg/systemd"
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -55,7 +56,7 @@ import (
 
 // 	// Run the Check method
 // 	t.Logf("======test: `do NVFabricManagerChecker and expect to start nvidia-fabricmanager`=====")
-// 	cfg := &config.NvidiaSpecItem{}
+// 	cfg := &config.NvidiaSpec{}
 // 	checker, err := NewNVFabricManagerChecker(cfg)
 // 	if err != nil {
 // 		t.Fatalf("failed to create NVFabricManagerChecker: %v", err)
@@ -76,7 +77,7 @@ import (
 
 func TestIOMMUChecker_Check(t *testing.T) {
 	// Create a new IOMMUChecker
-	cfg := &config.NvidiaSpecItem{}
+	cfg := &config.NvidiaSpec{}
 	checker, err := NewIOMMUChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create IOMMUChecker: %v", err)
@@ -114,7 +115,7 @@ func TestNvPeerMemChecker_Check(t *testing.T) {
 	// Run the Check method
 	// Create a new NvPeerMemChecker
 	t.Logf("======test: `do NvPeerMemChecker and expect to load nvidia_peermem`=====")
-	cfg := &config.NvidiaSpecItem{}
+	cfg := &config.NvidiaSpec{}
 	checker, err := NewNvPeerMemChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create NvPeerMemChecker: %v", err)
@@ -167,7 +168,7 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 		// Run the Check method
 		// Create a new NvPeerMemChecker
 		t.Logf("======test: `do PCIeACSChecker and expect to disable ACS online`=====")
-		cfg := &config.NvidiaSpecItem{}
+		cfg := &config.NvidiaSpec{}
 		checker, err := NewPCIeACSChecker(cfg)
 		if err != nil {
 			t.Fatalf("failed to create PCIeACSChecker: %v", err)
@@ -184,7 +185,7 @@ func TestPCIeACSChecker_Check(t *testing.T) {
 	}
 
 	t.Logf("======test: `do PCIeACSChecker again and expect all ACS are disabled`=====")
-	cfg := &config.NvidiaSpecItem{}
+	cfg := &config.NvidiaSpec{}
 	checker, err := NewPCIeACSChecker(cfg)
 	if err != nil {
 		t.Fatalf("failed to create PCIeACSChecker: %v", err)
