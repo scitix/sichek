@@ -13,26 +13,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package perftest
+package config
 
 import (
+	"fmt"
+
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 )
 
-const (
-	NcclPerfCheckerName = "NcclPerfCheckerName"
-)
+type PodLogEventRules struct {
+	Rules *PodLogEventRule `yaml:"nccl" json:"nccl"`
+}
 
-// NcclPerfCheckItems is a map of check items for ncclperf
-var NcclPerfCheckItems = map[string]*common.CheckerResult{
-	NcclPerfCheckerName: {
-		Name:        NcclPerfCheckerName,
-		Description: "",
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelCritical,
-		Detail:      "",
-		ErrorName:   "NcclPerfError",
-		Suggestion:  "Check Nccl Bandwidth",
-	},
+type PodLogEventRule struct {
+	DirPath       string                `json:"log_dir" yaml:"log_dir"`
+	EventCheckers common.EventRuleGroup `json:"event_checkers" yaml:"event_checkers"`
+}
+
+func LoadDefaultEventRules() (*PodLogEventRule, error) {
+	eventRules := &PodLogEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNamePodLog)
+	if err == nil && eventRules.Rules != nil {
+		return eventRules.Rules, nil
+	}
+	return nil, fmt.Errorf("failed to load eventRules: %v", err)
 }

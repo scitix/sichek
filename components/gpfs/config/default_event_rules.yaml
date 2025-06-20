@@ -1,39 +1,65 @@
 gpfs: 
-  event_checkers:
-    time_clock:
-      name: "time_clock"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "Time-of-day may have jumped back"
-    OS_lockup:
-      name: "OS_lockup"
-      log_file: "/var/log/syslog"
-      regexp: "(soft lockup)|(hard LOCKUP)"
-    RDMA:
-      name: "RDMA"
-      description: "node VERBS RDMA error"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)|(VERBS RDMA failed to start)"
-    quorum_connection:
-      name: "quorum_connection"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "Unable to contact any quorum"
-    tcp_state:
-      name: "tcp_state"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "Bad TCP state detected"
-    filesystem_unmount:
-      name: "filesystem_unmount"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "unmounting file system"
-    expelled_from_cluster:
-      name: "expelled_from_cluster"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "This node is being expelled from the cluster"
-    unauthorized:
-      name: "unauthorized"
-      log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "cluster is not authorized"
-    bond0_lost:
-      name: "bond0_lost"
-      log_file: "/var/log/syslog"
-      regexp: "bond0: now running without any active interface"
+  time_clock:
+    name: "TimeClockError"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "Time-of-day may have jumped back"
+    description: "Time clock error detected"
+    level: "warning"
+    suggestion: "Reset the time clock with ntp"
+  OS_lockup:
+    name: "OSLockup"
+    log_file: "/var/log/syslog"
+    regexp: "(soft lockup)|(hard LOCKUP)"
+    description: "OS lockup, may cause GPFS heartbeat fail and unmount"
+    level: "warning"
+    suggestion: "Fix OS kernel and driver bugs"
+  RDMA:
+    name: "RDMAStatusError"
+    description: "node VERBS RDMA error"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)|(VERBS RDMA failed to start)"
+    description: "node RDMA network down"
+    level: "warning"
+    suggestion: "Check RDMA network and device"
+  quorum_connection:
+    name: "QuorumConnectionDown"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "Unable to contact any quorum"
+    description: "connection with quorum node down"
+    level: "critical"
+    suggestion: "Check GPFS daemon network"
+  tcp_state:
+    name: "BadTcpState"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "Bad TCP state detected"
+    description: "node TCP connection down"
+    level: "warning"
+    suggestion: "Check GPFS daemon network"
+  filesystem_unmount:
+    name: "GPFSUnmount"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "unmounting file system"
+    description: "node filesystem unmounted"
+    level: "critical"
+    suggestion: "Check GPFS status"
+  expelled_from_cluster:
+    name: "ExpelledFromGPFSCluster"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "This node is being expelled from the cluster"
+    description: "node expelled from GPFS cluster"
+    level: "critical"
+    suggestion: "Check GPFS daemon network and status"
+  unauthorized:
+    name: "GPFSUnauthorized"
+    log_file: "/var/adm/ras/mmfs.log.latest"
+    regexp: "cluster is not authorized"
+    description: "node unauthorized for remote cluster"
+    level: "warning"
+    suggestion: "Check GPFS authorization status"
+  bond0_lost:
+    name: "Bond0Lost"
+    log_file: "/var/log/syslog"
+    regexp: "bond0: now running without any active interface"
+    description: "bond0 not active"
+    level: "warning"
+    suggestion: "Check GPFS ether network"

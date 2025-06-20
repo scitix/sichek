@@ -13,13 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package filter
+package eventfilter
 
 import (
 	"fmt"
 	"os"
 	"os/exec"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,47 +36,33 @@ type CommandFilter struct {
 	CacheLineN int64
 
 	LogFileName []string
-	FileFilter  *FileFilter
+	EventFilter *EventFilter
 }
 
-func NewCommandFilter(regexpName []string, regexps []string, cmds [][]string, cacheLine int64) (*CommandFilter, error) {
-	if len(regexpName) != len(regexps) {
-		logrus.Error("wrong input, u need spesify a name for each regexps")
-		return nil, fmt.Errorf("No Name specified for regexp")
-	}
-
-	var regexs []*RegexFilter
-	for i := 0; i < len(regexps); i++ {
-		regexs = append(regexs, NewRegexFilter(regexpName[i], regexps[i]))
-	}
-	return NewCommandFilterWithReg(regexs, cmds, cacheLine)
-}
-
-func NewCommandFilterWithReg(regexs []*RegexFilter, cmds [][]string, cacheLine int64) (*CommandFilter, error) {
+func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig, cacheLine int64) (*CommandFilter, error) {
 	var res CommandFilter
+	res.Regex = make([]*RegexFilter, 0)
+	res.Commands = make([]*Command, 0)
 	res.CacheLineN = cacheLine
-	res.Regex = regexs
-	for i := 0; i < len(res.Regex); i++ {
-		if err := res.Regex[i].Compile(); err != nil {
-			return nil, err
-		}
+	if len(rules) == 0 {
+		logrus.WithField("CommandFilter", "NewCommandFilter").Error("no rules provided")
+		return nil, fmt.Errorf("no rules provided in CommandFilter new")
+	}
+	if len(cmd) == 0 {
+		logrus.WithField("CommandFilter", res.Regex).Error("failed to save cmd[%ld] which is empty")
+		return nil, fmt.Errorf("empty cmd in CommandFilter new")
+	} else {
+		res.Commands = append(res.Commands, NewCommand(cmd[0], cmd[1:]...))
 	}
 
-	for i := 0; i < len(cmds); i++ {
-		if len(cmds[i]) == 0 {
-			logrus.WithField("CommandFilter", res.Regex).Error("failed to save cmd[%ld] which is empty", i)
-			return nil, fmt.Errorf("empty cmd in CommandFilter new")
-		} else {
-			res.Commands = append(res.Commands, NewCommand(cmds[i][0], cmds[i][1:]...))
-		}
-
-		logFileName := "/tmp/" + cmds[i][0] + ".sichek.log"
-
-		res.LogFileName = append(res.LogFileName, logFileName)
+	logFileName := "/tmp/sichek." + cmd[0] + ".log"
+	for _, rule := range rules {
+		rule.LogFile = logFileName
 	}
+	res.LogFileName = append(res.LogFileName, logFileName)
 
 	var err error
-	res.FileFilter, err = NewFileFilterWithRegSkip(res.Regex, res.LogFileName, res.CacheLineN, 0)
+	res.EventFilter, err = NewEventFilter("dmesg", rules, res.CacheLineN, 0)
 	if err != nil {
 		logrus.WithField("CommandFilter", res.Regex).Error("failed to create fileFilter")
 		return nil, err
@@ -89,7 +76,7 @@ func NewCommand(command string, args ...string) *Command {
 	res.Command = command
 	res.Args = args
 
-	res.CmdDesc = res.Command
+	res.CmdDesc = res.Command + " "
 	for j := 0; j < len(res.Args); j++ {
 		res.CmdDesc = res.CmdDesc + res.Args[j] + " "
 	}
@@ -97,7 +84,7 @@ func NewCommand(command string, args ...string) *Command {
 	return &res
 }
 
-func (f *CommandFilter) Check() []FilterResult {
+func (f *CommandFilter) Check() *common.Result {
 	for k := 0; k < len(f.Commands); k++ {
 		fd, err := os.OpenFile(f.LogFileName[k], os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
@@ -117,12 +104,12 @@ func (f *CommandFilter) Check() []FilterResult {
 
 		if err := cmd.Run(); err != nil {
 			logrus.WithField("Command", command.CmdDesc).WithError(err).Error("failed to run cmd")
-			return []FilterResult{}
+			return nil
 		}
 	}
-	return f.FileFilter.Check()
+	return f.EventFilter.Check()
 }
 
 func (f *CommandFilter) Close() bool {
-	return f.FileFilter.Close()
+	return f.EventFilter.Close()
 }

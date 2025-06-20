@@ -146,13 +146,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return &common.Result{}, err
 	}
 	resResult := &common.Result{
-		Item:       consts.ComponentNameHang,
-		Node:       "hang",
-		Status:     checkRes.Status,
-		Level:      checkRes.Level,
-		Suggestion: checkRes.Suggestion,
-		Checkers:   []*common.CheckerResult{checkRes},
-		Time:       time.Now(),
+		Item:     consts.ComponentNameHang,
+		Node:     "hang",
+		Status:   checkRes.Status,
+		Level:    checkRes.Level,
+		Checkers: []*common.CheckerResult{checkRes},
+		Time:     time.Now(),
 	}
 
 	c.cacheMtx.Lock()
