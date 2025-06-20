@@ -79,25 +79,23 @@ func newComponent(cfgFile string, specFile string) (comp *component, err error) 
 		}
 	}()
 	cfg := &config.CpuUserConfig{}
-	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.CPU == nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent load config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewCpuComponent get user config failed")
 	}
-	specCfg := &config.CpuSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(specFile)
+	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "cpu").Errorf("NewComponent load spec config failed: %v", err)
+		logrus.WithField("component", "cpu").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	cpuSpec := specCfg.CpuSpec
-	collectorPointer, err := collector.NewCpuCollector(ctx, cpuSpec)
+	collectorPointer, err := collector.NewCpuCollector(ctx, eventRules)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(cpuSpec)
+	checkers, err := checker.NewCheckers(eventRules)
 	if err != nil {
 		logrus.WithField("component", "cpu").Errorf("NewComponent create checkers failed: %v", err)
 		return nil, err

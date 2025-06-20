@@ -26,8 +26,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.NvidiaSpecItem, nvmlInst nvml.Interface) ([]common.Checker, error) {
-	checkerConstructors := map[string]func(*config.NvidiaSpecItem) (common.Checker, error){
+func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.NvidiaSpec, nvmlInst nvml.Interface) ([]common.Checker, error) {
+	checkerConstructors := map[string]func(*config.NvidiaSpec) (common.Checker, error){
 		config.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
 		config.IOMMUCheckerName:           dependence.NewIOMMUChecker,
 		config.NVFabricManagerCheckerName: dependence.NewNVFabricManagerChecker,

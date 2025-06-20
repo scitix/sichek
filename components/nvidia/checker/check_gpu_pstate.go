@@ -29,10 +29,10 @@ import (
 
 type GpuPStateChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewGpuPStateChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewGpuPStateChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &GpuPStateChecker{
 		name: config.GpuPStateCheckerName,
 		cfg:  cfg,

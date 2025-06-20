@@ -46,7 +46,7 @@ func (c *HangUserConfig) SetQueryInterval(newInterval common.Duration) {
 }
 
 func (c *HangUserConfig) LoadUserConfigFromYaml(file string) error {
-	err := common.LoadComponentUserConfig(file, c)
+	err := common.LoadUserConfig(file, c)
 	if err != nil || c.Hang == nil {
 		return fmt.Errorf("failed to load default hang user config: %v", err)
 	}

@@ -24,16 +24,17 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBPCIESpeedChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBPCIESpeedChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBPCIESpeedChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBPCIESpeedChecker{
 		id:   consts.CheckerIDInfinibandFW,
 		name: config.CheckPCIESpeed,
@@ -74,13 +75,17 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	var faiedHcasSpec []string
 	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			logrus.WithField("checker", c.name).Debugf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.PCIESpeed)
+		spec = append(spec, hcaSpec.Hardware.PCIESpeed)
 		curr = append(curr, hwInfo.PCIESpeed)
-		if !strings.Contains(hwInfo.PCIESpeed, hcaSpec.PCIESpeed) {
+		if !strings.Contains(hwInfo.PCIESpeed, hcaSpec.Hardware.PCIESpeed) {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIESpeed)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIESpeed)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIESpeed)
 		}
 	}

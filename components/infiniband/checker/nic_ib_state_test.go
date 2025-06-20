@@ -19,23 +19,28 @@ import (
 	"context"
 	"testing"
 
+	hcaConfig "github.com/scitix/sichek/components/hca/config"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 )
 
 func TestIBStateChecker_Check(t *testing.T) {
-	spec := &config.InfinibandSpecItem{
-		HCAs: map[string]*collector.IBHardWareInfo{
+	spec := &config.InfinibandSpec{
+		HCAs: map[string]*hcaConfig.HCASpec{
 			"MT_0000000970": {
-				IBDev:     "MT_0000000970",
-				BoardID:   "MT_0000000970",
+				Hardware: collector.IBHardWareInfo{
+				IBDev:    "MT_0000000970",
+				BoardID:  "MT_0000000970",
 				PortState: "ACTIVE",
+				},
 			},
 			"MT_0000001119": {
+				Hardware: collector.IBHardWareInfo{
 				IBDev:     "MT_0000001119",
 				BoardID:   "MT_0000001119",
 				PortState: "ACTIVE",
+				},
 			},
 		},
 	}

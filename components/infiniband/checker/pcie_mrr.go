@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -31,11 +32,11 @@ import (
 type PCIEMRRChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewPCIEMRRChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewPCIEMRRChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &PCIEMRRChecker{
 		id:   consts.CheckerIDInfinibandFW,
 		name: config.CheckPCIEMRR,
@@ -77,13 +78,17 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	var faiedHcasSpec []string
 	var faiedHcasCurr []string
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			log.Printf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.PCIEMRR)
+		spec = append(spec, hcaSpec.Hardware.PCIEMRR)
 		curr = append(curr, hwInfo.PCIEMRR)
-		if hwInfo.PCIEMRR != hcaSpec.PCIEMRR {
+		if hwInfo.PCIEMRR != hcaSpec.Hardware.PCIEMRR {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.PCIEMRR)
+			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIEMRR)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEMRR)
 			// auto fix if the curr not match the spec
 			ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
@@ -125,7 +130,7 @@ func ModifyPCIeMaxReadRequest(deviceAddr string, offset string, newHighNibble in
 		return fmt.Errorf("failed to parse hex value: %v", err)
 	}
 
-	fmt.Printf("Current value: 0x%04X\n", currentValue)
+	// fmt.Printf("Current value: 0x%04X\n", currentValue)
 
 	// Modify the high nibble
 	// Clear the top 4 bits (0x0FFF mask)
@@ -133,7 +138,8 @@ func ModifyPCIeMaxReadRequest(deviceAddr string, offset string, newHighNibble in
 	// Set the new high nibble
 	newValue |= uint64(newHighNibble) << 12
 
-	fmt.Printf("New value: 0x%04X\n", newValue)
+	log.Printf("Modifying PCIe Max Read Request for device %s at offset %s: current value 0x%04X, new value 0x%04X", deviceAddr, offset, currentValue, newValue)
+	// fmt.Printf("New value: 0x%04X\n", newValue)
 
 	// Write back the new value
 	writeValueStr := fmt.Sprintf("%04x", newValue)

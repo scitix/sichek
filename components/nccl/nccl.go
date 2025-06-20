@@ -77,19 +77,17 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 	}()
 
 	ncclCfg := &config.NCCLUserConfig{}
-	err = common.LoadComponentUserConfig(cfgFile, ncclCfg)
+	err = common.LoadUserConfig(cfgFile, ncclCfg)
 	if err != nil || ncclCfg.NCCL == nil {
 		logrus.WithField("component", "nccl").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewNcclComponent get user config failed")
 	}
-	specCfg := &config.NcclSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(specFile)
+	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "nccl").Errorf("NewComponent load spec config failed: %v", err)
+		logrus.WithField("component", "nccl").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	ncclSpec := specCfg.NcclSpec
-	ncclCollector, err := collector.NewNCCLCollector(ncclSpec)
+	ncclCollector, err := collector.NewNCCLCollector(eventRules)
 	if err != nil {
 		logrus.WithField("component", "nccl").WithError(err).Error("failed to create NCCLCollector")
 		return nil, err

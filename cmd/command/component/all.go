@@ -153,7 +153,7 @@ func NewAllCmd() *cobra.Command {
 				logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
 				return
 			}
-			passed := topotest.PrintInfo(res, !eventonly)
+			passed := topotest.PrintInfo(res, !eventonly && verbos)
 			ComponentStatuses[res.Item] = passed
 		},
 	}
@@ -190,10 +190,13 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		return hang.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameNvidia:
 		if !utils.IsNvidiaGPUExist() {
-			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Nvidia GPU HealthCheck")
 		}
 		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameNCCL:
+		if !utils.IsNvidiaGPUExist() {
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing NCCL HealthCheck")
+		}
 		return nccl.NewComponent(cfgFile, specFile)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)

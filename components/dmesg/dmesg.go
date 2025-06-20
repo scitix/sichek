@@ -77,24 +77,22 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		}
 	}()
 	dmsgCfg := &config.DmesgUserConfig{}
-	err = common.LoadComponentUserConfig(cfgFile, dmsgCfg)
+	err = common.LoadUserConfig(cfgFile, dmsgCfg)
 	if err != nil || dmsgCfg.Dmesg == nil {
 		logrus.WithField("component", "dmesg").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewDmesgComponent get user config failed")
 	}
-	specCfg := &config.DmesgSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(specFile)
+	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "dmesg").Errorf("NewComponent load spec config failed: %v", err)
+		logrus.WithField("component", "dmesg").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	dmesgSpec := specCfg.DmesgSpec
-	collectorPointer, err := collector.NewDmesgCollector(dmesgSpec)
+	collectorPointer, err := collector.NewDmesgCollector(eventRules)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create DmesgCollector")
 	}
 
-	dmesgChecker := checker.NewDmesgChecker(dmesgSpec)
+	dmesgChecker := checker.NewDmesgChecker(eventRules)
 
 	component := &component{
 		ctx:           ctx,

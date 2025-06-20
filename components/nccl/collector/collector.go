@@ -33,13 +33,13 @@ import (
 
 type NCCLCollector struct {
 	name string
-	cfg  *config.NcclSpec
+	cfg  *config.NcclEventRule
 
 	RegexpName []string
 	Regexp     []string
 }
 
-func NewNCCLCollector(cfg *config.NcclSpec) (*NCCLCollector, error) {
+func NewNCCLCollector(cfg *config.NcclEventRule) (*NCCLCollector, error) {
 
 	if len(cfg.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no NCCL Collector indicate in yaml config")

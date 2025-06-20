@@ -17,10 +17,8 @@ package taskguard
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -50,23 +48,13 @@ type annotation struct {
 func (c *Controller) getSiChekResultFromNode(nodeName string) SiChekResult {
 	var res SiChekResult
 
-	obj, exists, err := c.nodeInformer.GetStore().GetByKey(nodeName)
+	node, err := c.node.GetNodeByName(nodeName)
 	if err != nil {
-		logx.Errorf("failed to get node info, node: %s, err: %s", nodeName, err.Error())
-		return res
-	}
-	if !exists {
-		logx.Errorf("node %s does not exist", nodeName)
+		logx.Errorf("failed to get node %s info, err: %s", nodeName, err.Error())
 		return res
 	}
 
-	nodeInfo, ok := obj.(*corev1.Node)
-	if !ok {
-		logx.Errorf("failed to get node info, node: %s", nodeName)
-		return res
-	}
-
-	siChekResultStr, ok := nodeInfo.Annotations[c.config.SiChekNodeAnnotationKey]
+	siChekResultStr, ok := node.Annotations[c.config.SiChekNodeAnnotationKey]
 	if !ok {
 		return res
 	}
@@ -104,18 +92,8 @@ func (c *Controller) isTaskPodHealthy(nodeName, podName string) bool {
 				continue
 			}
 			for _, annotation := range annotations {
-				logx.Infof("check pod %s status from sichek, annotation %v", podName, annotation)
-				if len(annotation.Device) == 0 {
-					return false
-				}
-				deviceSlice := strings.Split(annotation.Device, ",")
-				for _, device := range deviceSlice {
-					deviceInfo := strings.Split(device, ":")
-					if len(deviceInfo) == 2 && (len(deviceInfo[1]) == 0 || deviceInfo[1] == podName) {
-						logx.Infof("pod %s in node %s unhealthy with %s", podName, nodeName, annotation.ErrorName)
-						return false
-					}
-				}
+				logx.Infof("pod %s unhealthy from sichek, annotation %+v", podName, annotation)
+				return false
 			}
 		}
 	}
@@ -135,19 +113,8 @@ func (c *Controller) isTaskPodHangFromSiChek(nodeName, podName string) bool {
 			continue
 		}
 		for _, annotation := range annotations {
-			logx.Infof("check pod %s hang status from sichek, annotation %v", podName, annotation)
-			if len(annotation.Device) == 0 {
-				return true
-			}
-			deviceSlice := strings.Split(annotation.Device, ",")
-			for _, device := range deviceSlice {
-				deviceInfo := strings.Split(device, ":")
-				if len(deviceInfo) == 2 && (len(deviceInfo[1]) == 0 || deviceInfo[1] == podName) {
-					logx.Infof("pod %s in node %s has hang issue of %s", podName, nodeName, annotation.ErrorName)
-					return true
-				}
-			}
-
+			logx.Infof("pod %s hang from sichek, annotation %+v", podName, annotation)
+			return true
 		}
 	}
 
