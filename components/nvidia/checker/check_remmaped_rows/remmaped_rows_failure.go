@@ -28,10 +28,10 @@ import (
 
 type RemmapedRowsFailureChecker struct {
 	name string
-	cfg  *config.NvidiaSpecItem
+	cfg  *config.NvidiaSpec
 }
 
-func NewRemmapedRowsFailureChecker(cfg *config.NvidiaSpecItem) (common.Checker, error) {
+func NewRemmapedRowsFailureChecker(cfg *config.NvidiaSpec) (common.Checker, error) {
 	return &RemmapedRowsFailureChecker{
 		name: config.RemmapedRowsFailureCheckerName,
 		cfg:  cfg,

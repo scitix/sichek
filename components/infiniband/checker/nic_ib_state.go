@@ -24,19 +24,20 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBStateChecker struct {
 	id          string
 	name        string
-	spec        *config.InfinibandSpecItem
+	spec        *config.InfinibandSpec
 	description string
 }
 
-func NewIBStateChecker(specCfg *config.InfinibandSpecItem) (common.Checker, error) {
+func NewIBStateChecker(specCfg *config.InfinibandSpec) (common.Checker, error) {
 	return &IBStateChecker{
 		id:   consts.CheckerIDInfinibandFW,
-		name: config.ChekIBState,
+		name: config.CheckIBState,
 		spec: specCfg,
 	}, nil
 }
@@ -73,10 +74,14 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
+			logrus.Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			continue
+		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.PortState)
+		spec = append(spec, hcaSpec.Hardware.PortState)
 		curr = append(curr, hwInfo.PortState)
-		if !strings.Contains(hwInfo.PortState, hcaSpec.PortState) {
+		if !strings.Contains(hwInfo.PortState, hcaSpec.Hardware.PortState) {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}

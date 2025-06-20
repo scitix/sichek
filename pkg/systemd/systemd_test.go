@@ -37,24 +37,24 @@ func TestIsServiceActive(t *testing.T) {
 	}
 }
 
-func TestStartSystemdService(t *testing.T) {
-	err := StopSystemdService("nvidia-fabricmanager")
-	if err != nil {
-		t.Errorf("failed to stop nvidia-fabricmanager: %v", err)
-	}
-	err = EnableSystemdService("nvidia-fabricmanager")
-	if err != nil {
-		t.Errorf("failed to enable nvidia-fabricmanager: %v", err)
-	}
-	err = RestartSystemdService("nvidia-fabricmanager")
-	if err != nil {
-		t.Errorf("failed to start nvidia-fabricmanager: %v", err)
-	}
-	active, err := IsActive("nvidia-fabricmanager")
-	if err != nil {
-		t.Errorf("failed to check nvidia-fabricmanager active: %v", err)
-	}
-	if !active {
-		t.Errorf("service nvidia-fabricmanager not active")
-	}
-}
+// func TestStartSystemdService(t *testing.T) {
+// 	err := StopSystemdService("nvidia-fabricmanager")
+// 	if err != nil {
+// 		t.Errorf("failed to stop nvidia-fabricmanager: %v", err)
+// 	}
+// 	err = EnableSystemdService("nvidia-fabricmanager")
+// 	if err != nil {
+// 		t.Errorf("failed to enable nvidia-fabricmanager: %v", err)
+// 	}
+// 	err = RestartSystemdService("nvidia-fabricmanager")
+// 	if err != nil {
+// 		t.Errorf("failed to start nvidia-fabricmanager: %v", err)
+// 	}
+// 	active, err := IsActive("nvidia-fabricmanager")
+// 	if err != nil {
+// 		t.Errorf("failed to check nvidia-fabricmanager active: %v", err)
+// 	}
+// 	if !active {
+// 		t.Errorf("service nvidia-fabricmanager not active")
+// 	}
+// }

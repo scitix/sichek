@@ -77,25 +77,23 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 	}()
 
 	cfg := &config.GpfsUserConfig{}
-	err = common.LoadComponentUserConfig(cfgFile, cfg)
+	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Gpfs == nil {
 		logrus.WithField("component", "gpfs").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewGpfsComponent get user config failed")
 	}
-	specCfg := &config.GpfsSpecConfig{}
-	err = specCfg.LoadSpecConfigFromYaml(specFile)
+	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "gpfs").Errorf("NewComponent load spec config failed: %v", err)
+		logrus.WithField("component", "gpfs").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	gpfsSpec := specCfg.GpfsSpec
-	collectorPointer, err := collector.NewGPFSCollector(gpfsSpec)
+	collectorPointer, err := collector.NewGPFSCollector(eventRules)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(gpfsSpec)
+	checkers, err := checker.NewCheckers(eventRules)
 	if err != nil {
 		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create checkers failed: %v", err)
 		return nil, err

@@ -59,6 +59,6 @@ The detection processes are categorized into three main areas: *hardware*, *soft
 - Suggestion: check the hca card port speed properly.
 
 #### HCA_PCIe_ACS
-- Description: Checks the Access Control Services (ACS) settings of the PCIe to ensure proper traffic routing and prevent potential security vulnerabilities within the PCIe topology.
+- Description: Checks the Access Control Services (ACS) settings of the PCIe to ensure proper traffic routing and prevent potential security vulnerabilities within the pcie topology.
 - Criticality: critical
 - Suggestion: use shell cmd "for i in $(lspci | cut -f 1 -d ' '); do setpci -v -s $i ecap_acs+6.w=0; done" disable acs.
