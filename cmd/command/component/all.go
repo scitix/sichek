@@ -67,23 +67,23 @@ func NewAllCmd() *cobra.Command {
 
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
-				logrus.WithField("components", "all").Error(err)
+				logrus.WithField("component", "all").Error(err)
 			} else {
 				if cfgFile != "" {
-					logrus.WithField("components", "all").Info("load cfgFile: " + cfgFile)
+					logrus.WithField("component", "all").Info("load cfgFile: " + cfgFile)
 				} else {
-					logrus.WithField("components", "all").Info("load default cfg...")
+					logrus.WithField("component", "all").Info("load default cfg...")
 				}
 			}
 
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "all").Error(err)
+				logrus.WithField("component", "all").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "all").Info("load specFile: " + specFile)
+					logrus.WithField("component", "all").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "all").Info("load default specFile...")
+					logrus.WithField("component", "all").Info("load default specFile...")
 				}
 			}
 
@@ -163,7 +163,7 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
 	allCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by ','")
-	allCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
+	allCmd.Flags().StringP("ignore-components", "I", "podlog,hang", "Ignored components")
 	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
@@ -195,7 +195,7 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNamePodLog:
 		if !utils.IsNvidiaGPUExist() {
-			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing NCCL HealthCheck")
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing PodLog HealthCheck")
 		}
 		return podlog.NewComponent(cfgFile, specFile)
 	default:

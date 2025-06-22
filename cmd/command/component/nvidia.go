@@ -51,36 +51,36 @@ func NewNvidiaCmd() *cobra.Command {
 				defer cancel()
 			} else {
 				defer func() {
-					logrus.WithField("components", "Nvidia").Info(fmt.Printf("Run NVIDIA HealthCheck Cmd context canceled"))
+					logrus.WithField("component", "Nvidia").Info(fmt.Printf("Run NVIDIA HealthCheck Cmd context canceled"))
 					cancel()
 				}()
 			}
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
-				logrus.WithField("components", "Nvidia").Error(err)
+				logrus.WithField("component", "Nvidia").Error(err)
 			} else {
 				if cfgFile != "" {
-					logrus.WithField("components", "Nvidia").Info("load cfgFile: " + cfgFile)
+					logrus.WithField("component", "Nvidia").Info("load cfgFile: " + cfgFile)
 				} else {
-					logrus.WithField("components", "Nvidia").Info("load default cfg...")
+					logrus.WithField("component", "Nvidia").Info("load default cfg...")
 				}
 			}
 
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "Nvidia").Error(err)
+				logrus.WithField("component", "Nvidia").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "Nvidia").Info("load specFile: " + specFile)
+					logrus.WithField("component", "Nvidia").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "Nvidia").Info("load default specFile...")
+					logrus.WithField("component", "Nvidia").Info("load default specFile...")
 				}
 			}
 			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
 			if err != nil {
-				logrus.WithField("components", "Nvidia").Error(err)
+				logrus.WithField("component", "Nvidia").Error(err)
 			} else {
-				logrus.WithField("components", "Nvidia").Info("ignore checkers", ignoredCheckersStr)
+				logrus.WithField("component", "Nvidia").Info("ignore checkers", ignoredCheckersStr)
 			}
 			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
 			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)

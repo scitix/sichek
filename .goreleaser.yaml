@@ -67,10 +67,12 @@ nfpms:
       dst: /var/sichek/config/hang/
     - src: ./components/infiniband/config/*.yaml
       dst: /var/sichek/config/infiniband/
+    - src: ./components/infiniband/perftest/nccl_perf
+      dst: /var/sichek/nccl_perf
     - src: ./components/memory/config/*.yaml
       dst: /var/sichek/config/memory/
-    - src: ./components/nccl/config/*.yaml
-      dst: /var/sichek/config/nccl/
+    - src: ./components/podlog/config/*.yaml
+      dst: /var/sichek/config/podlog/
     - src: ./components/nvidia/config/*.yaml
       dst: /var/sichek/config/nvidia/
     - src: ./components/hca/config/*.yaml
@@ -79,8 +81,6 @@ nfpms:
       dst: /var/sichek/config/
     - src: ./components/pcie/config/*.yaml
       dst: /var/sichek/config/pcie/
-    - src: ./components/nccl/perftest/nccl_perf
-      dst: /var/sichek/nccl_perf
     - src: ./test/get_ib_info.sh
       dst: /var/sichek/get_ib_info.sh
 

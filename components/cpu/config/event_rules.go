@@ -28,7 +28,7 @@ type CpuEventRules struct {
 
 func LoadDefaultEventRules() (common.EventRuleGroup, error) {
 	eventRules := &CpuEventRules{}
-	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameGpfs)
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameCPU)
 	if err == nil && eventRules.Rules != nil {
 		return eventRules.Rules, nil
 	}

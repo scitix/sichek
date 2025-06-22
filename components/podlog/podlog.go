@@ -82,12 +82,12 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 	ncclCfg := &config.PodLogUserConfig{}
 	err = common.LoadUserConfig(cfgFile, ncclCfg)
 	if err != nil || ncclCfg.NCCL == nil {
-		logrus.WithField("component", "nccl").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		logrus.WithField("component", "podlog").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewNcclComponent get user config failed")
 	}
 	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "nccl").Errorf("failed to NewComponent: %v", err)
+		logrus.WithField("component", "podlog").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
 
@@ -136,7 +136,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 
 	result := filterPointer.Check()
 	if result == nil {
-		logrus.WithField("component", "nccl").WithError(err).Error("failed to Collect(ctx)")
+		logrus.WithField("component", "podlog").WithError(err).Error("failed to Collect(ctx)")
 		return nil, err
 	}
 	for _, checkerResult := range result.Checkers {
@@ -161,9 +161,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.currIndex++
 	c.cacheMtx.Unlock()
 	if result.Status == consts.StatusAbnormal {
-		logrus.WithField("component", "nccl").Errorf("Health Check Failed")
+		logrus.WithField("component", "podlog").Errorf("Health Check Failed")
 	} else {
-		logrus.WithField("component", "nccl").Infof("Health Check PASSED")
+		logrus.WithField("component", "podlog").Infof("Health Check PASSED")
 	}
 
 	return result, nil
@@ -172,7 +172,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 	deviceToPodMap, err := c.podResourceMapper.GetDeviceToPodMap()
 	if err != nil {
-		logrus.WithField("component", "nccl").WithError(err).Error("failed to GetDeviceToPodMap")
+		logrus.WithField("component", "podlog").WithError(err).Error("failed to GetDeviceToPodMap")
 		return nil, err
 	}
 	runningPodSet := make(map[string]struct{})
@@ -185,7 +185,7 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 
 	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			logrus.WithField("component", "nccl").WithError(walkErr).Errorf("skip dir %s", path)
+			logrus.WithField("component", "podlog").WithError(walkErr).Errorf("skip dir %s", path)
 			return nil // Skip the path if there is an error
 		}
 		if d.IsDir() {
@@ -199,12 +199,12 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 		}
 		allFiles[path] = struct{}{}
 		if !strings.HasSuffix(path, ".log") {
-			logrus.WithField("component", "nccl").Debugf("skip file %s, not a log file", path)
+			logrus.WithField("component", "podlog").Debugf("skip file %s, not a log file", path)
 			return nil // Skip if the file is not a log file
 		}
 		absPath, err := filepath.Abs(path)
 		if err != nil {
-			logrus.WithField("component", "nccl").WithError(err).Errorf("failed to get absolute path for %s", path)
+			logrus.WithField("component", "podlog").WithError(err).Errorf("failed to get absolute path for %s", path)
 			return nil // Skip if we can't get the absolute path
 		}
 		podName, err := getPodNameFromFileName(absPath)
@@ -218,7 +218,7 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 		return nil
 	})
 	if err != nil {
-		logrus.WithField("component", "nccl").WithError(err).Errorf("failed to walk dir %s", dir)
+		logrus.WithField("component", "podlog").WithError(err).Errorf("failed to walk dir %s", dir)
 		return nil, fmt.Errorf("failed to walk dir %s: %w", dir, err)
 	}
 	return runningPodFilePaths, err
@@ -301,7 +301,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			}
 		}
 	}
-	utils.PrintTitle("PodLog Error", "-")
+	utils.PrintTitle("PodLog", "-")
 	checkAllPassed := true
 	for _, checkerResult := range checkerResults {
 		switch checkerResult.Name {
@@ -320,7 +320,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	if checkAllPassed {
 		fmt.Printf("%sNo PodLog Error detected%s\n", consts.Green, consts.Reset)
 	}
-	return false
+	return checkAllPassed
 }
 
 func getPodNameFromFileName(fileName string) (string, error) {

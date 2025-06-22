@@ -23,7 +23,7 @@ import (
 )
 
 type PodLogEventRules struct {
-	Rules *PodLogEventRule `yaml:"nccl" json:"nccl"`
+	Rules *PodLogEventRule `yaml:"podlog" json:"podlog"`
 }
 
 type PodLogEventRule struct {
