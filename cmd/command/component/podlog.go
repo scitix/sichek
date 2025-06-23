@@ -18,18 +18,18 @@ package component
 import (
 	"context"
 
-	"github.com/scitix/sichek/components/nccl"
+	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-func NewNCCLCmd() *cobra.Command {
-	ncclCmd := &cobra.Command{
-		Use:     "nccl",
-		Aliases: []string{"nc"},
-		Short:   "Perform NCCL check",
+func NewPodLogCmd() *cobra.Command {
+	podlogCmd := &cobra.Command{
+		Use:     "podlog",
+		Aliases: []string{"p"},
+		Short:   "Perform podlog error check",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
@@ -41,30 +41,30 @@ func NewNCCLCmd() *cobra.Command {
 				defer cancel()
 			} else {
 				defer func() {
-					logrus.WithField("component", "NCCL").Info("Run NCCL Cmd context canceled")
+					logrus.WithField("component", "podlog").Info("Run NCCL Cmd context canceled")
 					cancel()
 				}()
 			}
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
-				logrus.WithField("component", "NCCL").Error(err)
+				logrus.WithField("component", "podlog").Error(err)
 				return
 			} else {
-				logrus.WithField("component", "NCCL").Infof("load cfg file:%s", cfgFile)
+				logrus.WithField("component", "podlog").Infof("load cfg file:%s", cfgFile)
 			}
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "NCCL").Error(err)
+				logrus.WithField("component", "podlog").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "NCCL").Info("load specFile: " + specFile)
+					logrus.WithField("component", "podlog").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "NCCL").Info("load default specFile...")
+					logrus.WithField("component", "podlog").Info("load default specFile...")
 				}
 			}
-			component, err := nccl.NewComponent(cfgFile, specFile)
+			component, err := podlog.NewComponent(cfgFile, specFile)
 			if err != nil {
-				logrus.WithField("component", "NCCL").Error(err)
+				logrus.WithField("component", "podlog").Error(err)
 				return
 			}
 			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
@@ -75,9 +75,9 @@ func NewNCCLCmd() *cobra.Command {
 		},
 	}
 
-	ncclCmd.Flags().StringP("cfg", "c", "", "Path to the NCCL Cfg file")
-	ncclCmd.Flags().StringP("spec", "s", "", "Path to the NCCL specification file")
-	ncclCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
+	podlogCmd.Flags().StringP("cfg", "c", "", "Path to the NCCL Cfg file")
+	podlogCmd.Flags().StringP("spec", "s", "", "Path to the NCCL specification file")
+	podlogCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
-	return ncclCmd
+	return podlogCmd
 }

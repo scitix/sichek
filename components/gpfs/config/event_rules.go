@@ -23,21 +23,10 @@ import (
 )
 
 type GpfsEventRules struct {
-	Rules *GpfsEventRule `yaml:"gpfs" json:"gpfs"`
+	Rules common.EventRuleGroup `yaml:"gpfs" json:"gpfs"`
 }
 
-type GpfsSpec struct {
-	EventCheckers 		map[string]*GPFSEventConfig `json:"event_checkers" yaml:"event_checkers"`
-	XStorHealthCheckers []string					`json:"xstor_health_checkers" yaml:"xstor_health_checkers"`
-}
-
-type GPFSEventConfig struct {
-	Name    string `json:"name" yaml:"name"`
-	LogFile string `json:"log_file" yaml:"log_file"`
-	Regexp  string `json:"regexp" yaml:"regexp"`
-}
-
-func LoadDefaultEventRules() (*GpfsEventRule, error) {
+func LoadDefaultEventRules() (common.EventRuleGroup, error) {
 	eventRules := &GpfsEventRules{}
 	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameGpfs)
 	if err == nil && eventRules.Rules != nil {

@@ -56,12 +56,12 @@ func NewGpfsCmd() *cobra.Command {
 			}
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "Gpfs").Error(err)
+				logrus.WithField("component", "Gpfs").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "Gpfs").Info("load specFile: " + specFile)
+					logrus.WithField("component", "Gpfs").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "Gpfs").Info("load default specFile...")
+					logrus.WithField("component", "Gpfs").Info("load default specFile...")
 				}
 			}
 			component, err := gpfs.NewGpfsComponent(cfgFile, specFile)

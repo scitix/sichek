@@ -183,8 +183,8 @@ func TestLoadSpecFromDefaultYaml(t *testing.T) {
 	if len(specs.Specs) < 1 {
 		t.Fatalf("Expected spec at least have 1 entry, got %d", len(specs.Specs))
 	}
-	if _, ok := specs.Specs["0x233010de"]; !ok {
-		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")
+	if _, ok := specs.Specs["0x233510de"]; !ok {
+		t.Fatalf("Expected spec to have key '0x233510de', it doesn't exist")
 	}
 }
 

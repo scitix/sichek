@@ -18,20 +18,16 @@ package collector
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/memory/config"
-	"github.com/scitix/sichek/pkg/utils/filter"
 
 	"github.com/sirupsen/logrus"
 )
 
 type Output struct {
-	Info         *MemoryInfo                       `json:"info"`
-	EventResults map[string][]*filter.FilterResult `json:"event_results"`
-	Time         time.Time
+	Info *MemoryInfo `json:"info"`
+	Time time.Time
 }
 
 func (o *Output) JSON() (string, error) {
@@ -41,39 +37,11 @@ func (o *Output) JSON() (string, error) {
 
 type MemoryCollector struct {
 	name string
-	cfg  *config.MemoryEventRule
-
-	filter *filter.FileFilter
 }
 
-func NewCollector(cfg *config.MemoryEventRule) (*MemoryCollector, error) {
-	filterNames := make([]string, 0)
-	regexps := make([]string, 0)
-	filesMap := make(map[string]bool)
-	files := make([]string, 0)
-	for _, checkerCfg := range cfg.EventCheckers {
-		_, err := os.Stat(checkerCfg.LogFile)
-		if err != nil {
-			logrus.WithField("collector", "Memory").Errorf("log file %s not exist for Memory collector", checkerCfg.LogFile)
-			continue
-		}
-		filterNames = append(filterNames, checkerCfg.Name)
-		if _, exist := filesMap[checkerCfg.LogFile]; !exist {
-			files = append(files, checkerCfg.LogFile)
-			filesMap[checkerCfg.LogFile] = true
-		}
-		regexps = append(regexps, checkerCfg.Regexp)
-	}
-
-	filterPointer, err := filter.NewFileFilter(filterNames, regexps, files, 1)
-	if err != nil {
-		return nil, err
-	}
-
+func NewCollector() (*MemoryCollector, error) {
 	return &MemoryCollector{
-		name:   "MemoryCollector",
-		cfg:    cfg,
-		filter: filterPointer,
+		name: "MemoryCollector",
 	}, nil
 }
 
@@ -82,11 +50,6 @@ func (c *MemoryCollector) Name() string {
 }
 
 func (c *MemoryCollector) Collect(ctx context.Context) (common.Info, error) {
-	filterRes := c.filter.Check()
-	filterResMap := make(map[string][]*filter.FilterResult)
-	for _, res := range filterRes {
-		filterResMap[res.Name] = append(filterResMap[res.Name], &res)
-	}
 	info := &MemoryInfo{}
 	err := info.Get()
 	if err != nil {
@@ -95,9 +58,8 @@ func (c *MemoryCollector) Collect(ctx context.Context) (common.Info, error) {
 	}
 
 	output := &Output{
-		Info:         info,
-		EventResults: filterResMap,
-		Time:         time.Now(),
+		Info: info,
+		Time: time.Now(),
 	}
 
 	return output, nil

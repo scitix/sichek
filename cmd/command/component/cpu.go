@@ -56,12 +56,12 @@ func NewCPUCmd() *cobra.Command {
 
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "all").Error(err)
+				logrus.WithField("component", "all").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "all").Info("load specFile: " + specFile)
+					logrus.WithField("component", "all").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "all").Info("load default specFile...")
+					logrus.WithField("component", "all").Info("load default specFile...")
 				}
 			}
 			component, err := cpu.NewComponent(cfgFile, specFile)

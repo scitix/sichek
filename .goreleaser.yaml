@@ -35,12 +35,12 @@ builds:
     flags:
       - -mod=vendor
     ldflags:
-      - "-X 'cmd/command/version.Major={{ .Env.VERSION_MAJOR }}'"
-      - "-X 'cmd/command/version.Minor={{ .Env.VERSION_MINOR }}'"
-      - "-X 'cmd/command/version.Patch={{ .Env.VERSION_PATCH }}'"
-      - "-X 'cmd/command/version.GitCommit={{ .Env.GIT_COMMIT }}'"
-      - "-X 'cmd/command/version.GoVersion={{ .Env.GO_VERSION }}'"
-      - "-X 'cmd/command/version.BuildTime={{ .Env.BUILD_TIME }}'"
+      - "-X 'github.com/scitix/sichek/cmd/command.Major={{ .Env.VERSION_MAJOR }}'"
+      - "-X 'github.com/scitix/sichek/cmd/command.Minor={{ .Env.VERSION_MINOR }}'"
+      - "-X 'github.com/scitix/sichek/cmd/command.Patch={{ .Env.VERSION_PATCH }}'"
+      - "-X 'github.com/scitix/sichek/cmd/command.GitCommit={{ .Env.GIT_COMMIT }}'"
+      - "-X 'github.com/scitix/sichek/cmd/command.GoVersion={{ .Env.GO_VERSION }}'"
+      - "-X 'github.com/scitix/sichek/cmd/command.BuildTime={{ .Env.BUILD_TIME }}'"
 
 
 nfpms:
@@ -67,10 +67,12 @@ nfpms:
       dst: /var/sichek/config/hang/
     - src: ./components/infiniband/config/*.yaml
       dst: /var/sichek/config/infiniband/
+    - src: ./components/infiniband/perftest/nccl_perf
+      dst: /var/sichek/nccl_perf
     - src: ./components/memory/config/*.yaml
       dst: /var/sichek/config/memory/
-    - src: ./components/nccl/config/*.yaml
-      dst: /var/sichek/config/nccl/
+    - src: ./components/podlog/config/*.yaml
+      dst: /var/sichek/config/podlog/
     - src: ./components/nvidia/config/*.yaml
       dst: /var/sichek/config/nvidia/
     - src: ./components/hca/config/*.yaml
@@ -79,8 +81,6 @@ nfpms:
       dst: /var/sichek/config/
     - src: ./components/pcie/config/*.yaml
       dst: /var/sichek/config/pcie/
-    - src: ./components/nccl/perftest/nccl_perf
-      dst: /var/sichek/nccl_perf
     - src: ./test/get_ib_info.sh
       dst: /var/sichek/get_ib_info.sh
 

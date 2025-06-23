@@ -45,14 +45,12 @@ type Component interface {
 }
 
 type Result struct {
-	Item       string           `json:"item"`
-	Node       string           `json:"node"`
-	Status     string           `json:"status"`
-	Level      string           `json:"level"`
-	RawData    string           `json:"raw_data"`
-	Suggestion string           `json:"suggest"`
-	Checkers   []*CheckerResult `json:"checkers"`
-	Time       time.Time        `json:"time"`
+	Item     string           `json:"item"`
+	Node     string           `json:"node"`
+	Status   string           `json:"status"`
+	Level    string           `json:"level"`
+	Checkers []*CheckerResult `json:"checkers"`
+	Time     time.Time        `json:"time"`
 }
 
 func (r *Result) JSON() (string, error) {

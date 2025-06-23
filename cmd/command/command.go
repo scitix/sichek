@@ -59,7 +59,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewInfinibandCmd())
 	// rootCmd.AddCommand(component.NewEthernetCmd())
 	rootCmd.AddCommand(component.NewGpfsCmd())
-	rootCmd.AddCommand(component.NewNCCLCmd())
+	rootCmd.AddCommand(component.NewPodLogCmd())
 	rootCmd.AddCommand(component.NewDmesgCmd())
 	rootCmd.AddCommand(component.NewHangCommand())
 	rootCmd.AddCommand(component.NewMemoryCmd())

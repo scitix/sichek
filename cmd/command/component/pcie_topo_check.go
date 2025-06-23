@@ -48,12 +48,12 @@ func NewPcieTopoCmd() *cobra.Command {
 			}
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "topo").Error(err)
+				logrus.WithField("component", "topo").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "topo").Info("load specFile: " + specFile)
+					logrus.WithField("component", "topo").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "topo").Info("load default specFile...")
+					logrus.WithField("component", "topo").Info("load default specFile...")
 				}
 			}
 			res, err := topotest.CheckGPUTopology(specFile)
