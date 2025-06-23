@@ -25,19 +25,14 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/cpu/config"
-	"github.com/scitix/sichek/pkg/utils/filter"
-
-	"github.com/sirupsen/logrus"
 )
 
 type CPUOutput struct {
-	Time         time.Time                         `json:"time"`
-	CPUArchInfo  CPUArchInfo                       `json:"cpu_arch_info"`
-	UsageInfo    Usage                             `json:"cpu_usage_info"`
-	HostInfo     HostInfo                          `json:"host_info"`
-	Uptime       string                            `json:"uptime"`
-	EventResults map[string][]*filter.FilterResult `json:"event_results"`
+	Time        time.Time   `json:"time"`
+	CPUArchInfo CPUArchInfo `json:"cpu_arch_info"`
+	UsageInfo   Usage       `json:"cpu_usage_info"`
+	HostInfo    HostInfo    `json:"host_info"`
+	Uptime      string      `json:"uptime"`
 }
 
 func (o *CPUOutput) JSON() (string, error) {
@@ -47,40 +42,13 @@ func (o *CPUOutput) JSON() (string, error) {
 
 type Collector struct {
 	name        string
-	cfg         *config.CpuEventRule
 	CPUArchInfo *CPUArchInfo `json:"cpu_arch_info"`
 	HostInfo    *HostInfo    `json:"host_info"`
-	filter      *filter.FileFilter
 }
 
-func NewCpuCollector(ctx context.Context, cfg *config.CpuEventRule) (*Collector, error) {
-	filterNames := make([]string, 0)
-	regexps := make([]string, 0)
-	filesMap := make(map[string]bool)
-	files := make([]string, 0)
-	for _, checkerCfg := range cfg.EventCheckers {
-		_, err := os.Stat(checkerCfg.LogFile)
-		if err != nil {
-			logrus.WithField("collector", "CPU").Errorf("log file %s not exist for CPU collector", checkerCfg.LogFile)
-			continue
-		}
-		filterNames = append(filterNames, checkerCfg.Name)
-		if _, exist := filesMap[checkerCfg.LogFile]; !exist {
-			files = append(files, checkerCfg.LogFile)
-			filesMap[checkerCfg.LogFile] = true
-		}
-		regexps = append(regexps, checkerCfg.Regexp)
-	}
-
-	filterPointer, err := filter.NewFileFilter(filterNames, regexps, files, 1)
-	if err != nil {
-		return nil, err
-	}
-
+func NewCpuCollector(ctx context.Context) (*Collector, error) {
 	collector := &Collector{
-		name:   "CPUCollector",
-		cfg:    cfg,
-		filter: filterPointer,
+		name: "CPUCollector",
 	}
 	collector.CPUArchInfo = &CPUArchInfo{}
 	if err := collector.CPUArchInfo.Get(ctx); err != nil {
@@ -112,14 +80,6 @@ func (c *Collector) Collect(ctx context.Context) (common.Info, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get uptime failed: %v", err)
 	}
-
-	filterRes := c.filter.Check()
-	filterResMap := make(map[string][]*filter.FilterResult)
-	for _, res := range filterRes {
-		filterResMap[res.Name] = append(filterResMap[res.Name], &res)
-	}
-	cpuOutput.EventResults = filterResMap
-
 	return cpuOutput, nil
 }
 

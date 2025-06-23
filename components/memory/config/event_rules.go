@@ -23,22 +23,10 @@ import (
 )
 
 type MemoryEventRules struct {
-	Rules *MemoryEventRule `yaml:"memory" json:"memory"`
+	Rules common.EventRuleGroup `yaml:"memory" json:"memory"`
 }
 
-type MemoryEventRule struct {
-	EventCheckers map[string]*MemoryEventConfig `json:"event_checkers" yaml:"event_checkers"`
-}
-
-type MemoryEventConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	LogFile     string `json:"log_file" yaml:"log_file"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
-}
-
-func LoadDefaultEventRules() (*MemoryEventRule, error) {
+func LoadDefaultEventRules() (common.EventRuleGroup, error) {
 	eventRules := &MemoryEventRules{}
 	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameMemory)
 	if err == nil && eventRules.Rules != nil {

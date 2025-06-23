@@ -35,8 +35,8 @@ const (
 	ComponentNameDmesg      = "dmesg"
 	ComponentIDHang         = "11"
 	ComponentNameHang       = "hang"
-	ComponentIDNCCL         = "12"
-	ComponentNameNCCL       = "nccl"
+	ComponentIDPodLog       = "12"
+	ComponentNamePodLog     = "podlog"
 	ComponentIDHCA          = "13"
 	ComponentNameHCA        = "hca"
 	ComponentIDPCIE         = "14"
@@ -59,7 +59,7 @@ const (
 	CheckerIDInfinibandPortSpeed     = "4013"
 	CheckerNetOperstate              = "4014"
 	CheckerIDDmesg                   = "4200"
-	CheckerIDNCCL                    = "4300"
+	CheckerIDPodLog                  = "4300"
 	CheckerIDHang                    = "4400"
 
 	/*----------------------error name------------------------*/
@@ -69,9 +69,6 @@ const (
 )
 
 const (
-	TaskGuardEndpoint = "localhost"
-	TaskGuardPort     = 15040
-
 	KubeConfigPath = "/etc/kubernetes/kubelet.conf"
 	DefaultAnnoKey = "scitix.ai/sichek"
 
@@ -84,7 +81,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNameNCCL, ComponentNameHang,
+		ComponentNamePodLog, ComponentNameHang,
 	}
 )
 
@@ -132,3 +129,5 @@ const (
 const PadLen = len(Green) + len(Reset)
 const CmdTimeout = 30 * time.Second
 const AllCmdTimeout = 60 * time.Second
+const DefaultCacheLine int64 = 10000 // Default cache line number for event filter
+const DefaultFileLoaderInterval = 1 * time.Minute // Default interval for file loader scheduler

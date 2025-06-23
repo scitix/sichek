@@ -31,10 +31,6 @@ type InfinibandConfig struct {
 	IgnoredCheckers []string        `json:"ignored_checkers" yaml:"ignored_checkers"`
 }
 
-func (c *InfinibandUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {
-	return nil
-}
-
 func (c *InfinibandUserConfig) GetQueryInterval() common.Duration {
 	return c.Infiniband.QueryInterval
 }
