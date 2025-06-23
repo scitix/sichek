@@ -22,25 +22,18 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-type NcclEventRules struct {
-	Rules *NcclEventRule `yaml:"nccl" json:"nccl"`
+type PodLogEventRules struct {
+	Rules *PodLogEventRule `yaml:"podlog" json:"podlog"`
 }
 
-type NcclEventRule struct {
-	DirPath       string                      `json:"log_dir" yaml:"log_dir"`
-	EventCheckers map[string]*NCCLErrorConfig `json:"event_checkers" yaml:"event_checkers"`
+type PodLogEventRule struct {
+	DirPath       string                `json:"log_dir" yaml:"log_dir"`
+	EventCheckers common.EventRuleGroup `json:"event_checkers" yaml:"event_checkers"`
 }
 
-type NCCLErrorConfig struct {
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Regexp      string `json:"regexp" yaml:"regexp"`
-	Level       string `json:"level" yaml:"level"`
-}
-
-func LoadDefaultEventRules() (*NcclEventRule, error) {
-	eventRules := &NcclEventRules{}
-	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameNCCL)
+func LoadDefaultEventRules() (*PodLogEventRule, error) {
+	eventRules := &PodLogEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNamePodLog)
 	if err == nil && eventRules.Rules != nil {
 		return eventRules.Rules, nil
 	}

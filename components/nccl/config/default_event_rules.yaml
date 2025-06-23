@@ -1,8 +1,0 @@
-nccl: 
-  log_dir: "/var/log/pods"
-  event_checkers:
-    TIMEOUT:
-      name: "NCCL Timeout"
-      description: "NCCL Timeout error"
-      regexp: 'Watchdog caught collective operation timeout'
-      level: error

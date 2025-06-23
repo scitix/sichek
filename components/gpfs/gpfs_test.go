@@ -69,6 +69,13 @@ memory:
 		t.Fatalf("Failed to create temp test_mmfs_log file: %v", err)
 	}
 	t.Logf("Log file: %s", logFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp testLogFile: %v", err)
+		}
+	}(testLogFile)
+
 	// Write some test data to the log file
 	_, err = logFile.WriteString("test log data\n")
 	if err != nil {
@@ -134,12 +141,12 @@ memory:
 			}
 		}
 	}()
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 	content, err = os.ReadFile(testLogFile)
 	if err != nil {
 		t.Fatalf("Failed to read testLogFile: %v", err)
 	}
-	t.Logf("Current log file content: %s", string(content))
+	// t.Logf("Current log file content: %s", string(content))
 
 	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 	if err != nil {

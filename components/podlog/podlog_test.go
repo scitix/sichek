@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nccl
+package podlog
 
 import (
 	"context"
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/k8s"
 )
 
 func TestNCCL(t *testing.T) {
@@ -44,4 +45,20 @@ func TestNCCL(t *testing.T) {
 	}
 	t.Logf("test nccl analysis result: %s", js)
 	t.Logf("Running time: %ds", time.Since(start))
+}
+
+func TestGetRunningPodFilePaths(t *testing.T) {
+	// Create the component
+	podResourceMapper := k8s.NewPodResourceMapper()
+	component := &component{
+		podResourceMapper: podResourceMapper,
+	}
+
+	// Call the method under test
+	result, err := component.GetRunningPodFilePaths("/var/log/pods")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Logf("result: %v", result)
 }

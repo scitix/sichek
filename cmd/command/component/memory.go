@@ -55,12 +55,12 @@ func NewMemoryCmd() *cobra.Command {
 			}
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "memory").Error(err)
+				logrus.WithField("component", "memory").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "memory").Info("load specFile: " + specFile)
+					logrus.WithField("component", "memory").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "memory").Info("load default specFile...")
+					logrus.WithField("component", "memory").Info("load default specFile...")
 				}
 			}
 			component, err := memory.NewComponent(cfgFile, specFile)

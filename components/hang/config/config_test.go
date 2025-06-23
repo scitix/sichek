@@ -71,7 +71,7 @@ hang:
       threshold: 20 # MB/s
       compare: low
   check_items_by_model:
-    - model: "0x233010de"
+    - model: "0x233010dex"
       override:
         pwr:
           threshold: 150
@@ -166,8 +166,8 @@ hang:
 	if gpuHangRule.Indicators["txpci"].CompareType != "low" {
 		t.Fatalf("Expected spec txpci compare type to be 'low', got '%s'", gpuHangRule.Indicators["txpci"].CompareType)
 	}
-	if gpuHangRule.IndicatorsByModel[0].Model != "0x233010de" {
-		t.Fatalf("Expected first model to be '0x233010de', got '%s'", gpuHangRule.IndicatorsByModel[0].Model)
+	if gpuHangRule.IndicatorsByModel[0].Model != "0x233010dex" {
+		t.Fatalf("Expected first model to be '0x233010dex', got '%s'", gpuHangRule.IndicatorsByModel[0].Model)
 	}
 	if len(gpuHangRule.IndicatorsByModel[0].Override) != 3 {
 		t.Fatalf("Expected first model to have 3 overrides, got %d", len(gpuHangRule.IndicatorsByModel[0].Override))
