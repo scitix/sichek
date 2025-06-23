@@ -54,12 +54,12 @@ func NewDmesgCmd() *cobra.Command {
 			}
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "Dmesg").Error(err)
+				logrus.WithField("component", "Dmesg").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "Dmesg").Info("load specFile: " + specFile)
+					logrus.WithField("component", "Dmesg").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "Dmesg").Info("load default specFile...")
+					logrus.WithField("component", "Dmesg").Info("load default specFile...")
 				}
 			}
 			component, err := dmesg.NewComponent(cfgFile, specFile)

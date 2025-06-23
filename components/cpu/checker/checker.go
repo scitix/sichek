@@ -19,24 +19,14 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/cpu/config"
 )
 
-func NewCheckers(cfg *config.CpuEventRule) ([]common.Checker, error) {
+func NewCheckers() ([]common.Checker, error) {
 	checkers := make([]common.Checker, 0)
 	checker, err := NewCPUPerfChecker()
 	if err != nil {
 		return nil, fmt.Errorf("create cpu perf checker failed: %v", err)
 	}
 	checkers = append(checkers, checker)
-
-	for name, eventCfg := range cfg.EventCheckers {
-		eventChecker, err := NewEventChecker(eventCfg)
-		if err != nil {
-			return nil, fmt.Errorf("create event %s checker failed: %v", name, err)
-		}
-		checkers = append(checkers, eventChecker)
-	}
-
 	return checkers, nil
 }

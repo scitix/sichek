@@ -39,8 +39,6 @@ type notifier struct {
 	client    *http.Client
 	k8sClient *k8s.K8sClient
 
-	endpoint        string
-	port            int
 	annoKey         string
 	AnnotationMutex sync.Mutex
 }
@@ -57,8 +55,6 @@ func NewNotifier(annoKey string) (Notifier, error) {
 	return &notifier{
 		client:    &http.Client{},
 		k8sClient: k8sClient,
-		endpoint:  consts.TaskGuardEndpoint,
-		port:      consts.TaskGuardPort,
 		annoKey:   annoKey,
 	}, nil
 }

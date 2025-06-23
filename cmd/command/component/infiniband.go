@@ -59,20 +59,20 @@ func NewInfinibandCmd() *cobra.Command {
 
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("component", "infiniband").Error(err)
 			} else {
 				if specFile != "" {
-					logrus.WithField("components", "infiniband").Info("load specFile: " + specFile)
+					logrus.WithField("component", "infiniband").Info("load specFile: " + specFile)
 				} else {
-					logrus.WithField("components", "infiniband").Info("load default specFile...")
+					logrus.WithField("component", "infiniband").Info("load default specFile...")
 				}
 			}
 
 			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
 			if err != nil {
-				logrus.WithField("components", "infiniband").Error(err)
+				logrus.WithField("component", "infiniband").Error(err)
 			} else {
-				logrus.WithField("components", "infiniband").Info("ignore checkers", ignoredCheckersStr)
+				logrus.WithField("component", "infiniband").Info("ignore checkers", ignoredCheckersStr)
 			}
 			var ignoredCheckers []string
 			if len(ignoredCheckersStr) > 0 {
