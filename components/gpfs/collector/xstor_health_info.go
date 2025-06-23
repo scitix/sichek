@@ -16,27 +16,30 @@ limitations under the License.
 package collector
 
 import (
+	"encoding/json"
+
 	"github.com/scitix/sichek/components/common"
 )
 
 type GPFSXStorHealthItem struct {
-	Item		string			`json:"item" yaml:"item"`
-	Node		string			`json:"node" yaml:"node"`
-	Dev			string			`json:"dev" yaml:"dev"`
-	Detail		string			`json:"detail" yaml:"detail"`
-	Spec		string			`json:"spec" yaml:"spec"`
-	Curr		string			`json:"curr" yaml:"curr"`
-	Status		string			`json:"status" yaml:"status"`
-	Info		string			`json:"info" yaml:"info"`
-	Errno		uint64			`json:"errno" yaml:"errno"`
+	Item   string `json:"item" yaml:"item"`
+	Node   string `json:"node" yaml:"node"`
+	Dev    string `json:"dev" yaml:"dev"`
+	Detail string `json:"detail" yaml:"detail"`
+	Spec   string `json:"spec" yaml:"spec"`
+	Curr   string `json:"curr" yaml:"curr"`
+	Status string `json:"status" yaml:"status"`
+	Info   string `json:"info" yaml:"info"`
+	Errno  uint64 `json:"errno" yaml:"errno"`
 }
 
 type XStorHealthInfo struct {
 	HealthItems map[string]*GPFSXStorHealthItem
 }
 
-func (xstorHealthInfo *XStorHealthInfo) JSON() ([]byte, error) {
-	return common.JSON(xstorHealthInfo)
+func (xstorHealthInfo *XStorHealthInfo) JSON() (string, error) {
+	data, err := json.Marshal(xstorHealthInfo)
+	return string(data), err
 }
 
 func (xstorHealthInfo *XStorHealthInfo) ToString() string {

@@ -146,13 +146,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return &common.Result{}, err
 	}
 	resResult := &common.Result{
-		Item:       consts.ComponentNameHang,
-		Node:       "hang",
-		Status:     checkRes.Status,
-		Level:      checkRes.Level,
-		Suggestion: checkRes.Suggestion,
-		Checkers:   []*common.CheckerResult{checkRes},
-		Time:       time.Now(),
+		Item:     consts.ComponentNameHang,
+		Node:     "hang",
+		Status:   checkRes.Status,
+		Level:    checkRes.Level,
+		Checkers: []*common.CheckerResult{checkRes},
+		Time:     time.Now(),
 	}
 
 	c.cacheMtx.Lock()
@@ -231,7 +230,7 @@ func (c *component) GetTimeout() time.Duration {
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	checkAllPassed := true
 	checkerResults := result.Checkers
-	utils.PrintTitle("Hang Error", "-")
+	utils.PrintTitle("Hang", "-")
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {
 			checkAllPassed = false

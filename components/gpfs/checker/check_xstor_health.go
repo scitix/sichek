@@ -29,18 +29,11 @@ import (
 
 type XStorHealthChecker struct {
 	name string
-	cfg  *config.GpfsSpec
 }
 
-func NewXStorHealthChecker(cfg common.CheckerSpec, checkerName string) (common.Checker, error) {
-	gpfsCfg, ok := cfg.(*config.GpfsSpec)
-	if !ok {
-		return nil, fmt.Errorf("invalid XStorHealthChecker config type")
-	}
-
+func NewXStorHealthChecker(checkerName string) (common.Checker, error) {
 	return &XStorHealthChecker{
 		name: checkerName,
-		cfg:  gpfsCfg,
 	}, nil
 }
 
@@ -48,20 +41,16 @@ func (c *XStorHealthChecker) Name() string {
 	return c.name
 }
 
-func (c *XStorHealthChecker) GetSpec() common.CheckerSpec {
-	return c.cfg
-}
-
 func (c *XStorHealthChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
 	result := config.GPFSCheckItems[c.name]
-	gpfsInfo, ok := data.(*collector.GPFSInfo)
+	xstorHealthInfo, ok := data.(*collector.XStorHealthInfo)
 	if !ok {
 		result.Status = consts.StatusAbnormal
 		result.Detail = "invalid gpfsInfo type"
 		return &result, fmt.Errorf("invalid gpfsInfo type")
 	}
 
-	item, ok := gpfsInfo.XStorHealthInfo.HealthItems[c.name]
+	item, ok := xstorHealthInfo.HealthItems[c.name]
 	if !ok {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Empty %s check result", c.name)
@@ -69,9 +58,9 @@ func (c *XStorHealthChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 	if item.Status != consts.StatusNormal {
 		result.Status = consts.StatusAbnormal
-		logrus.WithField("components", "GPFS-XStorHealth").Errorf("XStorHealth check %s failed, spec: %s, curr: %s", c.name,  item.Spec, item.Curr)
+		logrus.WithField("components", "GPFS-XStorHealth").Errorf("XStorHealth check %s failed, spec: %s, curr: %s", c.name, item.Spec, item.Curr)
 	} else {
-		result.Status =  consts.StatusNormal
+		result.Status = consts.StatusNormal
 	}
 	result.Device = item.Dev
 	result.Curr = item.Curr

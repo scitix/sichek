@@ -140,7 +140,7 @@ func getActiveIBDevices() ([]collector.IBHardWareInfo, error) {
 	var info collector.InfinibandInfo
 	ibDevs := info.GetIBdevs()
 	var activeDevices []collector.IBHardWareInfo
-	for mlxDev, _ := range ibDevs {
+	for mlxDev := range ibDevs {
 		var hwInfo collector.IBHardWareInfo
 		if len(info.GetPhyStat(mlxDev)) >= 1 {
 			hwInfo.PhyState = info.GetPhyStat(mlxDev)[0]
@@ -181,11 +181,12 @@ func CheckNodeIBPerfHealth(ibBwPerfType string, expectedBandwidthGbps float64, i
 	status := consts.StatusNormal
 	checkRes := make([]*common.CheckerResult, 0)
 	for _, dev := range usedDeviceInfos {
-		resItem := IbPerfCheckItems[IbPerfCheckerName]
+		resItem := PerfCheckItems[IbPerfCheckerName]
 		var bw float64
 		var err error
 		if numaAware {
-			numaNode, err := strconv.Atoi(dev.NumaNode)
+			numaNode, err2 := strconv.Atoi(dev.NumaNode)
+			err = err2
 			if err != nil {
 				return nil, fmt.Errorf("error converting numa node string %s to int: %v", dev.NodeGUID, err)
 			}

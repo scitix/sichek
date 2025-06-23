@@ -91,7 +91,7 @@ func runNcclTest(cfg Config) ([]float64, error) {
 func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Result {
 	var sum float64
 
-	resItem := NcclPerfCheckItems[NcclPerfCheckerName]
+	resItem := PerfCheckItems[NcclPerfCheckerName]
 	for _, bw := range avgBusBandwidths {
 		sum += bw
 	}
@@ -136,7 +136,7 @@ func CheckNcclPerf(numGpus int, beginBuffer string, endBuffer string, enableNvls
 	return res, nil
 }
 
-func PrintInfo(result *common.Result) bool {
+func PrintNcclPerfInfo(result *common.Result) bool {
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {

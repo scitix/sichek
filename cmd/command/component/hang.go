@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/hang"
 	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
@@ -64,9 +63,10 @@ func NewHangCommand() *cobra.Command {
 			} else {
 				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
 			}
-			component, err := hang.NewComponent(cfgFile, specFile)
+			// component, err := hang.NewComponent(cfgFile, specFile)
+			component, err := NewComponent(consts.ComponentNameHang, cfgFile, specFile, nil)
 			if err != nil {
-				logrus.WithField("components", "Hang").Error("fail to Create Hang Components")
+				logrus.WithField("component", "Hang").Error("fail to Create Hang Components")
 				return
 			}
 

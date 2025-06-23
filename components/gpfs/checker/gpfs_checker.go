@@ -22,24 +22,27 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.GpfsEventRule) ([]common.Checker, error) {
-	checkers := make([]common.Checker, 0)
-	for name, cfg := range cfg.EventCheckers {
-		checker, err := NewEventChecker(cfg)
-		if err != nil {
-			logrus.WithField("component", "gpfs").Errorf("create event checker %s failed: %v", name, err)
-			return nil, err
-		}
-		checkers = append(checkers, checker)
+func NewCheckers(cfg *config.GpfsUserConfig) ([]common.Checker, error) {
+	ignoredSet := make(map[string]struct{})
+	for _, checker := range cfg.Gpfs.IgnoredCheckers {
+		ignoredSet[checker] = struct{}{}
 	}
-	for _, name := range cfg.XStorHealthCheckers {
-		checker, err := NewXStorHealthChecker(cfg, name)
-		if err != nil {
-			logrus.WithField("component", "gpfs").Errorf("create xstorHealth checker %s failed: %v", name, err)
-			return nil, err
+	usedCheckersName := make([]string, 0)
+	usedCheckers := make([]common.Checker, 0)
+	for checkerName := range config.GPFSCheckItems {
+		if _, found := ignoredSet[checkerName]; found {
+			continue
 		}
-		checkers = append(checkers, checker)
-	}
 
-	return checkers, nil
+		checker, err := NewXStorHealthChecker(checkerName)
+		if err != nil {
+			logrus.WithField("component", "gpfs").WithError(err).WithField("checker", checkerName).Error("Failed to create checker")
+			continue
+		}
+		usedCheckers = append(usedCheckers, checker)
+		usedCheckersName = append(usedCheckersName, checkerName)
+	}
+	logrus.WithField("component", "gpfs-checker").Infof("usedCheckers: %v, ignoredCheckers: %v", usedCheckersName, cfg.Gpfs.IgnoredCheckers)
+
+	return usedCheckers, nil
 }

@@ -72,7 +72,7 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 		return a.Hang, nil
 	case consts.ComponentNameInfiniband:
 		return a.Infiniband, nil
-	case consts.ComponentNameNCCL:
+	case consts.ComponentNamePodLog:
 		return a.NCCL, nil
 	case consts.ComponentNameNvidia:
 		return a.NVIDIA, nil
@@ -97,7 +97,7 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 		a.Hang = annotations
 	case consts.ComponentNameInfiniband:
 		a.Infiniband = annotations
-	case consts.ComponentNameNCCL:
+	case consts.ComponentNamePodLog:
 		a.NCCL = annotations
 	case consts.ComponentNameNvidia:
 		a.NVIDIA = annotations
