@@ -13,26 +13,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package perftest
+package config
 
 import (
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/consts"
 )
 
-const (
-	NcclPerfCheckerName = "NcclPerfCheckerName"
-)
+type PodLogUserConfig struct {
+	NCCL *NCCLConfig `json:"nccl" yaml:"nccl"`
+}
 
-// NcclPerfCheckItems is a map of check items for ncclperf
-var NcclPerfCheckItems = map[string]*common.CheckerResult{
-	NcclPerfCheckerName: {
-		Name:        NcclPerfCheckerName,
-		Description: "",
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelCritical,
-		Detail:      "",
-		ErrorName:   "NcclPerfError",
-		Suggestion:  "Check Nccl Bandwidth",
-	},
+type NCCLConfig struct {
+	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
+}
+
+func (c *PodLogUserConfig) GetQueryInterval() common.Duration {
+	return c.NCCL.QueryInterval
+}
+
+func (c *PodLogUserConfig) SetQueryInterval(newInterval common.Duration) {
+	c.NCCL.QueryInterval = newInterval
 }

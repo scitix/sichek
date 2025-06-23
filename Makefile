@@ -3,8 +3,8 @@ PROJECT_NAME := sichek
 GO := go
 INSTALL_DIR := /usr/local/bin
 VERSION_MAJOR := 0
-VERSION_MINOR := 4
-VERSION_PATCH := 3
+VERSION_MINOR := 5
+VERSION_PATCH := 0
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
 BUILD_TIME := $(shell date -u '+%Y-%m-%d')
@@ -31,6 +31,7 @@ debug:
 	curl -X PUT "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/vdebug/sichek_vdebug_linux_amd64.deb" --upload-file ./dist/sichek_${VERSION}_linux_amd64.deb
 
 docker:
+	# goreleaser release --clean --skip-validate --skip-publish --set version=${VERSION}
 	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
 	GIT_COMMIT=${GIT_COMMIT} GO_VERSION=${GO_VERSION} BUILD_TIME=${BUILD_TIME}  INSTALL_DIR=${INSTALL_DIR} \
 	goreleaser release --snapshot --clean

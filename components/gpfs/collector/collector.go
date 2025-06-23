@@ -18,62 +18,26 @@ package collector
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"time"
 	"fmt"
 	"strings"
 
-	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/gpfs/config"
-	"github.com/scitix/sichek/pkg/utils/filter"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
 
 type GPFSCollector struct {
-	name string
-	cfg  *config.GpfsEventRule
-
-	filter *filter.FileFilter
-	xstorHealth XStorHealthInfo
+	name        string
+	xstorHealth *XStorHealthInfo
 }
 
-func NewGPFSCollector(cfg *config.GpfsEventRule) (*GPFSCollector, error) {
-	filterNames := make([]string, 0)
-	regexps := make([]string, 0)
-	filesMap := make(map[string]bool)
-	files := make([]string, 0)
-	for _, checkerCfg := range cfg.EventCheckers {
-		_, err := os.Stat(checkerCfg.LogFile)
-		if err != nil {
-			logrus.WithField("collector", "GPFS").Errorf("log file %s not exist for GPFS collector", checkerCfg.LogFile)
-			continue
-		}
-		filterNames = append(filterNames, checkerCfg.Name)
-		if _, exist := filesMap[checkerCfg.LogFile]; !exist {
-			files = append(files, checkerCfg.LogFile)
-			filesMap[checkerCfg.LogFile] = true
-		}
-		regexps = append(regexps, checkerCfg.Regexp)
-	}
-
-	filterPointer, err := filter.NewFileFilter(filterNames, regexps, files, 1)
-	if err != nil {
-		return nil, err
-	}
+func NewGPFSCollector() (*GPFSCollector, error) {
 	collector := &GPFSCollector{
-		name:   "GPFSCollector",
-		cfg:    cfg,
-		filter: filterPointer,
-	}
-	
-	if len(cfg.XStorHealthCheckers) > 0 {
-		collector.xstorHealth = XStorHealthInfo{
+		name: "GPFSCollector",
+		xstorHealth: &XStorHealthInfo{
 			HealthItems: make(map[string]*GPFSXStorHealthItem),
-		}
+		},
 	}
-
 	return collector, nil
 }
 
@@ -81,14 +45,10 @@ func (c *GPFSCollector) Name() string {
 	return c.name
 }
 
-func (c *GPFSCollector) getXStorHealthInfo(ctx context.Context) error {
-	if len(c.cfg.XStorHealthCheckers) == 0 {
-		return nil
-	}
-
+func (c *GPFSCollector) Collect(ctx context.Context) (*XStorHealthInfo, error) {
 	xstorHealthOutput, err := utils.ExecCommand(ctx, "xstor-health", "basic-check", "--output-format", "sicheck")
 	if err != nil {
-		return fmt.Errorf("exec xstor-health failed: %v", err)
+		return nil, fmt.Errorf("exec xstor-health failed: %v", err)
 	}
 	healthItemStrs := strings.Split(string(xstorHealthOutput), "\n")
 	for _, itemStr := range healthItemStrs {
@@ -103,28 +63,5 @@ func (c *GPFSCollector) getXStorHealthInfo(ctx context.Context) error {
 		}
 		c.xstorHealth.HealthItems[item.Item] = &item
 	}
-	return nil
-}
-
-func (c *GPFSCollector) Collect(ctx context.Context) (common.Info, error) {
-	filterRes := c.filter.Check()
-	filterResMap := make(map[string][]*filter.FilterResult)
-	for _, res := range filterRes {
-		filterResMap[res.Name] = append(filterResMap[res.Name], &res)
-	}
-	event_info := EventInfo{
-		FilterResults: filterResMap,
-	}
-	err := c.getXStorHealthInfo(ctx)
-	if err != nil {
-		logrus.WithField("component", "GPFS-Collector").Errorf("failed to get XStorHealthInfo: %v", err)
-	}
-
-	info := &GPFSInfo{
-		Time:          	 time.Now(),
-		EventInfo:		 event_info,
-		XStorHealthInfo: c.xstorHealth,
-	}
-
-	return info, nil
+	return c.xstorHealth, nil
 }

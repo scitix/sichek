@@ -22,6 +22,7 @@ ethernet:
 gpfs:
   query_interval: 30s
   cache_size: 5
+  ignored_checkers: []
 
 cpu:
   query_interval: 30s

@@ -21,175 +21,67 @@ import (
 )
 
 const (
-	GPFSTimeClockCheckerName       = "time_clock"
-	OSLockupCheckerName            = "OS_lockup"
-	RDMACheckerName                = "RDMA"
-	QuorumConnectionCheckerName    = "quorum_connection"
-	TcpStateCheckerName            = "tcp_state"
-	FilesystemUnmountCheckerName   = "filesystem_unmount"
-	ExpelledFromClusterCheckerName = "expelled_from_cluster"
-	UnauthorizedCheckerName        = "unauthorized"
-	Bond0LostCheckerName           = "bond0_lost"
-	GPFSInstalledCheckerName	   = "gpfs-installed"
-	NodeInClusterCheckerName	   = "node-in-cluster"
-	GPFSStartedCheckerName		   = "gpfs-started"
-	GPFSMountedCheckerName		   = "gpfs-mounted"
-	GPFSHealthCheckerName		   = "gpfs-health"
-	GPFSRdmaNetworkCheckerName	   = "gpfs-rdma-network"
+	GPFSInstalledCheckerName   = "gpfs-installed"
+	NodeInClusterCheckerName   = "node-in-cluster"
+	GPFSStartedCheckerName     = "gpfs-started"
+	GPFSMountedCheckerName     = "gpfs-mounted"
+	GPFSHealthCheckerName      = "gpfs-health"
+	GPFSRdmaNetworkCheckerName = "gpfs-rdma-network"
 )
 
 var GPFSCheckItems = map[string]common.CheckerResult{
-	GPFSTimeClockCheckerName: {
-		Name:        GPFSTimeClockCheckerName,
-		Description: "Time-of-day may have jumped back",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelWarning,
-		Detail:      "",
-		ErrorName:   "TimeClockError",
-		Suggestion:  "Reset the time clock with ntp",
-	},
-	OSLockupCheckerName: {
-		Name:        OSLockupCheckerName,
-		Description: "OS lockup, may cause GPFS heartbeat fail and unmount",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelWarning,
-		Detail:      "",
-		ErrorName:   "OSLockup",
-		Suggestion:  "Fix OS kernel and driver bugs",
-	},
-	RDMACheckerName: {
-		Name:        RDMACheckerName,
-		Description: "node RDMA network down",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelWarning,
-		Detail:      "",
-		ErrorName:   "RDMAStatusError",
-		Suggestion:  "Check RDMA network and device",
-	},
-	QuorumConnectionCheckerName: {
-		Name:        QuorumConnectionCheckerName,
-		Description: "connection with quorum node down",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelCritical,
-		Detail:      "",
-		ErrorName:   "QuorumConnectionDown",
-		Suggestion:  "Check GPFS daemon network",
-	},
-	TcpStateCheckerName: {
-		Name:        TcpStateCheckerName,
-		Description: "node TCP connection down",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelWarning,
-		Detail:      "",
-		ErrorName:   "BadTcpState",
-		Suggestion:  "Check GPFS daemon network",
-	},
-	FilesystemUnmountCheckerName: {
-		Name:        FilesystemUnmountCheckerName,
-		Description: "node filesystem unmounted",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelCritical,
-		Detail:      "",
-		ErrorName:   "GPFSUnmount",
-		Suggestion:  "Check GPFS status",
-	},
-	ExpelledFromClusterCheckerName: {
-		Name:        ExpelledFromClusterCheckerName,
-		Description: "node expelled from GPFS cluster",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelCritical,
-		Detail:      "",
-		ErrorName:   "ExpelledFromGPFSCluster",
-		Suggestion:  "Check GPFS daemon network and status",
-	},
-	UnauthorizedCheckerName: {
-		Name:        UnauthorizedCheckerName,
-		Description: "node unauthorized for remote cluster",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelWarning,
-		Detail:      "",
-		ErrorName:   "GPFSUnauthorized",
-		Suggestion:  "Check GPFS authorization status",
-	},
-	Bond0LostCheckerName: {
-		Name:        Bond0LostCheckerName,
-		Description: "bond0 not active",
-		Device:      "",
-		Spec:        "0",
-		Status:      "",
-		Level:       consts.LevelWarning,
-		Detail:      "",
-		ErrorName:   "Bond0Lost",
-		Suggestion:  "Check GPFS ether network",
-	},
 	GPFSInstalledCheckerName: {
-		Name: GPFSInstalledCheckerName,
+		Name:        GPFSInstalledCheckerName,
 		Description: "Check if GPFS software installed",
-		Status: "",
-		Level: consts.LevelCritical,
-		Detail: "",
-		ErrorName: "GPFSNotInstalled",
-		Suggestion: "Install GPFS software",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "GPFSNotInstalled",
+		Suggestion:  "Install GPFS software",
 	},
 	NodeInClusterCheckerName: {
-		Name: NodeInClusterCheckerName,
+		Name:        NodeInClusterCheckerName,
 		Description: "Check if node is in GPFS cluster",
-		Status: "",
-		Level: consts.LevelCritical,
-		Detail: "",
-		ErrorName: "GPFSNotInCluster",
-		Suggestion: "Add node to GPFS cluster",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "GPFSNotInCluster",
+		Suggestion:  "Add node to GPFS cluster",
 	},
 	GPFSStartedCheckerName: {
-		Name: GPFSStartedCheckerName,
+		Name:        GPFSStartedCheckerName,
 		Description: "Check if GPFS software started",
-		Status: "",
-		Level: consts.LevelCritical,
-		Detail: "",
-		ErrorName: "GPFSNotStarted",
-		Suggestion: "Start GPFS software",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "GPFSNotStarted",
+		Suggestion:  "Start GPFS software",
 	},
 	GPFSMountedCheckerName: {
-		Name: GPFSMountedCheckerName,
+		Name:        GPFSMountedCheckerName,
 		Description: "Check if GPFS mounted",
-		Status: "",
-		Level: consts.LevelCritical,
-		Detail: "",
-		ErrorName: "GPFSNotMounted",
-		Suggestion: "Mount GPFS filesystem",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "GPFSNotMounted",
+		Suggestion:  "Mount GPFS filesystem",
 	},
 	GPFSHealthCheckerName: {
-		Name: GPFSHealthCheckerName,
+		Name:        GPFSHealthCheckerName,
 		Description: "Check if GPFS node is healthy",
-		Status: "",
-		Level: consts.LevelCritical,
-		Detail: "",
-		ErrorName: "GPFSNodeNotHealthy",
-		Suggestion: "Check mmhealth and GPFS log for details",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "GPFSNodeNotHealthy",
+		Suggestion:  "Check mmhealth and GPFS log for details",
 	},
 	GPFSRdmaNetworkCheckerName: {
-		Name: GPFSRdmaNetworkCheckerName,
+		Name:        GPFSRdmaNetworkCheckerName,
 		Description: "Check if GPFS using RDMA",
-		Status: "",
-		Level: consts.LevelCritical,
-		Detail: "",
-		ErrorName: "GPFSRDMAError",
-		Suggestion: "Check node RDMA network and GPFS log",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "GPFSRDMAError",
+		Suggestion:  "Check node RDMA network and GPFS log",
 	},
 }
