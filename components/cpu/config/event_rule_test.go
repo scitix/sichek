@@ -85,7 +85,7 @@ func TestCollector_Collect(t *testing.T) {
 	cfg.Rules["testChecker"].LogFile = logFile.Name()
 	t.Logf("Event checkers: %+v", cfg.Rules["testChecker"])
 	// Create a new EventFilter instance
-	filterPointer, err := filter.NewEventFilter("testChecker", cfg.Rules, 1, 100)
+	filterPointer, err := filter.NewEventFilter("testChecker", cfg.Rules, 100)
 	if err != nil {
 		t.Fatalf("Failed to create file filter: %v", err)
 	}

@@ -20,7 +20,7 @@ func TestDmesgFilter(t *testing.T) {
 			Suggestion:  "Test suggestion",
 		},
 	}
-	cmdFilter, err := NewCommandFilter(cmd, rules, 100)
+	cmdFilter, err := NewCommandFilter(cmd, rules)
 	if err != nil {
 		t.Fatalf("failed to new cmd filter:%v", err)
 	}

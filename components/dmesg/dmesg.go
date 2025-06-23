@@ -88,7 +88,7 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 	if len(eventRules.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
-	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers, 5000)
+	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create Dmesg CommandFilter")
 	}

@@ -129,3 +129,5 @@ const (
 const PadLen = len(Green) + len(Reset)
 const CmdTimeout = 30 * time.Second
 const AllCmdTimeout = 60 * time.Second
+const DefaultCacheLine int64 = 10000 // Default cache line number for event filter
+const DefaultFileLoaderInterval = 1 * time.Minute // Default interval for file loader scheduler

@@ -127,7 +127,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			eventChecker.LogFile = joinedLogFiles
 		}
 	}
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodLog, c.eventRule.EventCheckers, 5000, 0)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodLog, c.eventRule.EventCheckers, 0)
 	if err != nil {
 		logrus.WithError(err).Error("failed to create filter in NCCLCollector")
 		return nil, err

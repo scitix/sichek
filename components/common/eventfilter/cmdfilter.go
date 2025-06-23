@@ -33,17 +33,15 @@ type Command struct {
 type CommandFilter struct {
 	Regex      []*RegexFilter
 	Commands   []*Command
-	CacheLineN int64
 
 	LogFileName []string
 	EventFilter *EventFilter
 }
 
-func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig, cacheLine int64) (*CommandFilter, error) {
+func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig) (*CommandFilter, error) {
 	var res CommandFilter
 	res.Regex = make([]*RegexFilter, 0)
 	res.Commands = make([]*Command, 0)
-	res.CacheLineN = cacheLine
 	if len(rules) == 0 {
 		logrus.WithField("CommandFilter", "NewCommandFilter").Error("no rules provided")
 		return nil, fmt.Errorf("no rules provided in CommandFilter new")
@@ -62,7 +60,7 @@ func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig, ca
 	res.LogFileName = append(res.LogFileName, logFileName)
 
 	var err error
-	res.EventFilter, err = NewEventFilter("dmesg", rules, res.CacheLineN, 0)
+	res.EventFilter, err = NewEventFilter("dmesg", rules, 0)
 	if err != nil {
 		logrus.WithField("CommandFilter", res.Regex).Error("failed to create fileFilter")
 		return nil, err

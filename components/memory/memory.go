@@ -95,7 +95,7 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 		return nil, err
 	}
 
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNameMemory, eventRules, 1, 100)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNameMemory, eventRules, 100)
 	if err != nil {
 		return nil, err
 	}

@@ -86,7 +86,7 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 		return nil, err
 	}
 
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNameGpfs, eventRules, 1, 100)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNameGpfs, eventRules, 100)
 	if err != nil {
 		return nil, err
 	}

@@ -26,8 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ID2Filter map[string]*EventFilter
-
 type EventFilter struct {
 	ID           string
 	RegexEntries []*RegexEntry
@@ -48,7 +46,8 @@ type FileEntry struct {
 	CheckLinePos int64
 }
 
-func NewEventFilter(id string, rules map[string]*common.EventRuleConfig, cacheLine int64, skipPercent int64) (*EventFilter, error) {
+func NewEventFilter(id string, rules map[string]*common.EventRuleConfig, skipPercent int64) (*EventFilter, error) {
+	cacheLine := consts.DefaultCacheLine
 	ef := &EventFilter{
 		ID:           id,
 		RegexEntries: []*RegexEntry{},
@@ -143,6 +142,7 @@ func (f *EventFilter) matchLineAndUpdateResult(fileName string, line string, res
 					Description: rule.Description,
 					Curr:        "1",
 					Device:      fileName,
+					Status:      consts.StatusAbnormal,
 					Level:       rule.Level,
 					ErrorName:   name,
 					Suggestion:  rule.Suggestion,

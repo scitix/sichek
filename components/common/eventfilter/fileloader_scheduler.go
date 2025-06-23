@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,7 +34,7 @@ type FileLoaderScheduler struct {
 
 var GlobalScheduler = &FileLoaderScheduler{
 	loaders:  make(map[string]*FileLoader),
-	interval: 1 * time.Minute, // default interval
+	interval: consts.DefaultFileLoaderInterval, // default interval
 }
 
 func (s *FileLoaderScheduler) Start() {

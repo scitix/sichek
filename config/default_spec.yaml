@@ -39,26 +39,27 @@ nvidia:
 infiniband:
   default:
     ib_devs:
-      mlx5_0: eth0
-      mlx5_1: eth1
-      mlx5_2: eth2
-      mlx5_3: eth3
-      mlx5_4: eth4
-      mlx5_5: eth5
-      mlx5_6: eth6
-      mlx5_7: eth7
+      mlx5_0: ib0
+      mlx5_1: ib1
+      mlx5_2: ib2
+      mlx5_3: ib3
+      mlx5_4: ib4
+      mlx5_5: ib5
+      mlx5_6: ib6
+      mlx5_7: ib7
+      mlx5_8: ib8
     sw_deps:
       kernel_module:
-      - "rdma_ucm"
-      - "rdma_cm"
-      - "ib_ipoib"
-      - "mlx5_core"
-      - "mlx5_ib"
-      - "ib_uverbs"
-      - "ib_umad"
-      - "ib_cm"
-      - "ib_core"
-      - "mlxfw"
+        - "rdma_ucm"
+        - "rdma_cm"
+        - "ib_ipoib"
+        - "mlx5_core"
+        - "mlx5_ib"
+        - "ib_uverbs"
+        - "ib_umad"
+        - "ib_cm"
+        - "ib_core"
+        - "mlxfw"
       ofed_ver: "MLNX_OFED_LINUX-24.10-2.1.8.0"
     pcie_acs: "disable"
     hca_specs:
@@ -119,15 +120,16 @@ infiniband:
 pcie_topo:
   "0x233510de":
     numa_config:
-    - node_id: 0 # NUMA0
-      gpu_count: 4
-      ib_count: 4
+      - node_id: 0            # NUMA0
+        gpu_count: 4
+        ib_count: 4
 
-    - node_id: 1 # NUMA1
-      gpu_count: 4
-      ib_count: 5
+      - node_id: 1            # NUMA1
+        gpu_count: 4
+        ib_count: 5
 
     pci_switches:
-    - gpu: 1
-      ib: 1
-      count: 8
+      - gpu: 1
+        ib: 1
+        count: 8
+  

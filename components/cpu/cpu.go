@@ -107,7 +107,7 @@ func newComponent(cfgFile string, specFile string) (comp *component, err error) 
 		cpuMetrics = metrics.NewCpuMetrics()
 	}
 
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNameCPU, eventRules, 1, 100)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNameCPU, eventRules, 100)
 	if err != nil {
 		return nil, err
 	}

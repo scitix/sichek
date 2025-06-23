@@ -15,7 +15,6 @@ gpfs:
     suggestion: "Fix OS kernel and driver bugs"
   RDMA:
     name: "RDMAStatusError"
-    description: "node VERBS RDMA error"
     log_file: "/var/adm/ras/mmfs.log.latest"
     regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)|(VERBS RDMA failed to start)"
     description: "node RDMA network down"

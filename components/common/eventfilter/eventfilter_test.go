@@ -108,7 +108,7 @@ func TestEventFilter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cacheLine := int64(100)
-			filter, err := NewEventFilter("testFilter", tc.rules, cacheLine, tc.skipPercent)
+			filter, err := NewEventFilter("testFilter", tc.rules, tc.skipPercent)
 			require.NoError(t, err)
 			require.NotNil(t, filter)
 
