@@ -108,9 +108,10 @@ func (i *InfinibandInfo) JSON() (string, error) {
 func (i *InfinibandInfo) GetPFDevs(IBDev []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDev {
-		sriovTotalVFsPath := path.Join(IBSYSPathPre, IBDev, "device/sriov_totalvfs")
-		_, err := os.Stat(sriovTotalVFsPath)
-		if err == nil {
+		vfPath := path.Join(IBSYSPathPre, IBDev, "device", "physfn")
+		if _, err := os.Stat(vfPath); err == nil {
+			continue // Skip virtual functions
+		} else {
 			PFDevs = append(PFDevs, IBDev)
 		}
 	}
@@ -120,7 +121,6 @@ func (i *InfinibandInfo) GetPFDevs(IBDev []string) []string {
 func (i *InfinibandInfo) GetIBdevs() map[string]string {
 	allIBDevs := GetFileCnt(IBSYSPathPre)
 	PFDevs := i.GetPFDevs(allIBDevs)
-
 	IBDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
 		if strings.Contains(IBDev, "bond") {
@@ -134,7 +134,6 @@ func (i *InfinibandInfo) GetIBdevs() map[string]string {
 		ibNetDev := GetFileCnt(netPath)[0]
 		IBDevs[IBDev] = ibNetDev
 	}
-
 	return IBDevs
 }
 

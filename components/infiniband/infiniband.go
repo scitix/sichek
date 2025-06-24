@@ -278,7 +278,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 
 	for _, result := range checkerResults {
 		statusColor := consts.Green
-		if result.Status != consts.StatusNormal {
+		if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
 			statusColor = consts.Red
 			infinibandEvents[result.Name] = fmt.Sprintf("%s%s%s", statusColor, result.Detail, consts.Reset)
 			checkAllPassed = false
