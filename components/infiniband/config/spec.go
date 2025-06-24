@@ -242,17 +242,16 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 }
 
 // TrimMapByList removes keys from the map `b` that are not present in the slice `a`.
-func TrimMapByList(a []string, b map[string]string) bool {
-	keysToKeep := make(map[string]struct{}, len(a))
-	for _, k := range a {
-		keysToKeep[k] = struct{}{}
+func TrimMapByList(a map[string]string, b map[string]string) bool {
+	if len(a) >= len(b) {
+		return false
 	}
 	changed := false
-	for k := range b {
-		if _, ok := keysToKeep[k]; !ok {
-			delete(b, k)
-			changed = true
+	for key := range b {
+		if _, ok := a[key]; !ok {
+			delete(b, key)
 		}
+		changed = true
 	}
 	return changed
 }
