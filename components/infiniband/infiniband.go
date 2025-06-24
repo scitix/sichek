@@ -164,7 +164,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
 
-	if result.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal && result.Level != consts.LevelInfo {
 		logrus.WithField("component", "Infiniband").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "Infiniband").Infof("Health Check PASSED")
