@@ -119,7 +119,10 @@ func LoadSpecFromOss(url string, spec interface{}) error {
 		return fmt.Errorf("unsupported URL scheme (must start with http:// or https://): %s", url)
 	}
 
-	resp, err := http.Get(url)
+	client := &http.Client{
+		Timeout: 3 * time.Second, // 设置总超时时间（包括连接 + 读取）
+	}
+	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to fetch spec from %s: %w", url, err)
 	}

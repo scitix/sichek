@@ -202,16 +202,25 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 		allExist := true
+		oldKeys := make([]string, 0, len(ibSpec.IBDevs))
+		for k := range ibSpec.IBDevs {
+			oldKeys = append(oldKeys, k)
+		}
+		changed := TrimMapByList(ibDevs, ibSpec.IBDevs)
+		if changed {
+			logrus.WithField("component", "infiniband").
+				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", oldKeys, ibDevs)
+		}
 		for _, boardID := range ibDevs {
 			spec, exists := ibSpec.HCAs[boardID]
 			if !exists || spec == nil {
-				logrus.WithField("component", "HCA").
+				logrus.WithField("component", "infiniband").
 					Warnf("spec for board ID %s not found in current spec, trying to load from HCA configs", boardID)
 				allExist = false
 				break
 			}
 			if spec.Hardware.BoardID != boardID {
-				logrus.WithField("component", "HCA").
+				logrus.WithField("component", "infiniband").
 					Warnf("spec for board ID %s does not match the hardware board ID %s, trying to load from HCA configs", boardID, spec.Hardware.BoardID)
 				allExist = false
 				break
@@ -230,4 +239,20 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)
+}
+
+// TrimMapByList removes keys from the map `b` that are not present in the slice `a`.
+func TrimMapByList(a []string, b map[string]string) bool {
+	keysToKeep := make(map[string]struct{}, len(a))
+	for _, k := range a {
+		keysToKeep[k] = struct{}{}
+	}
+	changed := false
+	for k := range b {
+		if _, ok := keysToKeep[k]; !ok {
+			delete(b, k)
+			changed = true
+		}
+	}
+	return changed
 }
