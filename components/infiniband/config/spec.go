@@ -197,7 +197,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			}
 		}
 		// Get the board IDs of the IB devices in the host
-		ibDevs, err := hcaConfig.GetIBBoardIDs()
+		devBoardIDMap, ibDevs, err := hcaConfig.GetIBBoardIDs()
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +206,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		for k := range ibSpec.IBDevs {
 			oldKeys = append(oldKeys, k)
 		}
-		changed := TrimMapByList(ibDevs, ibSpec.IBDevs)
+		changed := TrimMapByList(devBoardIDMap, ibSpec.IBDevs)
 		if changed {
 			logrus.WithField("component", "infiniband").
 				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", oldKeys, ibDevs)

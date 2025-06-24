@@ -189,14 +189,15 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 	return result, nil
 }
 
-func GetIBBoardIDs() (map[string]string, error) {
+func GetIBBoardIDs() (map[string]string, []string, error) {
 	baseDir := "/sys/class/infiniband"
 	devices, err := os.ReadDir(baseDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %s: %v", baseDir, err)
+		return nil, nil, fmt.Errorf("failed to read %s: %v", baseDir, err)
 	}
 
-	boardIDSet := make(map[string]string)
+	boardIDSet := make(map[string]struct{})
+	devBoardIDMap := make(map[string]string)
 	for _, dev := range devices {
 		devName := dev.Name()
 		// read link_layer to filter out non-Infiniband devices
@@ -221,7 +222,13 @@ func GetIBBoardIDs() (map[string]string, error) {
 		if boardID == "" {
 			continue
 		}
-		boardIDSet[devName] = boardID
+		boardIDSet[boardID] = struct{}{}
+		devBoardIDMap[devName] = boardID
 	}
-	return boardIDSet, nil
+
+	var boardIDs []string
+	for id := range boardIDSet {
+		boardIDs = append(boardIDs, id)
+	}
+	return devBoardIDMap, boardIDs, nil
 }
