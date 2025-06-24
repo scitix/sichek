@@ -77,6 +77,7 @@ func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) e
 		logrus.Errorf("get current node failed: %v", err)
 		return err
 	}
+	fmt.Printf("GetAnnotationFromJson: n.annoKey=%s, %s\n", n.annoKey, node.Annotations[n.annoKey])
 	anno, err := GetAnnotationFromJson(node.Annotations[n.annoKey])
 	if err != nil {
 		logrus.Errorf("parse annotation %s failed: %v", node.Annotations[n.annoKey], err)
@@ -88,6 +89,7 @@ func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) e
 		return err
 	}
 	annoStr, err := anno.JSON()
+	fmt.Printf("ParseFromResult: annoStr=%s\n", annoStr)
 	if err != nil {
 		logrus.Errorf("marshal annotation failed: %v", err)
 		return err
