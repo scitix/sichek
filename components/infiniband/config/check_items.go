@@ -108,7 +108,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 	CheckPCIEMRR: {
 		Name:        CheckPCIEMRR,
 		Description: "Check if PCIe Max Read Request (MRR) is set correctly (4096)",
-		Level:       consts.consts.LevelInfo,
+		Level:       consts.LevelInfo,
 		Detail:      "PCIe MRR is set correctly (4096)",
 		ErrorName:   "PCIEMRRIncorrect",
 		Suggestion:  "Set MRR to 4096 via system config",
