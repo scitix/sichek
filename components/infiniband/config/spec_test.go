@@ -168,7 +168,7 @@ infiniband:
 	}
 
 	// Test the LoadSpec function
-	nic, err := hcaConfig.GetIBBoardIDs()
+	_, nic, err := hcaConfig.GetIBBoardIDs()
 	if err != nil {
 		t.Skip("Skipping test due to error in GetIBBoardIDs: ", err)
 	}

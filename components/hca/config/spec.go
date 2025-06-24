@@ -145,7 +145,7 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 		return nil, fmt.Errorf("HCA spec is not initialized")
 	}
 	// Get the board IDs of the IB devices in the host
-	ibDevs, err := GetIBBoardIDs()
+	_, ibDevs, err := GetIBBoardIDs()
 	if err != nil {
 		return nil, err
 	}
