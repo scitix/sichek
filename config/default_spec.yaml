@@ -233,10 +233,13 @@ pcie_topo:
 
       - node_id: 1 # NUMA1
         gpu_count: 4
-        ib_count: 1
+        ib_count: 0
 
       pci_switches:
       - gpu: 4
         ib: 1
-        count: 2
+        count: 1
+      - gpu: 4
+        ib: 0
+        count: 1
  
