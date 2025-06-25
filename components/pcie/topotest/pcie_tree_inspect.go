@@ -292,7 +292,10 @@ func GetIBList() (map[string]*DeviceInfo, error) {
 		name := entry.Name()
 
 		devPath := filepath.Join(basePath, name, "device")
-
+		vfPath := filepath.Join(basePath, name, "device", "physfn")
+		if _, err := os.Stat(vfPath); err == nil {
+			continue // Skip virtual functions
+		}
 		// read PCI BDF
 		realPath, err := filepath.EvalSymlinks(devPath)
 		if err != nil {

@@ -499,7 +499,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		case config.NVFabricManagerCheckerName:
 			if result.Status == consts.StatusNormal {
 				fabricmanagerPrint = fmt.Sprintf("FabricManager: %s%s%s", consts.Green, result.Curr, consts.Reset)
-				if result.Curr != "Active" {
+				if result.Curr == "NotActive" {
 					gpuStatus[config.NVFabricManagerCheckerName] = fmt.Sprintf("%s%s%s", consts.Yellow, result.Detail, consts.Reset)
 				}
 			} else {
