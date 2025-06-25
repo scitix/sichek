@@ -22,10 +22,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 func IsRoot() bool {
@@ -114,11 +111,9 @@ func TimeTrack(start time.Time, name string) {
 }
 
 func IsNvidiaGPUExist() bool {
-	// Check if the server is GPU server
-	matches, err := filepath.Glob("/dev/nvidia*")
-	if err != nil {
-		logrus.WithField("component", "utils").Infof("Fail to run the cmd: filepath.Glob, err = %v; treat as not GPU server", err)
-		return false
+	// Check if at least one actual GPU device exists
+	if _, err := os.Stat("/dev/nvidia0"); err == nil {
+		return true
 	}
-	return len(matches) > 0
+	return false
 }

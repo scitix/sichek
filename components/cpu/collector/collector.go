@@ -47,13 +47,13 @@ func (o *CPUOutput) JSON() (string, error) {
 
 type Collector struct {
 	name        string
-	cfg         *config.CpuSpec
+	cfg         *config.CpuEventRule
 	CPUArchInfo *CPUArchInfo `json:"cpu_arch_info"`
 	HostInfo    *HostInfo    `json:"host_info"`
 	filter      *filter.FileFilter
 }
 
-func NewCpuCollector(ctx context.Context, cfg *config.CpuSpec) (*Collector, error) {
+func NewCpuCollector(ctx context.Context, cfg *config.CpuEventRule) (*Collector, error) {
 	filterNames := make([]string, 0)
 	regexps := make([]string, 0)
 	filesMap := make(map[string]bool)

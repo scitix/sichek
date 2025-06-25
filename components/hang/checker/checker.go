@@ -35,7 +35,7 @@ type HangChecker struct {
 	id                          string
 	name                        string
 	cfg                         *config.HangUserConfig
-	spec                        *config.HangSpec
+	spec                        *config.HangEventRule
 	HighSampleRateStatus        bool
 	originalQueryInterval       common.Duration
 	originalNvidiaQueryInterval common.Duration
@@ -43,7 +43,7 @@ type HangChecker struct {
 	podResourceMapper           *k8s.PodResourceMapper
 }
 
-func NewHangChecker(cfg *config.HangUserConfig, spec *config.HangSpec) common.Checker {
+func NewHangChecker(cfg *config.HangUserConfig, spec *config.HangEventRule) common.Checker {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	return &HangChecker{
 		id:                          consts.CheckerIDHang,

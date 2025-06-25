@@ -4,7 +4,7 @@ GO := go
 INSTALL_DIR := /usr/local/bin
 VERSION_MAJOR := 0
 VERSION_MINOR := 4
-VERSION_PATCH := 2
+VERSION_PATCH := 3
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
 BUILD_TIME := $(shell date -u '+%Y-%m-%d')
@@ -15,10 +15,11 @@ LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
            -X 'cmd/command/version.GitCommit=$(GIT_COMMIT)' \
            -X 'cmd/command/version.GoVersion=$(GO_VERSION)' \
            -X 'cmd/command/version.BuildTime=$(BUILD_TIME)'
+TASKGUARD_VERISON := v0.1.0
 
 all:
 	mkdir -p build/bin/
-	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -o build/bin/$(PROJECT_NAME) cmd/main.go
+	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -gcflags "all=-N -l" -o build/bin/$(PROJECT_NAME) cmd/main.go
 
 debug:
 	mkdir -p build/bin/
@@ -63,6 +64,12 @@ release:
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
 	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
 	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+
+taskguard:
+	docker build \
+	-t registry-ap-southeast.scitix.ai/hisys/taskguard:${TASKGUARD_VERISON} \
+	-f examples/taskguard/Dockerfile examples/taskguard
+	docker push registry-ap-southeast.scitix.ai/hisys/taskguard:${TASKGUARD_VERISON}
 
 clean:
 	rm -f build/bin/*

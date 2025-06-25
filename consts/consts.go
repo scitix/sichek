@@ -39,6 +39,8 @@ const (
 	ComponentNameNCCL       = "nccl"
 	ComponentIDHCA          = "13"
 	ComponentNameHCA        = "hca"
+	ComponentIDPCIE         = "14"
+	ComponentNamePCIE       = "pcie"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"
@@ -107,10 +109,14 @@ var LevelPriority = map[string]int{
 }
 
 const (
-	DefaultUserCfgName   = "default_user_config.yaml"
-	DefaultSpecCfgName   = "default_spec.yaml"
-	DefaultSpecCfgSuffix = "_spec.yaml"
-	DefaultPodCfgPath    = "/var/sichek/"
+	DefaultUserCfgName       = "default_user_config.yaml"
+	DefaultSpecCfgName       = "default_spec.yaml"
+	DefaultSpecSuffix        = "_spec.yaml"
+	DefaultEventRuleName     = "default_event_rules.yaml"
+	DefaultEventRuleSuffix   = "_rules.yaml"
+	DefaultProductionPath    = "/var/sichek"
+	DefaultProductionCfgPath = "/var/sichek/config"
+	DefaultOssCfgPath        = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
 )
 
 const (
