@@ -202,14 +202,18 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 		allExist := true
-		oldKeys := make([]string, 0, len(ibSpec.IBDevs))
+		specKeys := make([]string, 0, len(ibSpec.IBDevs))
 		for k := range ibSpec.IBDevs {
-			oldKeys = append(oldKeys, k)
+			specKeys = append(specKeys, k)
+		}
+		currKeys := make([]string, 0, len(devBoardIDMap))
+		for k := range devBoardIDMap {
+			currKeys = append(currKeys, k)
 		}
 		changed := TrimMapByList(devBoardIDMap, ibSpec.IBDevs)
 		if changed {
 			logrus.WithField("component", "infiniband").
-				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", oldKeys, ibDevs)
+				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)
 		}
 		for _, boardID := range ibDevs {
 			spec, exists := ibSpec.HCAs[boardID]
