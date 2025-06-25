@@ -197,7 +197,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			}
 		}
 		// Get the board IDs of the IB devices in the host
-		devBoardIDMap, ibDevs, err := hcaConfig.GetIBBoardIDs()
+		devBoardIDMap, ibDevs, err := hcaConfig.GetIBPFBoardIDs()
 		if err != nil {
 			return nil, err
 		}

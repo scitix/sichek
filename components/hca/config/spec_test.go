@@ -146,7 +146,7 @@ func TestLoadSpecFromOss(t *testing.T) {
 }
 
 func TestGetBoardIDs(t *testing.T) {
-	_, boardIDs, err := GetIBBoardIDs()
+	_, boardIDs, err := GetIBPFBoardIDs()
 	if err != nil {
 		t.Fatalf("getBoardIDs() returned an error: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestGetBoardIDs(t *testing.T) {
 }
 
 func TestLoadSpec(t *testing.T) {
-	_, boardIDs, _ := GetIBBoardIDs()
+	_, boardIDs, _ := GetIBPFBoardIDs()
 	if len(boardIDs) == 1 && boardIDs[0] == "MT_0000000970" {
 		hcaSpec, err := LoadSpec("")
 		if err != nil {
