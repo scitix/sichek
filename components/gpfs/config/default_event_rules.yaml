@@ -37,3 +37,11 @@ gpfs:
       name: "bond0_lost"
       log_file: "/var/log/syslog"
       regexp: "bond0: now running without any active interface"
+    incompatible_GPFS_version:
+      name: "incompatible_GPFS_version"
+      log_file: "/var/adm/ras/mmfs.log.latest"
+      regexp: "daemon versions were not compatible"
+    autoload_failed:
+      name: "autoload_failed"
+      log_file: "/var/adm/ras/mmfs.log.latest"
+      regexp: "GPFS environment cannot be initialized"

@@ -30,6 +30,8 @@ const (
 	ExpelledFromClusterCheckerName = "expelled_from_cluster"
 	UnauthorizedCheckerName        = "unauthorized"
 	Bond0LostCheckerName           = "bond0_lost"
+	GPFSVersionCheckerName		   = "incompatiable_GPFS_version"
+	AutoloadCheckerName			   = "autoload_failed"
 )
 
 var GPFSCheckItems = map[string]common.CheckerResult{
@@ -39,7 +41,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelInfo,
 		Detail:      "",
 		ErrorName:   "TimeClockError",
 		Suggestion:  "Reset the time clock with ntp",
@@ -50,7 +52,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelInfo,
 		Detail:      "",
 		ErrorName:   "OSLockup",
 		Suggestion:  "Fix OS kernel and driver bugs",
@@ -61,7 +63,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelInfo,
 		Detail:      "",
 		ErrorName:   "RDMAStatusError",
 		Suggestion:  "Check RDMA network and device",
@@ -83,7 +85,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelInfo,
 		Detail:      "",
 		ErrorName:   "BadTcpState",
 		Suggestion:  "Check GPFS daemon network",
@@ -116,7 +118,7 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "GPFSUnauthorized",
 		Suggestion:  "Check GPFS authorization status",
@@ -127,9 +129,31 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Device:      "",
 		Spec:        "0",
 		Status:      "",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelCritical,
 		Detail:      "",
 		ErrorName:   "Bond0Lost",
 		Suggestion:  "Check GPFS ether network",
+	},
+	GPFSVersionCheckerName: {
+		Name:        GPFSVersionCheckerName,
+		Description: "node GPFS version is not compatible",
+		Device:      "",
+		Spec:        "0",
+		Status:      "",
+		Level:       consts.LevelInfo,
+		Detail:      "",
+		ErrorName:   "IncompatibleGPFSVersion",
+		Suggestion:  "Update GPFS version",
+	},
+	AutoloadCheckerName: {
+		Name:        AutoloadCheckerName,
+		Description: "node GPFS autoload failed",
+		Device:      "",
+		Spec:        "0",
+		Status:      "",
+		Level:       consts.LevelInfo,
+		Detail:      "",
+		ErrorName:   "AutoloadFailed",
+		Suggestion:  "Check node GPFS and mmstartup",
 	},
 }
