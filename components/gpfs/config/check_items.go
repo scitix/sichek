@@ -30,6 +30,7 @@ const (
 	ExpelledFromClusterCheckerName = "expelled_from_cluster"
 	UnauthorizedCheckerName        = "unauthorized"
 	Bond0LostCheckerName           = "bond0_lost"
+	RDMAStartCheckerName		   = "RDMA_start_failed"
 	GPFSVersionCheckerName		   = "incompatiable_GPFS_version"
 	AutoloadCheckerName			   = "autoload_failed"
 )
@@ -133,6 +134,17 @@ var GPFSCheckItems = map[string]common.CheckerResult{
 		Detail:      "",
 		ErrorName:   "Bond0Lost",
 		Suggestion:  "Check GPFS ether network",
+	},
+	RDMAStartCheckerName: {
+		Name:        RDMAStartCheckerName,
+		Description: "node RDMA network start failed",
+		Device:      "",
+		Spec:        "0",
+		Status:      "",
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "RDMAStartError",
+		Suggestion:  "Check RDMA network and device",
 	},
 	GPFSVersionCheckerName: {
 		Name:        GPFSVersionCheckerName,

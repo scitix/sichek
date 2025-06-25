@@ -10,9 +10,8 @@ gpfs:
       regexp: "(soft lockup)|(hard LOCKUP)"
     RDMA:
       name: "RDMA"
-      description: "node VERBS RDMA error"
       log_file: "/var/adm/ras/mmfs.log.latest"
-      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)|(VERBS RDMA failed to start)"
+      regexp: "(VERBS RDMA disabled)|(RDMA send error)|(VERBS RDMA: fatal async event)|(RDMA fatal connection error)"
     quorum_connection:
       name: "quorum_connection"
       log_file: "/var/adm/ras/mmfs.log.latest"
@@ -37,6 +36,10 @@ gpfs:
       name: "bond0_lost"
       log_file: "/var/log/syslog"
       regexp: "bond0: now running without any active interface"
+    RDMA_start_failed:
+      name: "RDMA_start_failed"
+      log_file: "/var/adm/ras/mmfs.log.latest"
+      regexp: "VERBS RDMA failed to start"
     incompatible_GPFS_version:
       name: "incompatible_GPFS_version"
       log_file: "/var/adm/ras/mmfs.log.latest"
