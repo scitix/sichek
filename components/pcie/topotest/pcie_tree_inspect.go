@@ -294,11 +294,13 @@ func GetIBList() (map[string]*DeviceInfo, error) {
 		devPath := filepath.Join(basePath, name, "device")
 		vfPath := filepath.Join(basePath, name, "device", "physfn")
 		if _, err := os.Stat(vfPath); err == nil {
+			fmt.Printf("Skipping virtual function for %s\n", name)
 			continue // Skip virtual functions
 		}
 		// read PCI BDF
 		realPath, err := filepath.EvalSymlinks(devPath)
 		if err != nil {
+			fmt.Printf("Error evaluating symlink for %s: %v\n", devPath, err)
 			continue
 		}
 		bdf := filepath.Base(realPath)
@@ -335,7 +337,7 @@ func GetIBList() (map[string]*DeviceInfo, error) {
 			fmt.Printf("Error reading numaNode for BDF %s:%v\n", bdf, err)
 			continue
 		}
-
+		fmt.Printf("Found IB device: %s, boardID=%s, BDF=%v, numa_node=%v, domain=%v\n", name, boardIDStr, bdf, numaNode, domainID)
 		ibInfo := &DeviceInfo{
 			Type:     "IB",
 			BDF:      bdf,
