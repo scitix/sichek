@@ -69,7 +69,7 @@ var (
 )
 
 func NewNvml(ctx context.Context) (nvml.Interface, error) {
-	ctx_, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx_, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	done := make(chan struct{})
