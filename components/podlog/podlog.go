@@ -139,6 +139,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "podlog").WithError(err).Error("failed to Collect(ctx)")
 		return nil, err
 	}
+	result.Item = c.componentName
 	for _, checkerResult := range result.Checkers {
 		if checkerResult.Status == consts.StatusAbnormal {
 			fileNameList := strings.Split(checkerResult.Device, ",")

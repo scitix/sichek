@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/metrics"
 
 	"github.com/sirupsen/logrus"
@@ -118,7 +119,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			}
 			var err error
 			result.Node = d.node
-			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
+			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") && result.Status == consts.StatusAbnormal {
 				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 			} else {
 				err = d.notifier.SetNodeAnnotation(d.ctx, result)
