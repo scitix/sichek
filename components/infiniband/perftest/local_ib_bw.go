@@ -204,17 +204,26 @@ func CheckNodeIBPerfHealth(
 ) (*common.Result, error) {
 	activeDeviceInfos := make([]collector.IBHardWareInfo, 0)
 	var err error
-	if numaAware || ibDevice == "" {
-		activeDeviceInfos, err = getActiveIBDevices()
-		if err != nil {
-			return nil, fmt.Errorf("getActiveIBDevices error :%v", err)
-		}
+	activeDeviceInfos, err = getActiveIBDevices()
+	if err != nil {
+		return nil, fmt.Errorf("getActiveIBDevices error :%v", err)
 	}
 
+	deviceFilter := make(map[string]struct{})
+	if ibDevice != "" {
+		devices := strings.Split(ibDevice, ",")
+		for _, d := range devices {
+			deviceFilter[strings.TrimSpace(d)] = struct{}{}
+		}
+	}
 	usedDeviceInfos := make([]collector.IBHardWareInfo, 0)
 	for _, dev := range activeDeviceInfos {
-		if ibDevice == "" || ibDevice == dev.IBDev {
+		if ibDevice == "" {
 			usedDeviceInfos = append(usedDeviceInfos, dev)
+		} else {
+			if _, ok := deviceFilter[dev.IBDev]; ok {
+				usedDeviceInfos = append(usedDeviceInfos, dev)
+			}
 		}
 	}
 
