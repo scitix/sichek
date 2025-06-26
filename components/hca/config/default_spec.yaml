@@ -125,3 +125,45 @@ hca:
     perf:
       one_way_bw: 175 # Gbps
       avg_latency_us: 1.5 # us
+  LNV0000000019:
+    hardware:
+      hca_type: "MT4123"
+      board_id: "LNV0000000019"
+      fw_ver: ">=20.39.2048"
+      vpd: "ThinkSystem Mellanox ConnectX-6 HDR/200GbE QSFP56 1-port PCIe 4 VPI Adapter"
+      net_port: 1
+      port_speed: "200 Gb/sec (4X HDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "16.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 1.5 # us
+  MT_0000000844:
+    hardware:
+      hca_type: "MT4129"
+      board_id: "MT_0000000844"
+      fw_ver: ">=20.39.2048"
+      vpd: "NVIDIA ConnectX-7 adapter card, 200Gb/s NDR200 IB, Single-port OSFP, PCIe 5.0 x16, Secure boot, No Crypto"
+      net_port: 1
+      port_speed: "200 Gb/sec (2X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "up"
+      link_layer: "Ethernet"
+      pcie_width: "16"
+      pcie_speed: "16.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 1.5 # us

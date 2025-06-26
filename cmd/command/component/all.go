@@ -148,13 +148,15 @@ func NewAllCmd() *cobra.Command {
 				PrintCheckResults(!eventonly, checkResult)
 			}
 			//check topo
-			res, err := topotest.CheckGPUTopology(specFile)
-			if err != nil {
-				logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
-				return
+			if utils.IsNvidiaGPUExist() {
+				res, err := topotest.CheckGPUTopology(specFile)
+				if err != nil {
+					logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
+					return
+				}
+				passed := topotest.PrintInfo(res, !eventonly && verbos)
+				ComponentStatuses[res.Item] = passed
 			}
-			passed := topotest.PrintInfo(res, !eventonly && verbos)
-			ComponentStatuses[res.Item] = passed
 		},
 	}
 

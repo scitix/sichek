@@ -129,9 +129,9 @@ func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation,
 		}
 	}
 	// new annotation
-	if result.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal && result.Level != consts.LevelInfo {
 		for _, checkResult := range result.Checkers {
-			if checkResult.Status == consts.StatusAbnormal {
+			if checkResult.Status == consts.StatusAbnormal && checkResult.Level != consts.LevelInfo {
 				if deduplicatedAnnotation[checkResult.Level] == nil {
 					deduplicatedAnnotation[checkResult.Level] = make(map[string]*annotation)
 				}

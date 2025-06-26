@@ -120,7 +120,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithError(err).Errorf("failed to walkdir in %s", c.eventRule.DirPath)
 		return nil, err
 	}
-
+	if len(allFiles) == 0 {
+		logrus.WithField("component", "podlog").Infof("no pod log files found in %s", c.eventRule.DirPath)
+		return nil, nil
+	}
 	joinedLogFiles := strings.Join(allFiles, ",")
 	for _, eventChecker := range c.eventRule.EventCheckers {
 		if eventChecker != nil {
@@ -129,7 +132,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodLog, c.eventRule.EventCheckers, 0)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create filter in NCCLCollector")
+		logrus.WithError(err).Error("failed to create filter in podlog component")
 		return nil, err
 	}
 	defer filterPointer.Close()
@@ -139,6 +142,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "podlog").WithError(err).Error("failed to Collect(ctx)")
 		return nil, err
 	}
+	result.Item = c.componentName
 	for _, checkerResult := range result.Checkers {
 		if checkerResult.Status == consts.StatusAbnormal {
 			fileNameList := strings.Split(checkerResult.Device, ",")

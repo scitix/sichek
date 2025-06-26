@@ -31,7 +31,7 @@ func NewIBPerftestCmd() *cobra.Command {
 		Use:   "ib",
 		Short: "Perform Infiniband performance tests",
 		Run: func(cmd *cobra.Command, args []string) {
-			_, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
+			_, cancel := context.WithTimeout(context.Background(), consts.IbPerfTestTimeout)
 
 			verbose, err := cmd.Flags().GetBool("verbose")
 			if err != nil {
@@ -72,12 +72,16 @@ func NewIBPerftestCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("perftest", "infiniband").Errorf("get to ge the numaAware flag: %v", err)
 			}
+			useGDR, err := cmd.Flags().GetBool("gdr")
+			if err != nil {
+				logrus.WithField("perftest", "infiniband").Errorf("get to ge the gdr flag: %v", err)
+			}
 			expectedBandwidthGbps, err := cmd.Flags().GetFloat64("expect-bw")
 			if err != nil {
 				logrus.WithField("perftest", "infiniband").Error(err)
 			}
 
-			res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, ibDevice, size, duration, numaAware, verbose)
+			res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, ibDevice, size, duration, numaAware, useGDR, verbose)
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 				os.Exit(-1)
@@ -88,10 +92,11 @@ func NewIBPerftestCmd() *cobra.Command {
 	}
 
 	ibPerftestCmd.Flags().StringP("test-type", "t", "ib_read_bw", "IB test type (ib_read_bw, ib_write_bw), default is ib_read_bw")
-	ibPerftestCmd.Flags().StringP("ib-dev", "d", "", "Use IB device <dev> (default all active devices found)")
+	ibPerftestCmd.Flags().StringP("ib-dev", "d", "", "Use IB device <dev1,dev2> (default all active devices found)")
 	ibPerftestCmd.Flags().IntP("size", "s", 65536, "Size of message to exchange (default 65536)")
 	ibPerftestCmd.Flags().IntP("duration", "D", 10, "Run test for a customized period of seconds (default 5 seconds)")
 	ibPerftestCmd.Flags().BoolP("numa-aware", "n", false, "Run test with numa aware (default 'false`)")
+	ibPerftestCmd.Flags().BoolP("gdr", "g", false, "Run test with gdr (default 'false`)")
 	ibPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ibPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
