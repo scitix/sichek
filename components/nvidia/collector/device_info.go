@@ -125,9 +125,12 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 		return fmt.Errorf("failed to get Power for device %v: %v", uuid, err2)
 	}
 
-	err2 = deviceInfo.Temperature.Get(device, uuid)
-	if err2 != nil {
-		return fmt.Errorf("failed to get temperature events for device %v: %v", uuid, err2)
+	deviceID := fmt.Sprintf("0x%x", deviceInfo.PCIeInfo.DEVID)
+	if deviceID != "0x26b510de" { // skip temperature events for L40
+		err2 = deviceInfo.Temperature.Get(device, uuid)
+		if err2 != nil {
+			return fmt.Errorf("failed to get temperature events for device %v: %v", uuid, err2)
+		}
 	}
 
 	err2 = deviceInfo.Utilization.Get(device, uuid)

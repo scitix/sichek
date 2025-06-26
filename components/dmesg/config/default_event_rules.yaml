@@ -6,22 +6,22 @@ dmesg:
       log_file: "/tmp/sichek.dmesg.log"
       description: "oom error in dmesg"
       regexp: 'Out of memory:'
-      level: error
+      level: info 
     CgroupOOM:
       name: "cgroup_oom"
       log_file: "/tmp/sichek.dmesg.log"
       description: "oom error in dmesg"
       regexp: 'Memory cgroup out of memory'
-      level: error
+      level: info
     NVSXID:
       name: "nvidia_sxid"
       log_file: "/tmp/sichek.dmesg.log"
       description: "nv sxid error in dmesg"
       regexp: 'SXid.*?: (\d+),'
-      level: error
+      level: info
     NCCL:
       name: "nccl"
       log_file: "/tmp/sichek.dmesg.log"
       description: "libnccl segment fault error in dmesg"
       regexp: '.*segfault at.*in libnccl\.so.*'
-      level: error
+      level: info

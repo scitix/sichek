@@ -108,9 +108,10 @@ func (i *InfinibandInfo) JSON() (string, error) {
 func (i *InfinibandInfo) GetPFDevs(IBDev []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDev {
-		sriovTotalVFsPath := path.Join(IBSYSPathPre, IBDev, "device/sriov_totalvfs")
-		_, err := os.Stat(sriovTotalVFsPath)
-		if err == nil {
+		vfPath := path.Join(IBSYSPathPre, IBDev, "device", "physfn")
+		if _, err := os.Stat(vfPath); err == nil {
+			continue // Skip virtual functions
+		} else {
 			PFDevs = append(PFDevs, IBDev)
 		}
 	}
@@ -128,10 +129,16 @@ func (i *InfinibandInfo) GetIBdevs() map[string]string {
 		}
 		netPath := filepath.Join(IBSYSPathPre, IBDev, "device/net")
 		if _, err := os.Stat(netPath); os.IsNotExist(err) {
-			logrus.WithField("component", "infiniband").Infof("No net directory found for IB device %s, skipping", IBDev)
+			logrus.WithField("component", "infiniband").Warnf("No net directory found for IB device %s, skipping", IBDev)
 			continue
 		}
-		ibNetDev := GetFileCnt(netPath)[0]
+		var ibNetDev string
+		if len(GetFileCnt(netPath)) == 0 {
+			logrus.WithField("component", "infiniband").Warnf("No network interfaces found for IB device %s, skipping", IBDev)
+			ibNetDev = ""
+		} else {
+			ibNetDev = GetFileCnt(netPath)[0]
+		}
 		IBDevs[IBDev] = ibNetDev
 	}
 
@@ -163,7 +170,7 @@ func (i *InfinibandInfo) GetNetOperstate(IBDev string) string {
 	return strings.TrimSpace(string(data))
 }
 
-func listFiles(dir, IBDev, counterType string) ([]string, error) {
+func listFiles(dir string) ([]string, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Infof("Fail to Read dir:%s", dir)
@@ -180,7 +187,7 @@ func listFiles(dir, IBDev, counterType string) ([]string, error) {
 func GetIBCounter(IBDev string, counterType string) (map[string]uint64, error) {
 	Counters := make(map[string]uint64, 0)
 	counterPath := path.Join(IBSYSPathPre, IBDev, "ports/1", counterType)
-	ibCounterName, err := listFiles(counterPath, IBDev, counterType)
+	ibCounterName, err := listFiles(counterPath)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("Fail to get the counter from path :%s", counterPath)
 		return nil, err

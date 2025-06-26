@@ -28,9 +28,11 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-func RunLocalIBBW(ibBwPerfType string, ibDevice string, msgSize int, testDuring int, verbose bool) (float64, error) {
-	ibBwArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, ibDevice)
-
+func RunLocalIBBW(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msgSize int, testDuring int, useGDR, verbose bool) (float64, error) {
+	ibBwArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, ibDevice1)
+	if useGDR {
+		ibBwArgs += " --use_cuda"
+	}
 	// Start server process
 	runCmd := fmt.Sprintf("%s %s > /dev/null", ibBwPerfType, ibBwArgs)
 	if verbose {
@@ -51,6 +53,10 @@ func RunLocalIBBW(ibBwPerfType string, ibDevice string, msgSize int, testDuring 
 	time.Sleep(2 * time.Second)
 
 	// Start client process
+	ibBwArgs = fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, ibDevice2)
+	if useGDR {
+		ibBwArgs += " --use_cuda"
+	}
 	runCmd = fmt.Sprintf("%s %s 127.0.0.1", ibBwPerfType, ibBwArgs)
 	if verbose {
 		fmt.Printf("Executing: %s\n", runCmd)
@@ -82,38 +88,61 @@ func RunLocalIBBW(ibBwPerfType string, ibDevice string, msgSize int, testDuring 
 		}
 	}
 
-	return 0, fmt.Errorf("failed to parse bandwidth for %s", ibDevice)
+	return 0, fmt.Errorf("failed to parse bandwidth for %s", ibDevice1)
 }
 
-func RunLocalNumaAwareIBBW(ibBwPerfType string, ibDevice string, numaNode int, numaCpu0 int, msgSize int, testDuring int, verbose bool) (float64, error) {
-	ibBwArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, ibDevice)
-	// Start server process
-	runCmd := fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s > /dev/null", numaNode, numaNode, ibBwPerfType, ibBwArgs)
-	if verbose {
-		fmt.Printf("Executing: %s\n", runCmd)
+func RunLocalNumaAwareIBBW(
+	ibBwPerfType string,
+	srcDev, dstDev collector.IBHardWareInfo,
+	msgSize int,
+	testDuring int,
+	useGDR, verbose bool,
+) (float64, error) {
+	numaNode, err := strconv.Atoi(srcDev.NumaNode)
+	if err != nil {
+		return 0, fmt.Errorf("invalid NUMA node %q for device %s: %v", srcDev.NumaNode, srcDev.IBDev, err)
 	}
-	serverCmd := exec.Command("sh", "-c", runCmd)
+	// parts := strings.Split(srcDev.CPULists, ",")
+	// numaCPU0, err := strconv.Atoi(strings.Split(parts[0], "-")[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid CPUList %q for device %s: %v", srcDev.CPULists, srcDev.IBDev, err)
+	}
+
+	// server
+	serverArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, srcDev.IBDev)
+	if useGDR {
+		serverArgs += " --use_cuda"
+	}
+	serverCmdStr := fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s > /dev/null", numaNode, numaNode, ibBwPerfType, serverArgs)
+	if verbose {
+		fmt.Printf("Executing server: %s\n", serverCmdStr)
+	}
+
+	serverCmd := exec.Command("sh", "-c", serverCmdStr)
 	if err := serverCmd.Start(); err != nil {
-		if verbose {
-			fmt.Printf("error starting server: %v", err)
-		}
 		return 0, fmt.Errorf("error starting server: %v", err)
 	}
-	// Sleep to allow server to start
+
 	if verbose {
 		fmt.Println("Sleeping for 2 seconds to allow server to initialize")
 	}
 	time.Sleep(2 * time.Second)
-	// Start client process
-	// numaCpu1 := numaCpu0 + 1
-	runCmd = fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s 127.0.0.1", numaNode, numaNode, ibBwPerfType, ibBwArgs)
-	if verbose {
-		fmt.Printf("Executing: %s\n", runCmd)
+
+	// client
+	clientArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, dstDev.IBDev)
+	if useGDR {
+		clientArgs += " --use_cuda"
 	}
-	clientCmd := exec.Command("sh", "-c", runCmd)
+	clientCmdStr := fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s 127.0.0.1", numaNode, numaNode, ibBwPerfType, clientArgs)
+	if verbose {
+		fmt.Printf("Executing client: %s\n", clientCmdStr)
+	}
+
+	clientCmd := exec.Command("sh", "-c", clientCmdStr)
 	var stdout, stderr bytes.Buffer
 	clientCmd.Stdout = &stdout
 	clientCmd.Stderr = &stderr
+
 	if err := clientCmd.Run(); err != nil {
 		if verbose {
 			fmt.Printf("Error executing client: %v\n", err)
@@ -121,6 +150,7 @@ func RunLocalNumaAwareIBBW(ibBwPerfType string, ibDevice string, numaNode int, n
 		}
 		return 0, fmt.Errorf("error executing client: %v", err)
 	}
+
 	// Parse bandwidth from output
 	lines := strings.Split(stdout.String(), "\n")
 	for _, line := range lines {
@@ -132,8 +162,7 @@ func RunLocalNumaAwareIBBW(ibBwPerfType string, ibDevice string, numaNode int, n
 			}
 		}
 	}
-	return 0, fmt.Errorf("failed to parse bandwiidth for %s", ibDevice)
-
+	return 0, fmt.Errorf("failed to parse bandwidth for %s -> %s", srcDev.IBDev, dstDev.IBDev)
 }
 
 func getActiveIBDevices() ([]collector.IBHardWareInfo, error) {
@@ -163,72 +192,89 @@ func getActiveIBDevices() ([]collector.IBHardWareInfo, error) {
 	return activeDevices, nil
 }
 
-func CheckNodeIBPerfHealth(ibBwPerfType string, expectedBandwidthGbps float64, ibDevice string, msgSize int, testDuring int, numaAware bool, verbose bool) (*common.Result, error) {
+func CheckNodeIBPerfHealth(
+	ibBwPerfType string,
+	expectedBandwidthGbps float64,
+	ibDevice string,
+	msgSize int,
+	testDuring int,
+	numaAware bool,
+	useGDR, verbose bool,
+) (*common.Result, error) {
 	activeDeviceInfos := make([]collector.IBHardWareInfo, 0)
 	var err error
-	if numaAware || ibDevice == "" {
-		activeDeviceInfos, err = getActiveIBDevices()
-		if err != nil {
-			return nil, fmt.Errorf("getActiveIBDevices error :%v", err)
+	activeDeviceInfos, err = getActiveIBDevices()
+	if err != nil {
+		return nil, fmt.Errorf("getActiveIBDevices error :%v", err)
+	}
+
+	deviceFilter := make(map[string]struct{})
+	if ibDevice != "" {
+		devices := strings.Split(ibDevice, ",")
+		for _, d := range devices {
+			deviceFilter[strings.TrimSpace(d)] = struct{}{}
 		}
 	}
 	usedDeviceInfos := make([]collector.IBHardWareInfo, 0)
-	for dev := range activeDeviceInfos {
-		if ibDevice == "" || ibDevice == activeDeviceInfos[dev].IBDev {
-			usedDeviceInfos = append(usedDeviceInfos, activeDeviceInfos[dev])
+	for _, dev := range activeDeviceInfos {
+		if ibDevice == "" {
+			usedDeviceInfos = append(usedDeviceInfos, dev)
+		} else {
+			if _, ok := deviceFilter[dev.IBDev]; ok {
+				usedDeviceInfos = append(usedDeviceInfos, dev)
+			}
 		}
 	}
+
 	status := consts.StatusNormal
 	checkRes := make([]*common.CheckerResult, 0)
-	for _, dev := range usedDeviceInfos {
-		resItem := PerfCheckItems[IbPerfCheckerName]
-		var bw float64
-		var err error
-		if numaAware {
-			numaNode, err2 := strconv.Atoi(dev.NumaNode)
-			err = err2
-			if err != nil {
-				return nil, fmt.Errorf("error converting numa node string %s to int: %v", dev.NodeGUID, err)
+
+	for _, srcDev := range usedDeviceInfos {
+		for _, dstDev := range usedDeviceInfos {
+			resTemplate := PerfCheckItems[IbPerfCheckerName]
+			resItem := &common.CheckerResult{
+				Name:   resTemplate.Name,
+				Status: consts.StatusNormal,
 			}
-			// Split the first element on "-" and take the first part
-			parts := strings.Split(dev.CPULists, ",")
-			numaCPUStr := strings.Split(parts[0], "-")
-			numaCPU0, err := strconv.Atoi(numaCPUStr[0])
-			if err != nil {
-				return nil, fmt.Errorf("error converting numa cpu string %s toint: %v", numaCPUStr[0], err)
+
+			resItem.Detail = fmt.Sprintf("Testing %s -> %s", srcDev.IBDev, dstDev.IBDev)
+
+			var bw float64
+			var err error
+
+			if numaAware {
+				bw, err = RunLocalNumaAwareIBBW(ibBwPerfType, srcDev, dstDev, msgSize, testDuring, useGDR, verbose)
+			} else {
+				bw, err = RunLocalIBBW(ibBwPerfType, srcDev.IBDev, dstDev.IBDev, msgSize, testDuring, useGDR, verbose)
 			}
-			fmt.Printf("NUMA %d CPU 0 for device %v is: %d\n", numaNode, dev, numaCPU0)
-			bw, err = RunLocalNumaAwareIBBW(ibBwPerfType, dev.IBDev, numaNode, numaCPU0, msgSize, testDuring, verbose)
-		} else {
-			bw, err = RunLocalIBBW(ibBwPerfType, dev.IBDev, msgSize, testDuring, verbose)
-		}
-		if err != nil {
-			resItem.Detail = fmt.Sprintf("❌ Test failed on %s ,err : %v", dev, err)
-			resItem.Status = consts.StatusAbnormal
-			status = resItem.Status
+
+			if err != nil {
+				resItem.Status = consts.StatusAbnormal
+				resItem.Detail += fmt.Sprintf(" ❌ Test failed: %v", err)
+				status = resItem.Status
+			} else if bw < expectedBandwidthGbps {
+				resItem.Status = consts.StatusAbnormal
+				resItem.Detail += fmt.Sprintf(" ❌ %.2f Gbps < expected %.2f Gbps", bw, expectedBandwidthGbps)
+				status = resItem.Status
+			} else {
+				resItem.Status = consts.StatusNormal
+				resItem.Detail += fmt.Sprintf(" ✅ %.2f Gbps", bw)
+			}
+
+			if verbose {
+				fmt.Println(resItem.Detail)
+			}
 			checkRes = append(checkRes, resItem)
-			continue
 		}
-		if verbose {
-			fmt.Printf("IB Device %s - Bandwidth: %.2f Gbps\n", dev, bw)
-		}
-		if bw < expectedBandwidthGbps {
-			resItem.Detail = fmt.Sprintf("❌ IB Device %s (%.2f Gbps) does NOT meet the required %.2f Gbps bandwidth\n", dev, bw, expectedBandwidthGbps)
-			resItem.Status = consts.StatusAbnormal
-			status = resItem.Status
-		} else {
-			resItem.Detail = fmt.Sprintf("✅ IB Device %s PASSED with %.2f Gbps\n", dev, bw)
-		}
-		checkRes = append(checkRes, resItem)
 	}
-	res := &common.Result{
+
+	return &common.Result{
 		Item:     "Ib Perf Test",
 		Status:   status,
 		Checkers: checkRes,
-	}
-	return res, nil
-
+	}, nil
 }
+
 func PrintInfo(result *common.Result, verbos bool) bool {
 	checkerResults := result.Checkers
 	if result.Status == consts.StatusNormal {

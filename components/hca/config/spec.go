@@ -145,7 +145,7 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 		return nil, fmt.Errorf("HCA spec is not initialized")
 	}
 	// Get the board IDs of the IB devices in the host
-	ibDevs, err := GetIBBoardIDs()
+	_, ibDevs, err := GetIBPFBoardIDs()
 	if err != nil {
 		return nil, err
 	}
@@ -189,28 +189,21 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 	return result, nil
 }
 
-func GetIBBoardIDs() ([]string, error) {
+func GetIBPFBoardIDs() (map[string]string, []string, error) {
 	baseDir := "/sys/class/infiniband"
 	devices, err := os.ReadDir(baseDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %s: %v", baseDir, err)
+		return nil, nil, fmt.Errorf("failed to read %s: %v", baseDir, err)
 	}
 
 	boardIDSet := make(map[string]struct{})
+	devBoardIDMap := make(map[string]string)
 	for _, dev := range devices {
 		devName := dev.Name()
-		// read link_layer to filter out non-Infiniband devices
-		linkLayerPath := filepath.Join(baseDir, devName, "ports/1/link_layer")
-		linkLayerContent, err := os.ReadFile(linkLayerPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read link_layer for device %s: %v\n", devName, err)
-			continue
+		vfPath := filepath.Join(baseDir, devName, "device", "physfn")
+		if _, err := os.Stat(vfPath); err == nil {
+			continue // Skip virtual functions
 		}
-		linkLayer := strings.TrimSpace(string(linkLayerContent))
-		if linkLayer != "InfiniBand" {
-			continue
-		}
-
 		boardIDPath := filepath.Join(baseDir, devName, "board_id")
 		content, err := os.ReadFile(boardIDPath)
 		if err != nil {
@@ -222,11 +215,12 @@ func GetIBBoardIDs() ([]string, error) {
 			continue
 		}
 		boardIDSet[boardID] = struct{}{}
+		devBoardIDMap[devName] = boardID
 	}
 
 	var boardIDs []string
 	for id := range boardIDSet {
 		boardIDs = append(boardIDs, id)
 	}
-	return boardIDs, nil
+	return devBoardIDMap, boardIDs, nil
 }

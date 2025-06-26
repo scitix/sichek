@@ -7,7 +7,7 @@ VERSION_MINOR := 5
 VERSION_PATCH := 0
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
-BUILD_TIME := $(shell date -u '+%Y-%m-%d')
+BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 VERSION:=v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
 LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
            -X 'cmd/command/version.Minor=$(VERSION_MINOR)' \
