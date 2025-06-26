@@ -31,7 +31,7 @@ func NewIBPerftestCmd() *cobra.Command {
 		Use:   "ib",
 		Short: "Perform Infiniband performance tests",
 		Run: func(cmd *cobra.Command, args []string) {
-			_, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
+			_, cancel := context.WithTimeout(context.Background(), consts.IbPerfTestTimeout)
 
 			verbose, err := cmd.Flags().GetBool("verbose")
 			if err != nil {
