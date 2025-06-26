@@ -227,7 +227,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		statusColor := consts.Green
-		if result.Status != consts.StatusNormal {
+		if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
 			statusColor = consts.Red
 			checkAllPassed = false
 			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", consts.Red, result.ErrorName, consts.Reset)
