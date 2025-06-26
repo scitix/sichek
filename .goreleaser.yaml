@@ -1,11 +1,3 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
-
 project_name: sichek
 
 version: 2
@@ -56,6 +48,8 @@ nfpms:
     description: "Sichek: check node components, e.g. CPU, GPU, IB etc"
     license: Apache 2.0
     bindir: "{{ .Env.INSTALL_DIR }}"
+    scripts:
+          preinstall: ./scripts/check_sicl.sh
     contents:
     - src: ./components/cpu/config/*.yaml
       dst: /var/sichek/config/cpu/
@@ -81,8 +75,8 @@ nfpms:
       dst: /var/sichek/config/
     - src: ./components/pcie/config/*.yaml
       dst: /var/sichek/config/pcie/
-    - src: ./test/get_ib_info.sh
-      dst: /var/sichek/get_ib_info.sh
+    - src: ./scripts/*
+      dst: /var/sichek/scripts/*
 
 changelog:
   sort: asc

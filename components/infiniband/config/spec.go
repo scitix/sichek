@@ -197,21 +197,34 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			}
 		}
 		// Get the board IDs of the IB devices in the host
-		ibDevs, err := hcaConfig.GetIBBoardIDs()
+		devBoardIDMap, ibDevs, err := hcaConfig.GetIBPFBoardIDs()
 		if err != nil {
 			return nil, err
 		}
 		allExist := true
+		specKeys := make([]string, 0, len(ibSpec.IBDevs))
+		for k := range ibSpec.IBDevs {
+			specKeys = append(specKeys, k)
+		}
+		currKeys := make([]string, 0, len(devBoardIDMap))
+		for k := range devBoardIDMap {
+			currKeys = append(currKeys, k)
+		}
+		changed := TrimMapByList(devBoardIDMap, ibSpec.IBDevs)
+		if changed {
+			logrus.WithField("component", "infiniband").
+				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)
+		}
 		for _, boardID := range ibDevs {
 			spec, exists := ibSpec.HCAs[boardID]
 			if !exists || spec == nil {
-				logrus.WithField("component", "HCA").
+				logrus.WithField("component", "infiniband").
 					Warnf("spec for board ID %s not found in current spec, trying to load from HCA configs", boardID)
 				allExist = false
 				break
 			}
 			if spec.Hardware.BoardID != boardID {
-				logrus.WithField("component", "HCA").
+				logrus.WithField("component", "infiniband").
 					Warnf("spec for board ID %s does not match the hardware board ID %s, trying to load from HCA configs", boardID, spec.Hardware.BoardID)
 				allExist = false
 				break
@@ -230,4 +243,19 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)
+}
+
+// TrimMapByList removes keys from the map `b` that are not present in the slice `a`.
+func TrimMapByList(a map[string]string, b map[string]string) bool {
+	if len(a) >= len(b) {
+		return false
+	}
+	changed := false
+	for key := range b {
+		if _, ok := a[key]; !ok {
+			delete(b, key)
+		}
+		changed = true
+	}
+	return changed
 }
