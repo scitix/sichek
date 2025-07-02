@@ -20,32 +20,16 @@ WORKDIR /go/src/sichek
 # COPY go.sum go.sum
 # code
 COPY . .
-RUN go mod download
+# RUN go mod download
 
-ARG VERSION_MAJOR=0
-ARG VERSION_MINOR=3
-ARG VERSION_PATCH=1
-ARG GIT_COMMIT="none"
-ARG GO_VERSION="none"
-ARG BUILD_TIME="unknow"
-ARG INSTALL_DIR="/usr/local/bin"
-RUN echo "VERSION_MAJOR=${VERSION_MAJOR}" && \
-    echo "VERSION_MINOR=${VERSION_MINOR}" && \
-    echo "VERSION_PATCH=${VERSION_PATCH}" && \
-    echo "GIT_COMMIT=${GIT_COMMIT}" && \
-    echo "GO_VERSION=${GO_VERSION}" && \
-    echo "BUILD_TIME=${BUILD_TIME}" && \
-    echo "INSTALL_DIR=${INSTALL_DIR}" && \
-    VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
-    GIT_COMMIT=${GIT_COMMIT} GO_VERSION=${GO_VERSION} BUILD_TIME=${BUILD_TIME} INSTALL_DIR=${INSTALL_DIR} \
-    goreleaser release --snapshot --clean
+RUN make goreleaser
 
 FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y vim curl tzdata git ca-certificates perftest xz-utils libnuma1 numactl && \
+    apt-get install -y vim curl tzdata git ca-certificates perftest xz-utils libnuma1 numactl rdmacm-utils && \
     rm -rf /var/lib/apt/lists/* && \
     curl -o /tmp/sicl_install.sh https://oss-ap-southeast.scitix.ai/scitix-release/sicl-24.11-1.cuda1262.ubuntu2204.run && \
     bash /tmp/sicl_install.sh && rm -rf /tmp/sicl_install.sh
