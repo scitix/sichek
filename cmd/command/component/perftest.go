@@ -68,6 +68,10 @@ func NewIBPerftestCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("perftest", "infiniband").Error(err)
 			}
+			gid, err := cmd.Flags().GetInt("gid-index")
+			if err != nil {
+				logrus.WithField("perftest", "infiniband").Error(err)
+			}
 			numaAware, err := cmd.Flags().GetBool("numa-aware")
 			if err != nil {
 				logrus.WithField("perftest", "infiniband").Errorf("get to ge the numaAware flag: %v", err)
@@ -81,7 +85,7 @@ func NewIBPerftestCmd() *cobra.Command {
 				logrus.WithField("perftest", "infiniband").Error(err)
 			}
 
-			res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, ibDevice, size, duration, numaAware, useGDR, verbose)
+			res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, ibDevice, size, duration, gid, numaAware, useGDR, verbose)
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
 				os.Exit(-1)
@@ -91,13 +95,14 @@ func NewIBPerftestCmd() *cobra.Command {
 		},
 	}
 
-	ibPerftestCmd.Flags().StringP("test-type", "t", "ib_read_bw", "IB test type (ib_read_bw, ib_write_bw), default is ib_read_bw")
+	ibPerftestCmd.Flags().StringP("test-type", "t", "ib_read_bw", "IB test type (ib_read_bw, ib_write_bw)")
 	ibPerftestCmd.Flags().StringP("ib-dev", "d", "", "Use IB device <dev1,dev2> (default all active devices found)")
-	ibPerftestCmd.Flags().IntP("size", "s", 65536, "Size of message to exchange (default 65536)")
-	ibPerftestCmd.Flags().IntP("duration", "D", 10, "Run test for a customized period of seconds (default 5 seconds)")
-	ibPerftestCmd.Flags().BoolP("numa-aware", "n", false, "Run test with numa aware (default 'false`)")
-	ibPerftestCmd.Flags().BoolP("gdr", "g", false, "Run test with gdr (default 'false`)")
-	ibPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
+	ibPerftestCmd.Flags().IntP("size", "s", 65536, "Size of message to exchange")
+	ibPerftestCmd.Flags().IntP("duration", "D", 10, "Run test for a customized period of seconds")
+	ibPerftestCmd.Flags().BoolP("numa-aware", "n", false, "Run test with numa aware")
+	ibPerftestCmd.Flags().BoolP("gdr", "g", false, "Run test with gdr")
+	ibPerftestCmd.Flags().IntP("gid-index", "x", 0, "Test uses GID with GID index")
+	ibPerftestCmd.Flags().Float64("expect-bw", 350, "Expected bandwidth in Gbps")
 	ibPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	return ibPerftestCmd

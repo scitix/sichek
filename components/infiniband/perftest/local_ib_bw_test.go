@@ -20,7 +20,7 @@ import (
 )
 
 func TestCheckNodeIBPerfHealth(t *testing.T) {
-	_, err := CheckNodeIBPerfHealth("ib_read_bw", 150, "", 65536, 2, false, true)
+	_, err := CheckNodeIBPerfHealth("ib_read_bw", 150, "", 65536, 2, 3, false, false, true)
 	if err != nil {
 		t.Errorf("CheckNodeIBPerfHealth FAILED: %v", err)
 	}

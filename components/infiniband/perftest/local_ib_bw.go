@@ -28,8 +28,8 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-func RunLocalIBBW(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msgSize int, testDuring int, useGDR, verbose bool) (float64, error) {
-	ibBwArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, ibDevice1)
+func RunLocalIBBW(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msgSize int, testDuring, gid int, useGDR, verbose bool) (float64, error) {
+	ibBwArgs := fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s -q 2", msgSize, testDuring, gid, ibDevice1)
 	if useGDR {
 		ibBwArgs += " --use_cuda"
 	}
@@ -53,7 +53,7 @@ func RunLocalIBBW(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msgSi
 	time.Sleep(2 * time.Second)
 
 	// Start client process
-	ibBwArgs = fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, ibDevice2)
+	ibBwArgs = fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s -q 2", msgSize, testDuring, gid, ibDevice2)
 	if useGDR {
 		ibBwArgs += " --use_cuda"
 	}
@@ -95,7 +95,7 @@ func RunLocalNumaAwareIBBW(
 	ibBwPerfType string,
 	srcDev, dstDev collector.IBHardWareInfo,
 	msgSize int,
-	testDuring int,
+	testDuring, gid int,
 	useGDR, verbose bool,
 ) (float64, error) {
 	numaNode, err := strconv.Atoi(srcDev.NumaNode)
@@ -109,7 +109,7 @@ func RunLocalNumaAwareIBBW(
 	}
 
 	// server
-	serverArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, srcDev.IBDev)
+	serverArgs := fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s -q 2", msgSize, testDuring, gid, srcDev.IBDev)
 	if useGDR {
 		serverArgs += " --use_cuda"
 	}
@@ -129,7 +129,7 @@ func RunLocalNumaAwareIBBW(
 	time.Sleep(2 * time.Second)
 
 	// client
-	clientArgs := fmt.Sprintf("-s %d -D %d -x 0 -F --report_gbits -d %s -q 2", msgSize, testDuring, dstDev.IBDev)
+	clientArgs := fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s -q 2", msgSize, testDuring, gid, dstDev.IBDev)
 	if useGDR {
 		clientArgs += " --use_cuda"
 	}
@@ -198,6 +198,7 @@ func CheckNodeIBPerfHealth(
 	ibDevice string,
 	msgSize int,
 	testDuring int,
+	gid int,
 	numaAware bool,
 	useGDR, verbose bool,
 ) (*common.Result, error) {
@@ -243,9 +244,9 @@ func CheckNodeIBPerfHealth(
 			var err error
 
 			if numaAware {
-				bw, err = RunLocalNumaAwareIBBW(ibBwPerfType, srcDev, dstDev, msgSize, testDuring, useGDR, verbose)
+				bw, err = RunLocalNumaAwareIBBW(ibBwPerfType, srcDev, dstDev, msgSize, testDuring, gid, useGDR, verbose)
 			} else {
-				bw, err = RunLocalIBBW(ibBwPerfType, srcDev.IBDev, dstDev.IBDev, msgSize, testDuring, useGDR, verbose)
+				bw, err = RunLocalIBBW(ibBwPerfType, srcDev.IBDev, dstDev.IBDev, msgSize, testDuring, gid, useGDR, verbose)
 			}
 
 			if err != nil {
