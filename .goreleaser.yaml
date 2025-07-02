@@ -76,7 +76,7 @@ nfpms:
     - src: ./components/pcie/config/*.yaml
       dst: /var/sichek/config/pcie/
     - src: ./scripts/*
-      dst: /var/sichek/scripts/*
+      dst: /var/sichek/scripts/
 
 changelog:
   sort: asc

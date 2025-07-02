@@ -67,6 +67,8 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(NewVersionCmd())
 	rootCmd.AddCommand(NewDaemonCmd())
 	rootCmd.AddCommand(component.NewPcieTopoCmd())
+	rootCmd.AddCommand(component.NewIBLinkCheckCmd())
+	rootCmd.AddCommand(component.NewRoCEV2GidsCheckCmd())
 	// add perftest subcommand
 	perftestCmd := &cobra.Command{
 		Use:   "perftest",
