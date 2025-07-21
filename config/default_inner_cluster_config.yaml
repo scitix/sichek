@@ -22,7 +22,7 @@ ethernet:
 gpfs:
   query_interval: 30s
   cache_size: 5
-  ignored_checkers: []
+  ignored_checkers: ["gpfs-installed", "node-in-cluster", "gpfs-started", "gpfs-mounted", "gpfs-health", "gpfs-rdma-network"]
 
 cpu:
   query_interval: 30s

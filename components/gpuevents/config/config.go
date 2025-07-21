@@ -21,38 +21,39 @@ import (
 	"github.com/scitix/sichek/components/common"
 )
 
-type HangUserConfig struct {
-	Hang *HangConfig `json:"hang" yaml:"hang"`
+type GpuCostomEventsUserConfig struct {
+	UserConfig *UserConfig `json:"gpu_custom_events" yaml:"gpu_custom_events"`
 }
 
-type HangConfig struct {
+type UserConfig struct {
 	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
 	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
 	NVSMI           bool            `json:"nvsmi" yaml:"nvsmi"`
 	Mock            bool            `json:"mock" yaml:"mock"`
 	IgnoreNamespace []string        `json:"ignore_namespaces" yaml:"ignore_namespaces"`
+	IgnoredCheckers []string        `json:"ignored_checkers,omitempty" yaml:"ignored_checkers,omitempty"`
 
 	ProcessedIgnoreNamespace map[string]struct{}
 }
 
-func (c *HangUserConfig) GetQueryInterval() common.Duration {
-	return c.Hang.QueryInterval
+func (c *GpuCostomEventsUserConfig) GetQueryInterval() common.Duration {
+	return c.UserConfig.QueryInterval
 }
 
 // SetQueryInterval Update the query interval in the config
-func (c *HangUserConfig) SetQueryInterval(newInterval common.Duration) {
-	c.Hang.QueryInterval = newInterval
+func (c *GpuCostomEventsUserConfig) SetQueryInterval(newInterval common.Duration) {
+	c.UserConfig.QueryInterval = newInterval
 }
 
-func (c *HangUserConfig) LoadUserConfigFromYaml(file string) error {
+func (c *GpuCostomEventsUserConfig) LoadUserConfigFromYaml(file string) error {
 	err := common.LoadUserConfig(file, c)
-	if err != nil || c.Hang == nil {
-		return fmt.Errorf("failed to load default hang user config: %v", err)
+	if err != nil || c.UserConfig == nil {
+		return fmt.Errorf("failed to load default gpu_custom_events user config: %v", err)
 	}
-	c.Hang.ProcessedIgnoreNamespace = make(map[string]struct{})
-	for _, nameSpace := range c.Hang.IgnoreNamespace {
-		c.Hang.ProcessedIgnoreNamespace[nameSpace] = struct{}{}
+	c.UserConfig.ProcessedIgnoreNamespace = make(map[string]struct{})
+	for _, nameSpace := range c.UserConfig.IgnoreNamespace {
+		c.UserConfig.ProcessedIgnoreNamespace[nameSpace] = struct{}{}
 	}
 	return nil
 }

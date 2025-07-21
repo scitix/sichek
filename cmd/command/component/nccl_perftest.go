@@ -17,8 +17,10 @@ package component
 
 import (
 	"context"
-	"os"
+	"errors"
+	"strings"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/perftest"
 	"github.com/scitix/sichek/consts"
@@ -51,58 +53,94 @@ func NewNcclPerftestCmd() *cobra.Command {
 			numGpus, err := cmd.Flags().GetInt("num-gpus")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
+				return
+			}
+			nvmlInst := nvml.New()
+			if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
+				logrus.WithField("perftest", "nccl").Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
+				return
+			}
+			defer nvmlInst.Shutdown()
+			deviceCount, ret := nvmlInst.DeviceGetCount()
+			if !errors.Is(ret, nvml.SUCCESS) {
+				logrus.WithField("perftest", "nccl").Errorf("failed to get device count: %s", nvml.ErrorString(ret))
+				return
+			}
+			if numGpus > deviceCount {
+				logrus.WithField("perftest", "nccl").Warnf("num-gpus %d is greater than available GPUs %d, setting to %d", numGpus, deviceCount, deviceCount)
+				numGpus = deviceCount
+			}
+			gpulist, err := cmd.Flags().GetString("gpulist")
+			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
+				return
+			}
+			if gpulist != "" {
+				gpus := strings.Split(gpulist, ",")
+				specifiedNumGpus := len(gpus)
+				if numGpus > specifiedNumGpus {
+					logrus.WithField("perftest", "nccl").Warnf("num-gpus %d is greater than specified GPU list length %d, setting to %d", numGpus, specifiedNumGpus, specifiedNumGpus)
+					numGpus = specifiedNumGpus
+				}
 			}
 			beginBuffer, err := cmd.Flags().GetString("begin")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
+				return
 			}
 			endBuffer, err := cmd.Flags().GetString("end")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
+				return
 			}
-			enableNvls, err := cmd.Flags().GetBool("enable-nvls")
+			disableNvls, err := cmd.Flags().GetBool("disable-nvls")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
+				return
 			}
 			scale, err := cmd.Flags().GetBool("scale-gpus")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
+				return
 			}
 			expectedBandwidthGbps, err := cmd.Flags().GetFloat64("expect-bw")
 			if err != nil {
 				logrus.WithField("perftest", "nccl").Error(err)
+				return
 			}
 
 			var res *common.Result
-			exitCode := 0
+			result := 0
 			if scale {
 				for g := 2; g <= numGpus; g++ {
-					res, err = perftest.CheckNcclPerf(g, beginBuffer, endBuffer, enableNvls, expectedBandwidthGbps)
+					res, err = perftest.CheckNcclPerf(g, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
 					if err != nil {
 						logrus.WithField("perftest", "nccl").Error(err)
-						exitCode = -1
+						result = -1
 					}
 				}
 			} else {
-				res, err = perftest.CheckNcclPerf(numGpus, beginBuffer, endBuffer, enableNvls, expectedBandwidthGbps)
+				res, err = perftest.CheckNcclPerf(numGpus, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
 				if err != nil {
 					logrus.WithField("perftest", "nccl").Error(err)
-					exitCode = -1
+					result = -1
 				}
 			}
-			if exitCode != 0 {
-				os.Exit(-1)
+			if result == 0 {
+				passed := perftest.PrintNcclPerfInfo(res)
+				ComponentStatuses[res.Item] = passed
+			} else {
+				ComponentStatuses["NcclPerf"] = false
 			}
-			passed := perftest.PrintNcclPerfInfo(res)
-			ComponentStatuses[res.Item] = passed
 		},
 	}
 
-	ncclPerftestCmd.Flags().IntP("num-gpus", "g", 8, "Max GPU numbers to test")
+	ncclPerftestCmd.Flags().IntP("num-gpus", "n", 8, "Max GPU numbers to test")
+	ncclPerftestCmd.Flags().StringP("gpulist", "g", "", "specific GPU list to test, e.g. 0,1,2,3")
 	ncclPerftestCmd.Flags().StringP("begin", "b", "", "begin buffer")
 	ncclPerftestCmd.Flags().StringP("end", "e", "", "end buffer")
 	ncclPerftestCmd.Flags().Bool("scale-gpus", false, "Run NCCL test scaling GPU count from 2 to n")
-	ncclPerftestCmd.Flags().BoolP("enable-nvls", "l", false, "test with nvlinks")
+	ncclPerftestCmd.Flags().BoolP("disable-nvls", "d", false, "test without nvlinks")
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ncclPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 

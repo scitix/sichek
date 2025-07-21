@@ -22,26 +22,32 @@ import (
 	"github.com/scitix/sichek/pkg/utils"
 )
 
+const (
+	GPUHangCheckerName       = "GPUHang"
+	SmClkStuckLowCheckerName = "SmClkStuckLow"
+)
+
 type CompareType string
 
 const (
-	CompareLow  CompareType = "low"
-	CompareHigh CompareType = "high"
+	CompareLow   CompareType = "low"
+	CompareHigh  CompareType = "high"
+	CompareEqual CompareType = "equal"
 )
 
-type HangEventRules struct {
-	Rules *HangEventRule `yaml:"hang" json:"hang"`
+type GpuEventRules struct {
+	Rules map[string]*GpuEventRule `yaml:"gpu_custom_events" json:"gpu_custom_events"`
 }
 
-type HangEventRule struct {
+type GpuEventRule struct {
 	Name                       string                    `json:"name" yaml:"name"`
-	Description                string                    `json:"description,omitempty" yaml:"description,omitempty"`
+	Description                string                    `json:"description" yaml:"description"`
 	DurationThreshold          common.Duration           `json:"duration_threshold" yaml:"duration_threshold"`
 	Level                      string                    `json:"level" yaml:"level"`
 	Indicators                 map[string]*HangIndicator `json:"check_items" yaml:"check_items"`
-	IndicatorsByModel          []*IndicatorModelOverride `json:"check_items_by_model" yaml:"check_items_by_model"`
-	AbnormalDetectedTimes      uint32                    `json:"abnormal_detected_times" yaml:"abnormal_detected_times"`
-	QueryIntervalAfterAbnormal common.Duration           `json:"query_interval_after_abnormal" yaml:"query_interval_after_abnormal"`
+	IndicatorsByModel          []*IndicatorModelOverride `json:"check_items_by_model,omitempty" yaml:"check_items_by_model,omitempty"`
+	AbnormalDetectedTimes      uint32                    `json:"abnormal_detected_times,omitempty" yaml:"abnormal_detected_times,omitempty"`
+	QueryIntervalAfterAbnormal common.Duration           `json:"query_interval_after_abnormal,omitempty" yaml:"query_interval_after_abnormal,omitempty"`
 }
 
 type HangIndicator struct {
@@ -54,9 +60,9 @@ type IndicatorModelOverride struct {
 	Override map[string]*HangIndicator `yaml:"override" json:"override"`
 }
 
-func LoadDefaultEventRules() (*HangEventRule, error) {
-	eventRules := &HangEventRules{}
-	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameHang)
+func LoadDefaultEventRules() (map[string]*GpuEventRule, error) {
+	eventRules := &GpuEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameGpuEvents)
 	if err != nil {
 		return nil, err
 	}
@@ -64,20 +70,22 @@ func LoadDefaultEventRules() (*HangEventRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, m := range eventRules.Rules.IndicatorsByModel {
-		if m.Model == deviceID {
-			for k, override := range m.Override {
-				clone := *override
-				eventRules.Rules.Indicators[k] = &clone
+	for _, eventRule := range eventRules.Rules {
+		for _, m := range eventRule.IndicatorsByModel {
+			if m.Model == deviceID {
+				for k, override := range m.Override {
+					clone := *override
+					eventRule.Indicators[k] = &clone
+				}
+				break
 			}
-			break
 		}
 	}
 	return eventRules.Rules, nil
 }
 
-func LoadEventRules(file string) (*HangEventRule, error) {
-	eventRules := &HangEventRules{}
+func LoadEventRules(file string) (map[string]*GpuEventRule, error) {
+	eventRules := &GpuEventRules{}
 	err := utils.LoadFromYaml(file, eventRules)
 	if err != nil {
 		return nil, err
@@ -86,13 +94,15 @@ func LoadEventRules(file string) (*HangEventRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, m := range eventRules.Rules.IndicatorsByModel {
-		if m.Model == deviceID {
-			for k, override := range m.Override {
-				clone := *override
-				eventRules.Rules.Indicators[k] = &clone
+	for _, eventRule := range eventRules.Rules {
+		for _, m := range eventRule.IndicatorsByModel {
+			if m.Model == deviceID {
+				for k, override := range m.Override {
+					clone := *override
+					eventRule.Indicators[k] = &clone
+				}
+				break
 			}
-			break
 		}
 	}
 	return eventRules.Rules, nil

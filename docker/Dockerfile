@@ -35,7 +35,7 @@ RUN apt-get update && \
     bash /tmp/sicl_install.sh && rm -rf /tmp/sicl_install.sh
 
 ENV NVIDIA_VISIBLE_DEVICES=""
-ENV TZ=UTC
+ENV TZ=Asia/Shanghai
 RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure --frontend noninteractive tzdata
 
 WORKDIR /opt/sichek

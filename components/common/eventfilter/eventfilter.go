@@ -110,8 +110,23 @@ func (f *EventFilter) Check() *common.Result {
 		Level:    consts.LevelInfo,
 		Checkers: make([]*common.CheckerResult, 0),
 	}
-	for _, checkItem := range resultMap {
-		if checkItem != nil {
+	for _, entry := range f.RegexEntries {
+		name := entry.Rule.Name
+		checkItem, exists := resultMap[name]
+		if !exists || checkItem == nil {
+			checkItem = &common.CheckerResult{
+				Name:        name,
+				Description: entry.Rule.Description,
+				Curr:        "0",
+				Device:      "",
+				Status:      consts.StatusNormal,
+				Level:       entry.Rule.Level,
+				ErrorName:   name,
+				Suggestion:  entry.Rule.Suggestion,
+				Detail:      "",
+			}
+			result.Checkers = append(result.Checkers, checkItem)
+		} else {
 			result.Checkers = append(result.Checkers, checkItem)
 			if checkItem.Status == consts.StatusAbnormal {
 				logrus.WithField("component", "filefilter").Warnf("Abnormal check result: %s, %s", checkItem.Name, checkItem.Detail)
@@ -135,7 +150,7 @@ func (f *EventFilter) matchLineAndUpdateResult(fileName string, line string, res
 			name := rule.Name
 			res, exists := resultMap[name]
 			if !exists {
-				res = &common.CheckerResult{
+				resultMap[name] = &common.CheckerResult{
 					Name:        name,
 					Description: rule.Description,
 					Curr:        "1",
@@ -146,7 +161,6 @@ func (f *EventFilter) matchLineAndUpdateResult(fileName string, line string, res
 					Suggestion:  rule.Suggestion,
 					Detail:      line,
 				}
-				resultMap[name] = res
 			} else {
 				curr, _ := strconv.Atoi(res.Curr)
 				curr++
