@@ -109,11 +109,11 @@ func (c *component) Name() string {
 var now time.Time
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	now = now.Add(10 * time.Second)
+	now = now.Add(30 * time.Second)
 	nvdiaCollector := &collector.NvidiaInfo{}
 	nvdiaCollector.Time = now
-	nvdiaCollector.DeviceCount = 8
-	for i := 0; i < 8; i++ {
+	nvdiaCollector.DeviceCount = 2
+	for i := 0; i < nvdiaCollector.DeviceCount; i++ {
 		deviceInfo := collector.DeviceInfo{}
 		deviceInfo.Index = i
 		deviceInfo.UUID = fmt.Sprintf("mock-uuid-%d", i)
@@ -121,6 +121,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		deviceInfo.Utilization.MemoryUsagePercent = 0
 		deviceInfo.Utilization.GPUUsagePercent = 100
 		deviceInfo.Power.PowerViolations = 0
+		if i == 0 {
+			// Mocking device 0 with low SM clock
+			deviceInfo.Clock.CurSMClk = 500
+			deviceInfo.ClockEvents.IsSupported = true
+			deviceInfo.ClockEvents.GpuIdle = false
+		} else {
+			// Mocking device 1 with GPUHang
+			deviceInfo.Clock.CurSMClk = 1901
+		}
+		deviceInfo.Clock.CurGraphicsClk = 1901
 		deviceInfo.PCIeInfo.PCIeRx = 0
 		deviceInfo.PCIeInfo.PCIeTx = 0
 		nvdiaCollector.DevicesInfo = append(nvdiaCollector.DevicesInfo, deviceInfo)

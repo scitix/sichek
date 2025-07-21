@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package hang
+package gpuevents
 
 import (
 	"context"
@@ -22,9 +22,10 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 )
 
-func TestHang(t *testing.T) {
+func TestGPUEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
@@ -42,7 +43,7 @@ func TestHang(t *testing.T) {
 
 	// Write config data to the temporary files
 	configData := `
-hang:
+gpu_custom_events:
   query_interval: 30s
   cache_size: 5
   nvsmi: false
@@ -64,59 +65,50 @@ hang:
 		}
 	}(specFile.Name())
 
-	// Write spec data to the temporary files
-	specData := `
-hang:
-  name: "GPUHang"
-  description: "GPU Hang"
-  duration_threshold: 2m30s
-  level: warn
-  check_items:
-    pwr:
-      threshold: 100
-      compare: low
-    gclk:
-      threshold: 1400
-      compare: high
-    smclk:
-      threshold: 1400
-      compare: high
-    sm:
-      threshold: 95
-      compare: high
-    mem:
-      threshold: 5
-      compare: low
-    pviol:
-      threshold: 5
-      compare: low
-    rxpci:
-      threshold: 20 # MB/s
-      compare: low
-    txpci:
-      threshold: 20 # MB/s
-      compare: low
-`
-	if _, err := specFile.Write([]byte(specData)); err != nil {
-		t.Fatalf("Failed to write to temp spec file: %v", err)
-	}
-
-	start := time.Now()
+	// start := time.Now()
 	component, err := NewComponent(configFile.Name(), specFile.Name())
 	if err != nil {
 		t.Log(err)
 		return
 	}
+	// 32 times mock_nv 30s to ensure the hang and SmClkStuckLow is detected
+	for i := 0; i < 32; i++ {
+		t.Logf("Running health check for %s, attempt %d", component.Name(), i+1)
+		result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
 
-	result, err := common.RunHealthCheckWithTimeout(ctx, component.GetTimeout(), component.Name(), component.HealthCheck)
-
-	if err != nil {
-		t.Log(err)
+		if err != nil {
+			t.Log(err)
+		}
+		js, err := result.JSON()
+		if err != nil {
+			t.Log(err)
+		}
+		t.Logf("test gpuevents analysis result: %s", js)
+		if i > 13 {
+			if result.Status != consts.StatusAbnormal {
+				t.Errorf("Expected StatusAbnormal, got %s", result.Status)
+			}
+			for _, checker := range result.Checkers {
+				if checker.Name == "GPUHang" {
+					if checker.Status != consts.StatusAbnormal {
+						t.Errorf("Expected GPUHang StatusAbnormal, got %s", checker.Status)
+					}
+					break
+				}
+			}
+		} 
+		if i > 30 {
+			if result.Status != consts.StatusAbnormal {
+				t.Errorf("Expected StatusAbnormal, got %s", result.Status)
+			}
+			for _, checker := range result.Checkers {
+				if checker.Name == "SmClkStuckLow" {
+					if checker.Status != consts.StatusAbnormal {
+						t.Errorf("Expected SmClkStuckLow StatusAbnormal, got %s", checker.Status)
+					}
+					break
+				}
+			}
+		}
 	}
-	js, err := result.JSON()
-	if err != nil {
-		t.Log(err)
-	}
-	t.Logf("test hang analysis result: %s", js)
-	t.Logf("Running time: %ds", time.Since(start))
 }

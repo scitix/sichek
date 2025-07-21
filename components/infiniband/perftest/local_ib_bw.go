@@ -104,9 +104,9 @@ func RunLocalNumaAwareIBBW(
 	}
 	// parts := strings.Split(srcDev.CPULists, ",")
 	// numaCPU0, err := strconv.Atoi(strings.Split(parts[0], "-")[0])
-	if err != nil {
-		return 0, fmt.Errorf("invalid CPUList %q for device %s: %v", srcDev.CPULists, srcDev.IBDev, err)
-	}
+	// if err != nil {
+	// 	return 0, fmt.Errorf("invalid CPUList %q for device %s: %v", srcDev.CPULists, srcDev.IBDev, err)
+	// }
 
 	// server
 	serverArgs := fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s -q 2", msgSize, testDuring, gid, srcDev.IBDev)

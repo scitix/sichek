@@ -37,7 +37,7 @@ func NewRootCmd() *cobra.Command {
 				"g":          true,
 				"infiniband": true,
 				"i":          true,
-				"hang":       true,
+				"gpuevents":  true,
 				"h":          true,
 				"all":        true,
 				"run":        true,
@@ -61,7 +61,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewGpfsCmd())
 	rootCmd.AddCommand(component.NewPodLogCmd())
 	rootCmd.AddCommand(component.NewDmesgCmd())
-	rootCmd.AddCommand(component.NewHangCommand())
+	rootCmd.AddCommand(component.NewGpuEventsCommand())
 	rootCmd.AddCommand(component.NewMemoryCmd())
 	rootCmd.AddCommand(component.NewAllCmd())
 	rootCmd.AddCommand(NewVersionCmd())

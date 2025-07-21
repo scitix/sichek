@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package hang
+package gpuevents
 
 import (
 	"context"
@@ -22,10 +22,9 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/hang/checker"
-	"github.com/scitix/sichek/components/hang/collector"
-	"github.com/scitix/sichek/components/hang/config"
-	"github.com/scitix/sichek/components/hang/metrics"
+	"github.com/scitix/sichek/components/gpuevents/checker"
+	"github.com/scitix/sichek/components/gpuevents/collector"
+	"github.com/scitix/sichek/components/gpuevents/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -36,11 +35,11 @@ type component struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfg           *config.HangUserConfig
+	cfg           *config.GpuCostomEventsUserConfig
 	cfgMutex      sync.Mutex
 	componentName string
 	collector     common.Collector
-	checker       common.Checker
+	checkers      []common.Checker
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -49,7 +48,6 @@ type component struct {
 	cacheSize         int64
 
 	service *common.CommonService
-	metrics *metrics.HangMetrics
 }
 
 var (
@@ -62,7 +60,7 @@ func NewComponent(cfgFile string, specFile string) (common.Component, error) {
 	hangComponentOnce.Do(func() {
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("panic occurred when create component hang: %v", r)
+				err = fmt.Errorf("panic occurred when create component gpuevents: %v", r)
 			}
 		}()
 		hangComponent, err = newComponent(cfgFile, specFile)
@@ -78,48 +76,47 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		}
 	}()
 
-	hangCfg := &config.HangUserConfig{}
-	err = hangCfg.LoadUserConfigFromYaml(cfgFile)
+	userCfg := &config.GpuCostomEventsUserConfig{}
+	err = userCfg.LoadUserConfigFromYaml(cfgFile)
 	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to load HangUserConfig")
+		logrus.WithField("component", "gpuevents").WithError(err).Error("failed to load GpuCostomEventsUserConfig")
 		return nil, err
 	}
 	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
-		logrus.WithField("component", "hang").Errorf("NewComponent load spec config failed: %v", err)
+		logrus.WithField("component", "gpuevents").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-	hangCollector, err := collector.NewHangCollector(hangCfg, eventRules)
+	GpuIndicatorSnapshot, err := collector.NewGpuIndicatorSnapshot(userCfg)
 	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to create HangCollector")
+		logrus.WithField("component", "gpuevents").WithError(err).Error("failed to create GpuIndicatorSnapshot")
 		return nil, err
 	}
 
-	hangChecker := checker.NewHangChecker(hangCfg, eventRules)
+	hangChecker, err := checker.NewCheckers(userCfg, eventRules)
+	if err != nil {
+		logrus.WithField("component", "gpuevents").WithError(err).Error("failed to create HangChecker")
+		return nil, err
+	}
 
 	freqController := common.GetFreqController()
-	freqController.RegisterModule(consts.ComponentNameHang, hangCfg)
+	freqController.RegisterModule(consts.ComponentNameGpuEvents, userCfg)
 
-	var hangMetrics *metrics.HangMetrics
-	if hangCfg.Hang.EnableMetrics {
-		hangMetrics = metrics.NewHangMetrics()
-	}
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
-		componentName: consts.ComponentNameHang,
-		cfg:           hangCfg,
+		componentName: consts.ComponentNameGpuEvents,
+		cfg:           userCfg,
 
-		collector: hangCollector,
-		checker:   hangChecker,
+		collector: GpuIndicatorSnapshot,
+		checkers:  hangChecker,
 
-		cacheResultBuffer: make([]*common.Result, hangCfg.Hang.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, hangCfg.Hang.CacheSize),
+		cacheResultBuffer: make([]*common.Result, userCfg.UserConfig.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, userCfg.UserConfig.CacheSize),
 		currIndex:         0,
-		cacheSize:         hangCfg.Hang.CacheSize,
-		metrics:           hangMetrics,
+		cacheSize:         userCfg.UserConfig.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, hangCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, userCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
@@ -130,42 +127,22 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	info, err := c.collector.Collect(ctx)
 	if err != nil || info == nil {
-		logrus.WithField("component", "hang").Error("failed to Collect")
+		logrus.WithField("component", "gpuevents").Error("failed to Collect")
 		return &common.Result{}, err
 	}
-	hangInfo, ok := info.(*collector.DeviceIndicatorStates)
-	if !ok {
-		return nil, fmt.Errorf("wrong input of HangChecker")
-	}
-	if c.cfg.Hang.EnableMetrics {
-		c.metrics.ExportMetrics(hangInfo)
-	}
-	checkRes, err := c.checker.Check(c.ctx, info)
-	if err != nil {
-		logrus.WithField("component", "hang").WithError(err).Error("failed to Check")
-		return &common.Result{}, err
-	}
-	resResult := &common.Result{
-		Item:     consts.ComponentNameHang,
-		Node:     "hang",
-		Status:   checkRes.Status,
-		Level:    checkRes.Level,
-		Checkers: []*common.CheckerResult{checkRes},
-		Time:     time.Now(),
-	}
-
+	result := common.Check(ctx, c.componentName, info, c.checkers)
 	c.cacheMtx.Lock()
-	c.cacheResultBuffer[c.currIndex%c.cacheSize] = resResult
+	c.cacheResultBuffer[c.currIndex%c.cacheSize] = result
 	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = info
 	c.currIndex++
 	c.cacheMtx.Unlock()
-	if resResult.Status == consts.StatusAbnormal {
-		logrus.WithField("component", "Hang").Errorf("Health Check Failed")
+	if result.Status == consts.StatusAbnormal {
+		logrus.WithField("component", "gpuevents").Errorf("Health Check Failed")
 	} else {
-		logrus.WithField("component", "Hang").Infof("Health Check PASSED")
+		logrus.WithField("component", "gpuevents").Infof("Health Check PASSED")
 	}
 
-	return resResult, nil
+	return result, nil
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -210,11 +187,11 @@ func (c *component) Stop() error {
 
 func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	hangCfg, ok := cfg.(*config.HangUserConfig)
+	userCfg, ok := cfg.(*config.GpuCostomEventsUserConfig)
 	if !ok {
-		return fmt.Errorf("update wrong config type for hang")
+		return fmt.Errorf("update wrong config type for gpuevents")
 	}
-	c.cfg = hangCfg
+	c.cfg = userCfg
 	c.cfgMutex.Unlock()
 	return c.service.Update(cfg)
 }
@@ -230,7 +207,7 @@ func (c *component) GetTimeout() time.Duration {
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	checkAllPassed := true
 	checkerResults := result.Checkers
-	utils.PrintTitle("Hang", "-")
+	utils.PrintTitle("gpuevents", "-")
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {
 			checkAllPassed = false
