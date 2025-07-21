@@ -46,6 +46,11 @@ func (c *GPFSCollector) Name() string {
 }
 
 func (c *GPFSCollector) Collect(ctx context.Context) (*XStorHealthInfo, error) {
+	_, err := utils.ExecCommand(ctx, "which", "xstor-health")
+	if err != nil {
+		logrus.WithField("component", "GPFS-Collector").Infof("xstor-health not found, bypass GPFSCollector")
+		return c.xstorHealth, nil
+	}
 	xstorHealthOutput, err := utils.ExecCommand(ctx, "xstor-health", "basic-check", "--output-format", "sicheck")
 	if err != nil {
 		return nil, fmt.Errorf("exec xstor-health failed: %v", err)

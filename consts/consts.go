@@ -34,7 +34,7 @@ const (
 	ComponentIDDMesg        = "10"
 	ComponentNameDmesg      = "dmesg"
 	ComponentIDHang         = "11"
-	ComponentNameHang       = "hang"
+	ComponentNameGpuEvents  = "gpuevents"
 	ComponentIDPodLog       = "12"
 	ComponentNamePodLog     = "podlog"
 	ComponentIDHCA          = "13"
@@ -63,7 +63,6 @@ const (
 	CheckerIDHang                    = "4400"
 
 	/*----------------------error name------------------------*/
-	ErrorNameHang  = "GPUHang"
 	ErrorNameNCCL  = "NCCLTimeout"
 	ErrorNameDmesg = "DmesgError"
 )
@@ -81,7 +80,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNamePodLog, ComponentNameHang,
+		ComponentNamePodLog, ComponentNameGpuEvents,
 	}
 )
 

@@ -57,8 +57,8 @@ nfpms:
       dst: /var/sichek/config/dmesg/
     - src: ./components/gpfs/config/*.yaml
       dst: /var/sichek/config/gpfs/
-    - src: ./components/hang/config/*.yaml
-      dst: /var/sichek/config/hang/
+    - src: ./components/gpuevents/config/*.yaml
+      dst: /var/sichek/config/gpuevents/
     - src: ./components/infiniband/config/*.yaml
       dst: /var/sichek/config/infiniband/
     - src: ./components/infiniband/perftest/nccl_perf

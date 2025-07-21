@@ -16,10 +16,11 @@ import (
 
 type Config struct {
 	NumGpus     int
+	Gpulist     string
 	TestBin     string
 	beginBuffer string
 	endBuffer   string
-	UseNvls     bool
+	DisableNvls bool
 }
 
 func GetDefaultNcclTestPath(testBin string) (string, error) {
@@ -56,9 +57,17 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	}
 	fmt.Printf("== Run %d GPU nccl all_reduce test ==\n", cfg.NumGpus)
 	cmd := exec.Command("bash", args...)
-	if !cfg.UseNvls {
-		cmd.Env = append(os.Environ(), "NCCL_NVLS_ENABLE=0")
+	env := os.Environ()
+	if cfg.DisableNvls {
+		env = append(env, "NCCL_NVLS_ENABLE=0")
+	} else {
+		env = append(env, "NCCL_NVLS_ENABLE=1")
 	}
+	if cfg.Gpulist != "" {
+		env = append(env, fmt.Sprintf("CUDA_VISIBLE_DEVICES=%s", cfg.Gpulist))
+	}
+	logrus.WithField("perftest", "nccl").Infof("env: %v\n", env)
+	cmd.Env = env
 	return cmd
 }
 
@@ -115,11 +124,12 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Re
 
 }
 
-func CheckNcclPerf(numGpus int, beginBuffer string, endBuffer string, enableNvls bool, exceptBwGbps float64) (*common.Result, error) {
+func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableNvls bool, exceptBwGbps float64) (*common.Result, error) {
 	jobCfg := Config{
 		NumGpus:     numGpus,
+		Gpulist:     gpulist,
 		TestBin:     "nccl_perf",
-		UseNvls:     enableNvls,
+		DisableNvls: disableNvls,
 		beginBuffer: beginBuffer,
 		endBuffer:   endBuffer,
 	}

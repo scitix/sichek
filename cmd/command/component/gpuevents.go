@@ -28,45 +28,45 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewHangCommand() *cobra.Command {
-	hangCmd := &cobra.Command{
-		Use:     "hang",
+func NewGpuEventsCommand() *cobra.Command {
+	gpuEventsCmd := &cobra.Command{
+		Use:     "gpuevents",
 		Aliases: []string{"h"},
-		Short:   "Perform Hang check",
+		Short:   "Perform costom gpu events check",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
 			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
+				logrus.WithField("component", "gpuevents").Errorf("get to ge the verbose: %v", err)
 			}
 			if !verbos {
 				logrus.SetLevel(logrus.ErrorLevel)
 				defer cancel()
 			} else {
 				defer func() {
-					logrus.WithField("component", "Hang").Info("Run Hang Cmd context canceled")
+					logrus.WithField("component", "gpuevents").Info("Run gpuevents Cmd context canceled")
 					cancel()
 				}()
 			}
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
-				logrus.WithField("component", "Hang").Error(err)
+				logrus.WithField("component", "gpuevents").Error(err)
 				return
 			} else {
-				logrus.WithField("component", "Hang").Infof("load cfg file:%s", cfgFile)
+				logrus.WithField("component", "gpuevents").Infof("load cfg file:%s", cfgFile)
 			}
 
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("component", "Hang").Error(err)
+				logrus.WithField("component", "gpuevents").Error(err)
 				return
 			} else {
-				logrus.WithField("component", "Hang").Infof("load spec file:%s", specFile)
+				logrus.WithField("component", "gpuevents").Infof("load spec file:%s", specFile)
 			}
-			// component, err := hang.NewComponent(cfgFile, specFile)
-			component, err := NewComponent(consts.ComponentNameHang, cfgFile, specFile, nil)
+			// component, err := gpuevents.NewComponent(cfgFile, specFile)
+			component, err := NewComponent(consts.ComponentNameGpuEvents, cfgFile, specFile, nil)
 			if err != nil {
-				logrus.WithField("component", "Hang").Error("fail to Create Hang Components")
+				logrus.WithField("component", "gpuevents").Error("fail to Create gpuevents Components")
 				return
 			}
 
@@ -78,7 +78,7 @@ func NewHangCommand() *cobra.Command {
 			go func(ctx context.Context) {
 				defer func() {
 					if err := recover(); err != nil {
-						logrus.WithField("component", "Hang").Errorf("recover panic NewHangCommand() err: %v", err)
+						logrus.WithField("component", "gpuevents").Errorf("recover panic NewGpuEventsCommand() err: %v", err)
 					}
 				}()
 				defer wg.Done()
@@ -92,7 +92,7 @@ func NewHangCommand() *cobra.Command {
 					for time.Since(begin).Seconds() < 720 {
 						_, err := component.HealthCheck(ctx)
 						if err != nil {
-							logrus.WithField("component", "Hang").Errorf("analyze hang failed: %v", err)
+							logrus.WithField("component", "gpuevents").Errorf("analyze gpuevents failed: %v", err)
 							return
 						}
 						time.Sleep(10 * time.Second)
@@ -104,25 +104,25 @@ func NewHangCommand() *cobra.Command {
 
 			result, err := common.RunHealthCheckWithTimeout(ctx, consts.CmdTimeout, component.Name(), component.HealthCheck)
 			if err != nil {
-				logrus.WithField("component", "Hang").Errorf("analyze hang failed: %v", err)
+				logrus.WithField("component", "gpuevents").Errorf("analyze gpuevents failed: %v", err)
 				return
 			}
 
-			logrus.WithField("component", "Hang").Infof("Hang analysis result: %s\n", common.ToString(result))
+			logrus.WithField("component", "gpuevents").Infof("gpuevents analysis result: %s\n", common.ToString(result))
 			info, err := component.LastInfo()
 			if err != nil {
 				logrus.WithField("component", "all").Errorf("get to ge the LastInfo: %v", err)
 			}
 			pass := component.PrintInfo(info, result, true)
 			StatusMutex.Lock()
-			ComponentStatuses[consts.ComponentNameHang] = pass
+			ComponentStatuses[consts.ComponentNameGpuEvents] = pass
 			StatusMutex.Unlock()
 		},
 	}
 
-	hangCmd.Flags().StringP("cfg", "c", "", "Path to the Hang Cfg file")
-	hangCmd.Flags().StringP("spec", "s", "", "Path to the GPU spec file")
-	hangCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
+	gpuEventsCmd.Flags().StringP("cfg", "c", "", "Path to the gpuevents Cfg file")
+	gpuEventsCmd.Flags().StringP("spec", "s", "", "Path to the GPU spec file")
+	gpuEventsCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 
-	return hangCmd
+	return gpuEventsCmd
 }

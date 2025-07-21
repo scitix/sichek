@@ -49,11 +49,21 @@ func (c *XStorHealthChecker) Check(ctx context.Context, data any) (*common.Check
 		result.Detail = "invalid gpfsInfo type"
 		return &result, fmt.Errorf("invalid gpfsInfo type")
 	}
+	if len(xstorHealthInfo.HealthItems) == 0 {
+		// xstor-health not installed, print log and set alert level as info
+		result.Status = consts.StatusAbnormal
+		result.Detail = "xstor-health not installed"
+		result.Level = consts.LevelInfo
+		logrus.WithField("components", "GPFS-XStorHealth").Infof("xstor-health not installed, empty health items")
+		return &result, nil
+	}
 
 	item, ok := xstorHealthInfo.HealthItems[c.name]
 	if !ok {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Empty %s check result", c.name)
+		result.Level = consts.LevelInfo		// empty check result not cordon node, set alert level as info
+		logrus.WithField("components", "GPFS-XStorHealth").Errorf("XStorHealth check %s result empty", c.name)
 		return &result, nil
 	}
 	if item.Status != consts.StatusNormal {

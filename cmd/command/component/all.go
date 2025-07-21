@@ -26,7 +26,7 @@ import (
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/dmesg"
 	"github.com/scitix/sichek/components/gpfs"
-	"github.com/scitix/sichek/components/hang"
+	gpuevents "github.com/scitix/sichek/components/gpuevents"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/pcie/topotest"
@@ -147,15 +147,22 @@ func NewAllCmd() *cobra.Command {
 				}
 				PrintCheckResults(!eventonly, checkResult)
 			}
-			//check topo
+
 			if utils.IsNvidiaGPUExist() {
-				res, err := topotest.CheckGPUTopology(specFile)
-				if err != nil {
-					logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
-					return
+				// check nccl perf test
+				ncclCmd := NewNcclPerftestCmd()
+				ncclCmd.Run(ncclCmd, []string{})
+
+				// check pcie topology
+				if !slices.Contains(ignoredComponents, "topo") {
+					res, err := topotest.CheckGPUTopology(specFile)
+					if err != nil {
+						logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
+						return
+					}
+					passed := topotest.PrintInfo(res, !eventonly && verbos)
+					ComponentStatuses[res.Item] = passed
 				}
-				passed := topotest.PrintInfo(res, !eventonly && verbos)
-				ComponentStatuses[res.Item] = passed
 			}
 		},
 	}
@@ -165,7 +172,7 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
 	allCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by ','")
-	allCmd.Flags().StringP("ignore-components", "I", "podlog,hang", "Ignored components")
+	allCmd.Flags().StringP("ignore-components", "I", "podlog,gpuevents", "Ignored components")
 	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
@@ -181,15 +188,15 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		return infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameDmesg:
 		return dmesg.NewComponent(cfgFile, specFile)
-	case consts.ComponentNameHang:
+	case consts.ComponentNameGpuEvents:
 		if !utils.IsNvidiaGPUExist() {
-			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Hang HealthCheck")
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing GpuEvents HealthCheck")
 		}
 		_, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
 		if err != nil {
 			return nil, fmt.Errorf("failed to Get Nvidia component, Bypassing HealthCheck")
 		}
-		return hang.NewComponent(cfgFile, specFile)
+		return gpuevents.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameNvidia:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Nvidia GPU HealthCheck")
