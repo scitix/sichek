@@ -2,34 +2,29 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.name }}-diag-{{ .Values.parallelism }}
+  name: {{ .Values.name }}-{{ .Values.batchjob.name }}-{{ .Values.batchjob.parallelism }}
   namespace: {{ .Values.namespace }}
   labels:
     app: {{ .Values.name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
 spec:
+  ttlSecondsAfterFinished: 600
   template:
     metadata:
       labels:
-        app: {{ .Values.name }}-diag
+        app: {{ .Values.name }}-{{ .Values.batchjob.name }}
     spec:
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      tolerations:
+      - key: "node.kubernetes.io/unschedulable"
+        operator: "Exists"
+        effect: "NoSchedule"
       affinity:
-        {{- if not .Values.nodeName }}
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              {{- if .Values.gpu}}
-              - key: gpu_type 
-                operator: Exists
-              {{- else }}
-              - key: gpu_type 
-                operator: DoesNotExist
-              {{- end }}
-        {{- end }}
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -37,7 +32,7 @@ spec:
               - key: app
                 operator: In
                 values:
-                  - {{ .Values.name }}-diag
+                  - {{ .Values.name }}-{{ .Values.batchjob.name }}
             topologyKey: "kubernetes.io/hostname"
       hostPID: true
       hostNetwork: true
@@ -48,14 +43,14 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             privileged: true
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
           - name: NODE_NAME
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-          {{- if .Values.gpu}}
+          {{- if .Values.batchjob.gpu}}
           - name: NVIDIA_VISIBLE_DEVICES
             value: none
           {{- end }}
@@ -63,7 +58,10 @@ spec:
           args:
             - "-c"
             - |-
-              sichek all -e
+              {{- if ne .Values.defaultSpec "default" }}
+              mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+              {{- end }}
+              {{ .Values.batchjob.cmd }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
@@ -75,5 +73,5 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       restartPolicy: Never
-  parallelism: {{ .Values.parallelism }}
+  parallelism: {{ .Values.batchjob.parallelism }}
 {{- end }}

@@ -23,6 +23,7 @@ check_nodes() {
 
   /usr/local/sihpc/bin/mpirun \
     --mca routed direct \
+    --mca plm_rsh_no_tree_spawn 1 \
     --allow-run-as-root \
     --host ${hosts} \
     --map-by ppr:${SLOTS_PER_NODE}:node \

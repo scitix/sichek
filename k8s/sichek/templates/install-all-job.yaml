@@ -1,0 +1,73 @@
+{{- if eq .Values.mode "install-all" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.name }}-install-all
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}-install-all
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 12 }}
+      {{- end }}
+      tolerations:
+      - key: "node.kubernetes.io/unschedulable"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - {{ .Values.name }}-install-all
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            privileged: true
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          command: ["/bin/bash"]
+          args:
+            - "-c"
+            - |-
+              set -eu
+              cp /opt/sichek/dist/sichek_*_linux_amd64.deb /host/tmp/
+              cp -rf /usr/local/sihpc /host/usr/local/sihpc
+              deb_file=$(ls /host/tmp/sichek_*_linux_amd64.deb)
+              chroot /host dpkg -i "/tmp/$(basename "$deb_file")"
+              {{- if ne .Values.defaultSpec "default" }}
+              chroot /host mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+              {{- end }}
+              rm /host/tmp/sichek_*_linux_amd64.deb
+              echo "Install finished"
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+      restartPolicy: OnFailure
+  completions: {{ .Values.batchjob.completions }}
+  parallelism: {{ .Values.batchjob.parallelism }}
+{{- end }}

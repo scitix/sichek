@@ -36,4 +36,5 @@ nvidia:
     temperature_threshold:
       gpu: 75
       memory: 95
-    perf: {}
+    perf:
+      nccl-all-reduce-bw: 470 # GB/s

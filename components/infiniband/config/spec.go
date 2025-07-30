@@ -35,7 +35,7 @@ type InfinibandSpecs struct {
 }
 
 type InfinibandSpec struct {
-	IBDevs         map[string]string             `json:"ib_devs"`
+	IBPFDevs       map[string]string             `json:"ib_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps"`
 	PCIeACS        string                        `json:"pcie_acs"`
 	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs"`
@@ -202,15 +202,15 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 		allExist := true
-		specKeys := make([]string, 0, len(ibSpec.IBDevs))
-		for k := range ibSpec.IBDevs {
+		specKeys := make([]string, 0, len(ibSpec.IBPFDevs))
+		for k := range ibSpec.IBPFDevs {
 			specKeys = append(specKeys, k)
 		}
 		currKeys := make([]string, 0, len(devBoardIDMap))
 		for k := range devBoardIDMap {
 			currKeys = append(currKeys, k)
 		}
-		changed := TrimMapByList(devBoardIDMap, ibSpec.IBDevs)
+		changed := TrimMapByList(devBoardIDMap, ibSpec.IBPFDevs)
 		if changed {
 			logrus.WithField("component", "infiniband").
 				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)

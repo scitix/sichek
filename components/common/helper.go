@@ -88,7 +88,10 @@ func handleResult(result *Result, componentName string) (*Result, error) {
 		Level:       consts.LevelCritical,
 		ErrorName:   fmt.Sprintf("%sHealthCheckTimeout", componentName),
 	}
-
+	if result == nil {
+		logrus.WithField("component", componentName).Warn("health check returned nil result")
+		return nil, nil
+	}
 	result.Checkers = append(result.Checkers, timeoutResolvedResult)
 	return result, nil
 }

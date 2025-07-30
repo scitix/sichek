@@ -1,0 +1,62 @@
+{{- if eq .Values.mode "uninstall-all" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.name }}-uninstall-all
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}-uninstall-all
+    spec:
+      tolerations:
+      - key: "node.kubernetes.io/unschedulable"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - {{ .Values.name }}-uninstall-all
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            privileged: true
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          command: ["/bin/bash"]
+          args:
+            - "-c"
+            - |-
+              set -eu
+              chroot /host dpkg -P sichek || echo "not installed"
+              echo "Uninstall finished"
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+      restartPolicy: OnFailure
+  completions: {{ .Values.batchjob.completions }}
+  parallelism: {{ .Values.batchjob.parallelism }}
+{{- end }}

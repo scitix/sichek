@@ -25,8 +25,8 @@ type HCASpec struct {
 }
 
 type HCAPerf struct {
-	OneWayBW   float32 `json:"one_way_bw" yaml:"one_way_bw"`         // Gbps
-	AvgLatency float32 `json:"avg_latency_us" yaml:"avg_latency_us"` // ns
+	OneWayBW   float64 `json:"one_way_bw" yaml:"one_way_bw"`         // Gbps
+	AvgLatency float64 `json:"avg_latency_us" yaml:"avg_latency_us"` // ns
 }
 
 // LoadSpec loads the HCA specifications from the provided file or from default locations.
@@ -151,7 +151,7 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 	}
 
 	result := &HCASpecs{HcaSpec: map[string]*HCASpec{}}
-	// Check if the IBDevs in the spec have corresponding board IDs in host
+	// Check if the IBPFDevs in the spec have corresponding board IDs in host
 	missing := []string{}
 
 	for _, ibDevBoardId := range ibDevs {
@@ -203,6 +203,9 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		vfPath := filepath.Join(baseDir, devName, "device", "physfn")
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
+		}
+		if strings.Contains(devName, "bond") {
+			continue // Skip bonding devices
 		}
 		boardIDPath := filepath.Join(baseDir, devName, "board_id")
 		content, err := os.ReadFile(boardIDPath)
