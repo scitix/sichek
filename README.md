@@ -60,7 +60,7 @@ See [Sichek helm chart](./k8s/sichek) to deploy Sichek in your Kubernetes cluste
 
 - **For cluster diagnostics**, run Sichek using Kubernetes Job mode to start a batch of Sichek pods to diagnose multiple node health:
   ```bash
-  helm install sichek-diag ./k8s/sichek --set  mode=diag --set parallelism=2
+  helm install sichek-diag ./k8s/sichek --set  mode=diag --set batchjob.parallelism=2
   ```
     - **failed job** indicates failed node health check
     - **successful job** indicates passed node health check.

@@ -60,8 +60,8 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result := config.InfinibandCheckItems[c.name]
 
 	var mismatchPairs []string
-	for expectedMlx5, expectedIb := range c.spec.IBDevs {
-		actualIb, found := infinibandInfo.IBDevs[expectedMlx5]
+	for expectedMlx5, expectedIb := range c.spec.IBPFDevs {
+		actualIb, found := infinibandInfo.IBPFDevs[expectedMlx5]
 		if !found {
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
 			continue
@@ -74,17 +74,17 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	if len(mismatchPairs) > 0 {
 		result.Status = consts.StatusAbnormal
 		result.Device = strings.Join(mismatchPairs, ",")
-		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", infinibandInfo.IBDevs, c.spec.IBDevs)
+		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", infinibandInfo.IBPFDevs, c.spec.IBPFDevs)
 	} else {
 		result.Status = consts.StatusNormal
 	}
 	var specSlice []string
-	for mlxDev, ibDev := range c.spec.IBDevs {
+	for mlxDev, ibDev := range c.spec.IBPFDevs {
 		specSlice = append(specSlice, mlxDev+":"+ibDev)
 	}
 	result.Spec = strings.Join(specSlice, ",")
 	var ibDevsSlice []string
-	for mlxDev, ibDev := range infinibandInfo.IBDevs {
+	for mlxDev, ibDev := range infinibandInfo.IBPFDevs {
 		ibDevsSlice = append(ibDevsSlice, mlxDev+":"+ibDev)
 	}
 	result.Curr = strings.Join(ibDevsSlice, ",")

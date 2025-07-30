@@ -19,12 +19,12 @@ hca:
       pcie_mrr: "4096"
     perf:
       one_way_bw: 360 # Gbps
-      avg_latency_us: 1.0 # us
+      avg_latency_us: 10.0 # us
   MT_0000000971:
     hardware:
       hca_type: "MT4129"
       board_id: "MT_0000000971"
-      fw_ver: "28.39.2048"
+      fw_ver: ">=28.39.1002"
       vpd: "P45646-001 / HPE InfiniBand NDR200 1-port OSFP PCIe5 x16 MCX75310AAS-HEAT Adapter"
       net_port: 1
       port_speed: "200 Gb/sec (2X NDR)"
@@ -40,12 +40,33 @@ hca:
       pcie_mrr: "4096"
     perf:
       one_way_bw: 175 # Gbps
-      avg_latency_us: 1.5 # us
+      avg_latency_us: 15 # us
+  LNV0000000058:
+    hardware:
+      hca_type: "MT4129"
+      board_id: "LNV0000000058"
+      fw_ver: ">=28.35.2000"
+      vpd: "Nvidia ConnectX-7 NDR200/HDR QSFP112 2-port PCIe Gen5 x16 InfiniBand Adapter"
+      net_port: 1
+      port_speed: "200 Gb/sec (2X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_opstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "16" #"16.0 GT/s PCIe"
+      pcie_tree_width: "32"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 15 # us
   MT_0000001119:
     hardware:
       hca_type: "MT4129"
       board_id: "MT_0000001119"
-      fw_ver: "28.42.1000"
+      fw_ver: ">=28.40.1000"
       vpd: "HPE InfiniBand NDR200/Ethernet 200Gb 1-port OSFP PCIe5 x16 MCX75310AAS-HEAT Adapter"
       net_port: 1
       port_speed: "200 Gb/sec (2X NDR)"
@@ -61,7 +82,7 @@ hca:
       pcie_mrr: "4096"
     perf:
       one_way_bw: 175 # Gbps
-      avg_latency_us: 1.5 # us
+      avg_latency_us: 15 # us
   MT_0000000838:
     hardware:
       hca_type: "MT4129"
@@ -82,7 +103,7 @@ hca:
       pcie_mrr: "4096"
     perf:
       one_way_bw: 360 # Gbps
-      avg_latency_us: 1.0 # us
+      avg_latency_us: 10 # us
   DEL0000000036:
     hardware:
       hca_type: "MT4129"
@@ -103,12 +124,12 @@ hca:
       pcie_mrr: "4096"
     perf:
       one_way_bw: 360 # Gbps
-      avg_latency_us: 1.0 # us
+      avg_latency_us: 10 # us
   MT_0000000223:
     hardware:
       hca_type: "MT4123"
       board_id: "MT_0000000223"
-      fw_ver: ">=20.39.2048"
+      fw_ver: ">=20.31.1014"
       vpd: "ConnectX-6 VPI adapter card, HDR IB (200Gb/s) and 200GbE, single-port QSFP56"
       net_port: 1
       port_speed: "200 Gb/sec (4X HDR)"
@@ -124,12 +145,12 @@ hca:
       pcie_mrr: "4096"
     perf:
       one_way_bw: 175 # Gbps
-      avg_latency_us: 1.5 # us
+      avg_latency_us: 15 # us
   LNV0000000019:
     hardware:
       hca_type: "MT4123"
       board_id: "LNV0000000019"
-      fw_ver: ">=20.39.2048"
+      fw_ver: ">=20.38.1002"
       vpd: "ThinkSystem Mellanox ConnectX-6 HDR/200GbE QSFP56 1-port PCIe 4 VPI Adapter"
       net_port: 1
       port_speed: "200 Gb/sec (4X HDR)"
@@ -138,19 +159,19 @@ hca:
       net_operstate: "down"
       link_layer: "InfiniBand"
       pcie_width: "16"
-      pcie_speed: "16.0 GT/s PCIe"
+      pcie_speed: "16" #.0 GT/s PCIe"
       pcie_tree_width: "16"
       pcie_tree_speed: "16"
       pcie_acs: "disable"
       pcie_mrr: "4096"
     perf:
       one_way_bw: 175 # Gbps
-      avg_latency_us: 1.5 # us
+      avg_latency_us: 15 # us
   MT_0000000844:
     hardware:
       hca_type: "MT4129"
       board_id: "MT_0000000844"
-      fw_ver: ">=20.39.2048"
+      fw_ver: ">=28.36.1010"
       vpd: "NVIDIA ConnectX-7 adapter card, 200Gb/s NDR200 IB, Single-port OSFP, PCIe 5.0 x16, Secure boot, No Crypto"
       net_port: 1
       port_speed: "200 Gb/sec (2X NDR)"
@@ -159,11 +180,95 @@ hca:
       net_operstate: "up"
       link_layer: "Ethernet"
       pcie_width: "16"
-      pcie_speed: "16.0 GT/s PCIe"
+      pcie_speed: "16" #.0 GT/s PCIe"
       pcie_tree_width: "16"
       pcie_tree_speed: "16"
       pcie_acs: "disable"
       pcie_mrr: "4096"
     perf:
       one_way_bw: 175 # Gbps
-      avg_latency_us: 1.5 # us
+      avg_latency_us: 15 # us
+  DEL0000000010:
+    hardware:
+      hca_type: "MT4123"
+      board_id: "DEL0000000010"
+      fw_ver: ">=20.32.2004"
+      vpd: "Mellanox ConnectX-6 Single Port VPI HDR QSFP Adapter"
+      net_port: 1
+      port_speed: "200 Gb/sec (4X HDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_opstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "16" #"16.0 GT/s PCIe"
+      pcie_tree_width: "32"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 15 # us
+  MT_0000000226:
+    hardware:
+      hca_type: "MT4123"
+      board_id: "MT_0000000226"
+      fw_ver: "20.39.2048"
+      vpd: "ConnectX-6 VPI adapter card, HDR IB (200Gb/s) and 200GbE, single-port QSFP56, Socket Direct"
+      net_port: 1
+      port_speed: "200 Gb/sec (4X HDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_opstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "16" #"16.0 GT/s PCIe"
+      pcie_tree_width: "32"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 15 # us
+  MT_0000000903:
+    hardware:
+      hca_type: "MT4123"
+      board_id: "MT_0000000903"
+      fw_ver: ">=22.32.2306" #curr:22.39.2048, spec:20.39.2048
+      vpd: "Nvidia ConnectX-6 DE InfiniBand adapter, HDR, single-port QSFP, PCIe 4.0 x16, No Crypto"
+      net_port: 1
+      port_speed: "200 Gb/sec (4X HDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_opstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "16" #"16.0 GT/s PCIe"
+      pcie_tree_width: "32"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 15 # us
+  DEL0000000051:
+    hardware:
+      hca_type: "MT4123"
+      board_id: "DEL0000000051"
+      fw_ver: "28.41.1000" #curr:22.39.2048, spec:20.39.2048
+      vpd: "Nvidia ConnectX-7 Single Port VPI NDR OSFP Adapter"
+      net_port: 1
+      port_speed: "400 Gb/sec (4X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_opstate: "up"
+      link_layer: "Ethernet"
+      pcie_width: "16"
+      pcie_speed: "32" #"32.0 GT/s PCIe"
+      pcie_tree_width: "32"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 360 # Gbps
+      avg_latency_us: 10.0 # us

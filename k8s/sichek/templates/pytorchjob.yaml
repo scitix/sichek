@@ -1,0 +1,97 @@
+{{- if eq .Values.mode "pytorchjob" }}
+apiVersion: kubeflow.org/v1
+kind: PyTorchJob
+metadata:
+  name: {{ .Values.name }}-{{ .Values.pytorchjob.name }}-{{ .Values.pytorchjob.numWorkers }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        {{- if .Values.macvlan }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+        {{- end }}
+        spec: &job-spec
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+          - name: pytorch
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command: [ "/usr/bin/env", "bash", "-c" ]
+            args:
+            - |-
+              export NODE_RANK=$RANK && unset RANK
+              {{ .Values.pytorchjob.cmd }}
+            env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PYTHONCACHEPREFIX
+              value: "/dev/shm/.pycache"
+            resources:
+              limits:
+                nvidia.com/gpu: "8"
+                {{- if eq (toString .Values.macvlan) "true" }}
+                {{- range $i := until 8 }}
+                nvidia.com/rdma{{ $i }}: "1"
+                {{- end }}
+                {{- else }}
+                rdma/hca_shared_devices_all: "1"
+                {{- end }}
+              requests:
+                nvidia.com/gpu: "8"
+                {{- if eq (toString .Values.macvlan) "true" }}
+                {{- range $i := until 8 }}
+                nvidia.com/rdma{{ $i }}: "1"
+                {{- end }}
+                {{- else }}
+                rdma/hca_shared_devices_all: "1"
+                {{- end }}
+            securityContext:
+              privileged: true
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: shm
+          {{- if and (ne (toString .Values.macvlan) "true") .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
+          volumes:
+          - name: shm
+            emptyDir:
+              medium: Memory
+          tolerations:
+          - key: node.kubernetes.io/unschedulable
+            operator: Exists
+            effect: NoSchedule
+          - key: scitix.ai/nodecheck
+            operator: Exists
+            effect: NoSchedule
+    Worker:
+      replicas: {{ add .Values.pytorchjob.numWorkers -1 }}
+      restartPolicy: Never
+      template:
+        {{- if .Values.macvlan }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+        {{- end }}
+        spec:
+          <<: *job-spec
+{{- end }}

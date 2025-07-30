@@ -150,9 +150,15 @@ func NewAllCmd() *cobra.Command {
 
 			if utils.IsNvidiaGPUExist() {
 				// check nccl perf test
-				ncclCmd := NewNcclPerftestCmd()
-				ncclCmd.Run(ncclCmd, []string{})
-
+				if !slices.Contains(ignoredComponents, "nccltest") {
+					ncclCmd := NewNcclPerftestCmd()
+					args := []string{"--begin", "2g", "--end", "2g"}
+					ncclCmd.SetArgs(args)
+					fmt.Printf("Running NCCL performance test with args: %v\n", args)
+					if err := ncclCmd.Execute(); err != nil {
+						fmt.Printf("failed to run NCCL test: %v\n", err)
+					}
+				}
 				// check pcie topology
 				if !slices.Contains(ignoredComponents, "topo") {
 					res, err := topotest.CheckGPUTopology(specFile)
