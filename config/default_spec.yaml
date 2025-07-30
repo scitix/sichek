@@ -36,6 +36,8 @@ nvidia:
     temperature_threshold:
       gpu: 75
       memory: 95
+    perf:
+      nccl-all-reduce-bw: 470 # GB/s
 infiniband:
   default:
     ib_devs:
@@ -99,6 +101,9 @@ infiniband:
           pcie_tree_speed: "16"
           pcie_acs: "disable"
           pcie_mrr: "4096"
+        perf:
+          one_way_bw: 360 # Gbps
+          avg_latency_us: 10 # us
       MT_0000000223: {}
   lh:
     ib_devs:

@@ -1,0 +1,103 @@
+{{- if eq .Values.mode "mpijob" }}
+apiVersion: kubeflow.org/v1
+kind: MPIJob
+metadata:
+  name: {{ .Values.name }}-{{ .Values.mpijob.name }}-{{ .Values.mpijob.numWorkers }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  slotsPerWorker: {{ .Values.mpijob.slotsPerWorker | default 8 }}
+  runPolicy:
+    cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          containers:
+            - name: launcher
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  sleep infinity
+              env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+              volumeMounts:
+                - name: shm
+                  mountPath: /dev/shm
+          volumes:
+            - name: shm
+              emptyDir:
+                medium: Memory
+    Worker:
+      replicas: {{ .Values.mpijob.numWorkers }}
+      template:
+        {{- if .Values.macvlan }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+          {{- end }}
+        spec:
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: worker
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+              resources:
+                limits:
+                  nvidia.com/gpu: "8"
+                  {{- if eq (toString .Values.macvlan) "true" }}
+                  {{- range $i := until 8 }}
+                  nvidia.com/rdma{{ $i }}: "1"
+                  {{- end }}
+                  {{- else }}
+                  rdma/hca_shared_devices_all: "1"
+                  {{- end }}
+                requests:
+                  nvidia.com/gpu: "8"
+                  {{- if eq (toString .Values.macvlan) "true" }}
+                  {{- range $i := until 8 }}
+                  nvidia.com/rdma{{ $i }}: "1"
+                  {{- end }}
+                  {{- else }}
+                  rdma/hca_shared_devices_all: "1"
+                  {{- end }}
+              securityContext:
+                privileged: true
+                capabilities:
+                  add:
+                    - IPC_LOCK
+              volumeMounts:
+                - name: shm
+                  mountPath: /dev/shm
+          {{- if and (ne (toString .Values.macvlan) "true") .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
+          volumes:
+            - name: shm
+              emptyDir:
+                medium: Memory
+          tolerations:
+            - effect: NoSchedule
+              key: node.kubernetes.io/unschedulable
+              operator: Exists
+            - effect: NoSchedule
+              key: scitix.ai/nodecheck
+              operator: Exists
+{{- end }}

@@ -68,15 +68,20 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(NewDaemonCmd())
 	rootCmd.AddCommand(component.NewPcieTopoCmd())
 	rootCmd.AddCommand(component.NewIBLinkCheckCmd())
-	rootCmd.AddCommand(component.NewRoCEV2GidsCheckCmd())
-	// add perftest subcommand
-	perftestCmd := &cobra.Command{
-		Use:   "perftest",
-		Short: "Run performance tests",
-	}
-	rootCmd.AddCommand(perftestCmd)
-
-	perftestCmd.AddCommand(component.NewIBPerftestCmd())
-	perftestCmd.AddCommand(component.NewNcclPerftestCmd())
+	rootCmd.AddCommand(component.NewRoCEGidsCheckCmd())
+	rootCmd.AddCommand(component.NewRoCEGidEqualCheckCmd())
+	rootCmd.AddCommand(component.NewIBPerftestCmd())
+	rootCmd.AddCommand(component.NewNcclPerftestCmd())
+	rootCmd.AddCommand(component.NewRoCEPerftestCmd())
+	rootCmd.AddCommand(component.NewMpiJobCmd())
+	rootCmd.AddCommand(component.NewPytorchjobCmd())
+	rootCmd.AddCommand(component.NewATNCCLTest1Cmd())
+	rootCmd.AddCommand(component.NewATNCCLTest2Cmd())
+	rootCmd.AddCommand(component.NewATLlama70bCmd())
+	rootCmd.AddCommand(component.NewATLlama13bCmd())
+	rootCmd.AddCommand(component.NewInstallCmd())
+	rootCmd.AddCommand(component.NewUninstallCmd())
+	rootCmd.AddCommand(component.NewNCCLDiagCmd())
+	rootCmd.AddCommand(component.NewDiagCmd())
 	return rootCmd
 }

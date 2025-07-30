@@ -42,7 +42,7 @@ type NvidiaSpec struct {
 	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold" yaml:"memory_errors_threshold"`
 	TemperatureThreshold TemperatureThreshold   `json:"temperature_threshold" yaml:"temperature_threshold"`
 	CriticalXidEvents    map[int]string         `json:"critical_xid_events,omitempty" yaml:"critical_xid_events,omitempty"`
-	Perf                 map[string]float64     `json:"perf,omitempty" yaml:"perf,omitempty"`
+	Perf                 PerfMetrics            `json:"perf,omitempty" yaml:"perf,omitempty"`
 }
 
 type NvidiaSpecs struct {
@@ -68,6 +68,10 @@ type MemoryErrorThreshold struct {
 type TemperatureThreshold struct {
 	Gpu    int `json:"gpu" yaml:"gpu"`
 	Memory int `json:"memory" yaml:"memory"`
+}
+
+type PerfMetrics struct {
+	NcclAllReduceBw float64 `json:"nccl-all-reduce-bw" yaml:"nccl-all-reduce-bw"`
 }
 
 func LoadSpec(file string) (*NvidiaSpec, error) {

@@ -44,7 +44,7 @@ var (
 
 type InfinibandInfo struct {
 	HCAPCINum      int                          `json:"hca_pci_num"`
-	IBDevs         map[string]string            `json:"ib_dev"`
+	IBPFDevs       map[string]string            `json:"ib_dev"`
 	IBHardWareInfo []IBHardWareInfo             `json:"ib_hardware_info"`
 	IBSoftWareInfo IBSoftWareInfo               `json:"ib_software_info"`
 	PCIETreeInfo   []PCIETreeInfo               `json:"pcie_tree_info"`
@@ -118,11 +118,11 @@ func (i *InfinibandInfo) GetPFDevs(IBDev []string) []string {
 	return PFDevs
 }
 
-func (i *InfinibandInfo) GetIBdevs() map[string]string {
+func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 	allIBDevs := GetFileCnt(IBSYSPathPre)
 	PFDevs := i.GetPFDevs(allIBDevs)
 
-	IBDevs := make(map[string]string)
+	IBPFDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
 		if strings.Contains(IBDev, "bond") {
 			continue
@@ -139,10 +139,10 @@ func (i *InfinibandInfo) GetIBdevs() map[string]string {
 		} else {
 			ibNetDev = GetFileCnt(netPath)[0]
 		}
-		IBDevs[IBDev] = ibNetDev
+		IBPFDevs[IBDev] = ibNetDev
 	}
 
-	return IBDevs
+	return IBPFDevs
 }
 
 func (i *InfinibandInfo) GetIBdev2NetDev(IBDev string) []string {
@@ -483,11 +483,11 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	IBSWInfo.OFEDVer = i.GetOFEDInfo(ctx)
 	IBSWInfo.KernelModule = i.GetKernelModule()
 
-	IBInfo.IBDevs = IBInfo.GetIBdevs()
-	IBInfo.HCAPCINum = len(IBInfo.IBDevs)
-	IBHWInfo := make([]IBHardWareInfo, 0, len(IBInfo.IBDevs))
-	IBCounters := make(map[string]map[string]uint64, len(IBInfo.IBDevs))
-	for IBDev := range IBInfo.IBDevs {
+	IBInfo.IBPFDevs = IBInfo.GetIBPFdevs()
+	IBInfo.HCAPCINum = len(IBInfo.IBPFDevs)
+	IBHWInfo := make([]IBHardWareInfo, 0, len(IBInfo.IBPFDevs))
+	IBCounters := make(map[string]map[string]uint64, len(IBInfo.IBPFDevs))
+	for IBDev := range IBInfo.IBPFDevs {
 		var perIBHWInfo IBHardWareInfo
 		perIBHWInfo.IBDev = IBDev
 		perIBHWInfo.NetOperstate = i.GetNetOperstate(IBDev)

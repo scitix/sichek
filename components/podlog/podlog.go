@@ -296,27 +296,29 @@ func (c *component) GetTimeout() time.Duration {
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	ncclEvents := make(map[string]string)
 
-	checkerResults := result.Checkers
-	for _, result := range checkerResults {
-		switch result.Name {
-		case "NCCLTimeoutChecker":
-			if result.Status == consts.StatusAbnormal {
-				ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%sDetect NCCLTimeout in pod %s%s", consts.Red, result.Device, consts.Reset)
-			}
-		}
-	}
 	utils.PrintTitle("PodLog", "-")
 	checkAllPassed := true
-	for _, checkerResult := range checkerResults {
-		switch checkerResult.Name {
-		case "NCCLTimeoutChecker":
-			if result.Status == consts.StatusAbnormal {
-				checkAllPassed = false
-				fmt.Printf("\t%sNCCL timeout detected%s\n", consts.Red, consts.Reset)
-				fmt.Printf("\tAffected Pods  : %s\n", checkerResult.Device)
-				fmt.Printf("\tTimeout Count  : %s\n", checkerResult.Curr)
-				if checkerResult.Suggestion != "" {
-					fmt.Printf("\tSuggestion     : %s\n", checkerResult.Suggestion)
+	if result != nil {
+		checkerResults := result.Checkers
+		for _, result := range checkerResults {
+			switch result.Name {
+			case "NCCLTimeoutChecker":
+				if result.Status == consts.StatusAbnormal {
+					ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%sDetect NCCLTimeout in pod %s%s", consts.Red, result.Device, consts.Reset)
+				}
+			}
+		}
+		for _, checkerResult := range checkerResults {
+			switch checkerResult.Name {
+			case "NCCLTimeoutChecker":
+				if result.Status == consts.StatusAbnormal {
+					checkAllPassed = false
+					fmt.Printf("\t%sNCCL timeout detected%s\n", consts.Red, consts.Reset)
+					fmt.Printf("\tAffected Pods  : %s\n", checkerResult.Device)
+					fmt.Printf("\tTimeout Count  : %s\n", checkerResult.Curr)
+					if checkerResult.Suggestion != "" {
+						fmt.Printf("\tSuggestion     : %s\n", checkerResult.Suggestion)
+					}
 				}
 			}
 		}

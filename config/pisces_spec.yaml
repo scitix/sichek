@@ -82,6 +82,9 @@ infiniband:
           pcie_tree_speed: "16"
           pcie_acs: "disable"
           pcie_mrr: "4096"
+        perf:
+          one_way_bw: 360 # Gbps
+          avg_latency_us: 10.0 # us
       DEL0000000036:
         hardware:
           hca_type: "MT4123"
