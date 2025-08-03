@@ -13,7 +13,7 @@ Defaults:
   numWorkers              = 2
   cmd                     = ""
   imageRepository         = registry-cn-shanghai.siflow.cn/hisys/sichek
-  imageTag                = v0.5.4
+  imageTag                = v0.5.5
   timeout_to_complete_sec = 600
   schedulerName           = sischeduler
   macvlan                 = false
@@ -27,7 +27,7 @@ NUM_WORKERS=${4:-2}
 # !!! IMPORTANT: Define the exact command to run inside each pod !!!
 CMD="${5:-""}"
 IMAGE_REPO="${6:-"registry-cn-shanghai.siflow.cn/hisys/sichek"}"
-IMAGE_TAG="${7:-"v0.5.4"}"
+IMAGE_TAG="${7:-"v0.5.5"}"
 TIMEOUT_TO_COMPLETE=${8:-600}
 SCHEDULER_NAME=${9:-"sischeduler"}
 MACVLAN=${10:-"false"}

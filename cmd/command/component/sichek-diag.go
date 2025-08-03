@@ -48,7 +48,7 @@ Defaults:
   --node-selector    = "None"
   --num-workers      = 2
   --image-repo       = registry-cn-shanghai.siflow.cn/hisys/sichek
-  --image-tag        = v0.5.4,
+  --image-tag        = v0.5.5,
 	--default-spec     = "hercules_spec.yaml"`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
@@ -84,7 +84,7 @@ Defaults:
 	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "sichek all -e -I podlog,gpuevents,nccltest", "Command to run inside pod")
 	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.4", "Image tag")
+	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
 	runCmd.Flags().StringVar(&defaultSpec, "default-spec", "hercules_spec.yaml", "Default spec file for installation")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 1200, "Timeout for job completion in seconds")
 

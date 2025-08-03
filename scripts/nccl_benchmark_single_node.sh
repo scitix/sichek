@@ -30,7 +30,7 @@ NUM_WORKERS=${4:-2}
 # !!! IMPORTANT: Define the exact command to run inside each pod !!!
 NCCL_COMMAND_IN_POD=${5:-"/usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8"}
 IMAGE_REPO="${6:-"registry-cn-shanghai.siflow.cn/hisys/sichek"}"
-IMAGE_TAG="${7:-"v0.5.4"}"
+IMAGE_TAG="${7:-"v0.5.5"}"
 TIMEOUT_TO_COMPLETE=${8:-600}
 SCHEDULER_NAME=${9:-"sischeduler"}
 MACVLAN=${10:-"false"}

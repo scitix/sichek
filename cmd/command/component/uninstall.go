@@ -33,6 +33,7 @@ func NewUninstallCmd() *cobra.Command {
 		numWorkers   int
 		imageRepo    string
 		imageTag     string
+		namespace    string
 	)
 
 	runCmd := &cobra.Command{
@@ -44,7 +45,7 @@ Defaults:
   --node-selector    = ""
   --num-workers      = 2
   --image-repo       = registry-cn-shanghai.siflow.cn/hisys/sichek
-  --image-tag        = v0.5.4`,
+  --image-tag        = v0.5.5`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(600)*time.Second)
 			defer cancel()
@@ -54,8 +55,10 @@ Defaults:
 				"--atomic",
 				"--set", "mode=uninstall-all",
 				"--set", fmt.Sprintf("image.repository=%s", imageRepo),
+				"--set", fmt.Sprintf("image.tag=%s", imageTag),
 				"--set", fmt.Sprintf("batchjob.parallelism=%d", numWorkers),
 				"--set", fmt.Sprintf("batchjob.completions=%d", numWorkers),
+				"--set", fmt.Sprintf("namespace=%s", namespace),
 			}
 			if nodeSelector != "" {
 				escapedNodeSelector := strings.ReplaceAll(nodeSelector, ".", `\.`)
@@ -76,7 +79,7 @@ Defaults:
 	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "", "Node selector")
 	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.4", "Image tag")
-
+	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
+	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace for sichek")
 	return runCmd
 }

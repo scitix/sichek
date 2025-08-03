@@ -79,29 +79,24 @@ func LoadSpec(file string) (*NvidiaSpec, error) {
 	// 1. Load spec from provided file
 	if file != "" {
 		err := s.tryLoadFromFile(file)
-		if err == nil && s.Specs != nil {
-			return FilterSpec(s)
-		} else {
+		if err != nil {
 			logrus.WithField("component", "nvidia").Warnf("%v", err)
 		}
-	}
-	// 2. try to Load default spec from production env if no file specified
-	// e.g., /var/sichek/config/default_spec.yaml
-	err := s.tryLoadFromDefault()
-	if err == nil && s.Specs != nil {
-		spec, err := FilterSpec(s)
-		if err == nil {
-			return spec, nil
-		}
-		logrus.WithField("component", "nvidia").Warnf("failed to filter specs from default production top spec")
 	} else {
-		logrus.WithField("component", "nvidia").Warnf("%v", err)
+		// 2. try to Load default spec from production env if no file specified
+		// e.g., /var/sichek/config/default_spec.yaml
+		logrus.WithField("component", "nvidia").Infof("no spec file provided, trying to load default spec from production path")
+		err := s.tryLoadFromDefault()
+		if err != nil {
+			logrus.WithField("component", "nvidia").Warnf("%v", err)
+		}
 	}
 
 	// 3. try to load default spec from default config directory
 	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
-	err = s.tryLoadFromDevConfig()
+	logrus.WithField("component", "nvidia").Infof("trying to load default spec from dev config directory")
+	err := s.tryLoadFromDevConfig()
 	if err == nil && s.Specs != nil {
 		return FilterSpec(s)
 	} else {
@@ -145,7 +140,7 @@ func (s *NvidiaSpecs) tryLoadFromDefault() error {
 	}
 
 	for id, spec := range specs.Specs {
-		if _, ok := s.Specs[id]; !ok {
+		if existing, ok := s.Specs[id]; !ok || existing == nil {
 			s.Specs[id] = spec
 		}
 	}
@@ -171,8 +166,11 @@ func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
 					s.Specs = make(map[string]*NvidiaSpec)
 				}
 				for id, spec := range specs.Specs {
-					if _, ok := s.Specs[id]; !ok {
+					if existing, ok := s.Specs[id]; !ok || existing == nil {
+						logrus.WithField("component", "nvidia").Infof("loaded NVIDIA spec %s from file %s", id, filePath)
 						s.Specs[id] = spec
+					} else {
+						logrus.WithField("component", "nvidia").Warnf("NVIDIA spec %s already exists, skipping duplicate from file %s", id, filePath)
 					}
 				}
 			}
@@ -184,13 +182,19 @@ func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
 // FilterSpec retrieves the NVIDIA spec for the local GPU device ID.
 func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
 	localDeviceID, err := GetDeviceID()
+	logrus.WithField("component", "nvidia").Infof("local GPU device ID: %s", localDeviceID)
 	if err != nil {
 		return nil, err
 	}
 	var nvSpec *NvidiaSpec
 	if spec, ok := s.Specs[localDeviceID]; ok {
 		nvSpec = spec
+		logrus.WithField("component", "nvidia").Infof("NVIDIA spec for local GPU %s found in provided specs: %s", localDeviceID, nvSpec.Name)
 	} else {
+		logrus.WithField("component", "nvidia").Infof("NVIDIA spec for local GPU %s not found in provided specs, current gpu spec:", localDeviceID)
+		for gpu, spec := range s.Specs {
+			logrus.WithField("component", "nvidia").Infof("    %s: %s", gpu, spec.Name)
+		}
 		nvidiaSpec := &NvidiaSpecs{}
 		url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameNvidia, localDeviceID)
 		logrus.WithField("component", "nvidia").Infof("Loading spec from OSS for gpu %s: %s", localDeviceID, url)

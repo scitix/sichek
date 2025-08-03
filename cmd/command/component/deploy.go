@@ -20,52 +20,52 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-func NewInstallCmd() *cobra.Command {
+func NewDeployCmd() *cobra.Command {
 	var (
-		nodeSelector string
-		numWorkers   int
-		imageRepo    string
-		imageTag     string
-		defaultSpec  string
-		namespace    string
+		imageRepo   string
+		imageTag    string
+		gpuLabel    string
+		cpuLabel    string
+		defaultSpec string
+		namespace   string
 	)
 
 	runCmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install or Update sichek via Helm",
-		Long: `Usage: sichek install [flags]
+		Use:   "deploy",
+		Short: "deploy sichek daemon via Helm",
+		Long: `Usage: sichek deploy [flags]
 
 Defaults:
-  --node-selector    = ""
-  --num-workers      = 2
   --image-repo       = registry-cn-shanghai.siflow.cn/hisys/sichek
   --image-tag        = v0.5.5,
-	--default-spec     = "hercules_spec.yaml"`,
+	--gpu-label        = ""
+	--cpu-label        = ""
+	--default-spec     = "hercules_spec.yaml"
+	--namespace        = "hi-sys-monitor"`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(600)*time.Second)
 			defer cancel()
 
 			argList := []string{
-				"upgrade", "--install", "install-all", "/var/sichek/k8s/sichek/",
+				"upgrade", "--install", "sichek-daemon", "/var/sichek/k8s/sichek/",
 				"--atomic",
-				"--set", "mode=install-all",
+				"--set", "mode=daemon",
 				"--set", fmt.Sprintf("image.repository=%s", imageRepo),
 				"--set", fmt.Sprintf("image.tag=%s", imageTag),
-				"--set", fmt.Sprintf("batchjob.parallelism=%d", numWorkers),
-				"--set", fmt.Sprintf("batchjob.completions=%d", numWorkers),
 				"--set", fmt.Sprintf("defaultSpec=%s", defaultSpec),
 				"--set", fmt.Sprintf("namespace=%s", namespace),
 			}
-			if nodeSelector != "" {
-				escapedNodeSelector := strings.ReplaceAll(nodeSelector, ".", `\.`)
-				argList = append(argList, "--set", fmt.Sprintf("nodeSelector.%s", escapedNodeSelector))
+			if gpuLabel != "" {
+				argList = append(argList, "--set", fmt.Sprintf("daemon.gpuLabel=%s", gpuLabel))
+			}
+			if cpuLabel != "" {
+				argList = append(argList, "--set", fmt.Sprintf("daemon.cpuLabel=%s", cpuLabel))
 			}
 			fmt.Println("Running command:", "helm", argList)
 			command := exec.CommandContext(ctx, "helm", argList...)
@@ -79,12 +79,11 @@ Defaults:
 		},
 	}
 
-	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "", "Node selector")
-	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
 	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
+	runCmd.Flags().StringVar(&gpuLabel, "gpu-label", "", "gpu label for daemonset pod affinity")
+	runCmd.Flags().StringVar(&cpuLabel, "cpu-label", "", "cpu label for daemonset pod affinity")
 	runCmd.Flags().StringVar(&defaultSpec, "default-spec", "hercules_spec.yaml", "Default spec file for installation")
 	runCmd.Flags().StringVar(&namespace, "namespace", "hi-sys-monitor", "Kubernetes namespace for sichek")
-
 	return runCmd
 }

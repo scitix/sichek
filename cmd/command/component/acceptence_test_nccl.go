@@ -91,7 +91,7 @@ Defaults:
 	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "", "Command to run inside pod")
 	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.4", "Image tag")
+	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 600, "Timeout for job completion in seconds")
 	runCmd.Flags().StringVar(&scheduler, "scheduler", "sischeduler", "k8s scheduler name to use for the job, ->[sischeduler, unischeduler]")
 	runCmd.Flags().BoolVar(&macvlan, "macvlan", false, "RDMA mode: macvlan-roce or not")

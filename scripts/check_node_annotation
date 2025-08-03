@@ -1,0 +1,51 @@
+#!/bin/bash
+
+check_node_sichek_status() {
+  local ready_only=false
+
+  # 解析参数
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      ready-only)
+        ready_only=true
+        shift
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  kubectl get nodes -o json | jq -r '
+    .items[] |
+    {
+      name: .metadata.name,
+      unschedulable: (.spec.unschedulable // false),
+      sichek: (.metadata.annotations["scitix.ai/sichek"] // ""),
+      ready: (
+        .status.conditions[] | select(.type == "Ready") | .status
+      )
+    } |
+    select(.sichek | test("err")) |
+    "\(.name)|\(.unschedulable)|\(.ready)|\(.sichek)"
+  ' | while IFS='|' read -r name unschedulable ready sichek; do
+
+    # 如果加了 --ready-only 且节点不是 Ready，就跳过
+    if $ready_only && [[ "$ready" != "True" || "$unschedulable" == "true" ]]; then
+      continue
+    fi
+
+    # 状态标签
+    if [[ "$ready" != "True" ]]; then
+      ready_label=$(printf "\033[1;31mNotReady\033[0m")   # 🔴
+    elif [[ "$unschedulable" == "true" ]]; then
+      ready_label=$(printf "\033[1;33mCordoned\033[0m")   # 🟡
+    else
+      ready_label=$(printf "\033[1;32mReady\033[0m")      # 🟢
+    fi
+
+    printf "%s [%s] -> %s\n" "$name" "$ready_label" "$sichek"
+  done
+}
+
+check_node_sichek_status "$@"

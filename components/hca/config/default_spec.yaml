@@ -255,7 +255,7 @@ hca:
     hardware:
       hca_type: "MT4123"
       board_id: "DEL0000000051"
-      fw_ver: "28.41.1000" #curr:22.39.2048, spec:20.39.2048
+      fw_ver: ">=28.41.1000" #curr:22.39.2048, spec:20.39.2048
       vpd: "Nvidia ConnectX-7 Single Port VPI NDR OSFP Adapter"
       net_port: 1
       port_speed: "400 Gb/sec (4X NDR)"
