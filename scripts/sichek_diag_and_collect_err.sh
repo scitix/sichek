@@ -16,7 +16,7 @@ Defaults:
   numWorkers              = 2
   cmd                     = sichek all -e -I podlog,gpuevents,nccltest
   imageRepository         = registry-cn-shanghai.siflow.cn/hisys/sichek
-  imageTag                = v0.5.4
+  imageTag                = v0.5.5
   defaultSpec             = hercules_spec.yaml
   timeout_to_complete_sec = 600
 "
@@ -28,7 +28,7 @@ NODE_SELECTOR=${3:-"None"}
 NUM_WORKERS=${4:-2}
 CMD=${5:-"sichek all -e -I podlog,gpuevents,nccltest"}
 IMAGE_REPO=${6:-"registry-cn-shanghai.siflow.cn/hisys/sichek"}
-IMAGE_TAG=${7:-"v0.5.4"}
+IMAGE_TAG=${7:-"v0.5.5"}
 DEFAULT_SPEC=${8:-"hercules_spec.yaml"}
 TIMEOUT_TO_COMPLETE=${9:-600}
 
@@ -106,8 +106,11 @@ for pod in $PODS; do
   echo -e "\n❌ $NODE Failed (Logs from pod $pod)"
   kubectl logs -n "$NAMESPACE" "$pod" |tail -n 5 || echo "  [!] Failed to fetch logs from $pod"
 done
-echo "❌ sichek [$CMD] FAILED."
 
+echo "========================================================================="
+echo "❌ sichek [$CMD] FAILED, FAILED number of pods: $(echo "$PODS" | wc -l)"
+echo "   FAILED number: $(echo "$PODS" | wc -l)"
+echo "========================================================================="
 
 echo "========================================================================="
 echo_info "Stop Job '$DIAGJOB_NAME' in namespace '$NAMESPACE' by helm ..."

@@ -15,7 +15,7 @@ Defaults:
   numWorkers              = 2
   cmd                     = bash /var/sichek/scripts/check_bad_nodes.sh
   imageRepository         = registry-cn-shanghai.siflow.cn/hisys/sichek
-  imageTag                = v0.5.4
+  imageTag                = v0.5.5
   timeout_to_complete_sec = 600
   schedulerName           = sischeduler
   macvlan                 = false
@@ -28,7 +28,7 @@ NODE_SELECTOR=${3:-"sichek=test"}
 NUM_WORKERS=${4:-2}
 CMD=${5:-"bash /var/sichek/scripts/check_bad_nodes.sh"}
 IMAGE_REPO=${6:-"registry-cn-shanghai.siflow.cn/hisys/sichek"}
-IMAGE_TAG=${7:-"v0.5.4"}
+IMAGE_TAG=${7:-"v0.5.5"}
 TIMEOUT_TO_COMPLETE=${8:-600}
 SCHEDULER_NAME=${9:-"sischeduler"}
 MACVLAN=${10:-"false"}

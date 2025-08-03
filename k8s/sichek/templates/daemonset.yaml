@@ -1,13 +1,14 @@
 {{- if eq .Values.mode "daemon" }}
+# GPU DaemonSet
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ .Values.name }}
+  name: {{ .Values.name }}-gpu
   namespace: {{ .Values.namespace }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.name }}
+      app: {{ .Values.name }}-gpu
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -15,7 +16,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ .Values.name }}
+        app: {{ .Values.name }}-gpu
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -23,6 +24,21 @@ spec:
       hostPID: true
       hostNetwork: true
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if or .Values.daemon.gpuLabel .Values.daemon.cpuLabel }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              {{- if .Values.daemon.gpuLabel }}
+              - key: {{ .Values.daemon.gpuLabel }}
+                operator: Exists
+              {{- end }}
+              {{- if .Values.daemon.cpuLabel }}
+              - key: {{ .Values.daemon.cpuLabel }}
+                operator: DoesNotExist
+              {{- end }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -38,7 +54,7 @@ spec:
           args:
             - "-c"
             - |-
-              sichek daemon run
+              sichek daemon run -s /var/sichek/config/{{ .Values.defaultSpec }}
           env:
           - name: NODE_NAME
             valueFrom:
@@ -60,12 +76,90 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{- if .Values.daemon.cpuLabel }}
+# CPU DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.name }}-cpu
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}-cpu
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ .Values.name }}-cpu
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      hostPID: true
+      hostNetwork: true
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if or .Values.daemon.gpuLabel .Values.daemon.cpuLabel }}
       affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              {{- if .Values.daemon.cpuLabel }}
+              - key: {{ .Values.daemon.cpuLabel }}
+                operator: Exists
+              {{- end }}
+              {{- if .Values.daemon.gpuLabel }}
+              - key: {{ .Values.daemon.gpuLabel }}
+                operator: DoesNotExist
+              {{- end }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+          - name: metrics
+            containerPort: 19091
+          command: ["/bin/bash"]
+          args:
+            - "-c"
+            - |-
+              sichek daemon run -s /var/sichek/config/{{ .Values.defaultSpec }}
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
 {{- end }}

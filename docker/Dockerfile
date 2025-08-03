@@ -35,12 +35,16 @@ RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list
 RUN apt-get -o Acquire::http::No-Cache=true update && \
     apt-get install -y vim curl tzdata git ca-certificates perftest xz-utils \
     openssh-server libnuma1 numactl rdmacm-utils \
-    openssh-client iproute2 iputils-ping && \
+    openssh-client iproute2 iputils-ping jq && \
     rm -rf /var/lib/apt/lists/* && \
     curl -o /tmp/sicl_install.sh https://oss-ap-southeast.scitix.ai/scitix-release/sicl-24.11-1.cuda1262.ubuntu2204.run && \
     bash /tmp/sicl_install.sh && rm -rf /tmp/sicl_install.sh && \
     apt clean && apt autoremove && rm -rf /var/lib/apt/lists/*
 
+RUN cd /tmp && \
+    curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
+    chmod 700 get_helm.sh && ./get_helm.sh && rm -rf /tmp/get_helm.sh
+    
 RUN cd /tmp && \
     curl -o nccl-test-portable-2.27.3.tar.gz https://oss-ap-southeast.scitix.ai/scitix-release/nccl-test-portable/nccl-test-portable-2.27.3.tar.gz && \
     tar -xzf nccl-test-portable-2.27.3.tar.gz && \
