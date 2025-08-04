@@ -36,8 +36,9 @@ func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec) 
 		config.CheckPCIEWidth: NewIBPCIEWidthChecker,
 		// config.CheckPCIETreeSpeed: NewBPCIETreeSpeedChecker,
 		// config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
-		config.CheckIBKmod: NewIBKmodChecker,
-		config.CheckIBDevs: NewIBDevsChecker,
+		config.CheckIBKmod:   NewIBKmodChecker,
+		config.CheckIBDevs:   NewIBDevsChecker,
+		config.CheckIBDriver: NewIBDriverChecker,
 	}
 
 	ignoredSet := make(map[string]struct{})

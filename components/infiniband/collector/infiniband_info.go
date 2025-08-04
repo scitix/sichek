@@ -212,7 +212,7 @@ func GetIBCounter(IBDev string, counterType string) (map[string]uint64, error) {
 }
 
 func (i *InfinibandInfo) Name() string {
-	return i.Name()
+	return "IBcollector"
 }
 
 func (i *InfinibandInfo) GetIBCounters(IBDev string) map[string]uint64 {
