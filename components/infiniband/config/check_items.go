@@ -31,6 +31,7 @@ const (
 	CheckIBPortSpeed  = "check_ib_port_speed"
 	CheckIBKmod       = "check_ib_kmod"
 	CheckIBDevs       = "check_ib_devs"
+	CheckIBDriver     = "check_ib_driver"
 
 	CheckPCIEACS       = "check_pcie_acs"
 	CheckPCIEMRR       = "check_pcie_mrr"
@@ -160,5 +161,13 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Detail:      "IB device names are consistent",
 		ErrorName:   "IBDeviceNameMismatch",
 		Suggestion:  "Verify udev or naming rules",
+	},
+	CheckIBDriver: {
+		Name:        CheckIBDriver,
+		Description: "Check if IB driver is loaded",
+		Level:       consts.LevelCritical,
+		Detail:      "IB driver is loaded",
+		ErrorName:   "IBDriverNotLoaded",
+		Suggestion:  "Load IB driver",
 	},
 }
