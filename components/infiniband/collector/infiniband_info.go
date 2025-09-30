@@ -128,9 +128,12 @@ func (i *InfinibandInfo) JSON() (string, error) {
 	return string(data), nil
 }
 
-func (i *InfinibandInfo) GetPFDevs(IBDev []string) []string {
+func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	PFDevs := make([]string, 0)
-	for _, IBDev := range IBDev {
+	for _, IBDev := range IBDevs {
+		if strings.Contains(IBDev, "mezz") {
+			continue
+		}
 		vfPath := path.Join(IBSYSPathPre, IBDev, "device", "physfn")
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
