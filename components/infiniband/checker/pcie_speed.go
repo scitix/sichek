@@ -72,9 +72,9 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	failedHcas := make([]string, 0)
 	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	var faiedHcasSpec []string
-	var faiedHcasCurr []string
-	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+	var failedHcasSpec []string
+	var failedHcasCurr []string
+	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.WithField("checker", c.name).Debugf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
@@ -85,8 +85,11 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		if !strings.Contains(hwInfo.PCIESpeed, hcaSpec.Hardware.PCIESpeed) {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIESpeed)
-			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIESpeed)
+			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIESpeed)
+			failedHcasCurr = append(failedHcasCurr, hwInfo.PCIESpeed)
+			tmp := infinibandInfo.IBHardWareInfo[dev]
+			tmp.PCIESpeedState = "1"
+			infinibandInfo.IBHardWareInfo[dev] = tmp
 		}
 	}
 
@@ -94,8 +97,8 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	result.Spec = strings.Join(spec, ",")
 	result.Device = strings.Join(failedHcas, ",")
 	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("PCIESpeed check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), faiedHcasSpec, faiedHcasCurr)
-		result.Suggestion = fmt.Sprintf("Set %s with PCIe MaxReadReq %s", strings.Join(failedHcas, ","), strings.Join(faiedHcasSpec, ","))
+		result.Detail = fmt.Sprintf("PCIESpeed check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), failedHcasSpec, failedHcasCurr)
+		result.Suggestion = fmt.Sprintf("Set %s with PCIe MaxReadReq %s", strings.Join(failedHcas, ","), strings.Join(failedHcasSpec, ","))
 	}
 
 	return &result, nil

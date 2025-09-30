@@ -31,6 +31,7 @@ const (
 	CheckIBPortSpeed  = "check_ib_port_speed"
 	CheckIBKmod       = "check_ib_kmod"
 	CheckIBDevs       = "check_ib_devs"
+	CheckRoCE         = "check_roce"
 	CheckIBDriver     = "check_ib_driver"
 
 	CheckPCIEACS       = "check_pcie_acs"
@@ -162,12 +163,12 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		ErrorName:   "IBDeviceNameMismatch",
 		Suggestion:  "Verify udev or naming rules",
 	},
-	CheckIBDriver: {
-		Name:        CheckIBDriver,
-		Description: "Check if IB driver is loaded",
-		Level:       consts.LevelCritical,
-		Detail:      "IB driver is loaded",
-		ErrorName:   "IBDriverNotLoaded",
-		Suggestion:  "Load IB driver",
+	CheckRoCE: {
+		Name:        CheckRoCE,
+		Description: "Check if RoCE vf is enabled",
+		Level:       consts.LevelWarning,
+		Detail:      "RoCE vf is enabled on all devices",
+		ErrorName:   "RoCENotEnabled",
+		Suggestion:  "Enable RoCE in the device configuration",
 	},
 }

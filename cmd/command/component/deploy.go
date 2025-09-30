@@ -42,8 +42,8 @@ func NewDeployCmd() *cobra.Command {
 		Long: `Usage: sichek deploy [flags]
 
 Defaults:
-  --image-repo       = registry-cn-shanghai.siflow.cn/hisys/sichek
-  --image-tag        = v0.5.5,
+  --image-repo       = registry-us-east.scitix.ai/hisys/sichek
+  --image-tag        = latest,
 	--gpu-label        = ""
 	--cpu-label        = ""
 	--default-spec     = "hercules_spec.yaml"
@@ -79,8 +79,8 @@ Defaults:
 		},
 	}
 
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
+	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
+	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
 	runCmd.Flags().StringVar(&gpuLabel, "gpu-label", "", "gpu label for daemonset pod affinity")
 	runCmd.Flags().StringVar(&cpuLabel, "cpu-label", "", "cpu label for daemonset pod affinity")
 	runCmd.Flags().StringVar(&defaultSpec, "default-spec", "hercules_spec.yaml", "Default spec file for installation")

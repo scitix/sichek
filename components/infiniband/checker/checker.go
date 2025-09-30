@@ -17,28 +17,38 @@ package checker
 
 import (
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec) ([]common.Checker, error) {
+func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec, info *collector.InfinibandInfo) ([]common.Checker, error) {
+
 	checkerConstructors := map[string]func(*config.InfinibandSpec) (common.Checker, error){
-		config.CheckIBOFED: NewIBOFEDChecker,
-		// config.CheckIBNUM:           dependence.NewIOMMUChecker,
+		config.CheckIBOFED:      NewIBOFEDChecker,
 		config.CheckIBFW:        NewFirmwareChecker,
 		config.CheckIBState:     NewIBStateChecker,
 		config.CheckIBPhyState:  NewIBPhyStateChecker,
 		config.CheckIBPortSpeed: NewIBPortSpeedChecker,
+		config.CheckPCIEMRR:     NewPCIEMRRChecker,
+		config.CheckPCIESpeed:   NewIBPCIESpeedChecker,
+		config.CheckPCIEWidth:   NewIBPCIEWidthChecker,
+		config.CheckIBKmod:      NewIBKmodChecker,
+		config.CheckIBDevs:      NewIBDevsChecker,
+		config.CheckIBDriver:    NewIBDriverChecker,
+
+		// config.CheckIBNUM:           dependence.NewIOMMUChecker,
 		// config.CheckNetOperstate: NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
-		config.CheckPCIEMRR:   NewPCIEMRRChecker,
-		config.CheckPCIESpeed: NewIBPCIESpeedChecker,
-		config.CheckPCIEWidth: NewIBPCIEWidthChecker,
 		// config.CheckPCIETreeSpeed: NewBPCIETreeSpeedChecker,
 		// config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
-		config.CheckIBKmod:   NewIBKmodChecker,
-		config.CheckIBDevs:   NewIBDevsChecker,
-		config.CheckIBDriver: NewIBDriverChecker,
+	}
+	for _, hwinfo := range info.IBHardWareInfo {
+		if hwinfo.LinkLayer == "Ethernet" {
+			checkerConstructors[config.CheckRoCE] = NewRoCEChecker
+			logrus.WithField("component", "infiniband").Infof("RoCE checker enabled for checker: %s", config.CheckRoCE)
+			break
+		}
 	}
 
 	ignoredSet := make(map[string]struct{})

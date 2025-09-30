@@ -5,14 +5,18 @@ nvidia:
   query_interval: 30s
   cache_size: 5
   enable_metrics: true
-  ignored_checkers: []
+  ignored_checkers:
+    - "app-clocks"
 
 infiniband:
   query_interval: 30s
   cache_size: 5
   enable_metrics: true
   ignored_checkers:
-    - "net_operstate"
+    - "check_net_operstate"
+    - "check_ib_devs"
+    - "check_ib_ofed"
+    - "check_ib_fw"
 
 ethernet:
   query_interval: 30s
@@ -22,7 +26,7 @@ ethernet:
 gpfs:
   query_interval: 30s
   cache_size: 5
-  ignored_checkers: ["gpfs-installed", "node-in-cluster", "gpfs-started", "gpfs-mounted", "gpfs-health", "gpfs-rdma-network"]
+  ignored_checkers: []
 
 cpu:
   query_interval: 30s
@@ -40,7 +44,9 @@ gpu_custom_events:
   nvsmi: false
   mock: false
   enable_metrics: true
-  ignore_namespaces: []
+  ignore_namespaces:
+    - "ai-infra-user-xcwen"
+    - "ai-infra-user-zhlin"
   ignored_checkers: []
 
 nccl:

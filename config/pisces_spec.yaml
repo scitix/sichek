@@ -44,11 +44,6 @@ infiniband:
       mlx5_1: ib1
       mlx5_2: ib2
       mlx5_3: ib3
-      mlx5_4: ib4
-      mlx5_5: ib5
-      mlx5_6: ib6
-      mlx5_7: ib7
-      mlx5_8: ib8
     sw_deps:
       kernel_module:
         - "rdma_ucm"
@@ -109,13 +104,16 @@ pcie_topo:
     numa_config:
     - node_id: 0 # NUMA0
       gpu_count: 4
-      ib_count: 4
+      ib_count: 2
 
     - node_id: 1 # NUMA1
       gpu_count: 4
-      ib_count: 4
+      ib_count: 2
 
     pci_switches:
     - gpu: 1
       ib: 1
-      count: 8
+      count: 4
+    - gpu: 2
+      ib: 1
+      count: 4

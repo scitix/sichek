@@ -30,14 +30,15 @@ func NewNCCLDiagCmd() *cobra.Command {
 	var (
 		jobName           string
 		namespace         string
-		nodeSelector      string
-		numWorkers        int
 		cmdStr            string
 		imageRepo         string
 		imageTag          string
 		timeoutToComplete int
 		scheduler         string
-		macvlan           bool
+		roceSharedMode    string
+		hostfile          string
+		host              string
+		diagMode          string
 	)
 
 	runCmd := &cobra.Command{
@@ -48,31 +49,32 @@ func NewNCCLDiagCmd() *cobra.Command {
 Defaults:
   --job-name         = nccl-diag
   --namespace        = default
-  --node-selector    = sichek=test
-  --num-workers      = 2
   --cmd              = "bash /var/sichek/scripts/nccltest-diag-bisect.sh"
-  --image-repo       = registry-cn-shanghai.siflow.cn/hisys/sichek
-  --image-tag        = v0.5.5
+  --image-repo       = registry-us-east.scitix.ai/hisys/sichek
+  --image-tag        = latest
   --timeout          = 600
-	--scheduler        = sischeduler
-  --macvlan          = false`,
+  --scheduler        = si-scheduler
+  --roceSharedMode   = none
+  --hostfile         = None (file containing hostnames, one per line)
+  --host             = None (comma-separated hostnames)
+  --diag-mode        = bisect (bisect mode)`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
-
 			script := "/var/sichek/scripts/nccltest-diag.sh"
 			// 构造参数顺序：<job> <namespace> <cmd> <nodeSelector> <imageRepo> <imageTag> <timeout> <rdmaMode>
 			argList := []string{
 				jobName,
 				namespace,
-				nodeSelector,
-				fmt.Sprintf("%d", numWorkers),
 				cmdStr,
 				imageRepo,
 				imageTag,
 				fmt.Sprintf("%d", timeoutToComplete),
 				scheduler,
-				fmt.Sprintf("%t", macvlan),
+				roceSharedMode,
+				hostfile,
+				host,
+				diagMode,
 			}
 
 			command := exec.CommandContext(ctx, "bash", append([]string{script}, argList...)...)
@@ -86,16 +88,17 @@ Defaults:
 		},
 	}
 
-	runCmd.Flags().StringVar(&jobName, "job-name", "at-nccltest2", "Name of the PyTorchJob")
+	runCmd.Flags().StringVar(&jobName, "job-name", "nccl-diag", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "sichek=test", "Node selector")
-	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "bash /var/sichek/scripts/nccltest-diag-bisect.sh", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
+	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
+	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 600, "Timeout for job completion in seconds")
-	runCmd.Flags().StringVar(&scheduler, "scheduler", "sischeduler", "k8s scheduler name to use for the job, ->[sischeduler, unischeduler]")
-	runCmd.Flags().BoolVar(&macvlan, "macvlan", false, "RDMA mode: macvlan-roce or not")
+	runCmd.Flags().StringVar(&scheduler, "scheduler", "si-scheduler", "k8s scheduler name to use for the job, ->[si-scheduler, ubischeduler]")
+	runCmd.Flags().StringVar(&roceSharedMode, "roce-shared-mode", "none", "RoCE shared mode: vf, macvlan, none")
+	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
+	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
+	runCmd.Flags().StringVar(&diagMode, "diag-mode", "conn", "Bisect mode: conn, perf")
 
 	return runCmd
 }

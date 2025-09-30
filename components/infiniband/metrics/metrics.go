@@ -16,6 +16,7 @@ const (
 
 type IBMetrics struct {
 	IBHardWareInfoGauge    *common.GaugeVecMetricExporter
+	IBNumGauge             *common.GaugeVecMetricExporter
 	IBPCINumGauge          *common.GaugeVecMetricExporter
 	IBHardWareInfoStrGauge *common.GaugeVecMetricExporter
 	IBCounterGauge         *common.GaugeVecMetricExporter
@@ -25,6 +26,7 @@ type IBMetrics struct {
 func NewInfinibandMetrics() *IBMetrics {
 	return &IBMetrics{
 		IBHardWareInfoGauge:    common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev"}),
+		IBNumGauge:             common.NewGaugeVecMetricExporter(MetricPrefix, nil),
 		IBPCINumGauge:          common.NewGaugeVecMetricExporter(MetricPrefix, nil),
 		IBHardWareInfoStrGauge: common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "metric_name"}),
 		IBCounterGauge:         common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "counter_name"}),
@@ -33,20 +35,25 @@ func NewInfinibandMetrics() *IBMetrics {
 }
 
 func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
-	m.IBPCINumGauge.SetMetric("hca_pci_num", nil, float64(infinibandInfo.HCAPCINum))
-	//ib_hardware_info
-	for _, hardWareInfo := range infinibandInfo.IBHardWareInfo {
+	m.IBNumGauge.SetMetric("hca_num", nil, float64(infinibandInfo.HCAPCINum))
+	m.IBPCINumGauge.SetMetric("hca_pci_num", nil, float64(len(infinibandInfo.IBPCIDevs)))
 
+	// ib_hardware_info
+	for _, hardWareInfo := range infinibandInfo.IBHardWareInfo {
 		m.IBHardWareInfoGauge.SetMetric("phy_state", []string{hardWareInfo.IBDev}, convertState(hardWareInfo.PhyState))
 		m.IBHardWareInfoGauge.SetMetric("port_state", []string{hardWareInfo.IBDev}, convertState(hardWareInfo.PortState))
-		m.IBHardWareInfoGauge.SetMetric("port_speed", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PortSpeed))
+		m.IBHardWareInfoGauge.SetMetric("port_speed_state", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PortSpeedState))
 		m.IBHardWareInfoGauge.SetMetric("pcie_speed", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIESpeed))
-		m.IBHardWareInfoGauge.SetMetric("pcie_width", []string{hardWareInfo.IBDev}, utils.ParseStringToFloat(hardWareInfo.PCIEWidth))
+		m.IBHardWareInfoGauge.SetMetric("pcie_speed_min", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIETreeSpeedMin))
+		m.IBHardWareInfoGauge.SetMetric("pcie_speed_state", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIESpeedState))
+		m.IBHardWareInfoGauge.SetMetric("pcie_width", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIEWidth))
+		m.IBHardWareInfoGauge.SetMetric("pcie_width_min", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIETreeWidthMin))
+		m.IBHardWareInfoGauge.SetMetric("pcie_width_state", []string{hardWareInfo.IBDev}, utils.ParseStringToFloat(hardWareInfo.PCIEWidthState))
 		m.IBHardWareInfoGauge.SetMetric("pcie_mrr", []string{hardWareInfo.IBDev}, utils.ParseStringToFloat(hardWareInfo.PCIEMRR))
-
 		m.IBHardWareInfoStrGauge.SetMetric("net_operstate", []string{hardWareInfo.IBDev, hardWareInfo.NetOperstate}, 1)
 	}
-	//ib_software_info
+
+	// ib_software_info
 	m.IBSoftWareInfoGauge.ExportStructWithStrField(infinibandInfo.IBSoftWareInfo, []string{}, TagPrefix)
 
 	// ibcounters

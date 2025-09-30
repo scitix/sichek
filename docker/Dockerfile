@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.9.1-base-ubuntu22.04 AS build
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04 AS build
 
 RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list
 
@@ -26,7 +26,7 @@ COPY . .
 
 RUN make goreleaser
 
-FROM nvidia/cuda:12.9.1-base-ubuntu22.04
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 

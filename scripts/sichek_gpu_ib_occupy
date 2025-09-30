@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 默认最小剩余数量（可通过参数覆盖）
+MIN_FREE_GPU=8
+MIN_FREE_IB=32
+
+# 参数解析
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --gpu)
+      MIN_FREE_GPU="$2"
+      shift 2
+      ;;
+    --ib)
+      MIN_FREE_IB="$2"
+      shift 2
+      ;;
+    *)
+      echo "未知参数: $1"
+      echo "用法: $0 [--gpu <最大剩余GPU数>] [--ib <最大剩余IB数>]"
+      exit 1
+      ;;
+  esac
+done
+
+# 检查 jq 是否安装
+if ! command -v jq &>/dev/null; then
+  echo "❌ 需要安装 jq 才能运行此脚本"
+  echo "   Ubuntu/Debian: sudo apt-get install -y jq"
+  echo "   CentOS/RHEL:   sudo yum install -y jq"
+  echo "   MacOS:         brew install jq"
+  exit 1
+fi
+
+GPU_RES="nvidia.com/gpu"
+IB_RES="rdma/hca_shared_devices_all"
+
+echo "🔍 查找 GPU剩余(allocatable - allocated) < ${MIN_FREE_GPU} 或者 IB剩余 < ${MIN_FREE_IB} 的节点..."
+echo
+
+printf "%-30s | %-10s %-10s %-10s | %-10s %-10s %-10s\n" \
+  "NODE" "GPU_CAP" "GPU_ALLOC" "GPU_FREE" "IB_CAP" "IB_ALLOC" "IB_FREE"
+echo "------------------------------------------------------------------------------------------------------"
+
+matched_node=0
+for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.status.allocatable["nvidia.com/gpu"]) | .metadata.name'); do
+  # GPU容量 & 可分配
+  gpu_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.capacity[$res] // 0')
+  gpu_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.allocatable[$res] // 0')
+  # GPU已分配
+  gpu_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
+    -o json | jq "[.items[].spec.containers[].resources.requests[\"$GPU_RES\"] | (tonumber? // 0)] | add // 0")
+  gpu_free=$((gpu_allocatable - gpu_allocated))
+
+  # IB容量 & 可分配
+  ib_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.capacity[$res] // 0')
+  ib_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.allocatable[$res] // 0')
+  # IB已分配
+  ib_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
+    -o json | jq "[.items[].spec.containers[].resources.requests[\"$IB_RES\"] | (tonumber? // 0)] | add // 0")
+  ib_free=$((ib_allocatable - ib_allocated))
+
+  # 条件：剩余资源 ≥ 指定值
+  if [[ "$gpu_free" -lt "$MIN_FREE_GPU" || "$ib_free" -lt "$MIN_FREE_IB" ]]; then
+    printf "%-30s | %-10s %-10s %-10s | %-10s %-10s %-10s\n" \
+      "$node" "$gpu_capacity" "$gpu_allocatable" "$gpu_free" \
+      "$ib_capacity" "$ib_allocatable" "$ib_free"
+    matched_node=$((matched_node + 1))
+  fi
+done
+
+echo "------------------------------------------------------------------------------------------------------"
+if [[ $matched_node -eq 0 ]]; then
+  echo "❌ 没有找到符合条件的节点。"
+else
+  echo "✅ 找到 $matched_node 个节点符合条件。"
+fi
+echo "------------------------------------------------------------------------------------------------------"
+

@@ -10,7 +10,11 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
-  ttlSecondsAfterFinished: 600
+  ttlSecondsAfterFinished: 120
+  completionMode: Indexed
+  parallelism: {{ .Values.batchjob.parallelism }}
+  completions: {{ .Values.batchjob.parallelism }}
+  backoffLimit: 2
   template:
     metadata:
       labels:
@@ -50,7 +54,7 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-          {{- if .Values.batchjob.gpu}}
+          {{- if eq (toString .Values.batchjob.gpu) "true"}}
           - name: NVIDIA_VISIBLE_DEVICES
             value: none
           {{- end }}
@@ -73,5 +77,4 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       restartPolicy: Never
-  parallelism: {{ .Values.batchjob.parallelism }}
 {{- end }}

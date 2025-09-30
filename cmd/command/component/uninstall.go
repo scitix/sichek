@@ -17,10 +17,8 @@ package component
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -29,11 +27,11 @@ import (
 
 func NewUninstallCmd() *cobra.Command {
 	var (
-		nodeSelector string
-		numWorkers   int
-		imageRepo    string
-		imageTag     string
-		namespace    string
+		imageRepo string
+		imageTag  string
+		namespace string
+		hostfile  string
+		host      string
 	)
 
 	runCmd := &cobra.Command{
@@ -42,44 +40,43 @@ func NewUninstallCmd() *cobra.Command {
 		Long: `Usage: sichek uninstall [flags]
 
 Defaults:
-  --node-selector    = ""
-  --num-workers      = 2
-  --image-repo       = registry-cn-shanghai.siflow.cn/hisys/sichek
-  --image-tag        = v0.5.5`,
+  --image-repo       = registry-us-east.scitix.ai/hisys/sichek
+  --image-tag        = latest
+  --namespace        = default
+  --hostfile         = None (file containing hostnames, one per line)
+  --host             = None (comma-separated hostnames)
+
+Note: Number of workers will be automatically derived from hostfile or host parameter.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(600)*time.Second)
 			defer cancel()
 
+			script := "/var/sichek/scripts/sichek_uninstall.sh"
+
 			argList := []string{
-				"upgrade", "--install", "uninstall-all", "/var/sichek/k8s/sichek/",
-				"--atomic",
-				"--set", "mode=uninstall-all",
-				"--set", fmt.Sprintf("image.repository=%s", imageRepo),
-				"--set", fmt.Sprintf("image.tag=%s", imageTag),
-				"--set", fmt.Sprintf("batchjob.parallelism=%d", numWorkers),
-				"--set", fmt.Sprintf("batchjob.completions=%d", numWorkers),
-				"--set", fmt.Sprintf("namespace=%s", namespace),
-			}
-			if nodeSelector != "" {
-				escapedNodeSelector := strings.ReplaceAll(nodeSelector, ".", `\.`)
-				argList = append(argList, "--set", fmt.Sprintf("nodeSelector.%s", escapedNodeSelector))
+				namespace,
+				imageRepo,
+				imageTag,
+				hostfile,
+				host,
 			}
 
-			command := exec.CommandContext(ctx, "helm", argList...)
+			command := exec.CommandContext(ctx, "bash", append([]string{script}, argList...)...)
 			command.Stdout = os.Stdout
 			command.Stderr = os.Stderr
 
 			if err := command.Run(); err != nil {
-				logrus.Errorf("Install/Update sichek script failed: %v", err)
+				logrus.Errorf("Uninstall sichek script failed: %v", err)
 				os.Exit(1)
 			}
 		},
 	}
 
-	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "", "Node selector")
-	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "v0.5.5", "Image tag")
+	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
+	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace for sichek")
+	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
+	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
+
 	return runCmd
 }

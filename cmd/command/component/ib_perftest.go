@@ -50,6 +50,11 @@ func NewIBPerftestCmd() *cobra.Command {
 				}()
 			}
 
+			rdmaCM, err := cmd.Flags().GetBool("rdma_cm")
+			if err != nil {
+				logrus.WithField("perftest", "roce").Errorf("failed to ge the rdma_cm: %v", err)
+				passed = false
+			}
 			testType, err := cmd.Flags().GetString("test-type")
 			if err != nil {
 				logrus.WithField("perftest", "infiniband").Error(err)
@@ -123,10 +128,9 @@ func NewIBPerftestCmd() *cobra.Command {
 			}
 
 			if passed {
-				res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, expectedLatencyUs, ibDevice, size, duration, gid, qpNum, numaAware, useGDR, verbose)
+				res, err := perftest.CheckNodeIBPerfHealth(testType, expectedBandwidthGbps, expectedLatencyUs, ibDevice, size, duration, gid, qpNum, numaAware, useGDR, rdmaCM, verbose)
 				if err != nil {
 					logrus.WithField("perftest", "infiniband").Error(err)
-					passed = false
 				}
 				passed = perftest.PrintInfo(res, verbose)
 			}
@@ -145,6 +149,7 @@ func NewIBPerftestCmd() *cobra.Command {
 	ibPerftestCmd.Flags().IntP("qp", "q", 2, "Num of qps to use for the test")
 	ibPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ibPerftestCmd.Flags().Float64("expect-lat", 0, "Expected latency in us")
+	ibPerftestCmd.Flags().BoolP("rdma_cm", "R", false, "Connect QPs with rdma_cm and run test on those QPs")
 	ibPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	return ibPerftestCmd

@@ -166,6 +166,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	if err != nil {
 		return nil, err
 	}
+
 	collectorPointer, err := collector.NewNvidiaCollector(ctx, nvmlInst, nvidiaSpecCfg.GpuNums)
 	if err != nil {
 		logrus.WithField("component", "nvidia").Errorf("NewNvidiaCollector failed: %v", err)

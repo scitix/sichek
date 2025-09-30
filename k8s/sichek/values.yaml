@@ -8,13 +8,13 @@ namespace: default
 image:
   repository: registry-ap-southeast.scitix.ai/hisys/sichek
   pullPolicy: Always #IfNotPresent
-  tag: "v0.5.5"
+  tag: "latest"
 
 mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
 nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified
 defaultSpec: default # Define the default spec for sichek
-schedulerName: "sischeduler" # Define the scheduler name
-macvlan: false # Set to true if you want to use macvlan network interface
+schedulerName: "si-scheduler" # Define the scheduler name
+roceSharedMode: none # specified RDMA shared mode, options: vf, macvlan, none
 
 daemon:
   gpuLabel: "" # Define the gpu node label to deploy sichek daemon; leave it empty if not specified

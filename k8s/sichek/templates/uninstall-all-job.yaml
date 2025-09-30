@@ -46,6 +46,7 @@ spec:
             - "-c"
             - |-
               set -eu
+              sleep 10
               chroot /host dpkg -P sichek || echo "not installed"
               echo "Uninstall finished"
           volumeMounts:

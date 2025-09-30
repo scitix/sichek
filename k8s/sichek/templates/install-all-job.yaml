@@ -24,6 +24,9 @@ spec:
       - key: "node.kubernetes.io/unschedulable"
         operator: "Exists"
         effect: "NoSchedule"
+      - key: scitix.ai/nodecheck
+        operator: Exists
+        effect: NoSchedule
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -50,6 +53,7 @@ spec:
             - "-c"
             - |-
               set -eu
+              sleep 10
               cp /opt/sichek/dist/sichek_*_linux_amd64.deb /host/tmp/
               cp -rf /usr/local/sihpc /host/usr/local/sihpc
               deb_file=$(ls /host/tmp/sichek_*_linux_amd64.deb)

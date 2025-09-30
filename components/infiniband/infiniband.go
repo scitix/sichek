@@ -17,6 +17,7 @@ package infiniband
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -93,11 +94,11 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
 		return nil, err
 	}
-
-	checkers, err := checker.NewCheckers(cfg, ibSpec)
-	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
-		return nil, err
+	specJSON, jsonErr := json.MarshalIndent(ibSpec, "", "  ")
+	if jsonErr != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to marshal spec to JSON: %v", jsonErr)
+	} else {
+		logrus.WithField("component", "infiniband").Infof("Infiniband Spec loaded (JSON):\n%s", string(specJSON))
 	}
 
 	var infinibandMetrics *metrics.IBMetrics
@@ -105,9 +106,15 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		infinibandMetrics = metrics.NewInfinibandMetrics()
 	}
 
-	collector, err := collector.NewIBCollector()
+	collector, err := collector.NewIBCollector(ctx)
 	if err != nil {
 		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
+	}
+
+	checkers, err := checker.NewCheckers(cfg, ibSpec, collector)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
+		return nil, err
 	}
 
 	component := &component{
@@ -137,6 +144,8 @@ func (c *component) Name() string {
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	info, err := c.collector.Collect(ctx)
+	ibInfo, _ := json.MarshalIndent(info, "", "  ")
+	logrus.WithField("component", "Infiniband").Debugf("Collecting Infiniband info: %v", string(ibInfo))
 	if err != nil {
 		logrus.WithField("component", "Infiniband").Errorf("failed to collect Infiniband info: %v", err)
 		return nil, err

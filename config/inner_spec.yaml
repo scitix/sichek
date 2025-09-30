@@ -1,10 +1,10 @@
 infiniband:
   _base: &default_config
-    ib_devs: &ib_devs
+    ib_devs:
       mlx5_0: ib0
       mlx5_1: ib1
-    sw_deps:
-      kernel_module: &kernel_modules
+    sw_deps: &sw_deps
+      kernel_module:
         - "rdma_ucm"
         - "rdma_cm"
         - "ib_ipoib"
@@ -22,16 +22,24 @@ infiniband:
       <<: *sw_deps
       ofed_ver: ">=MLNX_OFED_LINUX-5.9-0.5.6.0"
     hca_specs:
-      MT_0000001119:{}
+      MT_0000001119:
+        hardware: {}
+        perf: {}
   taurus: #cluster_name
     <<: *default_config
     sw_deps:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-5.9-0.5.6.0"
     hca_specs:
-      MT_0000001119: {}
-      LNV0000000058: {}
-      MT_0000000844: {}
+      MT_0000001119:
+        hardware: {}
+        perf: {}
+      LNV0000000058:
+        hardware: {}
+        perf: {}
+      MT_0000000844:
+        hardware: {}
+        perf: {}
       MT_0000000971:
         hardware:
           hca_type: "MT4129"
@@ -46,11 +54,11 @@ infiniband:
           link_layer: "InfiniBand"
           pcie_width: "16"
           pcie_speed: "16" #"16.0 GT/s PCIe"
-          pcie_tree_width: "32"
+          pcie_tree_width: "16"
           pcie_tree_speed: "16"
           pcie_acs: "disable"
           pcie_mrr: "4096"
-          ofed_ver: "MLNX_OFED_LINUX-24.07-0.6.1.0"   
+          ofed_ver: "MLNX_OFED_LINUX-24.07-0.6.1.0"
         perf:
           one_way_bw: 175 # Gbps
           avg_latency_us: 15.0 # us
@@ -68,8 +76,8 @@ infiniband:
           link_layer: "InfiniBand"
           pcie_width: "16"
           pcie_speed: "32" #"32.0 GT/s PCIe"
-          pcie_tree_width: "32"
-          pcie_tree_speed: "16"
+          pcie_tree_width: "16"
+          pcie_tree_speed: "32"
           pcie_acs: "disable"
           pcie_mrr: "4096"
           ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
@@ -82,35 +90,57 @@ infiniband:
       <<: *sw_deps
       ofed_ver: ">=MLNX_OFED_LINUX-5.9-0.5.6.0"
     hca_specs:
-      LNV0000000019: {}
-      MT_0000000223: {}
+      LNV0000000019:
+        hardware: {}
+        perf: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
   cygnus: #cluster_name
     <<: *default_config
     sw_deps:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     hca_specs:
-      LNV0000000019: {}
-      LNV0000000058: {}
-      DEL0000000010: {}
-      MT_0000000223: {}
-      MT_0000000226: {}
+      LNV0000000019:
+        hardware: {}
+        perf: {}
+      LNV0000000058:
+        hardware: {}
+        perf: {}
+      DEL0000000010:
+        hardware: {}
+        perf: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
+      MT_0000000226:
+        hardware: {}
+        perf: {}
   orion: #cluster_name
     <<: *default_config
     sw_deps:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     hca_specs:
-      LNV0000000019: {}
-      LNV0000000058: {}
-      MT_0000000223: {}
+      LNV0000000019:
+        hardware: {}
+        perf: {}
+      LNV0000000058:
+        hardware: {}
+        perf: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
   sagi: #cluster_name
     <<: *default_config
     sw_deps:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     hca_specs:
-      MT_0000000223: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
       MT_2420110034:
         hardware:
           hca_type: "MT4123"
@@ -125,8 +155,8 @@ infiniband:
           link_layer: "InfiniBand"
           pcie_width: "16"
           pcie_speed: "16" #16.0 GT/s PCIe"
-          pcie_tree_width: "32"
-          pcie_tree_speed: "16"
+          pcie_tree_width: "16"
+          pcie_tree_speed: "32"
           pcie_acs: "disable"
           pcie_mrr: "4096"
         perf:
@@ -138,52 +168,117 @@ infiniband:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     hca_specs:
-      LNV0000000019: {}
-      MT_0000000223: {}
-      MT_0000000903: {}
+      LNV0000000019:
+        hardware: {}
+        perf: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
+      MT_0000000903:
+        hardware: {}
+        perf: {}
   pegasus: #cluster_name
     <<: *default_config
     sw_deps:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     hca_specs:
-      LNV0000000019: {}
-      MT_0000000223: {}
+      LNV0000000019:
+        hardware: {}
+        perf: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
   centaurus: #cluster_name
     <<: *default_config
     sw_deps:
       <<: *sw_deps
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
     hca_specs:
-      LNV0000000019: {}
-      MT_0000000223: {}
-      MT_0000000903: {}
-      DEL0000000010: {}
+      LNV0000000019:
+        hardware: {}
+        perf: {}
+      MT_0000000223:
+        hardware: {}
+        perf: {}
+      MT_0000000903:
+        hardware: {}
+        perf: {}
+      DEL0000000010:
+        hardware: {}
+        perf: {}
   gemini: #cluster_name
     <<: *default_config
+    ib_devs:
+      mlx5_0: eth0
+      mlx5_1: eth1
     sw_deps:
       <<: *sw_deps
-      ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
+      ofed_ver: "MLNX_OFED_LINUX-24.07-0.6.1.0"
     hca_specs:
-      LNV0000000058: {}
-      MT_0000000844: {}
+      LNV0000000058:
+        hardware: {}
+        perf: {}
+      MT_0000000844:
+        hardware: {}
+        perf: {}
       MT_0000000838:
-        hca_type: "MT4129"
-        board_id: "MT_0000000838"
-        fw_ver: "28.39.2048"
-        vpd: "NVIDIA ConnectX-7 adapter card, 400Gb/s NDR IB, Single-port OSFP, PCIe 5.0 x16, Secure boot, No Crypto"
-        net_port: 1
-        port_speed: "400 Gb/sec (4X NDR)"
-        phy_state: "LinkUp"
-        port_state: "ACTIVE"
-        net_operstate: "down"
-        link_layer: "InfiniBand"
-        pcie_width: "16"
-        pcie_speed: "32" #32.0 GT/s PCIe"
-        pcie_tree_width: "32"
-        pcie_tree_speed: "16"
-        pcie_acs: "disable"
-        pcie_mrr: "4096"
-      perf:
-        one_way_bw: 360 # Gbps
-        avg_latency_us: 10.0 # us
+        hardware:
+          hca_type: "MT4129"
+          board_id: "MT_0000000838"
+          fw_ver: "28.39.2048"
+          vpd: "NVIDIA ConnectX-7 adapter card, 400Gb/s NDR IB, Single-port OSFP, PCIe 5.0 x16, Secure boot, No Crypto"
+          net_port: 1
+          port_speed: "400 Gb/sec (4X NDR)"
+          phy_state: "LinkUp"
+          port_state: "ACTIVE"
+          net_operstate: "down"
+          link_layer: "InfiniBand"
+          pcie_width: "16"
+          pcie_speed: "32" #32.0 GT/s PCIe"
+          pcie_tree_width: "16"
+          pcie_tree_speed: "32"
+          pcie_acs: "disable"
+          pcie_mrr: "4096"
+        perf:
+          one_way_bw: 360 # Gbps
+          avg_latency_us: 10.0 # us
+      MT_0000001120:
+        hardware:
+          hca_type: "0"
+          board_id: "MT_0000001120"
+          fw_ver: ">=28.41.1000"
+          vpd: "HPE InfiniBand NDR/Ethernet 400Gb 1-port OSFP PCIe5 x16 MCX75310AAS-NEAT Adapter"
+          net_port: 1
+          port_speed: "400 Gb/sec (4X NDR)"
+          phy_state: "LinkUp"
+          port_state: "ACTIVE"
+          net_operstate: "up"
+          link_layer: "Ethernet"
+          pcie_width: "16"
+          pcie_speed: "32.0 GT/s PCIe"
+          pcie_tree_width: "16"
+          pcie_tree_speed: "32"
+          pcie_acs: "disable"
+          pcie_mrr: "4096"
+        perf:
+          one_way_bw: 360 # Gbps
+          avg_latency_us: 10 # us
+pcie_topo:
+  "0x233010de":
+    numa_config:
+    - node_id: 0 # NUMA0
+      gpu_count: 4
+      ib_count: 2
+
+    - node_id: 1 # NUMA1
+      gpu_count: 4
+      ib_count: 2
+
+    pci_switches:
+    - gpu: 1
+      ib: 1
+      count: 4
+    - gpu: 2
+      ib: 1
+      count: 4

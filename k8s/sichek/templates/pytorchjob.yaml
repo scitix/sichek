@@ -13,11 +13,24 @@ spec:
       replicas: 1
       restartPolicy: Never
       template:
-        {{- if .Values.macvlan }}
+        {{- if eq .Values.roceSharedMode "macvlan" }}
         metadata:
           annotations:
             roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
             k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+        {{- end }}
+        {{- if eq .Values.roceSharedMode "ipvlan" }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.volcengine.com/pod-networks: |
+              [
+                {
+                  "cniConf":{
+                     "name":"rdma"
+                   }
+                }
+              ]
         {{- end }}
         spec: &job-spec
           {{- with .Values.nodeSelector }}
@@ -38,6 +51,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            {{- if eq .Values.roceSharedMode "vf" }}
+            - name: NCCL_IB_GID_INDEX
+              value: "3"
+            {{- end }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -47,19 +64,23 @@ spec:
             resources:
               limits:
                 nvidia.com/gpu: "8"
-                {{- if eq (toString .Values.macvlan) "true" }}
+                {{- if eq .Values.roceSharedMode "macvlan" }}
                 {{- range $i := until 8 }}
                 nvidia.com/rdma{{ $i }}: "1"
                 {{- end }}
+                {{- else if eq .Values.roceSharedMode "ipvlan" }}
+                vke.volcengine.com/rdma_host: "1"
                 {{- else }}
                 rdma/hca_shared_devices_all: "1"
                 {{- end }}
               requests:
                 nvidia.com/gpu: "8"
-                {{- if eq (toString .Values.macvlan) "true" }}
+                {{- if eq .Values.roceSharedMode "macvlan" }}
                 {{- range $i := until 8 }}
                 nvidia.com/rdma{{ $i }}: "1"
                 {{- end }}
+                {{- else if eq .Values.roceSharedMode "ipvlan" }}
+                vke.volcengine.com/rdma_host: "1"
                 {{- else }}
                 rdma/hca_shared_devices_all: "1"
                 {{- end }}
@@ -68,7 +89,7 @@ spec:
             volumeMounts:
             - mountPath: /dev/shm
               name: shm
-          {{- if and (ne (toString .Values.macvlan) "true") .Values.schedulerName }}
+          {{- if and (ne .Values.roceSharedMode "macvlan") .Values.schedulerName }}
           schedulerName: {{ .Values.schedulerName }}
           {{- end }}
           volumes:
@@ -86,11 +107,24 @@ spec:
       replicas: {{ add .Values.pytorchjob.numWorkers -1 }}
       restartPolicy: Never
       template:
-        {{- if .Values.macvlan }}
+        {{- if eq .Values.roceSharedMode "macvlan" }}
         metadata:
           annotations:
             roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
             k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+        {{- end }}
+        {{- if eq .Values.roceSharedMode "ipvlan" }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.volcengine.com/pod-networks: |
+              [
+                {
+                  "cniConf":{
+                     "name":"rdma"
+                   }
+                }
+              ]
         {{- end }}
         spec:
           <<: *job-spec

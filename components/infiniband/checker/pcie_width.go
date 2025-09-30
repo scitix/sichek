@@ -73,9 +73,9 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 	failedHcas := make([]string, 0)
 	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
 	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	var faiedHcasSpec []string
-	var faiedHcasCurr []string
-	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+	var failedHcasSpec []string
+	var failedHcasCurr []string
+	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			log.Printf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
@@ -86,8 +86,11 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 		if hwInfo.PCIEWidth != hcaSpec.Hardware.PCIEWidth {
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
-			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIEWidth)
-			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEWidth)
+			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIEWidth)
+			failedHcasCurr = append(failedHcasCurr, hwInfo.PCIEWidth)
+			tmp := infinibandInfo.IBHardWareInfo[dev]
+			tmp.PCIEWidthState = "1"
+			infinibandInfo.IBHardWareInfo[dev] = tmp
 		}
 	}
 
@@ -95,8 +98,8 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 	result.Spec = strings.Join(spec, ",")
 	result.Device = strings.Join(failedHcas, ",")
 	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("PCIEWidth check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), faiedHcasSpec, faiedHcasCurr)
-		result.Suggestion = fmt.Sprintf("Set %s with %s", strings.Join(failedHcas, ","), strings.Join(faiedHcasSpec, ","))
+		result.Detail = fmt.Sprintf("PCIEWidth check fail: %s expect %s, but get %s", strings.Join(failedHcas, ","), failedHcasSpec, failedHcasCurr)
+		result.Suggestion = fmt.Sprintf("Set %s with %s", strings.Join(failedHcas, ","), strings.Join(failedHcasSpec, ","))
 	}
 
 	return &result, nil

@@ -1,49 +1,63 @@
 #!/bin/bash
+
 set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
 
 SCRIPTS_DIR=$(dirname "$(realpath "$0")")
 SICHEK_ROOTDIR=$(realpath "$SCRIPTS_DIR/..")
 SICHEK_HELM_DIR="$SICHEK_ROOTDIR/k8s/sichek"
 
-USAGE="Usage: $0 <=job-name> [namespace] [nodeSelector] [num-workers] [cmd] [image-repo] [image-tag] [timeout_to_complete_sec] [rdma_mode]
+USAGE="Usage: $0 <=job-name> [namespace] [nodeSelector] [num-workers] [cmd] [image-repo] [image-tag] [timeout_to_complete_sec] [rdma_mode] [hostfile] [host]
 Defaults:
   job-name                = llama2-13b-bench
   namespace               = default
-  nodeSelector            = sichek=test
-  numWorkers              = 2
   cmd                     = ""
-  imageRepository         = registry-cn-shanghai.siflow.cn/hisys/sichek
-  imageTag                = v0.5.5
+  imageRepository         = registry-us-east.scitix.ai/hisys/sichek
+  imageTag                = latest
   timeout_to_complete_sec = 600
-  schedulerName           = sischeduler
-  macvlan                 = false
+  schedulerName           = si-scheduler
+  roceSharedMode          = vf
+  hostfile                = None (file containing hostnames, one per line)
+  host                    = None (comma-separated hostnames)
 "
 
 # 参数解析
 JOB_NAME=${1:-"nccl-test-2"}
 NAMESPACE=${2:-"default"}
-NODE_SELECTOR=${3:-"sichek=test"}
-NUM_WORKERS=${4:-2}
+NODE_SELECTOR="None"
+NUM_WORKERS=0
 # !!! IMPORTANT: Define the exact command to run inside each pod !!!
-CMD="${5:-""}"
-IMAGE_REPO="${6:-"registry-cn-shanghai.siflow.cn/hisys/sichek"}"
-IMAGE_TAG="${7:-"v0.5.5"}"
-TIMEOUT_TO_COMPLETE=${8:-600}
-SCHEDULER_NAME=${9:-"sischeduler"}
-MACVLAN=${10:-"false"}
+CMD="${3:-""}"
+IMAGE_REPO="${4:-"registry-us-east.scitix.ai/hisys/sichek"}"
+IMAGE_TAG="${5:-"latest"}"
+TIMEOUT_TO_COMPLETE=${6:-600}
+SCHEDULER_NAME=${7:-"si-scheduler"}
+ROCE_SHARED_MODE=${8:-"none"}
+HOSTFILE=${9:-"None"}
+HOST=${10:-"None"}
 
 WORKER_POD_IDENTIFIER_STRING="worker"
 MAX_PARALLEL_JOBS=200
 
-NODE_SELECTOR=$(echo "$NODE_SELECTOR" | sed 's/\./\\./g')
-NODE_SELECTOR_KEY=$(cut -d= -f1 <<< "$NODE_SELECTOR")
-NODE_SELECTOR_VAL=$(cut -d= -f2 <<< "$NODE_SELECTOR")
+# 使用common.sh中的函数处理hostfile和host参数
+setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
+
+NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
 
 # --- Initialization ---
 declare -a bandwidth_values
 declare -A pod_final_results # Associative array to store final results string for each pod
 
 TMP_DIR=$(mktemp -d) # Create a temporary directory for output files
+if [ ${#HOSTNAMES[@]} -gt 0 ]; then
+  echo_info "Target hostnames: ${HOSTNAMES[*]}"
+  NUM_WORKERS=${#HOSTNAMES[@]}
+  echo_info "NUM_WORKERS auto-derived from hostnames: $NUM_WORKERS"
+else
+  echo_warn "No hostnames provided, exiting..."
+  exit 1
+fi
 MPIJOB_NAME="sichek-${JOB_NAME}-${NUM_WORKERS}"
 
 # Cleanup function to remove temp directory on exit
@@ -51,6 +65,7 @@ cleanup() {
   echo "Cleaning up Helm release: $JOB_NAME"
   helm uninstall $JOB_NAME -n $NAMESPACE || true
   kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found
+  cleanup_labels  # 清理临时labels
   [[ -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
   exit 0
 }
@@ -62,20 +77,23 @@ trap cleanup ERR         # 脚本出错也清理（可选）
 echo "================================================================================"
 echo "Launching MPIJob '$JOB_NAME' with $NUM_WORKERS workers in namespace '$NAMESPACE'"
 echo "NodeSelector: $NODE_SELECTOR"
+if [ ${#HOSTNAMES[@]} -gt 0 ]; then
+  echo_info "Target hostnames: ${HOSTNAMES[*]}"
+fi
 echo "Image: $IMAGE_REPO:$IMAGE_TAG"
 echo "Timeout: $TIMEOUT_TO_COMPLETE seconds"
 echo "================================================================================"
-helm upgrade --install $JOB_NAME $SICHEK_HELM_DIR \
+echo_back "helm upgrade --install $JOB_NAME $SICHEK_HELM_DIR \
   --atomic \
-  --namespace $NAMESPACE \
+  --set namespace=$NAMESPACE \
   --set mode=mpijob \
   --set schedulerName=$SCHEDULER_NAME \
-  --set macvlan=$MACVLAN \
-  --set nodeSelector.${NODE_SELECTOR_KEY}=${NODE_SELECTOR_VAL} \
+  --set roceSharedMode=$ROCE_SHARED_MODE \
+  $NODE_SELECTOR_ARGS \
   --set image.repository=${IMAGE_REPO} \
   --set image.tag=${IMAGE_TAG} \
   --set mpijob.name=${JOB_NAME} \
-  --set mpijob.numWorkers=${NUM_WORKERS}
+  --set mpijob.numWorkers=${NUM_WORKERS}"
 
 echo "================================================================================"
 echo "Waiting for all worker pods to be ready..."
@@ -109,7 +127,7 @@ echo "Found launcher pod: $LAUNCHER_POD"
 # 3) 收集 Worker Pod 列表及其节点
 echo
 echo "Test machines (Worker Pods and their nodes):"
-# 注意：MPIJob 脚本中 job-role 是 “Worker”（首字母大写）
+# 注意：MPIJob 脚本中 job-role 是 "Worker"（首字母大写）
 WORKER_INFO=$(
   kubectl get pods \
   -l training.kubeflow.org/replica-type=worker,training.kubeflow.org/job-name="$MPIJOB_NAME" \
@@ -132,10 +150,10 @@ COMMON_OPTS="--allow-run-as-root --map-by ppr:8:node \
 
 declare -a TEST_LABELS=("all_reduce" "all_gather" "reduce_scatter" "all2all")
 declare -a TEST_CMDS=(
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS $MPIRUN_BASE"
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS $MPIRUN_BASE -lallgather"
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS $MPIRUN_BASE -lreducescatter"
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS $MPIRUN_BASE -lall2all"
+  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE"
+  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lallgather"
+  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lreducescatter"
+  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lalltoall"
 )
 
 declare -A RESULTS
@@ -144,18 +162,27 @@ declare -A RESULTS
 for i in "${!TEST_LABELS[@]}"; do
   label="${TEST_LABELS[$i]}"
   cmd="${TEST_CMDS[$i]}"
-  TMP_LOG="$TMP_DIR/output.txt"
+  TMP_LOG="$TMP_DIR/output_${label}.txt"
 
   echo
   echo ">>> Running NCCL test: $label"
-  echo "    Command: $cmd  > $TMP_LOG 2>&1"
+  echo "    Command: timeout $TIMEOUT_TO_COMPLETE $cmd  > $TMP_LOG 2>&1"
   echo
 
-  if ! kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "$cmd" > $TMP_LOG 2>&1 ; then
-    echo "WARNING: $cmd failed"
+  # 使用 timeout 命令包装 mpirun 执行
+  if ! kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "timeout $TIMEOUT_TO_COMPLETE $cmd" > $TMP_LOG 2>&1 ; then
+    echo "WARNING: $cmd failed or timed out after $TIMEOUT_TO_COMPLETE seconds"
     tail -n 20 $TMP_LOG
   fi
   output=$(cat $TMP_LOG)
+  
+  # 检查是否因为超时而失败
+  if echo "$output" | grep -q "timeout: command terminated"; then
+    echo "ERROR: Command timed out after $TIMEOUT_TO_COMPLETE seconds"
+    RESULTS["$label"]="TIMEOUT"
+    exit 1
+  fi
+  
   # 打印原始输出
   echo "$output" | grep "Avg bus bandwidth"
 

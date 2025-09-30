@@ -12,49 +12,64 @@ USAGE="Usage: $0 <job-name> [namespace] [nodeSelector] [num-workers] [cmd] [imag
 Defaults:
   job-name                = nccl-diag-bisect
   namespace               = default
-  nodeSelector            = scitix.ai/gpu-type: h20xnvlink141
-  numWorkers              = 2
   cmd                     = sichek all -e -I podlog,gpuevents,nccltest
-  imageRepository         = registry-cn-shanghai.siflow.cn/hisys/sichek
-  imageTag                = v0.5.5
+  imageRepository         = registry-us-east.scitix.ai/hisys/sichek
+  imageTag                = latest
   defaultSpec             = hercules_spec.yaml
   timeout_to_complete_sec = 600
+  cpu                     = false
+  hostfile                = None (file containing hostnames, one per line)
+  host                    = None (comma-separated hostnames)
 "
 
 # 参数解析
 JOB_NAME=${1:-"diag"}
 NAMESPACE=${2:-"default"}
-NODE_SELECTOR=${3:-"None"}
-NUM_WORKERS=${4:-2}
-CMD=${5:-"sichek all -e -I podlog,gpuevents,nccltest"}
-IMAGE_REPO=${6:-"registry-cn-shanghai.siflow.cn/hisys/sichek"}
-IMAGE_TAG=${7:-"v0.5.5"}
-DEFAULT_SPEC=${8:-"hercules_spec.yaml"}
-TIMEOUT_TO_COMPLETE=${9:-600}
-
-# 将 nodeSelector 解析为 key=value
-NODE_SELECTOR_ARGS=""
-if [ "$NODE_SELECTOR" != "None" ]; then
-  # 对 key 中的 . 进行转义
-  ESCAPED_NODE_SELECTOR=$(echo "$NODE_SELECTOR" | sed 's/\./\\\\./g')
-  NODE_SELECTOR_KEY=$(cut -d= -f1 <<< "$ESCAPED_NODE_SELECTOR")
-  NODE_SELECTOR_VAL=$(cut -d= -f2 <<< "$ESCAPED_NODE_SELECTOR")
-  NODE_SELECTOR_ARGS="--set nodeSelector.\"${NODE_SELECTOR_KEY}\"=${NODE_SELECTOR_VAL}"
+NODE_SELECTOR="None"
+NUM_WORKERS=0
+CMD=${3:-"sleep 10 && sichek all -e -I podlog,gpuevents,nccltest"}
+IMAGE_REPO=${4:-"registry-us-east.scitix.ai/hisys/sichek"}
+IMAGE_TAG=${5:-"latest"}
+DEFAULT_SPEC=${6:-"hercules_spec.yaml"}
+TIMEOUT_TO_COMPLETE=${7:-600}
+CPU=${8:-false}
+if [ "$CPU" != "true" ]; then
+  GPU="true"
+else
+  GPU="false"
 fi
+
+HOSTFILE=${9:-"None"}
+HOST=${10:-"None"}
+
+# 使用common.sh中的函数处理hostfile和host参数
+setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
+# 将 nodeSelector 解析为 key=value
+NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
+
 ESCAPED_CMD=${CMD//,/\\,}
 
 echo "========================================================================="
 echo_info "Starting Batchjob '$JOB_NAME' in namespace '$NAMESPACE' to install sichek..."
 echo_info "NodeSelector: $NODE_SELECTOR, NodeNumber: $NUM_WORKERS"
+if [ ${#HOSTNAMES[@]} -gt 0 ]; then
+  echo_info "Target hostnames: ${HOSTNAMES[*]}"
+  NUM_WORKERS=${#HOSTNAMES[@]}
+  echo_info "NUM_WORKERS auto-derived from hostnames: $NUM_WORKERS"
+else
+  echo_warn "No hostnames provided, exiting..."
+  exit 1
+fi
 echo_info "Timeout: $TIMEOUT_TO_COMPLETE seconds"
 echo "========================================================================="
 
 HELM_FAILED=0
 echo_back "helm upgrade --install $JOB_NAME $SICHEK_HELM_DIR \
-  --namespace $NAMESPACE \
+  --set namespace=$NAMESPACE \
  	--atomic \
   --timeout "${TIMEOUT_TO_COMPLETE}s" \
   --set mode=diag \
+  --set batchjob.gpu=$GPU \
   --set batchjob.name=\"${JOB_NAME}\" \
   --set batchjob.cmd=\"${ESCAPED_CMD}\" \
   --set defaultSpec="$DEFAULT_SPEC" \
@@ -68,6 +83,8 @@ cleanup() {
   echo "Cleaning up : $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME"
   echo_back "kubectl delete job $DIAGJOB_NAME -n $NAMESPACE --ignore-not-found"
+  # 清理临时labels
+  cleanup_labels
   exit 0
 }
 trap cleanup EXIT        # 脚本退出时调用
@@ -97,14 +114,17 @@ PODS=$(kubectl get pods -n "$NAMESPACE" \
   -o custom-columns=NAME:.metadata.name --no-headers)
 
 if [ "$HELM_FAILED" -eq 0 ] && [ -z "$PODS" ]; then
+  echo "========================================================================="
+  kubectl get pods -n "$NAMESPACE" -l job-name="$DIAGJOB_NAME" -o custom-columns=NAME:.metadata.name --no-headers
   echo "✅ sichek [$CMD] PASSED."
+  echo "=========================================================================="
   exit 0
 fi
 
 for pod in $PODS; do
   NODE=$(kubectl get pod "$pod" -n "$NAMESPACE" -o jsonpath='{.spec.nodeName}')
   echo -e "\n❌ $NODE Failed (Logs from pod $pod)"
-  kubectl logs -n "$NAMESPACE" "$pod" |tail -n 5 || echo "  [!] Failed to fetch logs from $pod"
+  kubectl logs -n "$NAMESPACE" "$pod" |tail -n 50 || echo "  [!] Failed to fetch logs from $pod"
 done
 
 echo "========================================================================="

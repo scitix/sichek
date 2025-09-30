@@ -8,39 +8,42 @@ SCRIPTS_DIR=$(dirname "$(realpath "$0")")
 SICHEK_ROOTDIR=$(realpath "$SCRIPTS_DIR/..")
 SICHEK_HELM_DIR="$SICHEK_ROOTDIR/k8s/sichek"
 
-USAGE="Usage: $0 <=job-name> [namespace] [nodeSelector] [num-workers] [cmd] [image-repo] [image-tag] [timeout_to_complete_sec] [rdma_mode]
+USAGE="Usage: $0 <=job-name> [namespace] [nodeSelector] [num-workers] [cmd] [image-repo] [image-tag] [timeout_to_complete_sec] [rdma_mode] [hostfile] [host]
 Defaults:
   job-name                = llama2-13b-bench
   namespace               = default
-  nodeSelector            = sichek=test
-  numWorkers              = 2
   cmd                     = TP=2 PP=1 GBS=256 MBS=1 MAX_STEPS=4 EVAL_ITERS=1 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh
-  imageRepository         = registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch
+  imageRepository         = registry-us-east.scitix.ai/hpc/ngc_pytorch
   imageTag                = 24.06-sicl-0723
   timeout_to_complete_sec = 600
-  schedulerName           = sischeduler
-  macvlan                 = false
+  schedulerName           = si-scheduler
+  roceSharedMode          = vf
+  hostfile                = None (file containing hostnames, one per line)
+  host                    = None (comma-separated hostnames)
 "
 
 # 参数解析
 JOB_NAME=${1:-"llama2-13b-bench"}
 NAMESPACE=${2:-"default"}
-NODE_SELECTOR=${3:-"xlliu-test=test"}
-NUM_WORKERS=${4:-2}
+NODE_SELECTOR="None"
+NUM_WORKERS=0
 # !!! IMPORTANT: Define the exact command to run inside each pod !!!
-CMD="${5:-"TP=2 PP=1 GBS=256 MBS=1 MAX_STEPS=4 EVAL_ITERS=1 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh"}"
-IMAGE_REPO="${6:-"registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch"}"
-IMAGE_TAG="${7:-"24.06-sicl-0723"}"
-TIMEOUT_TO_COMPLETE=${8:-600}
-SCHEDULER_NAME=${9:-"sischeduler"}
-MACVLAN=${10:-"false"}
+CMD="${3:-"TP=2 PP=1 GBS=256 MBS=1 MAX_STEPS=4 EVAL_ITERS=1 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh"}"
+IMAGE_REPO="${4:-"registry-us-east.scitix.ai/hpc/ngc_pytorch"}"
+IMAGE_TAG="${5:-"24.06-sicl-0723"}"
+TIMEOUT_TO_COMPLETE=${6:-600}
+SCHEDULER_NAME=${7:-"si-scheduler"}
+ROCE_SHARED_MODE=${8:-"none"}
+HOSTFILE=${9:-"None"}
+HOST=${10:-"None"}
 
 WORKER_POD_IDENTIFIER_STRING="worker"
 MAX_PARALLEL_JOBS=200
 
-NODE_SELECTOR=$(echo "$NODE_SELECTOR" | sed 's/\./\\./g')
-NODE_SELECTOR_KEY=$(cut -d= -f1 <<< "$NODE_SELECTOR")
-NODE_SELECTOR_VAL=$(cut -d= -f2 <<< "$NODE_SELECTOR")
+# 使用common.sh中的函数处理hostfile和host参数
+setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
+
+NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
 
 # --- Initialization ---
 declare -a bandwidth_values
@@ -53,6 +56,7 @@ cleanup() {
   echo_info "Cleaning up Helm release: $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME -n $NAMESPACE || true"
   echo_back "kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found"
+  cleanup_labels  # 清理临时labels
   [[ -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
   exit 0
 }
@@ -67,16 +71,27 @@ echo_info "Tests will be run in parallel (up to $MAX_PARALLEL_JOBS concurrently)
 echo_info "Command to be executed in each pod: $CMD"
 echo_info "Temporary output files will be stored in: $TMP_DIR"
 echo_info "NodeSelector: $NODE_SELECTOR"
+if [ ${#HOSTNAMES[@]} -gt 0 ]; then
+  echo_info "Target hostnames: ${HOSTNAMES[*]}"
+  NUM_WORKERS=${#HOSTNAMES[@]}
+  echo_info "NUM_WORKERS auto-derived from hostnames: $NUM_WORKERS"
+else
+  echo_warn "No hostnames provided, exiting..."
+  exit 1
+fi
+if [ ${#HOSTNAMES[@]} -gt 0 ]; then
+  echo_info "Target hostnames: ${HOSTNAMES[*]}"
+fi
 echo_info "Image: $IMAGE_REPO:$IMAGE_TAG"
 echo_info "Timeout: $TIMEOUT_TO_COMPLETE seconds"
 echo "================================================================================"
 echo_back "helm upgrade --install $JOB_NAME $SICHEK_HELM_DIR \
   --atomic \
-  --namespace $NAMESPACE \
+  --set namespace=$NAMESPACE \
   --set mode=mpijob \
   --set schedulerName=$SCHEDULER_NAME \
-  --set macvlan=$MACVLAN \
-  --set nodeSelector.${NODE_SELECTOR_KEY}=${NODE_SELECTOR_VAL} \
+  --set roceSharedMode=$ROCE_SHARED_MODE \
+  $NODE_SELECTOR_ARGS \
   --set image.repository=${IMAGE_REPO} \
   --set image.tag=${IMAGE_TAG} \
   --set mpijob.name=${JOB_NAME} \

@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBDevsChecker struct {
@@ -60,12 +61,28 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result := config.InfinibandCheckItems[c.name]
 
 	var mismatchPairs []string
-	for expectedMlx5, expectedIb := range c.spec.IBPFDevs {
+	for expectedMlx5 := range c.spec.IBPFDevs {
 		actualIb, found := infinibandInfo.IBPFDevs[expectedMlx5]
 		if !found {
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
 			continue
 		}
+
+		var expectedIb string
+		parts := strings.Split(expectedMlx5, "_")
+
+		if len(parts) > 1 {
+			numberStr := parts[len(parts)-1]
+			switch infinibandInfo.IBHardWareInfo[expectedMlx5].LinkLayer {
+			case "Ethernet":
+				expectedIb = "eth" + numberStr
+			case "InfiniBand":
+				expectedIb = "ib" + numberStr
+			}
+		} else {
+			logrus.WithField("component", "infiniband").Warnf("fail to extract number from '%s'.", expectedMlx5)
+		}
+
 		if actualIb != expectedIb {
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
 		}

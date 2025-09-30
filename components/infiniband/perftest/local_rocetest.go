@@ -17,6 +17,7 @@ package perftest
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,12 +29,13 @@ import (
 )
 
 type RoCEV2DeviceInfo struct {
-	Dev    string // IB设备名
-	Port   string // IB端口
-	Index  string // GID Index
-	Gid    string // GID值
-	Iface  string // 绑定的网络设备名，如 eth0
-	Status string // 绑定设备的UP/DOWN状态
+	Dev      string // IB设备名
+	Port     string // IB端口
+	Index    string // GID Index
+	Gid      string // GID值
+	Iface    string // 绑定的网络设备名，如 eth0
+	Status   string // 绑定设备的UP/DOWN状态
+	IPv4Addr string // 绑定设备的IPv4地址
 }
 
 func CheckRoCEPerfHealth(
@@ -43,10 +45,10 @@ func CheckRoCEPerfHealth(
 	msgSize int,
 	testDuring int,
 	gid, qpNum int,
-	useGDR, verbose bool,
+	useGDR, rdmaCM, verbose bool,
 ) (*common.Result, error) {
 	var allSpecifiedDevFound bool
-	var usedDeviceInfos []string
+	var usedDeviceInfos []*RoCEV2DeviceInfo
 	status := consts.StatusNormal
 	checkRes := make([]*common.CheckerResult, 0)
 	var specifiedDevs string
@@ -66,7 +68,11 @@ func CheckRoCEPerfHealth(
 		}
 	}
 
-	fmt.Printf("Using RoCE devices for performance test: %v\n", usedDeviceInfos)
+	usedDevs := make([]string, 0)
+	for _, dev := range usedDeviceInfos {
+		usedDevs = append(usedDevs, dev.Dev)
+	}
+	fmt.Printf("Using RoCE devices for performance test: %v\n", usedDevs)
 	for _, srcDev := range usedDeviceInfos {
 		for _, dstDev := range usedDeviceInfos {
 			resTemplate := PerfCheckItems[IBPerfTestName]
@@ -75,13 +81,13 @@ func CheckRoCEPerfHealth(
 				Status: consts.StatusNormal,
 			}
 
-			resItem.Detail = fmt.Sprintf("Testing %s -> %s", srcDev, dstDev)
+			resItem.Detail = fmt.Sprintf("Testing %s(server) -> %s(%s)", srcDev.Dev, dstDev.Dev, srcDev.IPv4Addr)
 
 			var metrics float64
-			out, err := RunLocalIBTest(ibBwPerfType, srcDev, dstDev, msgSize, testDuring, gid, qpNum, useGDR, verbose)
+			out, err := RunLocalIBTest(ibBwPerfType, srcDev.Dev, dstDev.Dev, srcDev.IPv4Addr, msgSize, testDuring, gid, qpNum, useGDR, rdmaCM, verbose)
 			if err == nil {
 				if strings.Contains(ibBwPerfType, "lat") {
-					metrics, err = parseLatency(out, msgSize, srcDev, dstDev)
+					metrics, err = parseLatency(out, msgSize, srcDev.Dev, dstDev.Dev)
 					if err != nil || metrics > expectedLatencyUs {
 						resItem.Status = consts.StatusAbnormal
 						resItem.Detail += fmt.Sprintf(" ❌ %.2f us > expected %.2f us", metrics, expectedLatencyUs)
@@ -91,7 +97,7 @@ func CheckRoCEPerfHealth(
 						resItem.Detail += fmt.Sprintf(" ✅ %.2f us <= expected %.2f us", metrics, expectedLatencyUs)
 					}
 				} else {
-					metrics, err = parseBandwidth(out, msgSize, srcDev, dstDev)
+					metrics, err = parseBandwidth(out, msgSize, srcDev.Dev, dstDev.Dev)
 					if err != nil || metrics < expectedBandwidthGbps {
 						resItem.Status = consts.StatusAbnormal
 						resItem.Detail += fmt.Sprintf(" ❌ %.2f Gbps < expected %.2f Gbps", metrics, expectedBandwidthGbps)
@@ -117,10 +123,10 @@ func CheckRoCEPerfHealth(
 			Name:        IBPerfTestName,
 			Description: "No active RoCE devices found to perform bandwidth test",
 			Spec:        specifiedDevs,
-			Curr:        strings.Join(usedDeviceInfos, ","),
+			Curr:        strings.Join(usedDevs, ","),
 			Status:      consts.StatusAbnormal,
 			Level:       consts.LevelCritical,
-			Detail:      fmt.Sprintf("no active RoCE devices found: %v, while %s are specificd ", usedDeviceInfos, specifiedDevs),
+			Detail:      fmt.Sprintf("no active RoCE devices found: %v, while %s are specificd ", usedDevs, specifiedDevs),
 			ErrorName:   "DeactiveIBDevicesFound",
 			Suggestion:  "Check RoCE device connections and configurations",
 		}
@@ -134,7 +140,7 @@ func CheckRoCEPerfHealth(
 			Description: "Not all RoCE devices found are active to perform bandwidth test",
 			Status:      consts.StatusAbnormal,
 			Level:       consts.LevelCritical,
-			Detail:      fmt.Sprintf("Not all RoCE devices found: %v, while %s are specificd ", usedDeviceInfos, specifiedDevs),
+			Detail:      fmt.Sprintf("Not all RoCE devices found: %v, while %s are specificd ", usedDevs, specifiedDevs),
 			ErrorName:   "DeactiveIBDevicesFound",
 			Suggestion:  "Check RoCE device connections and configurations",
 		}
@@ -149,18 +155,18 @@ func CheckRoCEPerfHealth(
 	}, nil
 }
 
-func resolveActiveIBDevice(ibDev string, verbose bool) (bool, []string) {
+func resolveActiveIBDevice(ibDev string, verbose bool) (bool, []*RoCEV2DeviceInfo) {
 	infos, err := GetRoCEv2IPv4DevInfoWithNetStatus()
 	if err != nil {
 		logrus.WithError(err).Error("Failed to retrieve RoCE v2 device info")
 		return false, nil
 	}
 
-	var activeDevs []string
+	var activeDevs []*RoCEV2DeviceInfo
 	if ibDev == "" {
 		for _, info := range infos {
 			if info.Status == "up" {
-				activeDevs = append(activeDevs, info.Dev)
+				activeDevs = append(activeDevs, info)
 				if verbose {
 					logrus.Infof("Active RoCE v2 device: IBDev=%s GID=%s Iface=%s Status=up", info.Dev, info.Gid, info.Iface)
 				}
@@ -187,7 +193,7 @@ func resolveActiveIBDevice(ibDev string, verbose bool) (bool, []string) {
 			if info.Status != "up" {
 				logrus.Warnf("RoCE v2 device %s (%s) is not up (status: %s)", info.Dev, info.Iface, info.Status)
 			} else {
-				activeDevs = append(activeDevs, info.Dev)
+				activeDevs = append(activeDevs, info)
 				if verbose {
 					logrus.Infof("Active RoCE v2 device: IBDev=%s GID=%s Iface=%s Status=up", info.Dev, info.Gid, info.Iface)
 				}
@@ -212,18 +218,18 @@ func resolveActiveIBDevice(ibDev string, verbose bool) (bool, []string) {
 	return len(activeDevs) > 0, activeDevs
 }
 
-func resolveActiveIBDeviceByNet(netDev string, verbose bool) (bool, []string) {
+func resolveActiveIBDeviceByNet(netDev string, verbose bool) (bool, []*RoCEV2DeviceInfo) {
 	infos, err := GetRoCEv2IPv4DevInfoWithNetStatus()
 	if err != nil {
 		logrus.WithError(err).Error("Failed to retrieve RoCE v2 device info")
 		return false, nil
 	}
 
-	var activeDevs []string
+	var activeDevs []*RoCEV2DeviceInfo
 	if netDev == "" {
 		for _, info := range infos {
 			if info.Status == "up" {
-				activeDevs = append(activeDevs, info.Dev)
+				activeDevs = append(activeDevs, info)
 				if verbose {
 					logrus.Infof("Valid RoCE v2 device: IBDev=%s GID=%s Iface=%s Status=up", info.Dev, info.Gid, info.Iface)
 				}
@@ -250,7 +256,7 @@ func resolveActiveIBDeviceByNet(netDev string, verbose bool) (bool, []string) {
 			if info.Status != "up" {
 				fmt.Printf("Net device %s is not up\n", info.Iface)
 			} else {
-				activeDevs = append(activeDevs, info.Dev)
+				activeDevs = append(activeDevs, info)
 				if verbose {
 					logrus.Infof("Valid RoCE v2 device: IBDev=%s GID=%s Iface=%s Status=up", info.Dev, info.Gid, info.Iface)
 				}
@@ -333,14 +339,16 @@ func GetRoCEv2IPv4DevInfoWithNetStatus() (map[string]*RoCEV2DeviceInfo, error) {
 						continue
 					}
 					status := getNetDevStatus(ndev)
-					logrus.WithField("perftest", "rocev2").Infof("Found RoCE v2 GID %s on device %s port %s index %s with network device %s (status: %s)", gidVal, devName, portNum, idx, ndev, status)
+					ipv4Addr := getIPv4Addr(ndev)
+					logrus.WithField("perftest", "rocev2").Infof("Found RoCE v2 GID %s on device %s port %s index %s with network device %s (status: %s, ipv4: %s)", gidVal, devName, portNum, idx, ndev, status, ipv4Addr)
 					rocev2DevInfo[devName] = &RoCEV2DeviceInfo{
-						Dev:    devName,
-						Port:   portNum,
-						Index:  idx,
-						Gid:    gidVal,
-						Iface:  ndev,
-						Status: status,
+						Dev:      devName,
+						Port:     portNum,
+						Index:    idx,
+						Gid:      gidVal,
+						Iface:    ndev,
+						IPv4Addr: ipv4Addr,
+						Status:   status,
 					}
 				}
 			}
@@ -360,4 +368,23 @@ func getNetDevStatus(iface string) string {
 		return "unknown"
 	}
 	return strings.TrimSpace(string(state))
+}
+
+func getIPv4Addr(ifaceName string) string {
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return ""
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok {
+			if ip4 := ipNet.IP.To4(); ip4 != nil {
+				return ip4.String()
+			}
+		}
+	}
+	return ""
 }
