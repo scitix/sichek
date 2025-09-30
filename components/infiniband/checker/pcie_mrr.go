@@ -19,8 +19,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -91,7 +89,7 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIEMRR)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEMRR)
 			// auto fix if the curr not match the spec
-			ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
+			infinibandInfo.ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
 		}
 	}
 
@@ -104,68 +102,4 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	}
 
 	return &result, nil
-}
-
-// ModifyPCIeMaxReadRequest modifies the Max Read Request Size of a PCIe device
-// deviceAddr: PCI device address, e.g., "80:00.0"
-// offset: Register offset address, e.g., "68"
-// newHighNibble: New high nibble value (0-F)
-func ModifyPCIeMaxReadRequest(deviceAddr string, offset string, newHighNibble int) error {
-	// Validate input parameters
-	if newHighNibble < 0 || newHighNibble > 0xF {
-		return fmt.Errorf("new high nibble value must be between 0-F")
-	}
-
-	// Read current value
-	readCmd := exec.Command("setpci", "-s", deviceAddr, offset+".w")
-	output, err := readCmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to read PCI register: %v", err)
-	}
-
-	// Parse the returned hexadecimal value
-	currentValueStr := strings.TrimSpace(string(output))
-	currentValue, err := strconv.ParseUint(currentValueStr, 16, 16)
-	if err != nil {
-		return fmt.Errorf("failed to parse hex value: %v", err)
-	}
-
-	// fmt.Printf("Current value: 0x%04X\n", currentValue)
-
-	// Modify the high nibble
-	// Clear the top 4 bits (0x0FFF mask)
-	newValue := currentValue & 0x0FFF
-	// Set the new high nibble
-	newValue |= uint64(newHighNibble) << 12
-
-	log.Printf("Modifying PCIe Max Read Request for device %s at offset %s: current value 0x%04X, new value 0x%04X", deviceAddr, offset, currentValue, newValue)
-	// fmt.Printf("New value: 0x%04X\n", newValue)
-
-	// Write back the new value
-	writeValueStr := fmt.Sprintf("%04x", newValue)
-	writeCmd := exec.Command("setpci", "-s", deviceAddr, offset+".w="+writeValueStr)
-	err = writeCmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to write PCI register: %v", err)
-	}
-
-	// Verify the write was successful
-	verifyCmd := exec.Command("setpci", "-s", deviceAddr, offset+".w")
-	verifyOutput, err := verifyCmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to verify write result: %v", err)
-	}
-
-	verifiedValueStr := strings.TrimSpace(string(verifyOutput))
-	verifiedValue, err := strconv.ParseUint(verifiedValueStr, 16, 16)
-	if err != nil {
-		return fmt.Errorf("failed to parse verification value: %v", err)
-	}
-
-	if verifiedValue != newValue {
-		return fmt.Errorf("write verification failed: expected 0x%04X, got 0x%04X", newValue, verifiedValue)
-	}
-
-	fmt.Printf("Successfully modified! Verified value: 0x%04X\n", verifiedValue)
-	return nil
 }
