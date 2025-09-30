@@ -30,15 +30,15 @@ func NewATLlama13bCmd() *cobra.Command {
 	var (
 		jobName           string
 		namespace         string
-		nodeSelector      string
-		numWorkers        int
 		cmdStr            string
 		imageRepo         string
 		imageTag          string
 		timeoutToComplete int
 		scheduler         string
-		macvlan           bool
+		roceSharedMode    string
 		script            string
+		hostfile          string
+		host              string
 	)
 
 	runCmd := &cobra.Command{
@@ -49,14 +49,14 @@ func NewATLlama13bCmd() *cobra.Command {
 Defaults:
   --job-name         = llama2-13b-bench
   --namespace        = default
-  --node-selector    = sichek=test
-  --num-workers      = 2
   --cmd              = TP=2 PP=1 GBS=256 MBS=1 MAX_STEPS=64 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh
-  --image-repo       = registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch
+  --image-repo       = registry-us-east.scitix.ai/hpc/ngc_pytorch
   --image-tag        = 24.06-sicl-0723
   --timeout          = 600
-	--scheduler        = sischeduler
-  --macvlan          = false`,
+  --scheduler        = si-scheduler
+  --roceSharedMode   = none
+  --hostfile         = None (file containing hostnames, one per line)
+  --host             = None (comma-separated hostnames)`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
@@ -65,14 +65,14 @@ Defaults:
 			argList := []string{
 				jobName,
 				namespace,
-				nodeSelector,
-				fmt.Sprintf("%d", numWorkers),
 				cmdStr,
 				imageRepo,
 				imageTag,
 				fmt.Sprintf("%d", timeoutToComplete),
 				scheduler,
-				fmt.Sprintf("%t", macvlan),
+				roceSharedMode,
+				hostfile,
+				host,
 			}
 
 			command := exec.CommandContext(ctx, "bash", append([]string{script}, argList...)...)
@@ -88,15 +88,15 @@ Defaults:
 
 	runCmd.Flags().StringVar(&jobName, "job-name", "llama2-13b-bench", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "sichek=test", "Node selector")
-	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "TP=2 PP=1 GBS=256 MBS=1 MAX_STEPS=64 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch", "Image repository")
+	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hpc/ngc_pytorch", "Image repository")
 	runCmd.Flags().StringVar(&imageTag, "image-tag", "24.06-sicl-0723", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 3600, "Timeout for job completion in seconds")
-	runCmd.Flags().StringVar(&scheduler, "scheduler", "sischeduler", "k8s scheduler name to use for the job, ->[sischeduler, unischeduler]")
-	runCmd.Flags().BoolVar(&macvlan, "macvlan", false, "RDMA mode: macvlan-roce or not")
+	runCmd.Flags().StringVar(&scheduler, "scheduler", "si-scheduler", "k8s scheduler name to use for the job, ->[si-scheduler, ubischeduler]")
+	runCmd.Flags().StringVar(&roceSharedMode, "roce-shared-mode", "none", "RoCE shared mode: vf, macvlan, ipvlan, none")
 	runCmd.Flags().StringVar(&script, "script", "/var/sichek/scripts/llama2_13b_benchmark_single_node.sh", "script to run the mpijob")
+	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
+	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
 
 	return runCmd
 }

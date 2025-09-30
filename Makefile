@@ -1,14 +1,14 @@
-.PHONY: docker  
+.PHONY: docker
 PROJECT_NAME := sichek
 GO := go
 INSTALL_DIR := /usr/local/bin
 VERSION_MAJOR := 0
 VERSION_MINOR := 5
-VERSION_PATCH := 5
+VERSION_PATCH := 7
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 GO_VERSION := $(shell $(GO) version | cut -d ' ' -f 3)
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-VERSION:=v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+VERSION:=v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH).$(GIT_COMMIT)
 LDFLAGS := -X 'cmd/command/version.Major=$(VERSION_MAJOR)' \
            -X 'cmd/command/version.Minor=$(VERSION_MINOR)' \
            -X 'cmd/command/version.Patch=$(VERSION_PATCH)' \
@@ -19,6 +19,8 @@ TASKGUARD_VERISON := v0.1.0
 
 all:
 	mkdir -p build/bin/
+	go mod tidy
+	go mod vendor
 	GOOS=linux GOARCH=amd64 $(GO) build -ldflags "$(LDFLAGS)" -gcflags "all=-N -l" -o build/bin/$(PROJECT_NAME) cmd/main.go
 
 goreleaser:
@@ -48,6 +50,8 @@ docker:
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
 	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
 	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+	docker tag registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} registry-ap-southeast.scitix.ai/hisys/sichek:latest
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:latest
 
 release:
 	VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
@@ -68,6 +72,8 @@ release:
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
 	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
 	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+	docker tag registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} registry-ap-southeast.scitix.ai/hisys/sichek:latest
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:latest
 
 taskguard:
 	docker build \

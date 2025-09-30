@@ -30,15 +30,15 @@ func NewATLlama70bCmd() *cobra.Command {
 	var (
 		jobName           string
 		namespace         string
-		nodeSelector      string
-		numWorkers        int
 		cmdStr            string
 		imageRepo         string
 		imageTag          string
 		timeoutToComplete int
 		scheduler         string
-		macvlan           bool
+		roceSharedMode    string
 		script            string
+		hostfile          string
+		host              string
 	)
 
 	runCmd := &cobra.Command{
@@ -49,31 +49,30 @@ func NewATLlama70bCmd() *cobra.Command {
 Defaults:
   --job-name         = llama2-13b-bench
   --namespace        = default
-  --node-selector    = sichek=test
-  --num-workers      = 2
   --cmd              = MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 SAVE_INTERVAL=200 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh
-  --image-repo       = registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch
+  --image-repo       = registry-us-east.scitix.ai/hpc/ngc_pytorch
   --image-tag        = 24.06-sicl-0723
   --timeout          = 600
-	--scheduler        = sischeduler
-  --macvlan          = false`,
+  --scheduler        = si-scheduler
+  --roceSharedMode   = none
+  --hostfile         = None (file containing hostnames, one per line)
+  --host             = None (comma-separated hostnames)`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 
-			// 构造参数顺序：<job> <namespace> <cmd> <nodeSelector> <imageRepo> <imageTag> <timeout> <rdmaMode>
-			gbs := 128 * numWorkers
+			// 构造参数顺序：<job> <namespace> <cmd> <imageRepo> <imageTag> <timeout> <scheduler> <roceMode> <hostfile> <host>
 			argList := []string{
 				jobName,
 				namespace,
-				nodeSelector,
-				fmt.Sprintf("%d", numWorkers),
-				fmt.Sprintf("GBS=%d %s", gbs, cmdStr),
+				cmdStr,
 				imageRepo,
 				imageTag,
 				fmt.Sprintf("%d", timeoutToComplete),
 				scheduler,
-				fmt.Sprintf("%t", macvlan),
+				roceSharedMode,
+				hostfile,
+				host,
 			}
 
 			command := exec.CommandContext(ctx, "bash", append([]string{script}, argList...)...)
@@ -89,15 +88,15 @@ Defaults:
 
 	runCmd.Flags().StringVar(&jobName, "job-name", "llama2-70b-bench", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "sichek=test", "Node selector")
-	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 SAVE_INTERVAL=200 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch", "Image repository")
+	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hpc/ngc_pytorch", "Image repository")
 	runCmd.Flags().StringVar(&imageTag, "image-tag", "24.06-sicl-0723", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 3600, "Timeout for job completion in seconds")
-	runCmd.Flags().StringVar(&scheduler, "scheduler", "sischeduler", "k8s scheduler name to use for the job, ->[sischeduler, unischeduler]")
-	runCmd.Flags().BoolVar(&macvlan, "macvlan", false, "RDMA mode: macvlan-roce or not")
+	runCmd.Flags().StringVar(&scheduler, "scheduler", "si-scheduler", "k8s scheduler name to use for the job, ->[si-scheduler, ubischeduler]")
+	runCmd.Flags().StringVar(&roceSharedMode, "roce-shared-mode", "none", "RoCE shared mode: vf, macvlan, ipvlan, none")
 	runCmd.Flags().StringVar(&script, "script", "/var/sichek/scripts/llama2_70b_benchmark_multi_node.sh", "script to run the mpijob")
+	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
+	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
 
 	return runCmd
 }

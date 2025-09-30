@@ -41,7 +41,7 @@ nfpms:
       - deb
       - rpm
     package_name: sichek
-    file_name_template: "{{ .ProjectName }}_v{{ .Env.VERSION_MAJOR }}.{{ .Env.VERSION_MINOR }}.{{ .Env.VERSION_PATCH }}_{{ .Os }}_{{ .Arch }}"
+    file_name_template: "{{ .ProjectName }}_v{{ .Env.VERSION_MAJOR }}.{{ .Env.VERSION_MINOR }}.{{ .Env.VERSION_PATCH }}.{{ .Env.GIT_COMMIT }}_{{ .Os }}_{{ .Arch }}"
     builds:
       - sichek
     maintainer: hhu
@@ -49,7 +49,9 @@ nfpms:
     license: Apache 2.0
     bindir: "{{ .Env.INSTALL_DIR }}"
     scripts:
-          preinstall: ./scripts/check_sicl.sh
+      preinstall: ./scripts/check_sicl.sh
+      postinstall: ./scripts/postinstall.sh
+      preremove: ./scripts/preuninstall.sh
     contents:
     - src: ./components/cpu/config/*.yaml
       dst: /var/sichek/config/cpu/

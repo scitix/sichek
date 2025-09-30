@@ -28,13 +28,16 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-func RunLocalIBTest(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msgSize int, testDuring, gid, qpNum int, useGDR, verbose bool) (string, error) {
+func RunLocalIBTest(ibBwPerfType string, ibDevice1 string, ibDevice2 string, serverIP string, msgSize int, testDuring, gid, qpNum int, useGDR, rdmaCM, verbose bool) (string, error) {
 	ibBwArgs := fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s", msgSize, testDuring, gid, ibDevice1)
 	if strings.Contains(ibBwPerfType, "bw") {
 		ibBwArgs += fmt.Sprintf(" -q %d", qpNum)
 	}
 	if useGDR {
 		ibBwArgs += " --use_cuda"
+	}
+	if rdmaCM {
+		ibBwArgs += " --rdma_cm"
 	}
 	// Start server process
 	runCmd := fmt.Sprintf("%s %s > /dev/null", ibBwPerfType, ibBwArgs)
@@ -63,7 +66,7 @@ func RunLocalIBTest(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msg
 	if useGDR {
 		ibBwArgs += " --use_cuda"
 	}
-	runCmd = fmt.Sprintf("%s %s 127.0.0.1", ibBwPerfType, ibBwArgs)
+	runCmd = fmt.Sprintf("%s %s %s", ibBwPerfType, ibBwArgs, serverIP)
 	if verbose {
 		fmt.Printf("Executing: %s\n", runCmd)
 	}
@@ -86,9 +89,10 @@ func RunLocalIBTest(ibBwPerfType string, ibDevice1 string, ibDevice2 string, msg
 func RunLocalNumaAwareIBTest(
 	ibBwPerfType string,
 	srcDev, dstDev collector.IBHardWareInfo,
+	serverIP string,
 	msgSize int,
 	testDuring, gid, qpNum int,
-	useGDR, verbose bool,
+	useGDR, rdmaCM, verbose bool,
 ) (string, error) {
 	numaNode, err := strconv.Atoi(srcDev.NumaNode)
 	if err != nil {
@@ -102,6 +106,9 @@ func RunLocalNumaAwareIBTest(
 	}
 	if useGDR {
 		serverArgs += " --use_cuda"
+	}
+	if rdmaCM {
+		serverArgs += " --rdma_cm"
 	}
 	serverCmdStr := fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s > /dev/null", numaNode, numaNode, ibBwPerfType, serverArgs)
 	if verbose {
@@ -121,12 +128,12 @@ func RunLocalNumaAwareIBTest(
 	// client
 	clientArgs := fmt.Sprintf("-s %d -D %d -x %d -F --report_gbits -d %s", msgSize, testDuring, gid, dstDev.IBDev)
 	if strings.Contains(ibBwPerfType, "bw") {
-		serverArgs += fmt.Sprintf(" -q %d", qpNum)
+		clientArgs += fmt.Sprintf(" -q %d", qpNum)
 	}
 	if useGDR {
 		clientArgs += " --use_cuda"
 	}
-	clientCmdStr := fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s 127.0.0.1", numaNode, numaNode, ibBwPerfType, clientArgs)
+	clientCmdStr := fmt.Sprintf("numactl --membind=%d --cpunodebind=%d %s %s %s", numaNode, numaNode, ibBwPerfType, clientArgs, serverIP)
 	if verbose {
 		fmt.Printf("Executing client: %s\n", clientCmdStr)
 	}
@@ -224,7 +231,7 @@ func CheckNodeIBPerfHealth(
 	testDuring int,
 	gid, qpNum int,
 	numaAware bool,
-	useGDR, verbose bool,
+	useGDR, rdmaCM, verbose bool,
 ) (*common.Result, error) {
 	activeDeviceInfos, deactiveDeviceInfos, err := getActiveIBPFDevices()
 	if err != nil {
@@ -271,9 +278,9 @@ func CheckNodeIBPerfHealth(
 			var metrics float64
 			var err error
 			if numaAware {
-				out, err = RunLocalNumaAwareIBTest(ibBwPerfType, srcDev, dstDev, msgSize, testDuring, gid, qpNum, useGDR, verbose)
+				out, err = RunLocalNumaAwareIBTest(ibBwPerfType, srcDev, dstDev, "127.0.0.1", msgSize, testDuring, gid, qpNum, useGDR, rdmaCM, verbose)
 			} else {
-				out, err = RunLocalIBTest(ibBwPerfType, srcDev.IBDev, dstDev.IBDev, msgSize, testDuring, gid, qpNum, useGDR, verbose)
+				out, err = RunLocalIBTest(ibBwPerfType, srcDev.IBDev, dstDev.IBDev, "127.0.0.1", msgSize, testDuring, gid, qpNum, useGDR, rdmaCM, verbose)
 			}
 			if err == nil {
 				if strings.Contains(ibBwPerfType, "lat") {

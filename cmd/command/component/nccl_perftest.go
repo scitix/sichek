@@ -221,6 +221,7 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	if cfg.Gpulist != "" {
 		env = append(env, fmt.Sprintf("CUDA_VISIBLE_DEVICES=%s", cfg.Gpulist))
 	}
+	env = append(env, "UCX_TLS=tcp")
 	logrus.WithField("perftest", "nccl").Infof("env: %v\n", env)
 	cmd.Env = env
 	return cmd

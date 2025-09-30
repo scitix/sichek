@@ -8,7 +8,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.name }}-gpu
+      app: {{ .Values.name }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -16,7 +16,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ .Values.name }}-gpu
+        app: {{ .Values.name }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -91,7 +91,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: {{ .Values.name }}-cpu
+      app: {{ .Values.name }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -99,7 +99,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ .Values.name }}-cpu
+        app: {{ .Values.name }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

@@ -7,6 +7,8 @@ require (
 	github.com/prometheus/client_golang v1.19.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
+	github.com/vishvananda/netlink v1.3.1
+	golang.org/x/net v0.31.0
 	golang.org/x/term v0.26.0
 	google.golang.org/grpc v1.68.0
 	k8s.io/api v0.31.3
@@ -49,9 +51,9 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.8.0 // indirect

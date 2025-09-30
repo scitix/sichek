@@ -79,6 +79,7 @@ type CheckerSpec interface {
 func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 	// Try production path first: /var/sichek/config/xx-component
 	defaultCfgDirPath := filepath.Join(consts.DefaultProductionCfgPath, component)
+	logrus.WithField("component", "common").Infof("loading default config from %s", defaultCfgDirPath)
 	_, err := os.Stat(defaultCfgDirPath)
 	if err != nil {
 		// fallback to dev env based on runtime.Caller: /repo/component/xx-component/config
@@ -99,6 +100,7 @@ func GetDevDefaultConfigFiles(component string) (string, []os.DirEntry, error) {
 // LoadSpecFromProductionPath checks and extract top default spec from production env.
 func LoadSpecFromProductionPath(spec interface{}) error {
 	defaultProductionCfgPath := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultSpecCfgName)
+	logrus.WithField("component", "common").Infof("loading default spec from %s", defaultProductionCfgPath)
 	_, err := os.Stat(defaultProductionCfgPath)
 	if err != nil {
 		return fmt.Errorf("production config path not found: %w", err)
@@ -180,6 +182,7 @@ func LoadUserConfig(file string, config interface{}) error {
 	defaultUserCfg := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
 	_, err := os.Stat(defaultUserCfg)
 	if err == nil {
+		logrus.WithField("component", "common").Infof("loading default user config from %s", defaultUserCfg)
 		err := utils.LoadFromYaml(defaultUserCfg, config)
 		if err == nil {
 			return nil

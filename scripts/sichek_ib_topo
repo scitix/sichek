@@ -1,0 +1,606 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import re
+import argparse
+from collections import defaultdict
+import subprocess
+import sys
+import tempfile
+
+def parse_iblinkinfo(file_path: str):
+    """
+    解析 iblinkinfo 输出文件，返回 switches/hosts dict
+    """
+
+    switches = {}
+    hosts = {}
+
+    sw_re = re.compile(r'^Switch:\s+(\S+)\s+(.*):$')
+    port_re = re.compile(
+        r'^\s*(\d+)\s+(\d+)\[.*?\]\s+==\(\s*(.*?)\s*\)==>\s*(\S*)\s*(\d*)\[.*?\]\s+"(.*?)"\s*\(.*\)'
+    )
+
+    current_sw = None
+
+    with open(file_path, "r") as f:
+        for line in f:
+            line = line.rstrip()
+
+            # Switch 起始行
+            m = sw_re.match(line)
+            if m:
+                sw_guid, sw_name = m.groups()
+                current_sw = {
+                    "guid": sw_guid,
+                    "name": sw_name,
+                    "lid": None,  # LID 将在第一个端口解析时设置
+                    "ports": [],
+                    "total_ports": 0,  # 总端口数
+                    "up_ports": 0,     # 活跃端口数
+                    "down_ports": 0,   # 非活跃端口数
+                }
+                switches[sw_guid] = current_sw
+                continue
+
+            # 端口行
+            m = port_re.match(line)
+            if m and current_sw:
+                lid, port, state, peer_lid, peer_port, peer_name = m.groups()
+
+                # 设置交换机的 LID（只需要设置一次）
+                if current_sw["lid"] is None:
+                    current_sw["lid"] = int(lid)
+
+                peer_type = "unknown"
+                name_lower = peer_name.lower()
+                if "switch" in name_lower:
+                    peer_type = "switch"
+                elif "mlx5" in name_lower or "connectx" in name_lower:
+                    peer_type = "hca"
+
+                port_info = {
+                    "port": int(port),
+                    "state": state.strip(),
+                    "peer": {
+                        "lid": peer_lid if peer_lid else None,
+                        "port": int(peer_port) if peer_port else None,
+                        "name": peer_name.strip(),
+                        "type": peer_type,
+                    } if peer_name else None
+                }
+                current_sw["ports"].append(port_info)
+
+                # 如果是 HCA，把 host 记录下来
+                if peer_type == "hca":
+                    # 分离节点名和 HCA 名称
+                    peer_parts = peer_name.split()
+                    host_id = peer_parts[0]  # 主机名
+                    hca_name = peer_parts[1] if len(peer_parts) > 1 else "unknown"  # HCA 名称
+                    
+                    if host_id not in hosts:
+                        hosts[host_id] = {
+                            "id": host_id,
+                            "ports": []
+                        }
+                    hosts[host_id]["ports"].append({
+                        "switch": current_sw["guid"],
+                        "switch_port": int(port),
+                        "state": state.strip(),
+                        "node_name": host_id,  # 节点名
+                        "hca_name": hca_name,  # HCA 名称
+                        "full_name": peer_name  # 完整名称（保持向后兼容）
+                    })
+
+    # 计算每个交换机的端口统计信息
+    for sw_id, sw in switches.items():
+        total = len(sw["ports"])
+        up = sum(1 for p in sw["ports"] if "LinkUp" in p["state"])
+        down = total - up
+        
+        sw["total_ports"] = total
+        sw["up_ports"] = up
+        sw["down_ports"] = down
+
+    return switches, hosts
+
+
+def summarize_switch_health(switches: dict, switch_types: list = None):
+    """
+    输出指定类型交换机的健康总结表：Up/Down/Total/Health%
+    """
+    summary = []
+    for sw_id, sw in switches.items():
+        if switch_types and sw.get("type") not in switch_types:
+            continue
+        summary.append({
+            "switch": sw["name"],
+            "guid": sw_id,
+            "lid": sw["lid"],
+            "type": sw.get("type", "unknown"),
+            "total_ports": sw["total_ports"],
+            "up_ports": sw["up_ports"],
+            "down_ports": sw["down_ports"],
+            "health_percent": round((sw["up_ports"] / sw["total_ports"] * 100) if sw["total_ports"] else 0, 2),
+            "down_port_list": [p["port"] for p in sw["ports"] if "LinkUp" not in p["state"]]
+        })
+    return summary
+
+def classify_topology(switches: dict, hosts: dict):
+    """
+    分类拓扑结构：Leaf / Spine / Superspine / Interconnect + 节点
+    修正的分类逻辑：
+    - Leaf Switch: 连接HCA设备的交换机
+    - Spine Switch: 连接Leaf Switch的交换机
+    - Superspine Switch: 连接Spine Switch的交换机
+    - Interconnect Switch: 只连接其他交换机，不连接HCA，且不直接连接Leaf或Spine的交换机
+    """
+    leaf_sw, spine_sw, superspine_sw, interconnect_sw = [], [], [], []
+
+    # 第一步：识别Leaf Switch（连接HCA的交换机）
+    for sw_id, sw in switches.items():
+        hca_ports = [p for p in sw["ports"] if p.get("peer") and p.get("peer").get("type") == "hca"]
+        if hca_ports:
+            sw["type"] = "leaf_sw"
+            leaf_sw.append(sw)
+
+    # 第二步：识别连接到Leaf Switch的交换机（这些是Spine Switch）
+    leaf_names = {sw["name"] for sw in leaf_sw}
+    for sw_id, sw in switches.items():
+        if sw.get("type") == "leaf_sw":
+            continue
+        
+        # 检查是否连接到Leaf Switch
+        connected_to_leaf = False
+        for p in sw["ports"]:
+            if p.get("peer") and p["peer"].get("name") in leaf_names:
+                connected_to_leaf = True
+                break
+        
+        if connected_to_leaf:
+            sw["type"] = "spine_sw"
+            spine_sw.append(sw)
+
+    # 第三步：识别Superspine Switch（连接到Spine Switch的交换机）
+    spine_names = {sw["name"] for sw in spine_sw}
+    for sw_id, sw in switches.items():
+        if sw.get("type") in ["leaf_sw", "spine_sw"]:
+            continue
+        
+        # 检查是否连接到Spine Switch
+        connected_to_spine = False
+        for p in sw["ports"]:
+            if p.get("peer") and p["peer"].get("name") in spine_names:
+                connected_to_spine = True
+                break
+        
+        if connected_to_spine:
+            sw["type"] = "superspine_sw"
+            superspine_sw.append(sw)
+
+    # 第四步：识别Interconnect Switch（只连接交换机，不连接HCA，且不直接连接Leaf或Spine）
+    for sw_id, sw in switches.items():
+        if sw.get("type") in ["leaf_sw", "spine_sw", "superspine_sw"]:
+            continue
+        
+        # 检查是否只连接交换机（不连接HCA）
+        has_hca = any(p.get("peer") and p["peer"].get("type") == "hca" for p in sw["ports"])
+        if not has_hca:
+            sw["type"] = "interconnect_sw"
+            interconnect_sw.append(sw)
+
+    # 节点分类（简单示例，可扩展）
+    node_categories = defaultdict(list)
+    for host_id, host in hosts.items():
+        if "gpu" in host_id.lower():
+            node_categories["gpu_nodes"].append(host)
+        elif "cpu" in host_id.lower():
+            node_categories["cpu_nodes"].append(host)
+        else:
+            node_categories["unknown_nodes"].append(host)
+
+    return {
+        "leaf_sw": leaf_sw,
+        "spine_sw": spine_sw,
+        "superspine_sw": superspine_sw,
+        "interconnect_sw": interconnect_sw,
+        **node_categories
+    }
+
+def summarize_nodes(hosts: dict):
+    """
+    输出节点统计：有多少 GPU/CPU/存储节点等
+    修复：根据实际节点命名模式进行分类
+    """
+    summary = defaultdict(int)
+    for host_id in hosts:
+        hid = host_id.lower()
+        
+        # 检查各种节点类型模式
+        if "gpu" in hid or "g88" in hid:  # cetus-g88-xxx 格式
+            summary["gpu_nodes"] += 1
+        elif "cpu" in hid or (hid.startswith("cetus-c-")):  # cetus-c-xxx 格式
+            summary["cpu_nodes"] += 1
+        elif "storage" in hid or "gpfs" in hid:
+            summary["storage_nodes"] += 1
+        elif "meta" in hid or "master" in hid or "worker" in hid:
+            summary["management_nodes"] += 1
+        elif "controlplane" in hid or "registry" in hid:
+            summary["control_nodes"] += 1
+        else:
+            summary["unknown_nodes"] += 1
+    return dict(summary)
+
+
+def group_leaf_switches_by_hosts(switches: dict, verbose: bool = False):
+    """
+    根据Leaf Switch连接的host进行分组
+    如果多个Leaf Switch连接到同一组host的所有网卡，则归为一组
+    """
+    leaf_switches = [sw for sw in switches.values() if sw.get("type") == "leaf_sw"]
+
+    # 收集每个Leaf Switch的Host集合
+    leaf_hosts = {}
+    for sw in leaf_switches:
+        hosts = set()
+        for p in sw["ports"]:
+            peer = p.get("peer")
+            if peer and peer.get("type") == "hca":
+                if "Mellanox Technologies" in peer["name"]:
+                    continue
+                host = peer["name"].split()[0]  # 主机名
+                hosts.add(host)
+        leaf_hosts[sw["guid"]] = hosts
+
+    # 根据host集合分组
+    groups = defaultdict(list)
+    for sw_guid, hosts in leaf_hosts.items():
+        # 将host集合转换为排序的元组，便于比较
+        host_key = tuple(sorted(hosts))
+        groups[host_key].append(sw_guid)
+
+    # 过滤掉空组（没有连接host的Leaf Switch）
+    groups = {k: v for k, v in groups.items() if k}  # 去掉空组
+
+    # 总结
+    total_groups = len(groups)
+    total_leafs = len(leaf_switches)
+    print(f"Leaf Switch分组统计: {total_groups} 组, {total_leafs} 个Leaf Switch")
+
+    # 构造表格
+    rows = []
+    for i, (hosts, sw_guids) in enumerate(groups.items(), 1):
+        host_count = len(hosts)
+        leaf_count = len(sw_guids)
+
+        sorted_hosts = sorted(hosts)
+        if not verbose and host_count > 3:
+            host_display = ", ".join(sorted_hosts[:3]) + f"... (共{host_count})"
+        else:
+            host_display = ", ".join(sorted_hosts)
+
+        rows.append([
+            i,
+            leaf_count,
+            host_count,
+            host_display,
+            ", ".join(sw_guids)  # 全部打印
+        ])
+
+    # 打印表格
+    header = ["Group", "Leaf Count", "Host Count", "Hosts", "Leaf GUIDs"]
+    col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+    print("| " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+    print("|-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+    for row in rows:
+        print("| " + " | ".join(f"{str(row[i]):<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    return groups
+
+def check_leaf_hca_consistency_by_group(switches: dict, groups: dict, verbose: bool = False):
+    """
+    按Leaf Switch分组检查HCA一致性：
+    - 每个Leaf Switch内部连接的HCA型号是否一致
+    """
+    issues = []
+    passed_groups = 0
+    total_groups = len(groups)
+    rows = []
+
+    for group_id, (hosts, sw_guids) in enumerate(groups.items(), 1):
+        group_passed = True
+
+        for sw_guid in sw_guids:
+            sw = switches[sw_guid]
+            hca_map = {}  # hca_name -> set(hosts)
+
+            for p in sw["ports"]:
+                peer = p.get("peer")
+                if peer and peer.get("type") == "hca":
+                    # 跳过Mellanox Technologies条目
+                    if "Mellanox Technologies" in peer["name"]:
+                        continue
+                    hca_name = peer["name"].split()[-1]  # e.g. mlx5_7
+                    host = peer["name"].split()[0]      # e.g. cetus-g88-061
+                    hca_map.setdefault(hca_name, set()).add(host)
+
+            status = "✅"
+            if len(hca_map) > 1:
+                status = "❌"
+                group_passed = False
+                issues.append({
+                    "group_id": group_id,
+                    "sw_guid": sw_guid,
+                    "hca_names": list(hca_map.keys()),
+                    "connected_hosts": {k: list(v) for k, v in hca_map.items()},
+                })
+
+            # 格式化 HCA 映射输出
+            hca_summary = []
+            for hca, hosts_set in hca_map.items():
+                hosts_list = sorted(list(hosts_set))
+                if len(hosts_list) > 3:
+                    hosts_display = ", ".join(hosts_list[:3]) + "..."
+                else:
+                    hosts_display = ", ".join(hosts_list)
+                hca_summary.append(f"{hca}: {hosts_display}")
+            hca_summary_str = " | ".join(hca_summary) if hca_summary else "-"
+
+            rows.append([
+                f"{status} {group_id}",
+                sw_guid,
+                ",".join(sorted(hca_map.keys())) if hca_map else "-",
+                sum(len(v) for v in hca_map.values()),
+                hca_summary_str
+            ])
+
+        if group_passed:
+            passed_groups += 1
+
+    # 打印结果
+    overall_status = "✅" if passed_groups == total_groups else "❌"
+    print(f"HCA一致性检查: {passed_groups}/{total_groups} 组通过 {overall_status}")
+
+    header = ["Group", "Leaf GUID", "HCA Models", "Host Count", "HCA→Hosts"]
+    col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+    # 打印表头
+    print("| " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+    print("|-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+    # 打印表格行
+    for row in rows:
+        print("| " + " | ".join(f"{row[i]:<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    return issues
+
+
+
+def check_leaf_to_spine_links_by_group(
+    switches: dict, groups: dict, expected_spine_count: int = 32, verbose: bool = False
+):
+    """
+    按组检查各 leaf switch 到 spine 的连接分布：
+    - 期望连接到 {expected_spine_count} 个不同的 Spine Switch
+    - 只计算 LinkUp 状态的端口
+    """
+    issues = []
+    total_groups = len(groups)
+    passed_groups = 0
+    rows = []
+
+    for group_id, (hosts, sw_guids) in enumerate(groups.items(), 1):
+        group_passed = True
+        for sw_guid in sw_guids:
+            sw = switches[sw_guid]
+            spine_links = defaultdict(list)  # spine_name -> [port list]
+
+            for p in sw["ports"]:
+                if "LinkUp" not in p["state"]:
+                    continue
+                peer = p.get("peer")
+                if peer and peer.get("type") == "switch":
+                    # 检查 peer 是否是 spine
+                    peer_sw = None
+                    for other_sw_id, other_sw in switches.items():
+                        if other_sw["name"] == peer["name"] and other_sw.get("type") == "spine_sw":
+                            peer_sw = other_sw
+                            break
+                    if peer_sw:
+                        spine_links[peer["name"]].append(p["port"])
+
+            actual_spine_count = len(spine_links)
+            down_ports = [p["port"] for p in sw["ports"] if "LinkUp" not in p["state"]]
+
+            status = "✅" if actual_spine_count == expected_spine_count else "❌"
+            if actual_spine_count != expected_spine_count:
+                group_passed = False
+                issues.append({
+                    "group_id": group_id,
+                    "leaf_guid": sw_guid,
+                    "actual_spine_count": actual_spine_count,
+                    "expected_spine_count": expected_spine_count,
+                    "down_ports": down_ports,
+                })
+
+            rows.append([
+                f"{status} {group_id}",
+                sw_guid,
+                f"{actual_spine_count}/{expected_spine_count}",
+                str(down_ports),
+            ])
+
+        if group_passed:
+            passed_groups += 1
+
+    # 打印结果
+    overall_status = "✅" if passed_groups == total_groups else "❌"
+    print(f"Leaf-Spine连接分布检查: {passed_groups}/{total_groups} 组通过 {overall_status}")
+
+    header = ["Group", "Leaf GUID", "Spine (实际/期望)", "Down Ports"]
+    col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+    # 打印表头
+    print("| " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+    print("|-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+    # 打印表格行
+    for row in rows:
+        print("| " + " | ".join(f"{row[i]:<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    return issues
+
+
+def check_switch_health(switches: dict, switch_types: list = None, verbose: bool = False):
+    """
+    检查指定类型交换机的健康状态，并以表格输出问题交换机
+    """
+    if switch_types is None:
+        switch_types = ["leaf_sw", "spine_sw"]
+    
+    health_summary = summarize_switch_health(switches, switch_types)
+    if not health_summary:
+        print("没有找到指定类型的交换机")
+        return
+    
+    # 统计交换机级别健康
+    total_switches = len(health_summary)
+    healthy_switches = sum(1 for s in health_summary if s["health_percent"] == 100.0)
+    warning_switches = sum(1 for s in health_summary if 80.0 <= s["health_percent"] < 100.0)
+    critical_switches = sum(1 for s in health_summary if s["health_percent"] < 80.0)
+
+    # 统计端口级别健康
+    total_ports = sum(s["total_ports"] for s in health_summary)
+    up_ports = sum(s["up_ports"] for s in health_summary)
+    port_health_rate = (up_ports / total_ports * 100) if total_ports else 0.0
+    
+    print(f"交换机健康检查 ({', '.join(switch_types)}):")
+    print(f"  总交换机数: {total_switches}   端口健康率: {up_ports}/{total_ports} ({port_health_rate:.2f}%)")
+    print(f"  ✅ 健康(100%): {healthy_switches}   ⚠️ 警告(80-99%): {warning_switches}   ❌ 严重(<80%): {critical_switches}")
+    
+    # 表格化问题交换机
+    problem_switches = [s for s in health_summary if s["health_percent"] < 100.0]
+    if problem_switches:
+        # 按健康率升序排序
+        problem_switches.sort(key=lambda x: x["health_percent"])  # 按健康率升序
+
+        # 打印问题交换机列表
+        print("\n  问题交换机列表:")
+        header = ["类型", "GUID", "端口健康", "健康率", "状态", "故障端口"]
+        rows = []
+        for s in problem_switches:
+            if s["health_percent"] < 80.0:
+                status_icon = "❌"
+            else:
+                status_icon = "⚠️"
+            rows.append([
+                s["type"],
+                s["guid"],
+                f"{s['up_ports']}/{s['total_ports']}",
+                f"{s['health_percent']:.2f}%",
+                status_icon,
+                ",".join(map(str, s["down_port_list"])) if s["down_port_list"] else "-"
+            ])
+
+        # 计算列宽
+        col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+        # 打印表头
+        print("  | " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+        print("  |-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+        # 打印行
+        for row in rows:
+            print("  | " + " | ".join(f"{str(row[i]):<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    if verbose:
+        print("\n交换机健康检查详情:")
+        for s in sorted(health_summary, key=lambda x: x["health_percent"]):
+            status_icon = "✅" if s["health_percent"] == 100.0 else "⚠️" if s["health_percent"] >= 80.0 else "❌"
+            print(f"  {status_icon} {s['type']} ({s['guid']}): "
+                  f"{s['up_ports']}/{s['total_ports']} 端口活跃 ({s['health_percent']}%)")
+            if s["down_port_list"]:
+                print(f"      故障端口: {s['down_port_list']}")
+    
+    return health_summary
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='InfiniBand拓扑分析工具')
+    parser.add_argument('--verbose', '-v', action='store_true', help='详细输出模式')
+    parser.add_argument('--expected-spine-count', type=int, default=32, help='期望的Spine连接数量 (默认: 32)')
+    parser.add_argument('--output-dir', type=str, help='指定输出目录（如果不指定则使用临时目录并在结束时删除）')
+    args = parser.parse_args()
+
+    # 检查 iblinkinfo 是否存在
+    if subprocess.run("command -v iblinkinfo", shell=True,
+                      stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode != 0:
+        print("❌ 未找到 iblinkinfo，请先安装 apt-get install infiniband-diags -y")
+        sys.exit(1)
+
+    # 处理输出目录
+    if args.output_dir:
+        output_dir = args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        cleanup_output = False
+    else:
+        tmp_dir = tempfile.TemporaryDirectory(prefix="ib_topo_analyze_")
+        output_dir = tmp_dir.name
+        cleanup_output = True
+
+    # topo 文件放在 output_dir
+    topo_file_path = os.path.join(output_dir, "iblinkinfo.txt")
+
+    print("正在生成IB拓扑文件...")
+    with open(topo_file_path, 'w') as file:
+        subprocess.run(['iblinkinfo --switches-only'], shell=True,
+                       stdout=file, stderr=subprocess.PIPE)
+
+    print("开始分析IB拓扑...")
+    switches, hosts = parse_iblinkinfo(topo_file_path)
+
+    # 保存 JSON 文件
+    with open(os.path.join(output_dir, 'switches.json'), 'w') as f:
+        json.dump(switches, f, indent=2)
+
+    with open(os.path.join(output_dir, 'hosts.json'), 'w') as f:
+        json.dump(hosts, f, indent=2)
+
+    # 分类拓扑
+    topo = classify_topology(switches, hosts)
+    print("Leaf Switches:", len(topo["leaf_sw"]))
+    print("Spine Switches:", len(topo["spine_sw"]))
+    print("Superspine Switches:", len(topo["superspine_sw"]))
+    print("Interconnect Switches:", len(topo["interconnect_sw"]))
+
+    # 节点统计
+    node_summary = summarize_nodes(hosts)
+    print("节点统计:", node_summary)
+    print()
+
+    # 健康检查
+    check_switch_health(switches, ["leaf_sw", "spine_sw"], verbose=args.verbose)
+    print()
+
+    # Leaf Switch分组
+    groups = group_leaf_switches_by_hosts(switches, verbose=args.verbose)
+    print()
+
+    # HCA一致性检查（按组检查）
+    print("HCA一致性检查:")
+    check_leaf_hca_consistency_by_group(switches, groups, verbose=args.verbose)
+    print()
+
+    # Leaf-Spine连接分布检查
+    check_leaf_to_spine_links_by_group(switches, groups,
+                                       expected_spine_count=args.expected_spine_count,
+                                       verbose=args.verbose)
+
+    # 如果是临时目录，最后清理掉
+    if cleanup_output:
+        tmp_dir.cleanup()
+        print(f"已清理临时输出目录: {output_dir}")
+    else:
+        print(f"输出文件已保存到: {output_dir}")

@@ -49,6 +49,7 @@ func NewInfinibandCmd() *cobra.Command {
 				}()
 			}
 
+			// step 1: Get the config from user defined via cmdline flags
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
@@ -57,6 +58,7 @@ func NewInfinibandCmd() *cobra.Command {
 				logrus.WithField("component", "infiniband").Info("load default cfg...")
 			}
 
+			// step 2: Get the spec from user defined via cmdline flags
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
@@ -72,17 +74,20 @@ func NewInfinibandCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
 			} else {
-				logrus.WithField("component", "infiniband").Info("ignore checkers", ignoredCheckersStr)
+				logrus.WithField("component", "infiniband").Info("ignore checkers: ", ignoredCheckersStr)
 			}
+
 			var ignoredCheckers []string
 			if len(ignoredCheckersStr) > 0 {
 				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
 			}
+
 			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
 				return
 			}
+			logrus.WithField("component", "infiniband").Infof("Run Infiniband component check: %s", component.Name())
 			result, err := RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
 			if err != nil {
 				return

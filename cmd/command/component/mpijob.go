@@ -30,14 +30,14 @@ func NewMpiJobCmd() *cobra.Command {
 	var (
 		jobName           string
 		namespace         string
-		nodeSelector      string
-		numWorkers        int
 		cmdStr            string
 		imageRepo         string
 		imageTag          string
 		timeoutToComplete int
 		rdmaMode          string
 		script            string
+		hostfile          string
+		host              string
 	)
 
 	runCmd := &cobra.Command{
@@ -48,28 +48,30 @@ func NewMpiJobCmd() *cobra.Command {
 Defaults:
   --job-name         = llama2-13b-bench
   --namespace        = default
-  --node-selector    = sichek=test
-  --num-workers      = 2
+  --hostfile         = None (file containing hostnames, one per line)
+  --host             = None (comma-separated hostnames)
   --cmd              = MAX_STEPS=4 EVAL_ITERS=1 MOCK_DATA=true LOG_INTERVAL=1 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh
-  --image-repo       = registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch
+  --image-repo       = registry-us-east.scitix.ai/hpc/ngc_pytorch
   --image-tag        = 24.06-sicl-0723
   --timeout          = 600
-  --rdma_mode        = pytorchjob-ib`,
+  --rdma_mode        = pytorchjob-ib
+
+Note: Number of workers will be automatically derived from hostfile or host parameter.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 
-			// 构造参数顺序：<job> <namespace> <cmd> <nodeSelector> <imageRepo> <imageTag> <timeout> <rdmaMode>
+			// 构造参数顺序：<job> <namespace> <cmd> <imageRepo> <imageTag> <timeout> <rdmaMode> <hostfile> <host>
 			argList := []string{
 				jobName,
 				namespace,
 				cmdStr,
-				nodeSelector,
-				fmt.Sprintf("%d", numWorkers),
 				imageRepo,
 				imageTag,
 				fmt.Sprintf("%d", timeoutToComplete),
 				rdmaMode,
+				hostfile,
+				host,
 			}
 
 			command := exec.CommandContext(ctx, script, argList...)
@@ -85,10 +87,10 @@ Defaults:
 
 	runCmd.Flags().StringVar(&jobName, "job-name", "llama2-13b-bench", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&nodeSelector, "node-selector", "sichek=test", "Node selector")
-	runCmd.Flags().IntVar(&numWorkers, "num-workers", 2, "Number of worker pods")
+	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
+	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "MAX_STEPS=4 EVAL_ITERS=1 MOCK_DATA=true LOG_INTERVAL=1 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-cn-shanghai.siflow.cn/hpc/ngc_pytorch", "Image repository")
+	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hpc/ngc_pytorch", "Image repository")
 	runCmd.Flags().StringVar(&imageTag, "image-tag", "24.06-sicl-0723", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 600, "Timeout for job completion in seconds")
 	runCmd.Flags().StringVar(&rdmaMode, "rdma_mode", "pytorchjob-ib", "RDMA mode: pytorchjob-ib or pytorchjob-macvlan-roce")

@@ -1,0 +1,22 @@
+hca:
+  MT_0000001120:
+    hardware:
+      hca_type: "0"
+      board_id: "MT_0000001120"
+      fw_ver: ">=28.41.1000"
+      vpd: "HPE InfiniBand NDR/Ethernet 400Gb 1-port OSFP PCIe5 x16 MCX75310AAS-NEAT Adapter"
+      net_port: 1
+      port_speed: "400 Gb/sec (4X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "up"
+      link_layer: "Ethernet"
+      pcie_width: "16"
+      pcie_speed: "32.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "32"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 360 # Gbps
+      avg_latency_us: 10 # us
