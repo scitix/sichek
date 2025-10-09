@@ -84,5 +84,6 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewNCCLDiagCmd())
 	rootCmd.AddCommand(component.NewDiagCmd())
 	rootCmd.AddCommand(component.NewDeployCmd())
+	rootCmd.AddCommand(component.NewSyslogCmd())
 	return rootCmd
 }

@@ -67,6 +67,8 @@ nfpms:
       dst: /var/sichek/config/memory/
     - src: ./components/podlog/config/*.yaml
       dst: /var/sichek/config/podlog/
+    - src: ./components/syslog/config/*.yaml
+      dst: /var/sichek/config/syslog/
     - src: ./components/nvidia/config/*.yaml
       dst: /var/sichek/config/nvidia/
     - src: ./components/hca/config/*.yaml

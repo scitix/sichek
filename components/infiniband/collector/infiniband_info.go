@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,6 +47,21 @@ var (
 	IBSYSPathPre    = "/sys/class/infiniband/"
 	PCIPath         = "/sys/bus/pci/devices/"
 	gatewayCacheTTL = 5 * time.Minute
+	IBVendorIDs     = []string{
+		"0x15b3", // Mellanox Technologies
+		"0x8086", // Intel Corporation
+	}
+
+	IBDeviceIDs = []string{
+		"0x101b", // MT28908 Family [ConnectX-6]
+		"0x1021", // CMT2910 Family [ConnectX-7]
+		"0x1023", // CX8 Family [ConnectX-8]
+		"0xa2dc", // BlueField-3 E-series SuperNIC
+		"0x09a2", // CMT2910 Family [ConnectX-7] HHHL
+		"0x2330", // HPE/Enhance 400G
+		"0x4128",
+		"0x02b2",
+	}
 )
 
 type InfinibandInfo struct {
@@ -169,12 +185,12 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 		}
 		IBPFDevs[IBDev] = ibNetDev
 	}
-	logrus.WithField("component", "infiniband").Infof("get the IB and net map: %v", IBPFDevs)
+	logrus.WithField("component", "infiniband").Debugf("get the IB and net map: %v", IBPFDevs)
 
 	return IBPFDevs
 }
 
-func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID string, targetDeviceIDs []string) (map[string]string, error) {
+func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID []string, targetDeviceIDs []string) (map[string]string, error) {
 	log := logrus.WithField("component", "pci-scanner")
 
 	if len(targetDeviceIDs) == 0 {
@@ -191,7 +207,7 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID string, targetDeviceIDs
 		return nil, fmt.Errorf("failed to read pci devices directory %s: %w", PCIPath, err)
 	}
 
-	log.Infof("Scanning PCI devices in %s for vendor ID %s and device IDs %v", PCIPath, targetVendorID, targetDeviceIDs)
+	log.Debugf("Scanning PCI devices in %s for vendor ID %s and device IDs %v", PCIPath, targetVendorID, targetDeviceIDs)
 
 	foundDevices := make(map[string]string)
 
@@ -208,7 +224,7 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID string, targetDeviceIDs
 		currentVendorID := strings.TrimSpace(string(vendorBytes))
 
 		// 如果厂商ID不匹配，直接跳过此设备
-		if currentVendorID != targetVendorID {
+		if !slices.Contains(targetVendorID, currentVendorID) {
 			continue
 		}
 
@@ -223,12 +239,12 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID string, targetDeviceIDs
 		// 检查设备ID是否在目标列表中
 
 		if slices.Contains(targetDeviceIDs, currentDeviceID) {
-			log.Infof("Found matching device: %s with vendor=%s, device=%s ", pciAddr, currentVendorID, currentDeviceID)
+			log.Debugf("Found matching device: %s with vendor=%s, device=%s ", pciAddr, currentVendorID, currentDeviceID)
 			foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, currentDeviceID)
 		}
 	}
 
-	log.Infof("Finished PCI scan. Found %d matching devices.", len(foundDevices))
+	log.Debugf("Finished PCI scan. Found %d matching devices.", len(foundDevices))
 	return foundDevices, nil
 }
 
@@ -286,7 +302,7 @@ func (i *InfinibandInfo) GetIBDeVLinklayer(IBDev string) string {
 	return linkLayer
 }
 
-// _findGatewayWithNetlink 是一个私有的、无缓存的函数，负责执行实际的Netlink查询。
+// 优先查询策略路由，如果没有则查询接口路由
 func (i *InfinibandInfo) _findGatewayWithNetlink(ifaceName string) (string, error) {
 	// 通过接口名获取接口的Link对象
 	link, err := netlink.LinkByName(ifaceName)
@@ -294,35 +310,210 @@ func (i *InfinibandInfo) _findGatewayWithNetlink(ifaceName string) (string, erro
 		return "", fmt.Errorf("netlink: failed to find interface '%s': %w", ifaceName, err)
 	}
 
+	// --- 1. 优先查询策略路由 ---
+	gateway, err := i._findGatewayFromPolicyRouting(link)
+	if err == nil && gateway != "" {
+		logrus.WithFields(logrus.Fields{
+			"component": "infiniband",
+		}).Infof("Found gateway via policy routing, interface:%s gateway:%s ", ifaceName, gateway)
+		return gateway, nil
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"component": "infiniband",
+		"interface": ifaceName,
+		"error":     err,
+	}).Debug("Policy routing lookup failed, falling back to interface routing")
+
+	// --- 2. 回退到接口路由查询 ---
+	return i._findGatewayFromInterfaceRouting(link, ifaceName)
+}
+
+// _findGatewayFromPolicyRouting 通过策略路由查找网关
+func (i *InfinibandInfo) _findGatewayFromPolicyRouting(link netlink.Link) (string, error) {
+	// 获取接口的IPv4地址作为源地址
+	sourceIPs, err := i._getInterfaceIPv4Addresses(link)
+	if err != nil {
+		return "", fmt.Errorf("failed to get interface addresses: %w", err)
+	}
+
+	if len(sourceIPs) == 0 {
+		return "", fmt.Errorf("no IPv4 address found on interface")
+	}
+
+	// 获取路由规则
+	rules, err := netlink.RuleList(netlink.FAMILY_V4)
+	if err != nil {
+		return "", fmt.Errorf("failed to list routing rules: %w", err)
+	}
+
+	// 按优先级排序规则（较小的优先级值先处理）
+	sort.Slice(rules, func(i, j int) bool {
+		return rules[i].Priority < rules[j].Priority
+	})
+
+	// 遍历每个源IP地址
+	for _, sourceIP := range sourceIPs {
+		logrus.WithFields(logrus.Fields{
+			"component": "infiniband",
+			"source_ip": sourceIP.String(),
+		}).Debug("Checking policy rules for source IP")
+
+		// 检查匹配的路由规则 - 修改这里，传递结构体而不是指针
+		for _, rule := range rules {
+			if i._isRuleMatchingSource(rule, sourceIP) {
+				gateway, err := i._findGatewayInTable(rule.Table, sourceIP)
+				if err == nil && gateway != "" {
+					logrus.WithField("component", "infiniband").Infof("Found gateway in policy table - source_ip: %s, table: %d, priority: %d, gateway: %s",
+						sourceIP.String(), rule.Table, rule.Priority, gateway)
+
+					return gateway, nil
+				}
+				logrus.WithFields(logrus.Fields{
+					"component": "infiniband",
+					"table":     rule.Table,
+					"error":     err,
+				}).Debug("No gateway found in policy table")
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no gateway found in policy routing tables")
+}
+
+// _isRuleMatchingSource 检查路由规则是否匹配源地址 - 修改参数类型
+func (i *InfinibandInfo) _isRuleMatchingSource(rule netlink.Rule, sourceIP net.IP) bool {
+	// 检查规则是否指定了源地址匹配
+	if rule.Src != nil {
+		// 精确匹配源IP
+		if rule.Src.IP.Equal(sourceIP) {
+			return true
+		}
+		// 网络匹配（如果规则指定了网段）
+		if rule.Src.Contains(sourceIP) {
+			return true
+		}
+		return false
+	}
+
+	// 如果规则没有指定源地址（from all），则匹配所有
+	return true
+}
+
+// _findGatewayInTable 在指定路由表中查找网关
+func (i *InfinibandInfo) _findGatewayInTable(tableID int, sourceIP net.IP) (string, error) {
+	// 获取指定表的路由
+	routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{
+		Table: tableID,
+	}, netlink.RT_FILTER_TABLE)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to list routes for table %d: %w", tableID, err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"component": "infiniband",
+		"table":     tableID,
+		"routes":    len(routes),
+	}).Debug("Checking routes in policy table")
+
+	var fallbackGateway net.IP
+
+	// 查找默认路由
+	for _, route := range routes {
+		if route.Dst == nil && route.Gw != nil {
+			logrus.WithFields(logrus.Fields{
+				"component":  "infiniband",
+				"table":      tableID,
+				"gateway":    route.Gw.String(),
+				"route_type": "default",
+			}).Debug("Found default route in policy table")
+			return route.Gw.String(), nil
+		}
+
+		// 记录备选网关
+		if fallbackGateway == nil && route.Gw != nil {
+			fallbackGateway = route.Gw
+		}
+	}
+
+	// 返回备选网关
+	if fallbackGateway != nil {
+		logrus.WithFields(logrus.Fields{
+			"component":  "infiniband",
+			"table":      tableID,
+			"gateway":    fallbackGateway.String(),
+			"route_type": "fallback",
+		}).Debug("Using fallback gateway from policy table")
+		return fallbackGateway.String(), nil
+	}
+
+	return "", fmt.Errorf("no gateway found in table %d", tableID)
+}
+
+// _getInterfaceIPv4Addresses 获取接口的IPv4地址
+func (i *InfinibandInfo) _getInterfaceIPv4Addresses(link netlink.Link) ([]net.IP, error) {
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, err
+	}
+
+	var ips []net.IP
+	for _, addr := range addrs {
+		if addr.IP.To4() != nil { // 确保是IPv4地址
+			ips = append(ips, addr.IP)
+		}
+	}
+
+	return ips, nil
+}
+
+// _findGatewayFromInterfaceRouting 通过接口路由查找网关（原有逻辑）
+func (i *InfinibandInfo) _findGatewayFromInterfaceRouting(link netlink.Link, ifaceName string) (string, error) {
 	// 只查找与该接口关联的IPv4路由
 	routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
 	if err != nil {
 		return "", fmt.Errorf("netlink: failed to list routes for '%s': %w", ifaceName, err)
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"component": "infiniband",
+		"interface": ifaceName,
+		"routes":    len(routes),
+	}).Debug("Checking interface routes")
+
 	// 遍历路由表，寻找网关
 	var fallbackGateway net.IP
 	for _, route := range routes {
-		// 优先返回默认路由 (目标地址Dst为nil，且网关Gw不为nil)
+		// 优先返回默认路由
 		if route.Dst == nil && route.Gw != nil {
-			logrus.WithField("component", "infiniband").Infof("Found default gateway: %s for interface %s", route.Gw.String(), ifaceName)
+			logrus.WithFields(logrus.Fields{
+				"component": "infiniband",
+				"interface": ifaceName,
+				"gateway":   route.Gw.String(),
+				"method":    "interface_routing",
+			}).Info("Found default gateway via interface routing")
 			return route.Gw.String(), nil
 		}
 
-		// 如果没有默认路由，则记录第一个找到的非默认网关作为备选方案。
-		// 这在某些复杂的网络配置中很有用。
+		// 记录备选网关
 		if fallbackGateway == nil && route.Gw != nil {
 			fallbackGateway = route.Gw
 		}
 	}
 
-	// 如果循环结束后找到了备选网关，则返回它
+	// 返回备选网关
 	if fallbackGateway != nil {
-		logrus.WithField("component", "infiniband").Infof("Using fallback get gateway: %s for interface %s", fallbackGateway.String(), ifaceName)
+		logrus.WithFields(logrus.Fields{
+			"component": "infiniband",
+			"interface": ifaceName,
+			"gateway":   fallbackGateway.String(),
+			"method":    "interface_routing_fallback",
+		}).Info("Using fallback gateway via interface routing")
 		return fallbackGateway.String(), nil
 	}
 
-	// 如果遍历完所有路由都没有找到任何网关
+	// 如果都没找到
 	return "", fmt.Errorf("netlink: no gateway found for interface '%s'", ifaceName)
 }
 
@@ -565,7 +756,7 @@ func (i *InfinibandInfo) GetPCIEMRR(ctx context.Context, IBDev string) []string 
 	if len(parts) > 1 {
 		mrr = strings.Fields(parts[1])
 		// autofix
-		if strings.Compare(mrr[0], "4096") == 0 {
+		if strings.Compare(mrr[0], "4096") != 0 {
 			// get BDF
 			bdf := i.GetBDF(IBDev)
 			// autofix
@@ -675,6 +866,12 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 		return ""
 	}
 
+	if len(upstreamBdfs) == 1 {
+		// 如果只有一个上游设备，说明它直接连接到CPU，这种情况也很正常，直接返回即可。
+		logrus.WithField("component", "infiniband").Infof("Only one upstream PCIe device found in path for %s, likely direct to CPU, skipping check.", bdf)
+		return ""
+	}
+
 	logrus.WithField("component", "infiniband").Infof("Checking upstream devices for %s: %v", bdf, upstreamBdfs)
 
 	var minNumericString string
@@ -682,6 +879,7 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 
 	// 现在，我们只遍历上游设备的BDF列表
 	for _, currentBdf := range upstreamBdfs {
+		logrus.WithField("component", "infiniband").Infof("Checking upstream device %s for property %s", currentBdf, linkType)
 		propertyFilePath := filepath.Join(PCIPath, currentBdf, linkType)
 
 		propertyContents := GetFileCnt(propertyFilePath)
@@ -707,7 +905,7 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 		if currentNumericValue < minNumericValue {
 			minNumericValue = currentNumericValue
 			minNumericString = numericStringPart
-			logrus.WithField("component", "infiniband").Infof(
+			logrus.WithField("component", "infiniband").Debugf(
 				"Found new upstream minimum for %s (%s): %s (full value: '%s', at BDF: %s)",
 				IBDev, linkType, minNumericString, currentPropertyString, currentBdf,
 			)
@@ -734,6 +932,7 @@ func (i *InfinibandInfo) GetPCIETreeSpeed(IBDev string) []PCIETreeSpeedInfo {
 	re := regexp.MustCompile(bdfRegexPattern)
 	bdfs := re.FindAllString(string(output), -1)
 	allTreeSpeed := make([]PCIETreeSpeedInfo, 0, len(bdfs))
+	logrus.WithField("component", "infiniband").Infof("get the pcie tree speed, ib:%s bdfs:%v", IBDev, bdfs)
 
 	for _, bdf := range bdfs {
 		var perTreeSpeed PCIETreeSpeedInfo
@@ -874,11 +1073,7 @@ func (i *InfinibandInfo) GetKernelModule() []string {
 	return installedModule
 }
 func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
-	i.IBPCIDevs, _ = i.FindIBPCIDevices("0x15b3", []string{
-		"0x101b", // MT28908 Family [ConnectX-6]
-		"0x1021", // CMT2910 Family [ConnectX-7]
-		"0x1023", // CX8 Family [ConnectX-8]
-	})
+	i.IBPCIDevs, _ = i.FindIBPCIDevices(IBVendorIDs, IBDeviceIDs)
 	i.IBPFDevs = i.GetIBPFdevs()
 	i.HCAPCINum = len(i.IBPFDevs)
 	for IBDev := range i.IBPFDevs {
@@ -967,9 +1162,7 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 		// Initialize counters map with IB devices
 		IBCounters: make(map[string]map[string]uint64),
 	}
-	i.IBPCIDevs, _ = i.FindIBPCIDevices("0x15b3", []string{
-		"0x1021", // ConnectX-7
-	})
+	i.IBPCIDevs, _ = i.FindIBPCIDevices(IBVendorIDs, IBDeviceIDs)
 	i.IBPFDevs = i.GetIBPFdevs()
 	i.HCAPCINum = len(i.IBPFDevs)
 	i.IBNicRole = i.GetNICRole()

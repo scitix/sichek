@@ -107,6 +107,10 @@ spec:
               volumeMounts:
                 - name: shm
                   mountPath: /dev/shm
+                {{- if eq .Values.roceSharedMode "ipvlan" }}
+                - name: nccl-topo
+                  mountPath: /var/run/nvidia-topologyd
+                {{- end }}
           {{- if and (ne .Values.roceSharedMode "macvlan") .Values.schedulerName }}
           schedulerName: {{ .Values.schedulerName }}
           {{- end }}
@@ -114,6 +118,11 @@ spec:
             - name: shm
               emptyDir:
                 medium: Memory
+            {{- if eq .Values.roceSharedMode "ipvlan" }}
+            - name: nccl-topo
+              hostPath:
+                path: /var/run/nvidia-topologyd
+            {{- end }}
           tolerations:
             - effect: NoSchedule
               key: node.kubernetes.io/unschedulable

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 
 	"github.com/sirupsen/logrus"
 )
@@ -44,8 +45,8 @@ func RunComponentCheck(ctx context.Context, comp common.Component, cfg, specFile
 	}
 
 	info, err := comp.LastInfo()
-	if err != nil {
-		logrus.WithField("component", comp.Name()).Errorf("get to ge the LastInfo: %v", err) // Updated to use comp.Name()
+	if err != nil && (comp.Name() != consts.ComponentNameSyslog && comp.Name() != consts.ComponentNamePodlog) {
+		logrus.WithField("component", comp.Name()).Errorf("failed to get the LastInfo: %v", err) // Updated to use comp.Name()
 		return nil, err
 	}
 	return &CheckResults{

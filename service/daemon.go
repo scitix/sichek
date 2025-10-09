@@ -118,13 +118,15 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
 			}
 			var err error
-			result.Node = d.node
-			if strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") && result.Status == consts.StatusAbnormal {
-				err = d.notifier.AppendNodeAnnotation(d.ctx, result)
-			} else {
-				err = d.notifier.SetNodeAnnotation(d.ctx, result)
+			if result != nil {
+				result.Node = d.node
+				if len(result.Checkers) > 0 && strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") && result.Status == consts.StatusAbnormal {
+					err = d.notifier.AppendNodeAnnotation(d.ctx, result)
+				} else {
+					err = d.notifier.SetNodeAnnotation(d.ctx, result)
+				}
+				d.metrics.ExportMetrics(result)
 			}
-			d.metrics.ExportMetrics(result)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
 			}

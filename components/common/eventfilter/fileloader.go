@@ -52,6 +52,7 @@ func NewFileLoader(fileName string, cacheNum int64, skipPercent int64) (*FileLoa
 			Name2FileLoader.Delete(fileName)
 		}
 	}
+
 	fl := &FileLoader{
 		Name:        fileName,
 		FD:          nil,
@@ -60,24 +61,60 @@ func NewFileLoader(fileName string, cacheNum int64, skipPercent int64) (*FileLoa
 		LogLineNum:  0,
 		Pos:         0,
 	}
+
 	if err := fl.Open(); err != nil {
 		logrus.WithField("FileLoader", fileName).WithError(err).Warn("failed to open file in file loader")
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
+
 	// set the inode of the file, used to detect if the file has rotated
 	if err := fl.updateInode(); err != nil {
 		fl.Close()
 		return nil, fmt.Errorf("failed to get inode: %w", err)
 	}
+
+	// get the size of the file
+	fileSize, err := fl.GetFileSize()
+	if err != nil {
+		fl.Close()
+		return nil, fmt.Errorf("failed to get file size: %w", err)
+	}
+
+	// skip the file content with the skipPercent
 	if skipPercent >= 0 && skipPercent <= 100 {
-		fileSize, err := fl.GetFileSize()
-		if err != nil {
-			fl.Close()
-			return nil, fmt.Errorf("failed to get file size: %w", err)
-		}
 		fl.Pos = fileSize * skipPercent / 100
 	} else {
-		logrus.WithField("FileLoader", fileName).Warnf("failed to skip %d file content in file loader", skipPercent)
+		logrus.WithField("FileLoader", fileName).Warnf("invalid skipPercent %d, skip the entire file", skipPercent)
+		skipPercent = 100
+		fl.Pos = fileSize
+	}
+
+	// when skipPercent == 0, automatically adjust CacheNum
+	if skipPercent == 0 {
+		const maxCacheBytes = 10 * 1024 * 1024 // 10MB
+		avgLineSize := int64(100)              // assume the average line size is 100B
+
+		if fileSize < maxCacheBytes {
+			// small file, count by line
+			lineCount, err := fl.GetFileLineCount()
+			if err != nil {
+				logrus.WithField("FileLoader", fileName).WithError(err).Warn("failed to count lines, fallback to estimated cache size")
+				fl.CacheNum = fileSize / avgLineSize
+			} else {
+				fl.CacheNum = lineCount
+				logrus.WithField("FileLoader", fileName).Infof("NewFileLoader with skipPercent 0: small file detected with size %d MB, cached entire file, cacheNum=%d, startPos=%d", fileSize/1024/1024, fl.CacheNum, fl.Pos)
+			}
+		} else {
+			// large file, estimate by line, ensure the total memory of CachedLines is less than 100MB
+			fl.CacheNum = maxCacheBytes / avgLineSize
+			fl.Pos = fileSize - maxCacheBytes
+			logrus.WithField("FileLoader", fileName).Warnf("NewFileLoader with skipPercent 0: large file detected with size %d MB, estimate by line, ensure the total memory of CachedLines is less than 100MB, cacheNum=%d, startPos=%d", fileSize/1024/1024, fl.CacheNum, fl.Pos)
+		}
+
+		// reallocate the cache
+		fl.CachedLines = make([]string, fl.CacheNum)
+	} else {
+		logrus.WithField("FileLoader", fileName).Infof("NewFileLoader with skipPercent %d: skip file content with size %d in file loader, pos: %d", skipPercent, skipPercent*fileSize/100, fl.Pos)
 	}
 
 	Name2FileLoader.Store(fileName, fl)
@@ -229,4 +266,53 @@ func (f *FileLoader) Load() (int64, error) {
 		}
 	}
 	return linesRead, nil
+}
+
+func (f *FileLoader) GetFileLineCount() (int64, error) {
+	// read from the beginning of the file
+	_, err := f.FD.Seek(0, io.SeekStart)
+	if err != nil {
+		return 0, err
+	}
+
+	stat, err := f.FD.Stat()
+	if err != nil {
+		return 0, err
+	}
+	size := stat.Size()
+
+	const threshold = 100 * 1024 * 1024 // 100MB
+	if size < threshold {
+		// small file, use Scanner
+		scanner := bufio.NewScanner(f.FD)
+		var count int64
+		for scanner.Scan() {
+			count++
+		}
+		if err := scanner.Err(); err != nil {
+			return count, err
+		}
+		return count, nil
+	}
+
+	// large file, count by block
+	var count int64
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := f.FD.Read(buf)
+		if n > 0 {
+			for _, b := range buf[:n] {
+				if b == '\n' {
+					count++
+				}
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return count, err
+		}
+	}
+	return count, nil
 }

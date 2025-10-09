@@ -19,19 +19,20 @@ import (
 	"github.com/scitix/sichek/components/common"
 )
 
-type PodlogUserConfig struct {
-	Podlog *PodLogConfig `json:"podlog" yaml:"podlog"`
+type SyslogUserConfig struct {
+	Syslog *SyslogConfig `json:"syslog" yaml:"syslog"`
 }
 
-type PodLogConfig struct {
+type SyslogConfig struct {
 	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
+	SkipPercent   int64           `json:"skip_percent" yaml:"skip_percent"`
 }
 
-func (c *PodlogUserConfig) GetQueryInterval() common.Duration {
-	return c.Podlog.QueryInterval
+func (c *SyslogUserConfig) GetQueryInterval() common.Duration {
+	return c.Syslog.QueryInterval
 }
 
-func (c *PodlogUserConfig) SetQueryInterval(newInterval common.Duration) {
-	c.Podlog.QueryInterval = newInterval
+func (c *SyslogUserConfig) SetQueryInterval(newInterval common.Duration) {
+	c.Syslog.QueryInterval = newInterval
 }

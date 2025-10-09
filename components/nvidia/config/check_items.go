@@ -40,6 +40,7 @@ const (
 	PCIeCheckerName                      = "pcie"
 	SoftwareCheckerName                  = "software"
 	GpuTemperatureCheckerName            = "temperature"
+	NvlsErrorCheckerName                 = "NVLSError"
 )
 
 // GPUCheckItems is a map of check items for GPU
