@@ -31,6 +31,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
+	"github.com/scitix/sichek/components/syslog"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -178,7 +179,7 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
 	allCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by ','")
-	allCmd.Flags().StringP("ignore-components", "I", "podlog,gpuevents", "Ignored components")
+	allCmd.Flags().StringP("ignore-components", "I", "podlog,gpuevents,syslog", "Ignored components")
 	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
@@ -208,11 +209,14 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Nvidia GPU HealthCheck")
 		}
 		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
-	case consts.ComponentNamePodLog:
+	case consts.ComponentNamePodlog:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing PodLog HealthCheck")
 		}
 		return podlog.NewComponent(cfgFile, specFile)
+	case consts.ComponentNameSyslog:
+		// if skipPercent is -1, use the value from the config file
+		return syslog.NewComponent(cfgFile, "", -1)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}

@@ -36,11 +36,13 @@ const (
 	ComponentIDHang         = "11"
 	ComponentNameGpuEvents  = "gpuevents"
 	ComponentIDPodLog       = "12"
-	ComponentNamePodLog     = "podlog"
+	ComponentNamePodlog     = "podlog"
 	ComponentIDHCA          = "13"
 	ComponentNameHCA        = "hca"
 	ComponentIDPCIE         = "14"
 	ComponentNamePCIE       = "pcie"
+	ComponentIDSyslog       = "15"
+	ComponentNameSyslog     = "syslog"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"
@@ -80,7 +82,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNamePodLog, ComponentNameGpuEvents,
+		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog,
 	}
 )
 
@@ -130,4 +132,4 @@ const CmdTimeout = 30 * time.Second
 const IbPerfTestTimeout = 600 * time.Second
 const AllCmdTimeout = 60 * time.Second
 const DefaultCacheLine int64 = 10000              // Default cache line number for event filter
-const DefaultFileLoaderInterval = 1 * time.Minute // Default interval for file loader scheduler
+const DefaultFileLoaderInterval = 5 * time.Second // Default interval for file loader scheduler

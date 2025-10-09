@@ -27,7 +27,8 @@ import (
 )
 
 type nodeAnnotation struct {
-	NCCL       map[string][]*annotation `json:"nccl"`
+	Podlog     map[string][]*annotation `json:"podlog"`
+	Syslog     map[string][]*annotation `json:"syslog"`
 	Hang       map[string][]*annotation `json:"hang"`
 	NVIDIA     map[string][]*annotation `json:"nvidia"`
 	Infiniband map[string][]*annotation `json:"infiniband"`
@@ -72,8 +73,10 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 		return a.Hang, nil
 	case consts.ComponentNameInfiniband:
 		return a.Infiniband, nil
-	case consts.ComponentNamePodLog:
-		return a.NCCL, nil
+	case consts.ComponentNamePodlog:
+		return a.Podlog, nil
+	case consts.ComponentNameSyslog:
+		return a.Syslog, nil
 	case consts.ComponentNameNvidia:
 		return a.NVIDIA, nil
 	}
@@ -97,8 +100,10 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 		a.Hang = annotations
 	case consts.ComponentNameInfiniband:
 		a.Infiniband = annotations
-	case consts.ComponentNamePodLog:
-		a.NCCL = annotations
+	case consts.ComponentNamePodlog:
+		a.Podlog = annotations
+	case consts.ComponentNameSyslog:
+		a.Syslog = annotations
 	case consts.ComponentNameNvidia:
 		a.NVIDIA = annotations
 	}

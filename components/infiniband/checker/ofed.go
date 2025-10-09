@@ -56,33 +56,30 @@ func (c *IBOFEDChecker) GetSpec() common.CheckerSpec {
 	return nil
 }
 
-// parseOFEDVersion extracts major and minor versions from an OFED version string.
+// parseOFEDVersion extracts major and minor versions from both standard and internal OFED version strings.
+// Examples:
+//
+//	MLNX_OFED_LINUX-5.9-0.5.6.0   -> major=5.9,   minor=0.5.6.0
+//	OFED-internal-23.10-1.1.9     -> major=23.10, minor=1.1.9
 func parseOFEDVersion(ofed string) (major string, minor string, err error) {
-
-	// logrus.Infof("parseOFEDVersion: %s %d %d", ofed,len(ofed),len("MLNX_OFED_LINUX-5.9-0.5.6.0"))
-	// Regex to extract the version part: "MLNX_OFED_LINUX-X.Y-A.B.C.D"
-	re := regexp.MustCompile(`MLNX_OFED_LINUX-(\d+|\*)\.(\d+|\*)-(\d+|\*)\.(\d+|\*)\.(\d+|\*)\.(\d+|\*)`)
+	// handle both prefixes: MLNX_OFED_LINUX / OFED-internal
+	re := regexp.MustCompile(`^(?:MLNX_OFED_LINUX|OFED-internal)-(\d+\.\d+)-([\d\.]+)$`)
 	matches := re.FindStringSubmatch(ofed)
-	// logrus.Infof("parseOFEDVersion: %s %d", ofed, len(matches))
-	if len(matches) < 7 {
+	if len(matches) != 3 {
 		return "", "", fmt.Errorf("invalid OFED version format: %s", ofed)
 	}
-	major = matches[1] + "." + matches[2]
-	minor = matches[3] + "." + matches[4] + "." + matches[5] + "." + matches[6]
+
+	major = matches[1] // first part, like 5.9 or 23.10
+	minor = matches[2] // second part, like 0.5.6.0 or 1.1.9
 	return major, minor, nil
 }
+
 func checkOFEDFormat(spec string, curr string) (bool, error) {
-	specsplit := strings.Split(spec, "-")
-	currsplit := strings.Split(curr, "-")
-	if len(specsplit) != 3 || len(currsplit) != 3 {
-		return false, fmt.Errorf("invalid OFED version format: %s %s", spec, curr)
-	}
-	specMajor := strings.Split(specsplit[1], ".")
-	specMinor := strings.Split(specsplit[2], ".")
-	currMajor := strings.Split(currsplit[1], ".")
-	currMinor := strings.Split(currsplit[2], ".")
-	if len(specMajor) != 2 || len(specMinor) != 4 || len(currMajor) != 2 || len(currMinor) != 4 {
-		return false, fmt.Errorf("invalid OFED version format: %s %s", spec, curr)
+	_, _, err1 := parseOFEDVersion(spec)
+	_, _, err2 := parseOFEDVersion(curr)
+
+	if err1 != nil || err2 != nil {
+		return false, fmt.Errorf("invalid OFED version format: %v | %v", err1, err2)
 	}
 	return true, nil
 }
@@ -92,20 +89,22 @@ func checkOFEDVersion(spec string, curr string) (bool, error) {
 	var operator string
 	var specVersion string
 	// Extract operator and version from the spec string
-	if strings.HasPrefix(spec, ">=") {
+	switch {
+	case strings.HasPrefix(spec, ">="):
 		operator = ">="
 		specVersion = strings.TrimPrefix(spec, ">=")
-	} else if strings.HasPrefix(spec, ">") {
+	case strings.HasPrefix(spec, ">"):
 		operator = ">"
 		specVersion = strings.TrimPrefix(spec, ">")
-	} else if strings.HasPrefix(spec, "==") {
+	case strings.HasPrefix(spec, "=="):
 		operator = "=="
 		specVersion = strings.TrimPrefix(spec, "==")
-	} else {
-		operator = "==" // Default to "==" if no operator is specified
+	default:
+		operator = "=="
 		specVersion = spec
 	}
-	pass, err := checkOFEDFormat(spec, curr)
+
+	pass, err := checkOFEDFormat(specVersion, curr)
 	if !pass || err != nil {
 		return false, err
 	}

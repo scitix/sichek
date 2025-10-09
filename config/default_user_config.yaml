@@ -2,40 +2,40 @@ metrics:
   port: 19091
 
 nvidia:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   enable_metrics: true
   ignored_checkers: []
 
 infiniband:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   enable_metrics: true
   ignored_checkers:
     - "net_operstate"
 
 ethernet:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   enable_metrics: true
 
 gpfs:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   ignored_checkers: []
 
 cpu:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   enable_metrics: true
 
 memory:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   enable_metrics: true
 
 gpu_custom_events:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
   nvsmi: false
   mock: false
@@ -43,10 +43,15 @@ gpu_custom_events:
   ignore_namespaces: []
   ignored_checkers: []
 
-nccl:
-  query_interval: 30s
+podlog:
+  query_interval: 10s
   cache_size: 5
 
 dmesg:
-  query_interval: 30s
+  query_interval: 10s
   cache_size: 5
+
+syslog:
+  query_interval: 10s
+  cache_size: 5
+  skip_percent: 100

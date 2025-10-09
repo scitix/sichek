@@ -20,22 +20,30 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
-type PodLogEventRules struct {
-	Rules *PodlogEventRule `yaml:"podlog" json:"podlog"`
+type SyslogEventRules struct {
+	Rules common.EventRuleGroup `yaml:"syslog" json:"syslog"`
 }
 
-type PodlogEventRule struct {
-	DirPath       string                `json:"log_dir" yaml:"log_dir"`
-	EventCheckers common.EventRuleGroup `json:"event_checkers" yaml:"event_checkers"`
-}
-
-func LoadDefaultEventRules() (*PodlogEventRule, error) {
-	eventRules := &PodLogEventRules{}
-	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNamePodlog)
+func LoadDefaultEventRules() (common.EventRuleGroup, error) {
+	eventRules := &SyslogEventRules{}
+	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameSyslog)
 	if err == nil && eventRules.Rules != nil {
 		return eventRules.Rules, nil
 	}
 	return nil, fmt.Errorf("failed to load eventRules: %v", err)
+}
+
+func LoadEventRules(eventRulesFile string) (common.EventRuleGroup, error) {
+	if eventRulesFile == "" {
+		return LoadDefaultEventRules()
+	}
+	eventRules := &SyslogEventRules{}
+	err := utils.LoadFromYaml(eventRulesFile, eventRules)
+	if err == nil && eventRules.Rules != nil {
+		return eventRules.Rules, nil
+	}
+	return nil, fmt.Errorf("failed to load eventRules from %s: %v", eventRulesFile, err)
 }

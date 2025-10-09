@@ -38,8 +38,8 @@ type component struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	componentName string
-	cfg           *config.PodLogUserConfig
-	eventRule     *config.PodLogEventRule
+	cfg           *config.PodlogUserConfig
+	eventRule     *config.PodlogEventRule
 	cfgMutex      sync.Mutex
 
 	podResourceMapper *k8s.PodResourceMapper
@@ -54,21 +54,21 @@ type component struct {
 }
 
 var (
-	ncclComponent     common.Component
-	ncclComponentOnce sync.Once
+	podlogComponent     common.Component
+	podlogComponentOnce sync.Once
 )
 
 func NewComponent(cfgFile string, specFile string) (common.Component, error) {
 	var err error
-	ncclComponentOnce.Do(func() {
+	podlogComponentOnce.Do(func() {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("panic occurred when create component nccl: %v", r)
 			}
 		}()
-		ncclComponent, err = newComponent(cfgFile, specFile)
+		podlogComponent, err = newComponent(cfgFile, specFile)
 	})
-	return ncclComponent, err
+	return podlogComponent, err
 }
 
 func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
@@ -79,9 +79,9 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		}
 	}()
 
-	ncclCfg := &config.PodLogUserConfig{}
-	err = common.LoadUserConfig(cfgFile, ncclCfg)
-	if err != nil || ncclCfg.NCCL == nil {
+	cfg := &config.PodlogUserConfig{}
+	err = common.LoadUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Podlog == nil {
 		logrus.WithField("component", "podlog").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		return nil, fmt.Errorf("NewNcclComponent get user config failed")
 	}
@@ -95,18 +95,18 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
-		componentName: consts.ComponentNamePodLog,
-		cfg:           ncclCfg,
+		componentName: consts.ComponentNamePodlog,
+		cfg:           cfg,
 		eventRule:     eventRules,
 
 		podResourceMapper: podResourceMapper,
 
-		cacheResultBuffer: make([]*common.Result, ncclCfg.NCCL.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, ncclCfg.NCCL.CacheSize),
+		cacheResultBuffer: make([]*common.Result, cfg.Podlog.CacheSize),
+		cacheInfoBuffer:   make([]common.Info, cfg.Podlog.CacheSize),
 		currIndex:         0,
-		cacheSize:         ncclCfg.NCCL.CacheSize,
+		cacheSize:         cfg.Podlog.CacheSize,
 	}
-	component.service = common.NewCommonService(ctx, ncclCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
 
@@ -122,7 +122,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 	if len(allFiles) == 0 {
 		logrus.WithField("component", "podlog").Infof("no pod log files found in %s", c.eventRule.DirPath)
-		return nil, nil
+		// return a normal result instead of nil
+		return &common.Result{
+			Item:     c.componentName,
+			Time:     time.Now(),
+			Status:   consts.StatusNormal,
+			Level:    consts.LevelInfo,
+			Checkers: []*common.CheckerResult{},
+		}, nil
 	}
 	joinedLogFiles := strings.Join(allFiles, ",")
 	for _, eventChecker := range c.eventRule.EventCheckers {
@@ -130,7 +137,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			eventChecker.LogFile = joinedLogFiles
 		}
 	}
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodLog, c.eventRule.EventCheckers, 0)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodlog, c.eventRule.EventCheckers, 0)
 	if err != nil {
 		logrus.WithError(err).Error("failed to create filter in podlog component")
 		return nil, err
@@ -161,7 +168,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 	c.cacheMtx.Lock()
 	c.cacheResultBuffer[c.currIndex%c.cacheSize] = result
-	c.cacheInfoBuffer[c.currIndex%c.cacheSize] = nil
+	// c.cacheInfoBuffer[c.currIndex%c.cacheSize] = nil
 	c.currIndex++
 	c.cacheMtx.Unlock()
 	if result.Status == consts.StatusAbnormal {
@@ -235,9 +242,7 @@ func (c *component) CacheResults() ([]*common.Result, error) {
 }
 
 func (c *component) CacheInfos() ([]common.Info, error) {
-	c.cacheMtx.Lock()
-	defer c.cacheMtx.Unlock()
-	return c.cacheInfoBuffer, nil
+	return nil, fmt.Errorf("no info for podlog")
 }
 
 func (c *component) LastResult() (*common.Result, error) {
@@ -251,15 +256,7 @@ func (c *component) LastResult() (*common.Result, error) {
 }
 
 func (c *component) LastInfo() (common.Info, error) {
-	c.cacheMtx.RLock()
-	defer c.cacheMtx.RUnlock()
-	var info common.Info
-	if c.currIndex == 0 {
-		info = c.cacheInfoBuffer[c.cacheSize-1]
-	} else {
-		info = c.cacheInfoBuffer[c.currIndex-1]
-	}
-	return info, nil
+	return nil, fmt.Errorf("no info for podlog")
 }
 
 func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
@@ -276,7 +273,7 @@ func (c *component) Stop() error {
 
 func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
-	config, ok := cfg.(*config.PodLogUserConfig)
+	config, ok := cfg.(*config.PodlogUserConfig)
 	if !ok {
 		return fmt.Errorf("update wrong config type for nccl")
 	}
