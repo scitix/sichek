@@ -8,3 +8,10 @@ podlog:
       regexp: "Watchdog caught collective operation timeout"
       level: "error"
       suggestion: "Check the NCCL log for timeout error, stop and restart the job"
+    eccerror:
+      name: "ECCError"
+      log_file: ""
+      description: "ECC error"
+      regexp: "CUDA error: uncorrectable ECC error encountered"
+      level: "error"
+      suggestion: "Check the Job log for ECC error, stop and restart the job"
