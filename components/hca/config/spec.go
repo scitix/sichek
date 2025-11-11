@@ -9,6 +9,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/oss"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -29,61 +30,81 @@ type HCAPerf struct {
 	AvgLatency float64 `json:"avg_latency_us" yaml:"avg_latency_us"` // ns
 }
 
-// LoadSpec loads the HCA specifications from the provided file or from default locations.
+// LoadSpec loads the HCA specifications from the provided file and merges with default locations.
+// The provided file has higher priority - if the same board ID exists in both, the provided file's spec will be used.
+// After merging, it filters the specs for the local host and loads missing specs from OSS if needed.
 func LoadSpec(file string) (*HCASpecs, error) {
 	s := &HCASpecs{}
-	// 1. Load spec from provided file
+	if s.HcaSpec == nil {
+		s.HcaSpec = make(map[string]*HCASpec)
+	}
+
+	// 1. Load spec from provided file (highest priority)
 	if file != "" {
 		err := s.tryLoadFromFile(file)
-		if err == nil && s.HcaSpec != nil {
-			return FilterSpecsForLocalHost(s)
+		if err != nil {
+			logrus.WithField("component", "hca").Warnf("failed to load spec from provided file %s: %v", file, err)
+		} else if len(s.HcaSpec) > 0 {
+			logrus.WithField("component", "hca").Infof("loaded HCA spec from provided file: %s", file)
 		}
-		logrus.WithField("component", "hca").Warnf("%v", err)
 	}
 
-	// 2. try to Load default spec from production env if no file specified
+	// 2. Try to load default spec from production env and merge
 	// e.g., /var/sichek/config/default_spec.yaml
+	// The provided file's specs take precedence (already loaded, won't be overwritten)
 	err := s.tryLoadFromDefault()
-	if err == nil && s.HcaSpec != nil {
-		spec, err := FilterSpecsForLocalHost(s)
-		if err == nil {
-			logrus.WithField("component", "hca").Infof("loaded default production top spec")
-			return spec, nil
-		}
-		logrus.WithField("component", "hca").Warnf("failed to filter specs from default production top spec")
-	} else {
-		logrus.WithField("component", "hca").Warnf("%v", err)
+	if err != nil {
+		logrus.WithField("component", "hca").Warnf("failed to load default production spec: %v", err)
+	} else if len(s.HcaSpec) > 0 {
+		logrus.WithField("component", "hca").Infof("merged default production HCA spec")
 	}
 
-	// 3. try to load default spec from default config directory
+	// 3. Try to load default spec from default config directory and merge
 	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
 	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
+	// The provided file's specs take precedence (already loaded, won't be overwritten)
 	err = s.tryLoadFromDevConfig()
-	if err == nil && s.HcaSpec != nil {
-		return FilterSpecsForLocalHost(s)
-	} else {
-		if err != nil {
-			logrus.WithField("component", "hca").Warnf("failed to load from default dev directory: %v", err)
-		} else {
-			logrus.WithField("component", "hca").Warnf("default dev spec loaded but contains no hca section")
-		}
+	if err != nil {
+		logrus.WithField("component", "hca").Warnf("failed to load from default dev directory: %v", err)
+	} else if len(s.HcaSpec) > 0 {
+		logrus.WithField("component", "hca").Infof("merged default dev HCA spec")
 	}
 
-	return nil, fmt.Errorf("failed to load HCA spec from any source, please check the configuration")
+	// Check if we have any HCA specs loaded
+	if len(s.HcaSpec) == 0 {
+		return nil, fmt.Errorf("failed to load HCA spec from any source, please check the configuration")
+	}
+
+	// 4. Filter specs for local host and load missing specs from OSS
+	// This will check all board IDs on the host and ensure each has a spec
+	result, err := FilterSpecsForLocalHost(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter HCA specs for local host: %w", err)
+	}
+
+	logrus.WithField("component", "hca").Infof("successfully loaded and merged HCA specs, total board IDs: %d", len(result.HcaSpec))
+	return result, nil
 }
 
 func (s *HCASpecs) tryLoadFromFile(file string) error {
 	if file == "" {
 		return fmt.Errorf("file path is empty")
 	}
-	err := utils.LoadFromYaml(file, s)
+	tempSpecs := &HCASpecs{}
+	err := utils.LoadFromYaml(file, tempSpecs)
 	if err != nil {
 		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
 	}
-	if s.HcaSpec == nil {
+	if tempSpecs.HcaSpec == nil {
 		return fmt.Errorf("YAML file %s loaded but contains no hca section", file)
 	}
-	logrus.WithField("component", "hca").Infof("loaded default spec")
+	// Merge into the main spec (provided file has highest priority, so overwrite existing)
+	if s.HcaSpec == nil {
+		s.HcaSpec = make(map[string]*HCASpec)
+	}
+	for hcaName, spec := range tempSpecs.HcaSpec {
+		s.HcaSpec[hcaName] = spec // Overwrite if exists (provided file has priority)
+	}
 	return nil
 }
 
@@ -165,7 +186,7 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 			url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameHCA, ibDevBoardId)
 			logrus.WithField("component", "hca").Infof("Loading spec from OSS for board ID %s: %s", ibDevBoardId, url)
 			// Attempt to load spec from OSS
-			err := common.LoadSpecFromOss(url, tmpSpecs)
+			err := oss.LoadSpecFromURL(url, tmpSpecs)
 			if err == nil && tmpSpecs.HcaSpec != nil {
 				// If the spec is found in OSS, add it to the main spec
 				if spec, ok := tmpSpecs.HcaSpec[ibDevBoardId]; ok {

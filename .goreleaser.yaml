@@ -1,12 +1,5 @@
 project_name: sichek
-
 version: 2
-
-before:
-  hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
-    - go mod vendor
 
 env:
   - VERSION_MAJOR={{ .Env.VERSION_MAJOR }}
@@ -16,8 +9,30 @@ env:
   - GO_VERSION={{ .Env.GO_VERSION }}
   - BUILD_TIME={{ .Env.BUILD_TIME }}
   - INSTALL_DIR={{ .Env.INSTALL_DIR }}
+  - INCLUDE_SICL={{ .Env.INCLUDE_SICL }}
+  - SICL_VERSION={{ .Env.SICL_VERSION }}
+
+snapshot:
+  version_template: "v{{ .Env.VERSION_MAJOR }}.{{ .Env.VERSION_MINOR }}.{{ .Env.VERSION_PATCH }}-snapshot-{{ .ShortCommit }}"
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod vendor
+    - rm -rf ./sicl
+    - mkdir -p ./sicl
+    - bash -c 'if [ "$INCLUDE_SICL" = "true" ]; then
+        echo "Downloading SICL...";
+        curl -fsSL -o ./sicl/${SICL_VERSION} https://oss-ap-southeast.scitix.ai/scitix-release/${SICL_VERSION};
+        chmod +x ./sicl/${SICL_VERSION};
+        echo "SICL downloaded successfully";
+      else
+        echo "Skipping SICL download (INCLUDE_SICL=$INCLUDE_SICL)";
+        touch ./sicl/placeholder.txt;
+      fi'
+
 builds:
-  - id: "sichek"
+  - id: sichek
     main: ./cmd/main.go
     binary: sichek
     goos:
@@ -34,53 +49,53 @@ builds:
       - "-X 'github.com/scitix/sichek/cmd/command.GoVersion={{ .Env.GO_VERSION }}'"
       - "-X 'github.com/scitix/sichek/cmd/command.BuildTime={{ .Env.BUILD_TIME }}'"
 
-
 nfpms:
   - id: sichek
+    ids:
+      - sichek
     formats:
       - deb
       - rpm
     package_name: sichek
     file_name_template: "{{ .ProjectName }}_v{{ .Env.VERSION_MAJOR }}.{{ .Env.VERSION_MINOR }}.{{ .Env.VERSION_PATCH }}.{{ .Env.GIT_COMMIT }}_{{ .Os }}_{{ .Arch }}"
-    builds:
-      - sichek
     maintainer: hhu
     description: "Sichek: check node components, e.g. CPU, GPU, IB etc"
     license: Apache 2.0
     bindir: "{{ .Env.INSTALL_DIR }}"
     scripts:
-      preinstall: ./scripts/check_sicl.sh
       postinstall: ./scripts/postinstall.sh
       preremove: ./scripts/preuninstall.sh
     contents:
-    - src: ./components/cpu/config/*.yaml
-      dst: /var/sichek/config/cpu/
-    - src: ./components/dmesg/config/*.yaml
-      dst: /var/sichek/config/dmesg/
-    - src: ./components/gpfs/config/*.yaml
-      dst: /var/sichek/config/gpfs/
-    - src: ./components/gpuevents/config/*.yaml
-      dst: /var/sichek/config/gpuevents/
-    - src: ./components/infiniband/config/*.yaml
-      dst: /var/sichek/config/infiniband/
-    - src: ./components/memory/config/*.yaml
-      dst: /var/sichek/config/memory/
-    - src: ./components/podlog/config/*.yaml
-      dst: /var/sichek/config/podlog/
-    - src: ./components/syslog/config/*.yaml
-      dst: /var/sichek/config/syslog/
-    - src: ./components/nvidia/config/*.yaml
-      dst: /var/sichek/config/nvidia/
-    - src: ./components/hca/config/*.yaml
-      dst: /var/sichek/config/hca/
-    - src: ./config/*.yaml
-      dst: /var/sichek/config/
-    - src: ./components/pcie/config/*.yaml
-      dst: /var/sichek/config/pcie/
-    - src: ./scripts/*
-      dst: /var/sichek/scripts/
-    - src: ./k8s/sichek/*
-      dst: /var/sichek/k8s/sichek
+      - src: ./components/cpu/config/*.yaml
+        dst: /var/sichek/config/cpu/
+      - src: ./components/dmesg/config/*.yaml
+        dst: /var/sichek/config/dmesg/
+      - src: ./components/gpfs/config/*.yaml
+        dst: /var/sichek/config/gpfs/
+      - src: ./components/gpuevents/config/*.yaml
+        dst: /var/sichek/config/gpuevents/
+      - src: ./components/infiniband/config/*.yaml
+        dst: /var/sichek/config/infiniband/
+      - src: ./components/memory/config/*.yaml
+        dst: /var/sichek/config/memory/
+      - src: ./components/podlog/config/*.yaml
+        dst: /var/sichek/config/podlog/
+      - src: ./components/syslog/config/*.yaml
+        dst: /var/sichek/config/syslog/
+      - src: ./components/nvidia/config/*.yaml
+        dst: /var/sichek/config/nvidia/
+      - src: ./components/hca/config/*.yaml
+        dst: /var/sichek/config/hca/
+      - src: ./config/*.yaml
+        dst: /var/sichek/config/
+      - src: ./components/pcie/config/*.yaml
+        dst: /var/sichek/config/pcie/
+      - src: ./scripts/*
+        dst: /var/sichek/scripts/
+      - src: ./k8s/sichek/*
+        dst: /var/sichek/k8s/sichek
+      - src: ./sicl/*
+        dst: /var/sichek/sicl/
 
 changelog:
   sort: asc

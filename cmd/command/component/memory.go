@@ -29,8 +29,7 @@ func NewMemoryCmd() *cobra.Command {
 	memoryCmd := &cobra.Command{
 		Use:     "memory",
 		Aliases: []string{"m"},
-		Short:   "Perform Memory - related operations",
-		Long:    "Used to perform specific Memory - related operations, with specific functions to be expanded",
+		Short:   "Perform Memory HealthCheck",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
@@ -68,7 +67,7 @@ func NewMemoryCmd() *cobra.Command {
 				logrus.WithField("component", "memory").Error(err)
 				return
 			}
-			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

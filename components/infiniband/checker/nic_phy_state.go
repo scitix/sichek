@@ -18,13 +18,13 @@ package checker
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBPhyStateChecker struct {
@@ -64,7 +64,11 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
@@ -72,11 +76,12 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 	}
 
 	failedHcas := make([]string, 0)
-	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	spec := make([]string, 0, hwInfoLen)
+	curr := make([]string, 0, hwInfoLen)
+	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
-			log.Printf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			logrus.WithField("component", "infiniband").Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
@@ -87,6 +92,7 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -148,41 +149,64 @@ func (c *RoCEChecker) CheckGatewayReachable(netDev, netGW string) (bool, string)
 }
 
 func (c *RoCEChecker) checkRoCEVFSpec(IBDev string, info *collector.InfinibandInfo) (bool, string) {
+	info.RLock()
+	var vfSpec string
+	ibNicRole := info.IBNicRole
+	found := false
 	for _, hwInfo := range info.IBHardWareInfo {
 		if hwInfo.IBDev == IBDev {
-			if info.IBNicRole == "sriovNode" {
-				if hwInfo.VFSpec != "127" {
-					return false, fmt.Sprintf("RoCE vf spec is not 127, it is %s", hwInfo.VFSpec)
-				}
-			}
-			logrus.WithField("component", "infiniband").Infof("RoCE vf spec is valid: %s for IBDev: %s", hwInfo.VFSpec, IBDev)
+			vfSpec = hwInfo.VFSpec
+			found = true
 			break
 		}
 	}
+	info.RUnlock()
+
+	if !found {
+		return true, ""
+	}
+
+	if ibNicRole == "sriovNode" {
+		if vfSpec != "127" {
+			return false, fmt.Sprintf("RoCE vf spec is not 127, it is %s", vfSpec)
+		}
+	}
+	logrus.WithField("component", "infiniband").Infof("RoCE vf spec is valid: %s for IBDev: %s", vfSpec, IBDev)
 	return true, ""
 }
 
 func (c *RoCEChecker) checkRoCEVFNum(IBDev string, info *collector.InfinibandInfo) (bool, string) {
+	info.RLock()
+	var vfNum string
+	ibNicRole := info.IBNicRole
+	found := false
 	for _, hwInfo := range info.IBHardWareInfo {
 		if hwInfo.IBDev == IBDev {
-			if info.IBNicRole == "sriovNode" {
-				if hwInfo.VFNum != "16" && hwInfo.VFNum != "32" {
-					return false, fmt.Sprintf("RoCE vf number is not valid, it is %s", hwInfo.VFNum)
-				}
-			} else {
-				if hwInfo.VFNum != "" && hwInfo.VFNum != "0" {
-					return false, fmt.Sprintf("RoCE vf number is not 0 in non sriovNode, it is %s", hwInfo.VFNum)
-				}
-			}
-			logrus.WithField("component", "infiniband").Infof("RoCE vf number is valid: %s for IBDev: %s", hwInfo.VFNum, IBDev)
+			vfNum = hwInfo.VFNum
+			found = true
 			break
 		}
 	}
+	info.RUnlock()
+
+	if !found {
+		return true, ""
+	}
+
+	if ibNicRole == "sriovNode" {
+		if vfNum != "16" && vfNum != "32" {
+			return false, fmt.Sprintf("RoCE vf number is not valid, it is %s", vfNum)
+		}
+	} else {
+		if vfNum != "" && vfNum != "0" {
+			return false, fmt.Sprintf("RoCE vf number is not 0 in non sriovNode, it is %s", vfNum)
+		}
+	}
+	logrus.WithField("component", "infiniband").Infof("RoCE vf number is valid: %s for IBDev: %s", vfNum, IBDev)
 	return true, ""
 }
 
-func (c *RoCEChecker) checkRocEGWStatus(IBDev string, PFGW string) (bool, string) {
-
+func (c *RoCEChecker) checkRoCEGWStatus(IBDev string, PFGW string) (bool, string) {
 	isReachable, errMsg := c.CheckGatewayReachable(IBDev, PFGW)
 	if !isReachable {
 		return false, errMsg
@@ -202,15 +226,18 @@ func (c *RoCEChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		return nil, fmt.Errorf("InfinibandInfo is nil")
 	}
 
+	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if hwInfo.LinkLayer == "Infiniband" {
 			logrus.WithField("component", "infiniband").Infof("RoCE checks are not applicable for Infiniband devices: %s", hwInfo.IBDev)
+			infinibandInfo.RUnlock()
 			result := config.InfinibandCheckItems[c.name]
 			result.Status = consts.StatusNormal
 			result.Detail = "RoCE checks are not applicable for Infiniband devices"
 			return &result, nil
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	type checkItemResult struct {
 		item   string
@@ -229,8 +256,22 @@ func (c *RoCEChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	checkPerVFNum.item = "vfNum"
 
 	// Perform checks
+	type deviceInfo struct {
+		IBDev string
+		PFGW  string
+	}
+	var devices []deviceInfo
+	infinibandInfo.RLock()
 	for index := range infinibandInfo.IBHardWareInfo {
-		IBDev := infinibandInfo.IBHardWareInfo[index].IBDev
+		devices = append(devices, deviceInfo{
+			IBDev: infinibandInfo.IBHardWareInfo[index].IBDev,
+			PFGW:  infinibandInfo.IBHardWareInfo[index].PFGW,
+		})
+	}
+	infinibandInfo.RUnlock()
+
+	for _, dev := range devices {
+		IBDev := dev.IBDev
 		checkPerVFSpec.dev = IBDev
 		checkPerNetGw.dev = IBDev
 		checkPerVFNum.dev = IBDev
@@ -255,13 +296,16 @@ func (c *RoCEChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		checkVFNum = append(checkVFNum, checkPerVFNum)
 
 		// Check RoCE Gateway Status
-		NetGWStatus, NetGWInfo := c.checkRocEGWStatus(IBDev, infinibandInfo.IBHardWareInfo[index].PFGW)
+		NetGWStatus, NetGWInfo := c.checkRoCEGWStatus(IBDev, dev.PFGW)
 		checkPerNetGw.info = NetGWInfo
 		if NetGWStatus {
+			checkPerNetGw.status = true
+		} else if strings.Contains(NetGWInfo, "IPV6") {
 			checkPerNetGw.status = true
 		} else {
 			checkPerNetGw.status = false
 		}
+
 		checkNetGw = append(checkNetGw, checkPerNetGw)
 	}
 

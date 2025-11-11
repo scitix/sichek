@@ -1,9 +1,9 @@
-FROM nvidia/cuda:12.8.1-base-ubuntu22.04 AS build
+FROM nvidia/cuda:12.8.1-base-ubuntu20.04 AS build
 
 RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list
 
 RUN apt-get -o Acquire::http::No-Cache=true update && apt-get install -y \
-    build-essential gcc g++ curl git \
+    build-essential gcc g++ curl git wget \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -OL https://go.dev/dl/go1.23.3.linux-amd64.tar.gz && \
@@ -24,9 +24,33 @@ WORKDIR /go/src/sichek
 COPY . .
 # RUN go mod download
 
-RUN make goreleaser
+ARG VERSION
+RUN INCLUDE_SICL=true make goreleaser
+RUN set -ex && \
+    PRIMARY_URL="https://oss-ap-southeast.scitix.ai/scitix/packages/ossctl/latest/linux-amd64/ossctl" && \
+    BACKUP_URL="https://oss-cn-shanghai.siflow.cn/scitix/packages/ossctl/latest/linux-amd64/ossctl" && \
+    \
+    echo "Checking primary URL accessibility..." && \
+    if wget -q --spider "$PRIMARY_URL"; then \
+        echo "Primary URL available, using $PRIMARY_URL"; \
+        wget "$PRIMARY_URL" -O ossctl; \
+    else \
+        echo "Primary URL unavailable, switching to backup $BACKUP_URL"; \
+        wget "$BACKUP_URL" -O ossctl; \
+    fi && \
+    \
+    chmod +x ossctl && \
+    ./ossctl config import scitix_oss ./tools/ossctl/credentials.json && \
+    ./ossctl cp ./dist/sichek_${VERSION}_linux_amd64.rpm scitix_oss/scitix-release/sichek/latest/sichek_latest_linux_amd64.rpm && \
+    ./ossctl cp ./dist/sichek_${VERSION}_linux_amd64.deb scitix_oss/scitix-release/sichek/latest/sichek_latest_linux_amd64.deb && \
+    ./ossctl cp ./dist/sichek_${VERSION}_linux_amd64.rpm scitix_oss/scitix-release/sichek/${VERSION}/sichek_${VERSION}_linux_amd64.rpm && \
+    ./ossctl cp ./dist/sichek_${VERSION}_linux_amd64.deb scitix_oss/scitix-release/sichek/${VERSION}/sichek_${VERSION}_linux_amd64.deb && \
+    ./ossctl cp ./install.sh scitix_oss/scitix-release/sichek/install.sh
 
-FROM nvidia/cuda:12.8.1-base-ubuntu22.04
+RUN rm -rf ./dist && \
+    INCLUDE_SICL=false make goreleaser
+
+FROM nvidia/cuda:12.8.1-base-ubuntu20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -36,20 +60,12 @@ RUN apt-get -o Acquire::http::No-Cache=true update && \
     apt-get install -y vim curl tzdata git ca-certificates perftest xz-utils \
     openssh-server libnuma1 numactl rdmacm-utils \
     openssh-client iproute2 iputils-ping jq && \
-    rm -rf /var/lib/apt/lists/* && \
-    curl -o /tmp/sicl_install.sh https://oss-ap-southeast.scitix.ai/scitix-release/sicl-24.11-1.cuda1262.ubuntu2204.run && \
-    bash /tmp/sicl_install.sh && rm -rf /tmp/sicl_install.sh && \
     apt clean && apt autoremove && rm -rf /var/lib/apt/lists/*
 
 RUN cd /tmp && \
     curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod 700 get_helm.sh && ./get_helm.sh && rm -rf /tmp/get_helm.sh
-    
-RUN cd /tmp && \
-    curl -o nccl-test-portable-2.27.3.tar.gz https://oss-ap-southeast.scitix.ai/scitix-release/nccl-test-portable/nccl-test-portable-2.27.3.tar.gz && \
-    tar -xzf nccl-test-portable-2.27.3.tar.gz && \
-    cp nccl-test-portable/lib/*  /usr/local/sihpc/lib/ && \
-    rm -rf /tmp/*
+
 
 ENV NVIDIA_VISIBLE_DEVICES=""
 ENV TZ=Asia/Shanghai
@@ -57,7 +73,14 @@ RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && dpkg-reconfigure --frontend
 
 WORKDIR /opt/sichek
 COPY --from=build /go/src/sichek/dist ./dist
-RUN dpkg -i ./dist/sichek_*_linux_amd64.deb
+ARG SICL_VERSION=sicl-25.11-1.cuda128.ubuntu2004.run
+RUN dpkg -i ./dist/sichek_*_linux_amd64.deb && \
+    curl -o ./dist/${SICL_VERSION} https://oss-ap-southeast.scitix.ai/scitix-release/${SICL_VERSION}
+ENV SIHPC_HOME=/usr/local/sihpc
+ENV PATH=$SIHPC_HOME/bin:$PATH
+ENV LD_LIBRARY_PATH=$SIHPC_HOME/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV OMPI_MCA_opal_prefix=$SIHPC_HOME
+ENV OPAL_PREFIX=$SIHPC_HOME
 
 # SSH dependencies for MPI
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
@@ -66,7 +89,7 @@ RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config &&
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     chmod 700 /root/.ssh
-    RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -N "" && \
+RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -N "" && \
     cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
     chmod 600 /root/.ssh/authorized_keys
 

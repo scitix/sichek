@@ -86,7 +86,8 @@ memory:
 		return fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
 	}
 	// Call the Get method
-	nvidiaCollector, err := collector.NewNvidiaCollector(ctx, nvmlInst, 8)
+	nvmlInstPtr := &nvmlInst
+	nvidiaCollector, err := collector.NewNvidiaCollector(ctx, nvmlInstPtr, 8)
 	if err != nil {
 		return fmt.Errorf("failed to create NvidiaCollector: %v", err)
 	}
@@ -209,7 +210,8 @@ func TestGpuPStateChecker_Check(t *testing.T) {
 
 func TestHardwareChecker_Check(t *testing.T) {
 	// Create a new HardwareChecker
-	checker, err := NewHardwareChecker(nvidiaSpecCfg, nvmlInst)
+	nvmlInstPtr := &nvmlInst
+	checker, err := NewHardwareChecker(nvidiaSpecCfg, nvmlInstPtr)
 	if err != nil {
 		t.Fatalf("failed to create HardwareChecker: %v", err)
 	}
@@ -362,7 +364,8 @@ func TestSoftwareChecker_Check(t *testing.T) {
 
 func TestChecker_Check(t *testing.T) {
 	// Create a new SoftwareChecker
-	checkers, err := NewCheckers(&nvidiaUserCfg, nvidiaSpecCfg, nvmlInst)
+	nvmlInstPtr := &nvmlInst
+	checkers, err := NewCheckers(&nvidiaUserCfg, nvidiaSpecCfg, nvmlInstPtr)
 	if err != nil {
 		t.Fatalf("failed to create Checkers: %v", err)
 	}

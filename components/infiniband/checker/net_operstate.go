@@ -63,7 +63,11 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
@@ -71,8 +75,9 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 	}
 
 	failedHcas := make([]string, 0)
-	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	spec := make([]string, 0, hwInfoLen)
+	curr := make([]string, 0, hwInfoLen)
+	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
@@ -86,6 +91,7 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

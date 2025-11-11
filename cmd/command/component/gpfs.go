@@ -30,8 +30,7 @@ func NewGpfsCmd() *cobra.Command {
 	gpfsCmd := &cobra.Command{
 		Use:     "gpfs",
 		Aliases: []string{"f"},
-		Short:   "Perform Gpfs - related operations",
-		Long:    "Used to perform specific Gpfs - related operations, with specific functions to be expanded",
+		Short:   "Perform Gpfs HealthCheck",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
@@ -69,7 +68,7 @@ func NewGpfsCmd() *cobra.Command {
 				logrus.WithField("component", "Gpfs").Error(err)
 				return
 			}
-			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

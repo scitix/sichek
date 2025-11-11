@@ -16,9 +16,11 @@ limitations under the License.
 package component
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -137,19 +139,24 @@ func NewNcclPerftestCmd() *cobra.Command {
 					}
 				}
 			}
+			timeout, err := cmd.Flags().GetInt("timeout")
+			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
+				return
+			}
 			var res *common.Result
 			result := 0
 			fmt.Printf("Running NCCL performance test with %d GPUs, begin buffer: %s, end buffer: %s, disable NVLinks: %t, expected bandwidth: %.2f Gbps\n", numGpus, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
 			if scale {
 				for g := 2; g <= numGpus; g++ {
-					res, err = CheckNcclPerf(g, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
+					res, err = CheckNcclPerf(g, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps, timeout)
 					if err != nil {
 						logrus.WithField("perftest", "nccl").Error(err)
 						result = -1
 					}
 				}
 			} else {
-				res, err = CheckNcclPerf(numGpus, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
+				res, err = CheckNcclPerf(numGpus, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps, timeout)
 				if err != nil {
 					logrus.WithField("perftest", "nccl").Error(err)
 					result = -1
@@ -172,6 +179,7 @@ func NewNcclPerftestCmd() *cobra.Command {
 	ncclPerftestCmd.Flags().BoolP("disable-nvls", "d", false, "test without nvlinks")
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ncclPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+	ncclPerftestCmd.Flags().IntP("timeout", "t", 120, "Timeout in seconds")
 
 	return ncclPerftestCmd
 }
@@ -212,40 +220,121 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	}
 	fmt.Printf("== Run %d GPU nccl all_reduce test ==\n", cfg.NumGpus)
 	cmd := exec.Command("bash", args...)
-	env := os.Environ()
+
+	// Start with current environment variables to inherit all existing env vars
+	envMap := make(map[string]string)
+	for _, env := range os.Environ() {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
+
+	// Override or add specific environment variables
 	if cfg.DisableNvls {
-		env = append(env, "NCCL_NVLS_ENABLE=0")
+		envMap["NCCL_NVLS_ENABLE"] = "0"
 	} else {
-		env = append(env, "NCCL_NVLS_ENABLE=1")
+		envMap["NCCL_NVLS_ENABLE"] = "1"
 	}
 	if cfg.Gpulist != "" {
-		env = append(env, fmt.Sprintf("CUDA_VISIBLE_DEVICES=%s", cfg.Gpulist))
+		fmt.Printf("CUDA_VISIBLE_DEVICES: %s\n", cfg.Gpulist)
+		envMap["CUDA_VISIBLE_DEVICES"] = cfg.Gpulist
 	}
-	env = append(env, "UCX_TLS=tcp")
+	envMap["UCX_TLS"] = ""
+	envMap["OMPI_MCA_pml"] = "^ucx"
+
+	// Convert map back to slice of "KEY=VALUE" format
+	env := make([]string, 0, len(envMap))
+	for key, value := range envMap {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+
 	logrus.WithField("perftest", "nccl").Infof("env: %v\n", env)
 	cmd.Env = env
 	return cmd
 }
 
-func runNcclTest(cfg Config) ([]float64, error) {
+func runNcclTest(cfg Config, timeout int) ([]float64, error) {
 	cmd := buildNcclTestCmd(cfg)
-	logrus.WithField("perftest", "nccl").Infof("Command: %s\n", cmd.String())
-	output, err := cmd.CombinedOutput()
-	outputStr := string(output)
-	logrus.WithField("perftest", "nccl").Infof("output: %s\n", outputStr)
-	if err != nil {
-		return nil, err
+	if cmd == nil {
+		return nil, fmt.Errorf("failed to build nccl test command")
 	}
+	logrus.WithField("perftest", "nccl").Infof("Command: %s\n", cmd.String())
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start nccl test: %w", err)
+	}
+
+	var (
+		stdoutBuf  bytes.Buffer
+		stderrBuf  bytes.Buffer
+		stdoutDone = make(chan struct{})
+		stderrDone = make(chan struct{})
+	)
+
+	// async copy the output streams to the buffers and print the real-time output
+	go func() {
+		defer close(stdoutDone)
+		mw := io.MultiWriter(os.Stdout, &stdoutBuf)
+		_, _ = io.Copy(mw, stdout)
+	}()
+	go func() {
+		defer close(stderrDone)
+		mw := io.MultiWriter(os.Stderr, &stderrBuf)
+		_, _ = io.Copy(mw, stderr)
+	}()
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		// wait for stdout and stderr to be done
+		<-stdoutDone
+		<-stderrDone
+		if err != nil {
+			stderrStr := stderrBuf.String()
+			// logrus.WithField("perftest", "nccl").Errorf("nccl test failed: %v, stdout: %s, stderr: %s", err, outputStr, stderrStr)
+			return nil, fmt.Errorf("nccl test command failed: %v. stderr: %s", err, stderrStr)
+		}
+	case <-time.After(time.Duration(timeout) * time.Second):
+		// kill the process if it timed out
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		// wait for the command to complete and the output streams to be copied
+		<-done // wait for Wait() to complete
+		<-stdoutDone
+		<-stderrDone
+		stderrStr := stderrBuf.String()
+		return nil, fmt.Errorf("nccl test timed out after %d seconds. stderr: %s", timeout, stderrStr)
+	}
+
+	outputStr := stdoutBuf.String()
+	logrus.WithField("perftest", "nccl").Infof("output: %s\n", outputStr)
 
 	var res []float64
 	lines := strings.Split(outputStr, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "Avg bus bandwidth") {
-			bwStr := strings.TrimSpace(strings.Split(line, ":")[1])
+			parts := strings.Split(line, ":")
+			if len(parts) < 2 {
+				continue
+			}
+			bwStr := strings.TrimSpace(parts[1])
 			bwStr = strings.Split(bwStr, " ")[0]
 			bw, err := strconv.ParseFloat(bwStr, 64)
 			if err != nil {
-				return nil, fmt.Errorf("parse bandwidth err: %v", err)
+				return nil, fmt.Errorf("parse bandwidth err: %v. Output: %s", err, outputStr)
 			}
 			res = append(res, bw)
 		}
@@ -289,7 +378,7 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Re
 
 }
 
-func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableNvls bool, exceptBwGbps float64) (*common.Result, error) {
+func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableNvls bool, exceptBwGbps float64, timeout int) (*common.Result, error) {
 	jobCfg := Config{
 		NumGpus:     numGpus,
 		Gpulist:     gpulist,
@@ -298,7 +387,7 @@ func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableN
 		beginBuffer: beginBuffer,
 		endBuffer:   endBuffer,
 	}
-	records, err := runNcclTest(jobCfg)
+	records, err := runNcclTest(jobCfg, timeout)
 	if err != nil {
 		return nil, fmt.Errorf("run nccl test fail: %v", err)
 	}

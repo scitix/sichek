@@ -18,13 +18,13 @@ package checker
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type PCIEMRRChecker struct {
@@ -63,7 +63,11 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
@@ -71,13 +75,14 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	}
 
 	failedHcas := make([]string, 0)
-	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	spec := make([]string, 0, hwInfoLen)
+	curr := make([]string, 0, hwInfoLen)
 	var faiedHcasSpec []string
 	var faiedHcasCurr []string
+	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
-			log.Printf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			logrus.WithField("component", "infiniband").Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
@@ -92,6 +97,7 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			infinibandInfo.ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

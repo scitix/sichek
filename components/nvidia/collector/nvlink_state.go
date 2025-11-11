@@ -26,16 +26,16 @@ import (
 )
 
 type NVLinkState struct {
-	NVlinkSupported bool `json:"nvlink_supported"`
-	FeatureEnabled  bool `json:"feature_enabled"`
-	LinkNo          int  `json:"link_no"`
+	NVlinkSupported bool `json:"nvlink_supported" yaml:"nvlink_supported"`
+	FeatureEnabled  bool `json:"feature_enabled" yaml:"feature_enabled"`
+	LinkNo          int  `json:"link_no" yaml:"link_no"`
 }
 
 type NVLinkStates struct {
-	NVlinkSupported   bool          `json:"nvlink_supported"`
-	AllFeatureEnabled bool          `json:"all_feature_enabled,omitempty"`
-	NvlinkNum         int           `json:"active_nvlink_num"`
-	NVLinkStates      []NVLinkState `json:"nvlink_state,omitempty"`
+	NVlinkSupported   bool          `json:"nvlink_supported" yaml:"nvlink_supported"`
+	AllFeatureEnabled bool          `json:"all_feature_enabled,omitempty" yaml:"all_feature_enabled,omitempty"`
+	NvlinkNum         int           `json:"active_nvlink_num" yaml:"active_nvlink_num"`
+	NVLinkStates      []NVLinkState `json:"nvlink_state,omitempty" yaml:"nvlink_state,omitempty"`
 }
 
 func (nvlinkState *NVLinkState) JSON() ([]byte, error) {

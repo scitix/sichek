@@ -112,6 +112,7 @@ func (c *IBDriverChecker) Check(ctx context.Context, data any) (*common.CheckerR
 	}
 
 	var diffBDF []string
+	infinibandInfo.RLock()
 	for _, bdfFromPCIe := range HCAPCIeBDF {
 		var diff bool = false
 
@@ -128,6 +129,7 @@ func (c *IBDriverChecker) Check(ctx context.Context, data any) (*common.CheckerR
 			diffBDF = append(diffBDF, bdfFromPCIe)
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	result := config.InfinibandCheckItems[c.name]
 	if len(diffBDF) > 0 {

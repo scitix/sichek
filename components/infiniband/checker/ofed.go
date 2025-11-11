@@ -139,7 +139,11 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
@@ -147,7 +151,18 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	curr := infinibandInfo.IBSoftWareInfo.OFEDVer
+	// 如果返回driver version，且系统文件下有值，说明驱动正常加载，直接返回驱动版本
+	if strings.Contains(curr, "core") {
+		logrus.WithField("component", "infiniband").Infof("OFED version not get from rdma-core, but found IB PF devices, using rdma-core version")
+		result.Curr = strings.TrimPrefix(curr, "rdma_core:")
+		result.Status = consts.StatusNormal
+		result.Detail = fmt.Sprintf("current rdma core: %s", curr)
+		result.Suggestion = "check the rdma-core installation"
+		return &result, nil
+	}
+	logrus.WithField("component", "infiniband").Infof("Current OFED version from rdma-core: %s", curr)
 	spec := c.spec.IBSoftWareInfo.OFEDVer
+	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
@@ -159,6 +174,7 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			logrus.Warnf("use the IB device's OFED spec to check the system OFED version")
 		}
 	}
+	infinibandInfo.RUnlock()
 	pass, err := checkOFEDVersion(spec, curr)
 	if !pass || err != nil {
 		result.Status = consts.StatusAbnormal
