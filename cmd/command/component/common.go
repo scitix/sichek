@@ -37,7 +37,7 @@ type CheckResults struct {
 	info      common.Info
 }
 
-func RunComponentCheck(ctx context.Context, comp common.Component, cfg, specFile string, ignoredCheckers []string, timeout time.Duration) (*CheckResults, error) {
+func RunComponentCheck(ctx context.Context, comp common.Component, timeout time.Duration) (*CheckResults, error) {
 	result, err := common.RunHealthCheckWithTimeout(ctx, timeout, comp.Name(), comp.HealthCheck)
 	if err != nil {
 		logrus.WithField("component", comp.Name()).Error(err) // Updated to use comp.Name()

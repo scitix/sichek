@@ -65,7 +65,11 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Detail = config.NOIBFOUND
 		return &result, fmt.Errorf("fail to get the IB device")
@@ -75,6 +79,7 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 	failedHcas := make([]string, 0)
 	var spec []string
 	var curr []string
+	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.Warnf("hca %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
@@ -92,6 +97,7 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 			detail = append(detail, errMsg)
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

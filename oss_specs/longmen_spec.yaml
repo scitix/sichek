@@ -1,0 +1,92 @@
+nvidia:
+    "0x232910de":
+        name: NVIDIA H20
+        gpu_nums: 8
+        gpu_memory: 96
+        dependence:
+            pcie-acs: ""
+            iommu: "false"
+            nv-peermem: ""
+            nv_fabricmanager: active
+            cpu_performance: enable
+        software:
+            driverversion: '>=550.144.03'
+            cudaversion: '>=12.4'
+        nvlink:
+            nvlinksupported: true
+            allfeatureenabled: false
+            nvlinknum: 18
+            nvlinkstates: []
+        state:
+            gpupersistencem: enable
+            gpupstate: 0
+        memory_errors_threshold:
+            remapped_uncorrectable_errors: 512
+            sram_volatile_uncorrectable_errors: 0
+            sram_aggregate_uncorrectable_errors: 4
+            sram_volatile_correctable_errors: 10000000
+            sram_aggregate_correctable_errors: 10000000
+        temperature_threshold:
+            gpu: 75
+            memory: 95
+        perf:
+            nccl-all-reduce-bw: 470
+infiniband:
+    default:
+        ibpfdevs:
+            mlx5_1: eth1
+            mlx5_2: eth2
+            mlx5_3: eth3
+            mlx5_4: eth4
+        ibsoftwareinfo:
+            ofedver: OFED-internal-23.10-1.1.9
+            kernelmodule:
+                - rdma_ucm
+                - rdma_cm
+                - ib_ipoib
+                - mlx5_core
+                - mlx5_ib
+                - ib_uverbs
+                - ib_umad
+                - ib_cm
+                - ib_core
+                - mlxfw
+        pcieacs: disable
+        hcas: {}
+hca:
+    MT_0000001070:
+        hardware:
+            ibdev: ""
+            netdev: ""
+            hcatype: "0"
+            systemguid: ""
+            nodeguid: ""
+            pfgw: ""
+            vfspec: ""
+            vfnum: ""
+            phystate: LinkUp
+            portstate: ACTIVE
+            linklayer: Ethernet
+            netoperstate: up
+            portspeed: 400 Gb/sec (4X NDR)
+            portspeedstate: ""
+            boardid: MT_0000001070
+            deviceid: ""
+            pciebdf: ""
+            pciespeed: 32.0 GT/s PCIe
+            pciespeedstate: ""
+            pciewidth: "16"
+            pciewidthstate: ""
+            pcietreespeedmin: "32"
+            pcietreewidthmin: "16"
+            pciemrr: "4096"
+            slot: ""
+            numanode: ""
+            cpulists: ""
+            fwver: 32.39.3808
+            vpd: BlueField-3 E-series SuperNIC 400GbE/NDR single port QSFP112, PCIe Gen5.0 x16, 8 Cores, HHHL, Crypto Disabled, 16GB DDR5, BMC, Tall Bracket
+            ofedver: ""
+        perf:
+            one_way_bw: 360
+            avg_latency_us: 10
+pcie_topo: {}

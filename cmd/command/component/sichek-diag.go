@@ -24,6 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewDiagCmd() *cobra.Command {
@@ -43,7 +44,7 @@ func NewDiagCmd() *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "diag",
 		Short: "run sichek on diag node via Helm",
-		Long: `Usage: sichek install [flags]
+		Long: `Usage: sichek diag [flags]
 
 Defaults:
   --image-repo       = registry-us-east.scitix.ai/hisys/sichek
@@ -52,6 +53,10 @@ Defaults:
 	--hostfile         = None (file containing hostnames, one per line)
 	--host             = None (comma-separated hostnames)`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("image_repo")
+			imageTag = viper.GetString("image_tag")
+			defaultSpec = viper.GetString("default_spec")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 			script := "/var/sichek/scripts/sichek_diag_and_collect_err.sh"
@@ -83,9 +88,6 @@ Defaults:
 	runCmd.Flags().StringVar(&jobName, "job-name", "diag", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "sichek all -e -I podlog,gpuevents,nccltest", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
-	runCmd.Flags().StringVar(&defaultSpec, "default-spec", "hercules_spec.yaml", "Default spec file for installation")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 1200, "Timeout for job completion in seconds")
 	runCmd.Flags().BoolVar(&cpu, "cpu", false, "diag job on cpu node")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")

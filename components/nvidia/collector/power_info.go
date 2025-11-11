@@ -25,14 +25,14 @@ import (
 )
 
 type PowerInfo struct {
-	PowerUsage         uint32  `json:"power_usage"`
-	CurPowerLimit      float32 `json:"cur_power_limit_W"`
-	DefaultPowerLimit  float32 `json:"default_power_limit_W"`
-	EnforcedPowerLimit float32 `json:"enforced_power_limit_W"`
-	MinPowerLimit      float32 `json:"min_power_limit_W"`
-	MaxPowerLimit      float32 `json:"max_power_limit_W"`
-	PowerViolations    uint64  `json:"power_violations"`
-	ThermalViolations  uint64  `json:"thermal_violations"`
+	PowerUsage         uint32  `json:"power_usage" yaml:"power_usage"`
+	CurPowerLimit      float32 `json:"cur_power_limit_W" yaml:"cur_power_limit_W"`
+	DefaultPowerLimit  float32 `json:"default_power_limit_W" yaml:"default_power_limit_W"`
+	EnforcedPowerLimit float32 `json:"enforced_power_limit_W" yaml:"enforced_power_limit_W"`
+	MinPowerLimit      float32 `json:"min_power_limit_W" yaml:"min_power_limit_W"`
+	MaxPowerLimit      float32 `json:"max_power_limit_W" yaml:"max_power_limit_W"`
+	PowerViolations    uint64  `json:"power_violations" yaml:"power_violations"`
+	ThermalViolations  uint64  `json:"thermal_violations" yaml:"thermal_violations"`
 }
 
 func (info *PowerInfo) JSON() ([]byte, error) {

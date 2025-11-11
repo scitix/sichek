@@ -29,3 +29,6 @@ chown root:root "$PROFILE_D_FILE"
 
 echo "Added /var/sichek/scripts to system PATH"
 echo "Please run 'source /etc/profile' or log out and log back in to use sichek scripts"
+
+# Run check_sicl.sh
+bash /var/sichek/scripts/check_sicl.sh || echo "Failed to run SICL installer"

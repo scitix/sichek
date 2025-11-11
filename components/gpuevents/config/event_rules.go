@@ -17,7 +17,7 @@ package config
 
 import (
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/nvidia/config"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
@@ -66,7 +66,7 @@ func LoadDefaultEventRules() (map[string]*GpuEventRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	deviceID, err := config.GetDeviceID()
+	deviceID, err := nvutils.GetDeviceID()
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func LoadEventRules(file string) (map[string]*GpuEventRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	deviceID, err := config.GetDeviceID()
+	deviceID, err := nvutils.GetDeviceID()
 	if err != nil {
 		return nil, err
 	}

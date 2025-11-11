@@ -108,7 +108,7 @@ func (x *XidEventPoller) Start() error {
 		// waits for the duration specified in x.Cfg.UpdateInterval (in seconds)
 		// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlEvents.html#group__nvmlEvents
 		// e, err := x.XidEventSet.Wait(uint32(x.Cfg.UpdateInterval.Microseconds()))
-		e, err := x.XidEventSet.Wait(uint32(1000))
+		e, err := x.XidEventSet.Wait(uint32(200))
 
 		if errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 			logrus.WithField("component", "nvidia").Warningf("XidEvent not supported -- Skipping: %v", nvml.ErrorString(err))

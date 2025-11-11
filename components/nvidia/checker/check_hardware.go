@@ -33,14 +33,14 @@ import (
 type HardwareChecker struct {
 	name     string
 	cfg      *config.NvidiaSpec
-	nvmlInst nvml.Interface
+	nvmlInst *nvml.Interface
 }
 
-func NewHardwareChecker(cfg *config.NvidiaSpec, nvmlInst nvml.Interface) (common.Checker, error) {
+func NewHardwareChecker(cfg *config.NvidiaSpec, nvmlInstPtr *nvml.Interface) (common.Checker, error) {
 	return &HardwareChecker{
 		name:     config.HardwareCheckerName,
 		cfg:      cfg,
-		nvmlInst: nvmlInst,
+		nvmlInst: nvmlInstPtr,
 	}, nil
 }
 
@@ -77,7 +77,7 @@ func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]s
 	var lostDeviceIDs []string
 	var lostDeviceIDErrs []string
 	for index := range c.cfg.GpuNums {
-		_, err := c.nvmlInst.DeviceGetHandleByIndex(index)
+		_, err := (*c.nvmlInst).DeviceGetHandleByIndex(index)
 		if !errors.Is(err, nvml.SUCCESS) {
 			lostDeviceIDErrs = append(lostDeviceIDErrs, fmt.Sprintf("NVIDIA GPU %d Error: %s\n", index, nvml.ErrorString(err)))
 			var devicePodName string

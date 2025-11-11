@@ -25,14 +25,14 @@ import (
 )
 
 type PCIeInfo struct {
-	BDFID           string `json:"bdf_id,omitempty"` // e.g 00000001:45:00.0
-	DEVID           uint32 `json:"device_id"`        // e.g 0x233010DE
-	PCILinkGen      int    `json:"pci_gen"`
-	PCILinkGenMAX   int    `json:"pci_gen_max,omitempty"`
-	PCILinkWidth    int    `json:"pci_width"`
-	PCILinkWidthMAX int    `json:"pci_width_max,omitempty"`
-	PCIeTx          uint32 `json:"PCIeTx,omitempty"`
-	PCIeRx          uint32 `json:"PCIeRx,omitempty"`
+	BDFID           string `json:"bdf_id,omitempty" yaml:"bdf_id,omitempty"` // e.g 00000001:45:00.0
+	DEVID           uint32 `json:"device_id" yaml:"device_id"`               // e.g 0x233010DE
+	PCILinkGen      int    `json:"pci_gen" yaml:"pci_gen"`
+	PCILinkGenMAX   int    `json:"pci_gen_max,omitempty" yaml:"pci_gen_max,omitempty"`
+	PCILinkWidth    int    `json:"pci_width" yaml:"pci_width"`
+	PCILinkWidthMAX int    `json:"pci_width_max,omitempty" yaml:"pci_width_max,omitempty"`
+	PCIeTx          uint32 `json:"PCIeTx,omitempty" yaml:"PCIeTx,omitempty"`
+	PCIeRx          uint32 `json:"PCIeRx,omitempty" yaml:"PCIeRx,omitempty"`
 }
 
 func (p *PCIeInfo) JSON() ([]byte, error) {

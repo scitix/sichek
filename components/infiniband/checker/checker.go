@@ -43,6 +43,7 @@ func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec, 
 		// config.CheckPCIETreeSpeed: NewBPCIETreeSpeedChecker,
 		// config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
 	}
+	info.RLock()
 	for _, hwinfo := range info.IBHardWareInfo {
 		if hwinfo.LinkLayer == "Ethernet" {
 			checkerConstructors[config.CheckRoCE] = NewRoCEChecker
@@ -50,6 +51,7 @@ func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec, 
 			break
 		}
 	}
+	info.RUnlock()
 
 	ignoredSet := make(map[string]struct{})
 	for _, checker := range cfg.Infiniband.IgnoredCheckers {

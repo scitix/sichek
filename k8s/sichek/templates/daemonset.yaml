@@ -9,6 +9,11 @@ spec:
   selector:
     matchLabels:
       app: {{ .Values.name }}
+    updateStrategy:
+      type: {{ .Values.daemon.updateStrategy}}
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 10
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -50,18 +55,28 @@ spec:
           ports:
           - name: metrics
             containerPort: 19091
-          command: ["/bin/bash"]
+          command: ["/bin/bash", "-c"]
           args:
-            - "-c"
             - |-
+              mkdir -p /host-nvidia
+              for lib in `ls /host-usr/lib/x86_64-linux-gnu |grep libnvidia`;do
+                  if [ -f /host-usr/lib/x86_64-linux-gnu/$lib ]; then
+                    ln -sf /host-usr/lib/x86_64-linux-gnu/$lib /host-nvidia/$lib
+                  fi
+              done
+              for lib in `ls /host-usr/lib/x86_64-linux-gnu |grep libcuda`;do
+                  if [ -f /host-usr/lib/x86_64-linux-gnu/$lib ]; then
+                    ln -sf /host-usr/lib/x86_64-linux-gnu/$lib /host-nvidia/$lib
+                  fi
+              done
+              echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/host-nvidia" >> ~/.bashrc
+              export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/host-nvidia
               sichek daemon run -s /var/sichek/config/{{ .Values.defaultSpec }}
           env:
           - name: NODE_NAME
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-          - name: NVIDIA_VISIBLE_DEVICES
-            value: none
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
@@ -89,6 +104,11 @@ metadata:
   name: {{ .Values.name }}-cpu
   namespace: {{ .Values.namespace }}
 spec:
+  updateStrategy:
+    type: {{ .Values.daemon.updateStrategy }}
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 10
   selector:
     matchLabels:
       app: {{ .Values.name }}

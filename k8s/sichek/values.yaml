@@ -3,28 +3,30 @@
 # Declare variables to be passed into your templates.
 
 name: sichek
-namespace: default
+namespace: hi-sys-monitor
 
 image:
   repository: registry-ap-southeast.scitix.ai/hisys/sichek
   pullPolicy: Always #IfNotPresent
   tag: "latest"
 
-mode: daemon  # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
-nodeName: ""       # Define the node name to diagnostic; leave it empty if not specified
+mode: daemon # Options: "diagnostic" (one-time health check) or "daemon" (continuous health check)
+nodeName: "" # Define the node name to diagnostic; leave it empty if not specified
 defaultSpec: default # Define the default spec for sichek
+os: "ubuntu" # Define the os for sichek run, options: ubuntu, centos
 schedulerName: "si-scheduler" # Define the scheduler name
 roceSharedMode: none # specified RDMA shared mode, options: vf, macvlan, none
 
 daemon:
   gpuLabel: "" # Define the gpu node label to deploy sichek daemon; leave it empty if not specified
   cpuLabel: "" # Define the cpu node label to deploy sichek daemon; leave it empty if not specified
+  updateStrategy: OnDelete # updateStrategy RollingUpdate/ OnDelete
 
 batchjob:
   name: "diag"
-  gpu: true       # Define the gpu node name to diagnostic; set it false if cpu node to diagnostic
-  parallelism: 1     # Define the number of parallel pods for the batch Job
-  completions: 1     # Define the number of completions for the batch Job
+  gpu: true # Define the gpu node name to diagnostic; set it false if cpu node to diagnostic
+  parallelism: 1 # Define the number of parallel pods for the batch Job
+  completions: 1 # Define the number of completions for the batch Job
   cmd: "sichek all -e -I podlog,gpuevents,nccltest"
 
 mpijob:
@@ -51,8 +53,7 @@ clusterRoleBinding:
 podAnnotations: {}
 podLabels: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+podSecurityContext: {} # fsGroup: 2000
 
 securityContext:
   privileged: true
@@ -71,36 +72,69 @@ resources:
 
 # Additional volumes on the output Deployment definition.
 volumes:
-  - name: host-dev
-    hostPath:
-      path: /dev
-  - name: host-sys
-    hostPath:
-      path: /sys
-  - name: host-log
-    hostPath:
-      path: /var/log
-  - name: host-adm
-    hostPath:
-      path: /var/adm
-  - name: host-var-lib-kubelet
-    hostPath:
-      path: /var/lib/kubelet
-
-
+- name: host-dev
+  hostPath:
+    path: /dev
+- name: host-sys
+  hostPath:
+    path: /sys
+- name: host-log
+  hostPath:
+    path: /var/log
+- name: host-adm
+  hostPath:
+    path: /var/adm
+- name: host-var-lib-kubelet
+  hostPath:
+    path: /var/lib/kubelet
+- name: host-run-nvidia-fabricmanager
+  hostPath:
+    path: /run/nvidia-fabricmanager
+- name: host-run-nvidia-persistenced
+  hostPath:
+    path: /run/nvidia-persistenced
+- name: nvidia-bin
+  hostPath:
+    path: /usr/bin/nvidia-smi
+- name: nvidia-persistenced
+  hostPath:
+    path: /usr/bin/nvidia-persistenced
+- name: nvidia-lib
+  hostPath:
+    path: /usr/lib/x86_64-linux-gnu
 # Additional volumeMounts on the output Deployment definition.
 volumeMounts:
-  - name: host-dev
-    mountPath: /dev
-  - name: host-sys
-    mountPath: /sys
-  - name: host-log
-    mountPath: /var/log
-  - name: host-adm
-    mountPath: /var/adm
-  - name: host-var-lib-kubelet
-    mountPath: /var/lib/kubelet
-
+- name: host-dev
+  mountPath: /dev
+  readOnly: true
+- name: host-sys
+  mountPath: /sys
+  readOnly: true
+- name: host-log
+  mountPath: /var/log
+  readOnly: true
+- name: host-adm
+  mountPath: /var/adm
+  readOnly: true
+- name: host-var-lib-kubelet
+  mountPath: /var/lib/kubelet
+  readOnly: true
+- name: host-run-nvidia-fabricmanager
+  mountPath: /run/nvidia-fabricmanager
+  readOnly: true
+- name: host-run-nvidia-persistenced
+  mountPath: /run/nvidia-persistenced
+  readOnly: true
+- name: nvidia-persistenced
+  mountPath: /usr/bin/nvidia-persistenced
+  readOnly: true
+- name: nvidia-bin
+  mountPath: /usr/bin/nvidia-smi
+  name: nvidia-bin
+  readOnly: true
+- name: nvidia-lib
+  mountPath: /host-usr/lib/x86_64-linux-gnu/
+  readOnly: true
 nodeSelector: {}
 
 tolerations: []

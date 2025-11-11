@@ -24,6 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewDeployCmd() *cobra.Command {
@@ -31,7 +32,7 @@ func NewDeployCmd() *cobra.Command {
 		imageRepo   string
 		imageTag    string
 		gpuLabel    string
-		cpuLabel    string
+		deployToCPU bool
 		defaultSpec string
 		namespace   string
 	)
@@ -45,13 +46,16 @@ Defaults:
   --image-repo       = registry-us-east.scitix.ai/hisys/sichek
   --image-tag        = latest,
 	--gpu-label        = ""
-	--cpu-label        = ""
+	--cpu    = false
 	--default-spec     = "hercules_spec.yaml"
 	--namespace        = "hi-sys-monitor"`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("image_repo")
+			imageTag = viper.GetString("image_tag")
+			defaultSpec = viper.GetString("default_spec")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(600)*time.Second)
 			defer cancel()
-
 			argList := []string{
 				"upgrade", "--install", "sichek-daemon", "/var/sichek/k8s/sichek/",
 				"--atomic",
@@ -64,8 +68,8 @@ Defaults:
 			if gpuLabel != "" {
 				argList = append(argList, "--set", fmt.Sprintf("daemon.gpuLabel=%s", gpuLabel))
 			}
-			if cpuLabel != "" {
-				argList = append(argList, "--set", fmt.Sprintf("daemon.cpuLabel=%s", cpuLabel))
+			if deployToCPU {
+				argList = append(argList, "--set", "daemon.cpu=true")
 			}
 			fmt.Println("Running command:", "helm", argList)
 			command := exec.CommandContext(ctx, "helm", argList...)
@@ -79,11 +83,8 @@ Defaults:
 		},
 	}
 
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
 	runCmd.Flags().StringVar(&gpuLabel, "gpu-label", "", "gpu label for daemonset pod affinity")
-	runCmd.Flags().StringVar(&cpuLabel, "cpu-label", "", "cpu label for daemonset pod affinity")
-	runCmd.Flags().StringVar(&defaultSpec, "default-spec", "hercules_spec.yaml", "Default spec file for installation")
+	runCmd.Flags().BoolVar(&deployToCPU, "cpu", false, "deploy sichek to CPU nodes")
 	runCmd.Flags().StringVar(&namespace, "namespace", "hi-sys-monitor", "Kubernetes namespace for sichek")
 	return runCmd
 }

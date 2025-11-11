@@ -26,8 +26,8 @@ import (
 )
 
 type SoftwareInfo struct {
-	DriverVersion string `json:"driver_version"`
-	CUDAVersion   string `json:"cuda_version,omitempty"`
+	DriverVersion string `json:"driver_version" yaml:"driver_version"`
+	CUDAVersion   string `json:"cuda_version,omitempty" yaml:"cuda_version,omitempty"`
 }
 
 func (s *SoftwareInfo) JSON() ([]byte, error) {

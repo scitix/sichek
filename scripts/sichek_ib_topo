@@ -78,7 +78,7 @@ def parse_iblinkinfo(file_path: str):
                     peer_parts = peer_name.split()
                     host_id = peer_parts[0]  # 主机名
                     hca_name = peer_parts[1] if len(peer_parts) > 1 else "unknown"  # HCA 名称
-                    
+
                     if host_id not in hosts:
                         hosts[host_id] = {
                             "id": host_id,
@@ -98,7 +98,7 @@ def parse_iblinkinfo(file_path: str):
         total = len(sw["ports"])
         up = sum(1 for p in sw["ports"] if "LinkUp" in p["state"])
         down = total - up
-        
+
         sw["total_ports"] = total
         sw["up_ports"] = up
         sw["down_ports"] = down
@@ -150,14 +150,14 @@ def classify_topology(switches: dict, hosts: dict):
     for sw_id, sw in switches.items():
         if sw.get("type") == "leaf_sw":
             continue
-        
+
         # 检查是否连接到Leaf Switch
         connected_to_leaf = False
         for p in sw["ports"]:
             if p.get("peer") and p["peer"].get("name") in leaf_names:
                 connected_to_leaf = True
                 break
-        
+
         if connected_to_leaf:
             sw["type"] = "spine_sw"
             spine_sw.append(sw)
@@ -167,14 +167,14 @@ def classify_topology(switches: dict, hosts: dict):
     for sw_id, sw in switches.items():
         if sw.get("type") in ["leaf_sw", "spine_sw"]:
             continue
-        
+
         # 检查是否连接到Spine Switch
         connected_to_spine = False
         for p in sw["ports"]:
             if p.get("peer") and p["peer"].get("name") in spine_names:
                 connected_to_spine = True
                 break
-        
+
         if connected_to_spine:
             sw["type"] = "superspine_sw"
             superspine_sw.append(sw)
@@ -183,7 +183,7 @@ def classify_topology(switches: dict, hosts: dict):
     for sw_id, sw in switches.items():
         if sw.get("type") in ["leaf_sw", "spine_sw", "superspine_sw"]:
             continue
-        
+
         # 检查是否只连接交换机（不连接HCA）
         has_hca = any(p.get("peer") and p["peer"].get("type") == "hca" for p in sw["ports"])
         if not has_hca:
@@ -216,7 +216,7 @@ def summarize_nodes(hosts: dict):
     summary = defaultdict(int)
     for host_id in hosts:
         hid = host_id.lower()
-        
+
         # 检查各种节点类型模式
         if "gpu" in hid or "g88" in hid:  # cetus-g88-xxx 格式
             summary["gpu_nodes"] += 1
@@ -460,12 +460,12 @@ def check_switch_health(switches: dict, switch_types: list = None, verbose: bool
     """
     if switch_types is None:
         switch_types = ["leaf_sw", "spine_sw"]
-    
+
     health_summary = summarize_switch_health(switches, switch_types)
     if not health_summary:
         print("没有找到指定类型的交换机")
         return
-    
+
     # 统计交换机级别健康
     total_switches = len(health_summary)
     healthy_switches = sum(1 for s in health_summary if s["health_percent"] == 100.0)
@@ -476,11 +476,11 @@ def check_switch_health(switches: dict, switch_types: list = None, verbose: bool
     total_ports = sum(s["total_ports"] for s in health_summary)
     up_ports = sum(s["up_ports"] for s in health_summary)
     port_health_rate = (up_ports / total_ports * 100) if total_ports else 0.0
-    
+
     print(f"交换机健康检查 ({', '.join(switch_types)}):")
     print(f"  总交换机数: {total_switches}   端口健康率: {up_ports}/{total_ports} ({port_health_rate:.2f}%)")
     print(f"  ✅ 健康(100%): {healthy_switches}   ⚠️ 警告(80-99%): {warning_switches}   ❌ 严重(<80%): {critical_switches}")
-    
+
     # 表格化问题交换机
     problem_switches = [s for s in health_summary if s["health_percent"] < 100.0]
     if problem_switches:
@@ -524,7 +524,7 @@ def check_switch_health(switches: dict, switch_types: list = None, verbose: bool
                   f"{s['up_ports']}/{s['total_ports']} 端口活跃 ({s['health_percent']}%)")
             if s["down_port_list"]:
                 print(f"      故障端口: {s['down_port_list']}")
-    
+
     return health_summary
 
 if __name__ == "__main__":

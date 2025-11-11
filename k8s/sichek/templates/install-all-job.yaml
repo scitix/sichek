@@ -52,16 +52,35 @@ spec:
           args:
             - "-c"
             - |-
-              set -eu
-              sleep 10
+              set -eux
+              sleep 2
+              cp /opt/sichek/dist/sicl-*.run /host/tmp/
+              sicl_file=$(ls /host/tmp/sicl-*.run)
+              chroot /host bash "/tmp/$(basename "$sicl_file")"
+              {{- if eq .Values.os "ubuntu" }}
               cp /opt/sichek/dist/sichek_*_linux_amd64.deb /host/tmp/
-              cp -rf /usr/local/sihpc /host/usr/local/sihpc
+              {{- else if eq .Values.os "centos" }}
+              cp /opt/sichek/dist/sichek_*_linux_amd64.rpm /host/tmp/
+              {{- end }}
+              {{- if eq .Values.os "ubuntu" }}
               deb_file=$(ls /host/tmp/sichek_*_linux_amd64.deb)
               chroot /host dpkg -i "/tmp/$(basename "$deb_file")"
-              {{- if ne .Values.defaultSpec "default" }}
-              chroot /host mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+              {{- else if eq .Values.os "centos" }}
+              rpm_file=$(ls /host/tmp/sichek_*_linux_amd64.rpm)
+              chroot /host rpm -Uvh --force "/tmp/$(basename "$rpm_file")"
               {{- end }}
-              rm /host/tmp/sichek_*_linux_amd64.deb
+              {{- if ne .Values.defaultSpec "default" }}
+              # Check if spec file exists locally, if not download from OSS
+              if chroot /host test -f /var/sichek/config/{{ .Values.defaultSpec }}; then
+                echo "Spec file exists locally, moving to default_spec.yaml"
+                chroot /host mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+              else
+                echo "Spec file not found locally, downloading from OSS"
+                chroot /host curl -o /var/sichek/config/default_spec.yaml "https://oss-ap-southeast.scitix.ai/hisys-sichek/specs/{{ .Values.defaultSpec }}"
+              fi
+              {{- end }}
+              rm /host/tmp/sichek_*_linux_amd64.*
+              rm /host/tmp/sicl-*.run
               echo "Install finished"
           volumeMounts:
             - name: host-root

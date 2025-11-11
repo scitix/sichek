@@ -1,0 +1,6 @@
+#!/bin/bash
+
+echo "Node Name | Taint Key | Taint Value | Taint Effect"
+echo "-------------------------------------------------"
+kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.taints[?(@.key!="node.kubernetes.io/unschedulable")]}{.key}={.value}:{.effect}{" "}{end}{"\n"}{end}'   | awk '{if (NF>1) print}'
+echo "-------------------------------------------------"

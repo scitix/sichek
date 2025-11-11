@@ -25,63 +25,63 @@ import (
 )
 
 type MemoryErrors struct {
-	ECCMode      ECCMode      `json:"ecc_mode"`
-	RemappedRows RemappedRows `json:"remapped_rows"`
+	ECCMode      ECCMode      `json:"ecc_mode" yaml:"ecc_mode"`
+	RemappedRows RemappedRows `json:"remapped_rows" yaml:"remapped_rows"`
 
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1g08978d1c4fb52b6a4c72b39de144f1d9
 	// Volatile counts are reset each time the driver loads.
-	VolatileECC LocationErrors `json:"volatile"`
+	VolatileECC LocationErrors `json:"volatile" yaml:"volatile"`
 	// Aggregate counts persist across reboots (i.e. for the lifetime of the device).
-	AggregateECC LocationErrors `json:"aggregate"`
+	AggregateECC LocationErrors `json:"aggregate" yaml:"aggregate"`
 }
 type ECCMode struct {
-	Current int32 `json:"Current"`
-	Pending int32 `json:"Pending"`
+	Current int32 `json:"Current" yaml:"Current"`
+	Pending int32 `json:"Pending" yaml:"Pending"`
 }
 
 type RemappedRows struct {
-	RemappedDueToCorrectable   int `json:"remapped_due_to_correctable,omitempty"`
-	RemappedDueToUncorrectable int `json:"remapped_due_to_uncorrectable,omitempty"`
+	RemappedDueToCorrectable   int `json:"remapped_due_to_correctable,omitempty" yaml:"remapped_due_to_correctable,omitempty"`
+	RemappedDueToUncorrectable int `json:"remapped_due_to_uncorrectable,omitempty" yaml:"remapped_due_to_uncorrectable,omitempty"`
 
 	// Yes/No.
 	// If uncorrectable error is >0, this pending field is set to "Yes".
 	// For a100/h100, it requires a GPU reset to actually remap the row.
 	// ref. https://docs.nvidia.com/deploy/a100-gpu-mem-error-mgmt/index.html#rma-policy-thresholds
-	RemappingPending bool `json:"remapping_pending,omitempty"`
+	RemappingPending bool `json:"remapping_pending,omitempty" yaml:"remapping_pending,omitempty"`
 
 	// Yes/No
-	RemappingFailureOccurred bool `json:"Remapping Failure Occurred,omitempty"`
+	RemappingFailureOccurred bool `json:"Remapping Failure Occurred,omitempty" yaml:"Remapping Failure Occurred,omitempty"`
 }
 
 type LocationErrors struct {
 	// Total ECC error counts for the device.
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g9748430b6aa6cdbb2349c5e835d70b0f
-	Total ErrorType `json:"TOTAL"`
+	Total ErrorType `json:"TOTAL" yaml:"TOTAL"`
 
 	// Memory locations types.
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1g9bcbee49054a953d333d4aa11e8b9c25
 	// L1Cache          ErrorType `json:"GPU L1 Cache"`
 	// L2Cache          ErrorType `json:"GPU L2 Cache"`
-	DRAM ErrorType `json:"Turing+DRAM"`
+	DRAM ErrorType `json:"Turing+DRAM" yaml:"Turing+DRAM"`
 	// GPUDeviceMemory  ErrorType `json:"GPU Device Memory"`
 	// GPURegisterFile  ErrorType `json:"GPU Register File"`
 	// GPUTextureMemory ErrorType `json:"GPU Texture Memory"`
 	// SharedMemory     ErrorType `json:"Shared memory"`
 	// CBU              ErrorType `json:"CBU"`
-	SRAM ErrorType `json:"Turing+SRAM"`
+	SRAM ErrorType `json:"Turing+SRAM" yaml:"Turing+SRAM"`
 }
 
 type ErrorType struct {
 	// A memory error that was correctedFor ECC errors, these are single bit errors.
 	// For Texture memory, these are errors fixed by resend.
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1gc5469bd68b9fdcf78734471d86becb24
-	Corrected uint64 `json:"corrected"`
+	Corrected uint64 `json:"corrected" yaml:"corrected"`
 
 	// A memory error that was not correctedFor ECC errors.
 	// these are double bit errors For Texture memory.
 	// these are errors where the resend fails.
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1gc5469bd68b9fdcf78734471d86becb24
-	Uncorrected uint64 `json:"uncorrected"`
+	Uncorrected uint64 `json:"uncorrected" yaml:"uncorrected"`
 }
 
 func (memErrors *MemoryErrors) JSON() ([]byte, error) {

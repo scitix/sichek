@@ -25,15 +25,15 @@ import (
 )
 
 type ClockInfo struct {
-	CurGraphicsClk uint32 `json:"cur_graphics_clk"`
-	AppGraphicsClk uint32 `json:"app_graphics_clk"`
-	MaxGraphicsClk uint32 `json:"max_graphics_clk"`
-	CurMemoryClk   uint32 `json:"cur_memory_clk"`
-	AppMemoryClk   uint32 `json:"app_memory_clk"`
-	MaxMemoryClk   uint32 `json:"max_memory_clk"`
-	CurSMClk       uint32 `json:"cur_sm_clk"`
-	AppSMClk       uint32 `json:"app_sm_clk"`
-	MaxSMClk       uint32 `json:"max_sm_clk"`
+	CurGraphicsClk uint32 `json:"cur_graphics_clk" yaml:"cur_graphics_clk"`
+	AppGraphicsClk uint32 `json:"app_graphics_clk" yaml:"app_graphics_clk"`
+	MaxGraphicsClk uint32 `json:"max_graphics_clk" yaml:"max_graphics_clk"`
+	CurMemoryClk   uint32 `json:"cur_memory_clk" yaml:"cur_memory_clk"`
+	AppMemoryClk   uint32 `json:"app_memory_clk" yaml:"app_memory_clk"`
+	MaxMemoryClk   uint32 `json:"max_memory_clk" yaml:"max_memory_clk"`
+	CurSMClk       uint32 `json:"cur_sm_clk" yaml:"cur_sm_clk"`
+	AppSMClk       uint32 `json:"app_sm_clk" yaml:"app_sm_clk"`
+	MaxSMClk       uint32 `json:"max_sm_clk" yaml:"max_sm_clk"`
 }
 
 func (clk *ClockInfo) JSON() ([]byte, error) {

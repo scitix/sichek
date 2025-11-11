@@ -23,6 +23,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewUninstallCmd() *cobra.Command {
@@ -48,6 +49,9 @@ Defaults:
 
 Note: Number of workers will be automatically derived from hostfile or host parameter.`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("image_repo")
+			imageTag = viper.GetString("image_tag")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(600)*time.Second)
 			defer cancel()
 
@@ -72,8 +76,6 @@ Note: Number of workers will be automatically derived from hostfile or host para
 		},
 	}
 
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace for sichek")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
 	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")

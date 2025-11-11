@@ -36,18 +36,18 @@ type NvidiaCollector struct {
 	UUIDAllValidFlag bool
 	// record all the expected num of UUIDs, in case some of them are invalid later
 	DeviceUUIDs       map[int]string
-	nvmlInst          nvml.Interface
+	nvmlInst          *nvml.Interface // Shared pointer to NVML instance
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDeviceCount int) (*NvidiaCollector, error) {
+func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expectedDeviceCount int) (*NvidiaCollector, error) {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	if podResourceMapper == nil {
 		err := fmt.Errorf("failed to create PodResourceMapper")
 		logrus.WithField("component", "NVIDIA-Collector").Errorf("%v", err)
 		return nil, err
 	}
-	collector := &NvidiaCollector{nvmlInst: nvmlInst, podResourceMapper: podResourceMapper}
+	collector := &NvidiaCollector{nvmlInst: nvmlInstPtr, podResourceMapper: podResourceMapper}
 	var err error
 	for i := 0; i < expectedDeviceCount; i++ {
 		err = collector.softwareInfo.Get(ctx, i)
@@ -70,7 +70,7 @@ func NewNvidiaCollector(ctx context.Context, nvmlInst nvml.Interface, expectedDe
 func (collector *NvidiaCollector) getUUID() {
 	collector.UUIDAllValidFlag = true
 	for i := 0; i < collector.ExpectedDeviceCount; i++ {
-		device, err := collector.nvmlInst.DeviceGetHandleByIndex(i)
+		device, err := (*collector.nvmlInst).DeviceGetHandleByIndex(i)
 		if !errors.Is(err, nvml.SUCCESS) {
 			collector.UUIDAllValidFlag = false
 			logrus.WithField("component", "NVIDIA-Collector-getUUID").Errorf("failed to get Nvidia GPU device %d: %v", i, err)
@@ -106,7 +106,7 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 	}
 
 	// Get the number of devices
-	numDevices, err := collector.nvmlInst.DeviceGetCount()
+	numDevices, err := (*collector.nvmlInst).DeviceGetCount()
 	if !errors.Is(err, nvml.SUCCESS) {
 		return nil, fmt.Errorf("failed to get Nvidia GPU device count: %v", err)
 	}
@@ -116,7 +116,7 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 	nvidia.DevicesInfo = make([]DeviceInfo, numDevices)
 	nvidia.DeviceUsedCount = 0
 	for i := 0; i < numDevices; i++ {
-		device, err := collector.nvmlInst.DeviceGetHandleByIndex(i)
+		device, err := (*collector.nvmlInst).DeviceGetHandleByIndex(i)
 		if !errors.Is(err, nvml.SUCCESS) {
 			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
 			continue

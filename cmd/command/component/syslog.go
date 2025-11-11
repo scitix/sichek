@@ -72,7 +72,7 @@ func NewSyslogCmd() *cobra.Command {
 				logrus.WithField("component", "syslog").Error(err)
 				return
 			}
-			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

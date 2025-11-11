@@ -114,7 +114,7 @@ const (
 	DefaultEventRuleSuffix   = "_rules.yaml"
 	DefaultProductionPath    = "/var/sichek"
 	DefaultProductionCfgPath = "/var/sichek/config"
-	DefaultOssCfgPath        = "https://oss-ap-southeast.scitix.ai/scitix-release/sichek/specs"
+	DefaultOssCfgPath        = "https://oss-ap-southeast.scitix.ai/hisys-sichek/specs"
 )
 
 const (

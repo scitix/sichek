@@ -24,6 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewNCCLDiagCmd() *cobra.Command {
@@ -44,7 +45,7 @@ func NewNCCLDiagCmd() *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "nccl-diag",
 		Short: "Run a NCCL diagnostics via Helm and gather metrics",
-		Long: `Usage: sichek run-job [flags]
+		Long: `Usage: sichek nccl-diag [flags]
 
 Defaults:
   --job-name         = nccl-diag
@@ -59,6 +60,11 @@ Defaults:
   --host             = None (comma-separated hostnames)
   --diag-mode        = bisect (bisect mode)`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("image_repo")
+			imageTag = viper.GetString("image_tag")
+			scheduler = viper.GetString("scheduler")
+			roceSharedMode = viper.GetString("roce_shared_mode")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 			script := "/var/sichek/scripts/nccltest-diag.sh"
@@ -91,11 +97,7 @@ Defaults:
 	runCmd.Flags().StringVar(&jobName, "job-name", "nccl-diag", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
 	runCmd.Flags().StringVar(&cmdStr, "cmd", "bash /var/sichek/scripts/nccltest-diag-bisect.sh", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 600, "Timeout for job completion in seconds")
-	runCmd.Flags().StringVar(&scheduler, "scheduler", "si-scheduler", "k8s scheduler name to use for the job, ->[si-scheduler, ubischeduler]")
-	runCmd.Flags().StringVar(&roceSharedMode, "roce-shared-mode", "none", "RoCE shared mode: vf, macvlan, none")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
 	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
 	runCmd.Flags().StringVar(&diagMode, "diag-mode", "conn", "Bisect mode: conn, perf")

@@ -25,10 +25,10 @@ import (
 )
 
 type StatesInfo struct {
-	GpuPersistenceM string `json:"persistence"`
+	GpuPersistenceM string `json:"persistence" yaml:"persistence"`
 	// TODO
 	// GpuRstState     string `json:"gpu_reset_required"`
-	GpuPstate uint32 `json:"pstate"`
+	GpuPstate uint32 `json:"pstate" yaml:"pstate"`
 }
 
 func (s *StatesInfo) JSON() ([]byte, error) {

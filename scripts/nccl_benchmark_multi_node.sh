@@ -156,6 +156,11 @@ declare -a TEST_CMDS=(
   "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lalltoall"
 )
 
+if [[ $CMD != "" ]];then
+  TEST_CMDS=("/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -l${CMD}")
+  TEST_LABELS=("$CMD")
+fi
+
 declare -A RESULTS
 
 # 5) 循环执行并抓取带宽
@@ -164,25 +169,43 @@ for i in "${!TEST_LABELS[@]}"; do
   cmd="${TEST_CMDS[$i]}"
   TMP_LOG="$TMP_DIR/output_${label}.txt"
 
+  # 等待 LAUNCHER_POD 处于 Running 状态
+  echo "Waiting for pod $LAUNCHER_POD to be in 'Running' state..."
+  MAX_WAIT=300   # 最大等待时间（秒）
+  SLEEP_INTERVAL=5
+  WAITED=0
+
+  while true; do
+      STATUS=$(kubectl -n "$NAMESPACE" get  "$LAUNCHER_POD" -o jsonpath='{.status.phase}' 2>/dev/null)
+      if [[ "$STATUS" == "Running" ]]; then
+          echo "✅ $LAUNCHER_POD is now Running."
+          break
+      fi
+      if (( WAITED >= MAX_WAIT )); then
+          echo "❌ ERROR: $LAUNCHER_POD did not reach Running state after $MAX_WAIT seconds."
+          exit 1
+      fi
+      sleep $SLEEP_INTERVAL
+      WAITED=$((WAITED + SLEEP_INTERVAL))
+  done
   echo
   echo ">>> Running NCCL test: $label"
   echo "    Command: timeout $TIMEOUT_TO_COMPLETE $cmd  > $TMP_LOG 2>&1"
   echo
-
   # 使用 timeout 命令包装 mpirun 执行
   if ! kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "timeout $TIMEOUT_TO_COMPLETE $cmd" > $TMP_LOG 2>&1 ; then
     echo "WARNING: $cmd failed or timed out after $TIMEOUT_TO_COMPLETE seconds"
     tail -n 20 $TMP_LOG
   fi
   output=$(cat $TMP_LOG)
-  
+
   # 检查是否因为超时而失败
   if echo "$output" | grep -q "timeout: command terminated"; then
     echo "ERROR: Command timed out after $TIMEOUT_TO_COMPLETE seconds"
     RESULTS["$label"]="TIMEOUT"
     exit 1
   fi
-  
+
   # 打印原始输出
   echo "$output" | grep "Avg bus bandwidth"
 

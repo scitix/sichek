@@ -21,8 +21,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/oss"
 )
 
 func TestLoadSpecFromFile(t *testing.T) {
@@ -130,9 +130,9 @@ func TestLoadSpecFromOss(t *testing.T) {
 	hcaSpec := &HCASpecs{}
 	ibDevBoardId := "test"
 	url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameHCA, ibDevBoardId)
-	err := common.LoadSpecFromOss(url, hcaSpec)
+	err := oss.LoadSpecFromURL(url, hcaSpec)
 	if err != nil {
-		t.Fatalf("LoadSpecFromOss() returned an error: %v", err)
+		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)
 	}
 	if len(hcaSpec.HcaSpec) == 0 {
 		t.Fatalf("Expected HCAHardwares to be loaded, got empty map")

@@ -61,6 +61,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result := config.InfinibandCheckItems[c.name]
 
 	var mismatchPairs []string
+	infinibandInfo.RLock()
 	for expectedMlx5 := range c.spec.IBPFDevs {
 		actualIb, found := infinibandInfo.IBPFDevs[expectedMlx5]
 		if !found {
@@ -87,11 +88,19 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
 		}
 	}
+	infinibandInfo.RUnlock()
 
 	if len(mismatchPairs) > 0 {
 		result.Status = consts.StatusAbnormal
 		result.Device = strings.Join(mismatchPairs, ",")
-		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", infinibandInfo.IBPFDevs, c.spec.IBPFDevs)
+		// 在锁保护下读取 IBPFDevs
+		infinibandInfo.RLock()
+		ibpfDevsCopy := make(map[string]string)
+		for k, v := range infinibandInfo.IBPFDevs {
+			ibpfDevsCopy[k] = v
+		}
+		infinibandInfo.RUnlock()
+		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", ibpfDevsCopy, c.spec.IBPFDevs)
 	} else {
 		result.Status = consts.StatusNormal
 	}
@@ -101,9 +110,11 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 	result.Spec = strings.Join(specSlice, ",")
 	var ibDevsSlice []string
+	infinibandInfo.RLock()
 	for mlxDev, ibDev := range infinibandInfo.IBPFDevs {
 		ibDevsSlice = append(ibDevsSlice, mlxDev+":"+ibDev)
 	}
+	infinibandInfo.RUnlock()
 	result.Curr = strings.Join(ibDevsSlice, ",")
 	return &result, nil
 }

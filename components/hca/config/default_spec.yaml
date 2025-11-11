@@ -293,3 +293,24 @@ hca:
     perf:
       one_way_bw: 360 # Gbps
       avg_latency_us: 10 # us
+  MT_0000001070:
+    hardware:
+      hca_type: "0"
+      board_id: "MT_0000001070"
+      fw_ver: "32.39.3808"
+      vpd: "BlueField-3 E-series SuperNIC 400GbE/NDR single port QSFP112, PCIe Gen5.0 x16, 8 Cores, HHHL, Crypto Disabled, 16GB DDR5, BMC, Tall Bracket"
+      net_port: 1
+      port_speed: "400 Gb/sec (4X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "up"
+      link_layer: "Ethernet"
+      pcie_width: "16"
+      pcie_speed: "32.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "32"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 360 # Gbps
+      avg_latency_us: 10 # us

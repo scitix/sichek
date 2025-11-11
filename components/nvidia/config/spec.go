@@ -16,15 +16,15 @@ limitations under the License.
 package config
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/oss"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -50,9 +50,9 @@ type NvidiaSpecs struct {
 }
 
 type Dependence struct {
-	PcieAcs        string `json:"pcie-acs" yaml:"pcie-acs"`
+	PcieAcs        string `json:"pcie_acs" yaml:"pcie_acs"`
 	Iommu          string `json:"iommu" yaml:"iommu"`
-	NvidiaPeermem  string `json:"nv-peermem" yaml:"nv-peermem"`
+	NvidiaPeermem  string `json:"nv_peermem" yaml:"nv_peermem"`
 	FabricManager  string `json:"nv_fabricmanager" yaml:"nv_fabricmanager"`
 	CpuPerformance string `json:"cpu_performance" yaml:"cpu_performance"`
 }
@@ -181,7 +181,7 @@ func (s *NvidiaSpecs) tryLoadFromDevConfig() error {
 
 // FilterSpec retrieves the NVIDIA spec for the local GPU device ID.
 func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
-	localDeviceID, err := GetDeviceID()
+	localDeviceID, err := nvutils.GetDeviceID()
 	logrus.WithField("component", "nvidia").Infof("local GPU device ID: %s", localDeviceID)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
 		nvidiaSpec := &NvidiaSpecs{}
 		url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameNvidia, localDeviceID)
 		logrus.WithField("component", "nvidia").Infof("Loading spec from OSS for gpu %s: %s", localDeviceID, url)
-		err := common.LoadSpecFromOss(url, nvidiaSpec)
+		err := oss.LoadSpecFromURL(url, nvidiaSpec)
 		if err == nil && nvidiaSpec.Specs != nil {
 			if spec, ok := nvidiaSpec.Specs[localDeviceID]; ok {
 				nvSpec = spec
@@ -210,35 +210,4 @@ func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
 		}
 	}
 	return nvSpec, nil
-}
-
-func GetDeviceID() (string, error) {
-	nvmlInst := nvml.New()
-	if ret := nvmlInst.Init(); !errors.Is(ret, nvml.SUCCESS) {
-		return "", fmt.Errorf("failed to initialize NVML: %v", nvml.ErrorString(ret))
-
-	}
-	defer nvmlInst.Shutdown()
-
-	// In case of GPU error, iterate through all GPUs to find the first valid one
-	deviceCount, err := nvmlInst.DeviceGetCount()
-	if !errors.Is(err, nvml.SUCCESS) {
-		return "", fmt.Errorf("failed to get device count: %s", nvml.ErrorString(err))
-	}
-	var deviceID string
-	for i := 0; i < deviceCount; i++ {
-		device, err := nvmlInst.DeviceGetHandleByIndex(i)
-		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "nvidia").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
-			continue
-		}
-		pciInfo, err := device.GetPciInfo()
-		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "nvidia").Errorf("failed to get PCIe Info  for NVIDIA GPU %d: %s", i, nvml.ErrorString(err))
-			continue
-		}
-		deviceID = fmt.Sprintf("0x%x", pciInfo.PciDeviceId)
-		return deviceID, nil
-	}
-	return "", fmt.Errorf("failed to get product name for NVIDIA GPU")
 }

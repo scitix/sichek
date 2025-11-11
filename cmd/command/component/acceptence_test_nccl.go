@@ -24,6 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewATNCCLTest1Cmd() *cobra.Command {
@@ -42,8 +43,8 @@ func NewATNCCLTest1Cmd() *cobra.Command {
 
 	runCmd := &cobra.Command{
 		Use:   "at-nccltest1",
-		Short: "Run a Mpijob via Helm and gather metrics",
-		Long: `Usage: sichek run-job [flags]
+		Short: "Run multiple single-node nccl benchmark via helm install a mpijob and gather metrics",
+		Long: `Usage: sichek at-nccltest1 [flags]
 
 Defaults:
   --job-name         = at-nccltest1
@@ -57,6 +58,11 @@ Defaults:
   --hostfile         = None (file containing hostnames, one per line)
   --host             = None (comma-separated hostnames)`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("image_repo")
+			imageTag = viper.GetString("image_tag")
+			scheduler = viper.GetString("scheduler")
+			roceSharedMode = viper.GetString("roce_shared_mode")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 			script := "/var/sichek/scripts/nccl_benchmark_single_node.sh"
@@ -87,12 +93,8 @@ Defaults:
 
 	runCmd.Flags().StringVar(&jobName, "job-name", "at-nccltest1", "Name of the mpijob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&cmdStr, "cmd", "", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
+	runCmd.Flags().StringVar(&cmdStr, "cmd", "/usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8", "Command to run inside pod")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 600, "Timeout for job completion in seconds")
-	runCmd.Flags().StringVar(&scheduler, "scheduler", "si-scheduler", "k8s scheduler name to use for the job, ->[si-scheduler, ubischeduler]")
-	runCmd.Flags().StringVar(&roceSharedMode, "roce-shared-mode", "none", "RoCE shared mode: vf, macvlan, ipvlan, none")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
 	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
 

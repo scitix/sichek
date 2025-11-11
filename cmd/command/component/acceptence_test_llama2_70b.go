@@ -24,6 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewATLlama70bCmd() *cobra.Command {
@@ -43,8 +44,8 @@ func NewATLlama70bCmd() *cobra.Command {
 
 	runCmd := &cobra.Command{
 		Use:   "at-llama70b",
-		Short: "Run a Pytorchjob via Helm and gather metrics",
-		Long: `Usage: sichek run-job [flags]
+		Short: "Run llama70b benchmark via helm install a pytorchjob and gather metrics",
+		Long: `Usage: sichek at-llama70b [flags]
 
 Defaults:
   --job-name         = llama2-13b-bench
@@ -58,6 +59,12 @@ Defaults:
   --hostfile         = None (file containing hostnames, one per line)
   --host             = None (comma-separated hostnames)`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("pytorchjob_image_repo")
+			imageTag = viper.GetString("pytorchjob_image_tag")
+			cmdStr = viper.GetString("at_llama70b_cmd")
+			scheduler = viper.GetString("scheduler")
+			roceSharedMode = viper.GetString("roce_shared_mode")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 
@@ -88,12 +95,7 @@ Defaults:
 
 	runCmd.Flags().StringVar(&jobName, "job-name", "llama2-70b-bench", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&cmdStr, "cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 EVAL_INTERVAL=200 SAVE_INTERVAL=200 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh", "Command to run inside pod")
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hpc/ngc_pytorch", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "24.06-sicl-0723", "Image tag")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 3600, "Timeout for job completion in seconds")
-	runCmd.Flags().StringVar(&scheduler, "scheduler", "si-scheduler", "k8s scheduler name to use for the job, ->[si-scheduler, ubischeduler]")
-	runCmd.Flags().StringVar(&roceSharedMode, "roce-shared-mode", "none", "RoCE shared mode: vf, macvlan, ipvlan, none")
 	runCmd.Flags().StringVar(&script, "script", "/var/sichek/scripts/llama2_70b_benchmark_multi_node.sh", "script to run the mpijob")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
 	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")

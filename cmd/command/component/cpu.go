@@ -29,8 +29,7 @@ func NewCPUCmd() *cobra.Command {
 	cpuCmd := &cobra.Command{
 		Use:     "cpu",
 		Aliases: []string{"c"},
-		Short:   "Perform CPU - related operations",
-		Long:    "Used to perform specific CPU - related operations, with specific functions to be expanded",
+		Short:   "Perform CPU HealthCheck",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 			verbos, err := cmd.Flags().GetBool("verbos")
@@ -69,7 +68,7 @@ func NewCPUCmd() *cobra.Command {
 				logrus.WithField("component", "cpu").Error(err)
 				return
 			}
-			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

@@ -20,13 +20,16 @@ import (
 	"os"
 
 	"github.com/scitix/sichek/cmd/command/component"
+	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // NewRootCmd creates and returns the root command (sichek command) instance, configures basic usage information, and adds subcommands.
 func NewRootCmd() *cobra.Command {
+	cobra.OnInitialize(initConfig)
 	rootCmd := &cobra.Command{
 		Use:   "sichek",
 		Short: "Hardware health check tool",
@@ -73,8 +76,6 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewIBPerftestCmd())
 	rootCmd.AddCommand(component.NewNcclPerftestCmd())
 	rootCmd.AddCommand(component.NewRoCEPerftestCmd())
-	rootCmd.AddCommand(component.NewMpiJobCmd())
-	rootCmd.AddCommand(component.NewPytorchjobCmd())
 	rootCmd.AddCommand(component.NewATNCCLTest1Cmd())
 	rootCmd.AddCommand(component.NewATNCCLTest2Cmd())
 	rootCmd.AddCommand(component.NewATLlama70bCmd())
@@ -85,5 +86,61 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewDiagCmd())
 	rootCmd.AddCommand(component.NewDeployCmd())
 	rootCmd.AddCommand(component.NewSyslogCmd())
+	rootCmd.AddCommand(NewConfigCmd())
+	rootCmd.AddCommand(specgen.NewSpecConfigCmd())
 	return rootCmd
+}
+
+func initConfig() {
+	if !requiresConfigCheck() {
+		return
+	}
+
+	viper.SetConfigName("config") // config.yaml
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/.sichek") // default path
+	// viper.AddConfigPath(".")             // current directory
+
+	// support environment variable override, like Sichek_IMAGE_REPO
+	viper.SetEnvPrefix("sichek")
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	} else {
+		// if config file not found, exit
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			fmt.Println("[ERROR] No config file found.")
+			fmt.Println("Please run `sichek config` first to create ~/.sichek/config.yaml")
+			os.Exit(1)
+		} else {
+			// other error, like format error
+			fmt.Printf("[ERROR] Failed to read config file: %v\n", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func requiresConfigCheck() bool {
+	if len(os.Args) < 2 {
+		return false
+	}
+	cmd := os.Args[1]
+
+	// only the following commands require config file
+	commandsRequireConfig := map[string]bool{
+		"deploy":       true,
+		"diag":         true,
+		"nccl-diag":    true,
+		"at-nccltest1": true,
+		"at-nccltest2": true,
+		"at-llama70b":  true,
+		"at-llama13b":  true,
+		"install":      true,
+		"uninstall":    true,
+	}
+	if _, ok := commandsRequireConfig[cmd]; ok {
+		return true
+	}
+	return false
 }

@@ -250,6 +250,8 @@ func (c *component) Stop() error {
 }
 
 func (c *component) GetTimeout() time.Duration {
+	c.cfgMutex.RLock()
+	defer c.cfgMutex.RUnlock()
 	return c.cfg.GetQueryInterval().Duration
 }
 
@@ -334,9 +336,11 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	}
 
 	ibControllersPrint := fmt.Sprintf("Host Channel Adaptor: %s", ibControllersPrintColor)
+	ibInfo.RLock()
 	for _, hwInfo := range ibInfo.IBHardWareInfo {
 		ibControllersPrint += fmt.Sprintf("%s(%s), ", hwInfo.IBDev, hwInfo.NetDev)
 	}
+	ibInfo.RUnlock()
 
 	ibControllersPrint = strings.TrimSuffix(ibControllersPrint, ", ")
 	ibControllersPrint += consts.Reset
