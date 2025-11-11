@@ -19,6 +19,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/consts"
 
@@ -27,18 +28,18 @@ import (
 )
 
 func NewInfinibandCmd() *cobra.Command {
+	var (
+		specFile        string
+		verbose         bool
+		ignoredCheckers string
+	)
 	infinibandCmd := &cobra.Command{
 		Use:     "infiniband",
 		Aliases: []string{"i"},
-		Short:   "Perform Infiniband check - related operations",
-		Long:    "Used to perform specific Infiniband - related operations, with specific functions to be expanded",
+		Short:   "Perform Infiniband HealthCheck",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
 
-			verbose, err := cmd.Flags().GetBool("verbose")
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
-			}
 			if !verbose {
 				logrus.SetLevel(logrus.ErrorLevel)
 				defer cancel()
@@ -49,46 +50,25 @@ func NewInfinibandCmd() *cobra.Command {
 				}()
 			}
 
-			// step 1: Get the config from user defined via cmdline flags
-			cfgFile, err := cmd.Flags().GetString("cfg")
+			specFile, err := specgen.EnsureSpecFile(specFile)
 			if err != nil {
-				logrus.WithField("component", "infiniband").Error(err)
-				return
+				logrus.WithField("daemon", "infiniband").Errorf("using default specFile: %v", err)
 			} else {
-				logrus.WithField("component", "infiniband").Info("load default cfg...")
+				logrus.WithField("daemon", "infiniband").Info("load specFile: " + specFile)
+			}
+			logrus.WithField("component", "infiniband").Info("ignore checkers: ", ignoredCheckers)
+			var ignoredCheckersList []string
+			if len(ignoredCheckers) > 0 {
+				ignoredCheckersList = strings.Split(ignoredCheckers, ",")
 			}
 
-			// step 2: Get the spec from user defined via cmdline flags
-			specFile, err := cmd.Flags().GetString("spec")
-			if err != nil {
-				logrus.WithField("component", "infiniband").Error(err)
-			} else {
-				if specFile != "" {
-					logrus.WithField("component", "infiniband").Info("load specFile: " + specFile)
-				} else {
-					logrus.WithField("component", "infiniband").Info("load default specFile...")
-				}
-			}
-
-			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
-			if err != nil {
-				logrus.WithField("component", "infiniband").Error(err)
-			} else {
-				logrus.WithField("component", "infiniband").Info("ignore checkers: ", ignoredCheckersStr)
-			}
-
-			var ignoredCheckers []string
-			if len(ignoredCheckersStr) > 0 {
-				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
-			}
-
-			component, err := infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
+			component, err := infiniband.NewInfinibandComponent("", specFile, ignoredCheckersList)
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
 				return
 			}
 			logrus.WithField("component", "infiniband").Infof("Run Infiniband component check: %s", component.Name())
-			result, err := RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}
@@ -96,9 +76,9 @@ func NewInfinibandCmd() *cobra.Command {
 		},
 	}
 
-	infinibandCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
-	infinibandCmd.Flags().StringP("spec", "s", "", "Path to the Infinibnad Spec")
-	infinibandCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
-	infinibandCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
+	infinibandCmd.Flags().StringVar(&specFile, "spec", "", "Path to the Infinibnad Spec")
+	infinibandCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose output")
+	infinibandCmd.Flags().StringVar(&ignoredCheckers, "ignored-checkers", "", "Ignored checkers")
+
 	return infinibandCmd
 }

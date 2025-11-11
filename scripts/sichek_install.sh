@@ -16,7 +16,7 @@ Defaults:
   defaultSpec             = hercules_spec.yaml
   hostfile                = None (file containing hostnames, one per line)
   host                    = None (comma-separated hostnames)
-
+  operatingSystem         = ubuntu (ubuntu or centos)
 Note: Number of workers will be automatically derived from hostfile or host parameter.
 "
 
@@ -27,7 +27,7 @@ IMAGE_TAG=${3:-"latest"}
 DEFAULT_SPEC=${4:-"hercules_spec.yaml"}
 HOSTFILE=${5:-"None"}
 HOST=${6:-"None"}
-
+OPERATING_SYSTEM=${7:-"ubuntu"}
 # 使用common.sh中的函数处理hostfile和host参数
 setup_host_labels "$HOSTFILE" "$HOST" "None"
 
@@ -64,6 +64,7 @@ HELM_ARGS=(
   "--set" "defaultSpec=$DEFAULT_SPEC"
   "--set" "namespace=$NAMESPACE"
   "--set" "nodeSelector.$NODE_SELECTOR"
+  "--set" "os=$OPERATING_SYSTEM"
 )
 # Cleanup function to handle script exit
 cleanup() {

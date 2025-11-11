@@ -18,13 +18,13 @@ package checker
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBPortSpeedChecker struct {
@@ -63,7 +63,11 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
@@ -71,13 +75,16 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	failedHcas := make([]string, 0)
-	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	spec := make([]string, 0, hwInfoLen)
+	curr := make([]string, 0, hwInfoLen)
 	var failedHcasSpec []string
 	var failedHcasCurr []string
+	var devicesToUpdate []string
+	// 先加读锁读取所有数据
+	infinibandInfo.RLock()
 	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
-			log.Printf("HCA spec for board ID %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+			logrus.WithField("component", "infiniband").Warnf("HCA spec for board ID %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
@@ -88,11 +95,19 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PortSpeed)
 			failedHcasCurr = append(failedHcasCurr, hwInfo.PortSpeed)
+			devicesToUpdate = append(devicesToUpdate, dev)
+		}
+	}
+	infinibandInfo.RUnlock()
+	// 批量更新状态（使用写锁）
+	if len(devicesToUpdate) > 0 {
+		infinibandInfo.Lock()
+		for _, dev := range devicesToUpdate {
 			tmp := infinibandInfo.IBHardWareInfo[dev]
 			tmp.PortSpeedState = "1"
 			infinibandInfo.IBHardWareInfo[dev] = tmp
-
 		}
+		infinibandInfo.Unlock()
 	}
 
 	result.Curr = strings.Join(curr, ",")

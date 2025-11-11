@@ -67,7 +67,7 @@ func NewPodLogCmd() *cobra.Command {
 				logrus.WithField("component", "podlog").Error(err)
 				return
 			}
-			result, err := RunComponentCheck(ctx, component, cfgFile, "", nil, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}

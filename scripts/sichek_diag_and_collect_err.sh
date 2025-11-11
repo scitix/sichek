@@ -47,6 +47,7 @@ setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 # 将 nodeSelector 解析为 key=value
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
 
+CMD=$CMD" -s $DEFAULT_SPEC"
 ESCAPED_CMD=${CMD//,/\\,}
 
 echo "========================================================================="

@@ -26,6 +26,7 @@ import (
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/oss"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -35,10 +36,10 @@ type InfinibandSpecs struct {
 }
 
 type InfinibandSpec struct {
-	IBPFDevs       map[string]string             `json:"ib_devs"`
-	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps"`
-	PCIeACS        string                        `json:"pcie_acs"`
-	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs"`
+	IBPFDevs       map[string]string             `json:"ib_devs" yaml:"ib_devs"`
+	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps" yaml:"sw_deps"`
+	PCIeACS        string                        `json:"pcie_acs" yaml:"pcie_acs"`
+	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs,omitempty" yaml:"hca_specs,omitempty"`
 }
 
 func LoadSpec(file string) (*InfinibandSpec, error) {
@@ -173,7 +174,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameInfiniband, clusterName)
 			logrus.WithField("component", "InfiniBand").Infof("Loading spec from OSS for clusterName %s: %s", clusterName, url)
 			// Attempt to load spec from OSS
-			err := common.LoadSpecFromOss(url, ossIbSpec)
+			err := oss.LoadSpecFromURL(url, ossIbSpec)
 			if err == nil && ossIbSpec.Specs != nil {
 				if spec, ok := ossIbSpec.Specs[clusterName]; ok {
 					ibSpec = spec
@@ -201,7 +202,6 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		if err != nil {
 			return nil, err
 		}
-		allExist := true
 		specKeys := make([]string, 0, len(ibSpec.IBPFDevs))
 		for k := range ibSpec.IBPFDevs {
 			specKeys = append(specKeys, k)
@@ -215,30 +215,50 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			logrus.WithField("component", "infiniband").
 				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)
 		}
+
+		// Load HCA specs from provided file and merge with default specs
+		// This will load from the provided file, merge with built-in specs (provided file has higher priority),
+		// and load missing specs from OSS for all board IDs on the host
+		hcaSpecs, err := hcaConfig.LoadSpec(file)
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
+			return nil, err
+		}
+
+		// Initialize ibSpec.HCAs if it's nil
+		if ibSpec.HCAs == nil {
+			ibSpec.HCAs = make(map[string]*hcaConfig.HCASpec)
+		}
+
+		// Check each board ID and fill in missing specs from hcaSpecs
 		for _, boardID := range ibDevs {
 			spec, exists := ibSpec.HCAs[boardID]
 			if !exists || spec == nil {
-				logrus.WithField("component", "infiniband").
-					Warnf("spec for board ID %s not found in current spec, trying to load from HCA configs", boardID)
-				allExist = false
-				break
-			}
-			if spec.Hardware.BoardID != boardID {
+				// If not found in ibSpec.HCAs, get it from hcaSpecs
+				if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
+					ibSpec.HCAs[boardID] = hcaSpec
+					logrus.WithField("component", "infiniband").
+						Infof("loaded HCA spec for board ID %s from HCA configs", boardID)
+				} else {
+					logrus.WithField("component", "infiniband").
+						Warnf("spec for board ID %s not found in HCA configs", boardID)
+				}
+			} else if spec.Hardware.BoardID != boardID {
+				// If board ID doesn't match, try to get from hcaSpecs
 				logrus.WithField("component", "infiniband").
 					Warnf("spec for board ID %s does not match the hardware board ID %s, trying to load from HCA configs", boardID, spec.Hardware.BoardID)
-				allExist = false
-				break
+				if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
+					ibSpec.HCAs[boardID] = hcaSpec
+					logrus.WithField("component", "infiniband").
+						Infof("replaced HCA spec for board ID %s from HCA configs", boardID)
+				} else {
+					logrus.WithField("component", "infiniband").
+						Warnf("spec for board ID %s not found in HCA configs", boardID)
+				}
+			} else {
+				logrus.WithField("component", "infiniband").
+					Infof("spec for board ID %s matches the hardware board ID %s", boardID, spec.Hardware.BoardID)
 			}
-		}
-
-		if !allExist {
-			// load specified hca spec based on the hca on the node
-			hcaSpecs, err := hcaConfig.LoadSpec(file)
-			if err != nil {
-				logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
-				return nil, err
-			}
-			ibSpec.HCAs = hcaSpecs.HcaSpec
 		}
 		return ibSpec, nil
 	}

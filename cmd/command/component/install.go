@@ -23,16 +23,18 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewInstallCmd() *cobra.Command {
 	var (
-		imageRepo   string
-		imageTag    string
-		defaultSpec string
-		namespace   string
-		hostfile    string
-		host        string
+		imageRepo       string
+		imageTag        string
+		defaultSpec     string
+		namespace       string
+		hostfile        string
+		host            string
+		operatingSystem string
 	)
 
 	runCmd := &cobra.Command{
@@ -50,6 +52,10 @@ Defaults:
 
 Note: Number of workers will be automatically derived from hostfile or host parameter.`,
 		Run: func(cmd *cobra.Command, args []string) {
+			imageRepo = viper.GetString("image_repo")
+			imageTag = viper.GetString("image_tag")
+			defaultSpec = viper.GetString("default_spec")
+
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(600)*time.Second)
 			defer cancel()
 
@@ -62,6 +68,7 @@ Note: Number of workers will be automatically derived from hostfile or host para
 				defaultSpec,
 				hostfile,
 				host,
+				operatingSystem,
 			}
 
 			command := exec.CommandContext(ctx, "bash", append([]string{script}, argList...)...)
@@ -75,12 +82,10 @@ Note: Number of workers will be automatically derived from hostfile or host para
 		},
 	}
 
-	runCmd.Flags().StringVar(&imageRepo, "image-repo", "registry-us-east.scitix.ai/hisys/sichek", "Image repository")
-	runCmd.Flags().StringVar(&imageTag, "image-tag", "latest", "Image tag")
-	runCmd.Flags().StringVar(&defaultSpec, "default-spec", "hercules_spec.yaml", "Default spec file for installation")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace for sichek")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
 	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")
+	runCmd.Flags().StringVar(&operatingSystem, "os", "ubuntu", "Operating system (ubuntu or centos)")
 
 	return runCmd
 }

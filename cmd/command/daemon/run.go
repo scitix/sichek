@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/cmd/command/component"
+	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -42,15 +43,33 @@ func NewDaemonRunCmd() *cobra.Command {
 			_, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
-			utils.InitLogger(logrus.InfoLevel, false)
+			// Get log file configuration
+			logFile, _ := cmd.Flags().GetString("log-file")
+			logMaxSize, _ := cmd.Flags().GetInt("log-max-size")
+			logMaxBackups, _ := cmd.Flags().GetInt("log-max-backups")
+			logMaxAge, _ := cmd.Flags().GetInt("log-max-age")
+			logCompress, _ := cmd.Flags().GetBool("log-compress")
+			logAlsoStdout, _ := cmd.Flags().GetBool("log-also-stdout")
+
+			// Initialize logger with file rotation support
+			logConfig := utils.LogConfig{
+				LogFile:            logFile,
+				MaxSize:            logMaxSize,
+				MaxBackups:         logMaxBackups,
+				MaxAge:             logMaxAge,
+				Compress:           logCompress,
+				AlsoOutputToStdout: logAlsoStdout,
+			}
+			utils.InitLoggerWithConfig(logrus.WarnLevel, false, logConfig)
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				if cfgFile != "" {
-					logrus.WithField("daemon", "run").Info("load cfgFile: " + cfgFile)
+				cfgFile, err = specgen.EnsureSpecFile(cfgFile)
+				if err != nil {
+					logrus.WithField("daemon", "run").Errorf("using default cfgFile: %v", err)
 				} else {
-					logrus.WithField("daemon", "run").Info("load default cfgFile...")
+					logrus.WithField("daemon", "run").Info("using cfgFile: " + cfgFile)
 				}
 			}
 
@@ -58,10 +77,11 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				if specFile != "" {
-					logrus.WithField("daemon", "run").Info("load specFile: " + specFile)
+				specFile, err = specgen.EnsureSpecFile(specFile)
+				if err != nil {
+					logrus.WithField("daemon", "run").Errorf("using default specFile: %v", err)
 				} else {
-					logrus.WithField("daemon", "run").Info("load default specFile...")
+					logrus.WithField("daemon", "run").Info("using specFile: " + specFile)
 				}
 			}
 
@@ -139,5 +159,11 @@ func NewDaemonRunCmd() *cobra.Command {
 	daemonRunCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by `,`")
 	daemonRunCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
 	daemonRunCmd.Flags().StringP("annotation-key", "A", "", "k8s node annotation key")
+	daemonRunCmd.Flags().StringP("log-file", "f", "/tmp/sichek.log", "Path to log file (enables file logging with rotation)")
+	daemonRunCmd.Flags().Int("log-max-size", 10, "Maximum size in megabytes of the log file before rotation")
+	daemonRunCmd.Flags().Int("log-max-backups", 10, "Maximum number of old log files to retain")
+	daemonRunCmd.Flags().Int("log-max-age", 10, "Maximum number of days to retain old log files")
+	daemonRunCmd.Flags().Bool("log-compress", false, "Compress rotated log files")
+	daemonRunCmd.Flags().Bool("log-also-stdout", false, "Also output logs to stdout in addition to file")
 	return daemonRunCmd
 }

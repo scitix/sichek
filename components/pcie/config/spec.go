@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
-	nvconfig "github.com/scitix/sichek/components/nvidia/config"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -14,29 +14,29 @@ import (
 
 // PciDevice represents the device configuration
 type PcieTopoSpecs struct {
-	Specs map[string]*PcieTopoSpec `json:"pcie_topo"`
+	Specs map[string]*PcieTopoSpec `json:"pcie_topo" yaml:"pcie_topo"`
 }
 
 type PcieTopoSpec struct {
-	NumaConfig        []*NumaConfig `json:"numa_config"`
-	PciSwitchesConfig []*PciSwitch  `json:"pci_switches"`
+	NumaConfig        []*NumaConfig `json:"numa_config" yaml:"numa_config"`
+	PciSwitchesConfig []*PciSwitch  `json:"pci_switches" yaml:"pci_switches"`
 }
 
 type NumaConfig struct {
-	NodeID   uint64 `json:"node_id"`
-	GPUCount int    `json:"gpu_count"`
-	IBCount  int    `json:"ib_count"`
+	NodeID   uint64 `json:"node_id" yaml:"node_id"`
+	GPUCount int    `json:"gpu_count" yaml:"gpu_count"`
+	IBCount  int    `json:"ib_count" yaml:"ib_count"`
 }
 
 type PciSwitch struct {
-	GPU   int `json:"gpu"`
-	IB    int `json:"ib"`
-	Count int `json:"count"`
+	GPU   int `json:"gpu" yaml:"gpu"`
+	IB    int `json:"ib" yaml:"ib"`
+	Count int `json:"count" yaml:"count"`
 }
 
 type BDFItem struct {
-	DeviceType string `json:"type"`
-	BDF        string `json:"bdf"`
+	DeviceType string `json:"type" yaml:"type"`
+	BDF        string `json:"bdf" yaml:"bdf"`
 }
 
 func LoadSpec(file string) (*PcieTopoSpec, error) {
@@ -148,7 +148,7 @@ func FilterSpec(s *PcieTopoSpecs) (*PcieTopoSpec, error) {
 	if s == nil || s.Specs == nil {
 		return nil, fmt.Errorf("pcie topo spec is nil or empty")
 	}
-	localDeviceID, err := nvconfig.GetDeviceID()
+	localDeviceID, err := nvutils.GetDeviceID()
 	if err != nil {
 		return nil, err
 	}

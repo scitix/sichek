@@ -18,10 +18,12 @@ package component
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/dmesg"
@@ -29,6 +31,7 @@ import (
 	gpuevents "github.com/scitix/sichek/components/gpuevents"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nvidia"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/components/syslog"
@@ -46,79 +49,47 @@ import (
 // - verbos: Enable verbose output (default: false)
 // - eventonly: Print events output only (default: false)
 func NewAllCmd() *cobra.Command {
-
+	var (
+		specFile         string
+		enableComponents string
+		ignoreComponents string
+		ignoredCheckers  string
+		verbos           bool
+		eventonly        bool
+	)
 	allCmd := &cobra.Command{
 		Use:   "all",
 		Short: "Perform all components check",
-		Long:  "Used to perform all configured related operations, with specific functions to be expanded",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithTimeout(context.Background(), consts.AllCmdTimeout)
 			defer cancel()
-			verbos, err := cmd.Flags().GetBool("verbos")
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the verbose: %v", err)
-			}
-			eventonly, err := cmd.Flags().GetBool("eventonly")
-			if err != nil {
-				logrus.WithField("component", "all").Errorf("get to ge the eventonly: %v", err)
-			}
+
 			if !verbos {
 				logrus.SetLevel(logrus.ErrorLevel)
 			}
-
-			cfgFile, err := cmd.Flags().GetString("cfg")
+			specFile, err := specgen.EnsureSpecFile(specFile)
 			if err != nil {
-				logrus.WithField("component", "all").Error(err)
+				logrus.WithField("daemon", "all").Errorf("using default specFile: %v", err)
 			} else {
-				if cfgFile != "" {
-					logrus.WithField("component", "all").Info("load cfgFile: " + cfgFile)
-				} else {
-					logrus.WithField("component", "all").Info("load default cfg...")
-				}
+				logrus.WithField("daemon", "all").Info("load specFile: " + specFile)
 			}
 
-			specFile, err := cmd.Flags().GetString("spec")
-			if err != nil {
-				logrus.WithField("component", "all").Error(err)
-			} else {
-				if specFile != "" {
-					logrus.WithField("component", "all").Info("load specFile: " + specFile)
-				} else {
-					logrus.WithField("component", "all").Info("load default specFile...")
-				}
-			}
-
-			usedComponentStr, err := cmd.Flags().GetString("enable-components")
-			if err != nil {
-				logrus.WithField("component", "all").Error(err)
-			} else {
-				logrus.WithField("component", "all").Infof("enable components = %v", usedComponentStr)
-			}
+			logrus.WithField("component", "all").Infof("enable components = %v", enableComponents)
 			var usedComponents []string
-			if len(usedComponentStr) > 0 {
-				usedComponents = strings.Split(usedComponentStr, ",")
+			if len(enableComponents) > 0 {
+				usedComponents = strings.Split(enableComponents, ",")
 			}
 
-			ignoreComponentStr, err := cmd.Flags().GetString("ignore-components")
-			if err != nil {
-				logrus.WithField("component", "all").Error(err)
-			} else {
-				logrus.WithField("component", "all").Infof("ignore-components = %v", ignoreComponentStr)
-			}
+			logrus.WithField("component", "all").Infof("ignore-components = %v", ignoreComponents)
 			var ignoredComponents []string
-			if len(ignoreComponentStr) > 0 {
-				ignoredComponents = strings.Split(ignoreComponentStr, ",")
+			if len(ignoreComponents) > 0 {
+				ignoredComponents = strings.Split(ignoreComponents, ",")
 			}
 
-			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
-			if err != nil {
-				logrus.WithField("component", "all").Error(err)
-			} else {
-				logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckersStr)
-			}
-			var ignoredCheckers []string
-			if len(ignoredCheckersStr) > 0 {
-				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
+			logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckers)
+			var ignoredCheckersList []string
+			if len(ignoredCheckers) > 0 {
+				ignoredCheckersList = strings.Split(ignoredCheckers, ",")
 			}
 			checkResults := make([]*CheckResults, len(consts.DefaultComponents))
 			var wg sync.WaitGroup
@@ -126,18 +97,18 @@ func NewAllCmd() *cobra.Command {
 				if slices.Contains(ignoredComponents, componentName) {
 					continue
 				}
-				if len(usedComponentStr) > 0 && !slices.Contains(usedComponents, componentName) {
+				if len(enableComponents) > 0 && !slices.Contains(usedComponents, componentName) {
 					continue
 				}
 				wg.Add(1)
 				go func(idx int, componentName string) {
 					defer wg.Done()
-					component, err := NewComponent(componentName, cfgFile, specFile, ignoredCheckers)
+					component, err := NewComponent(componentName, "", specFile, ignoredCheckersList)
 					if err != nil {
 						logrus.WithField("component", componentName).Errorf("failed to create component: %v", err)
 						return
 					}
-					checkResults[idx], _ = RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.AllCmdTimeout)
+					checkResults[idx], _ = RunComponentCheck(ctx, component, consts.AllCmdTimeout)
 				}(idx, componentName)
 
 			}
@@ -150,6 +121,28 @@ func NewAllCmd() *cobra.Command {
 			}
 
 			if utils.IsNvidiaGPUExist() {
+				major, _, err := nvutils.GetComputeCapability(0)
+				if err != nil {
+					logrus.WithField("component", "nvidia").Errorf("failed to get compute capability: %v", err)
+				}
+				// check IBGDA for H-generation and above GPUs
+				if !slices.Contains(ignoredComponents, "IBGDA") && major >= 9 {
+
+					cmd := exec.Command("bash", consts.DefaultProductionPath+"/scripts/sichek_ibgda")
+					output, err := cmd.Output()
+					if err != nil {
+						fmt.Printf("❌ IBGDA Check Failed: %v\n", err)
+						ComponentStatuses["IBGDA"] = false
+					} else {
+						fmt.Print(string(output))
+						// check script exit status to determine if passed
+						if cmd.ProcessState != nil && cmd.ProcessState.ExitCode() == 0 {
+							ComponentStatuses["IBGDA"] = true
+						} else {
+							ComponentStatuses["IBGDA"] = false
+						}
+					}
+				}
 				// check nccl perf test
 				if !slices.Contains(ignoredComponents, "nccltest") {
 					ncclCmd := NewNcclPerftestCmd()
@@ -174,13 +167,12 @@ func NewAllCmd() *cobra.Command {
 		},
 	}
 
-	allCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
-	allCmd.Flags().BoolP("eventonly", "e", false, "Print events output only")
-	allCmd.Flags().StringP("spec", "s", "", "Path to the sichek specification file")
-	allCmd.Flags().StringP("cfg", "c", "", "Path to the sichek configuration file")
-	allCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by ','")
-	allCmd.Flags().StringP("ignore-components", "I", "podlog,gpuevents,syslog", "Ignored components")
-	allCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
+	allCmd.Flags().BoolVarP(&verbos, "verbos", "v", false, "Enable verbose output")
+	allCmd.Flags().BoolVarP(&eventonly, "eventonly", "e", false, "Print events output only")
+	allCmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to the sichek specification file")
+	allCmd.Flags().StringVarP(&enableComponents, "enable-components", "E", "", "Enabled components, joined by ','")
+	allCmd.Flags().StringVarP(&ignoreComponents, "ignore-components", "I", "podlog,gpuevents,syslog", "Ignored components")
+	allCmd.Flags().StringVarP(&ignoredCheckers, "ignored-checkers", "i", "", "Ignored checkers")
 
 	return allCmd
 }

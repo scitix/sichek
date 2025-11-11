@@ -26,7 +26,9 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/oss"
 )
 
 func TestLoadSpecFromYaml(t *testing.T) {
@@ -277,7 +279,7 @@ nvidia:
 	if err != nil || cfg.Nvidia == nil {
 		t.Fatalf("Failed to load user config: %v", err)
 	}
-	testDeviceId, err := GetDeviceID()
+	testDeviceId, err := nvutils.GetDeviceID()
 	var spec *NvidiaSpec
 	if err == nil && testDeviceId == "0x233010de" {
 		spec, err = LoadSpec(specFile.Name())
@@ -373,8 +375,8 @@ func TestLoadComponentUserConfig_WithInvalidFile(t *testing.T) {
 	if cfg.Nvidia == nil {
 		t.Fatalf("Expected Nvidia config to be non-nil")
 	}
-	if cfg.Nvidia.QueryInterval.Duration != 30*time.Second {
-		t.Errorf("Expected QueryInterval to be 30s, got %v", cfg.Nvidia.QueryInterval.Duration)
+	if cfg.Nvidia.QueryInterval.Duration != 10*time.Second {
+		t.Errorf("Expected QueryInterval to be 10s, got %v", cfg.Nvidia.QueryInterval.Duration)
 	}
 	if cfg.Nvidia.CacheSize != 5 {
 		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
@@ -397,8 +399,8 @@ func TestLoadComponentUserConfig_WithDefaultConfig(t *testing.T) {
 		t.Fatalf("Expected Nvidia config to be non-nil")
 	}
 	// Add additional assertions here based on the expected default configuration
-	if cfg.Nvidia.QueryInterval.Duration != 30*time.Second {
-		t.Errorf("Expected QueryInterval to be 30s, got %v", cfg.Nvidia.QueryInterval.Duration)
+	if cfg.Nvidia.QueryInterval.Duration != 10*time.Second {
+		t.Errorf("Expected QueryInterval to be 10s, got %v", cfg.Nvidia.QueryInterval.Duration)
 	}
 	if cfg.Nvidia.CacheSize != 5 {
 		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
@@ -412,9 +414,9 @@ func TestLoadSpecFromOss(t *testing.T) {
 	nvidiaSpec := &NvidiaSpecs{}
 	gpuId := "test"
 	url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameNvidia, gpuId)
-	err := common.LoadSpecFromOss(url, nvidiaSpec)
+	err := oss.LoadSpecFromURL(url, nvidiaSpec)
 	if err != nil {
-		t.Fatalf("LoadSpecFromOss() returned an error: %v", err)
+		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)
 	}
 	if len(nvidiaSpec.Specs) == 0 {
 		t.Fatalf("Expected nvidiaSpec to be loaded, got empty map")

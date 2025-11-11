@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -34,11 +35,10 @@ func NewNvidiaCmd() *cobra.Command {
 	NvidaCmd := &cobra.Command{
 		Use:     "gpu",
 		Aliases: []string{"g"},
-		Short:   "Perform Nvidia - related operations",
-		Long:    "Used to perform specific Nvidia - related operations, with specific functions to be expanded",
+		Short:   "Perform nvidia GPU HealthCheck",
 		Run: func(cmd *cobra.Command, args []string) {
 			if !utils.IsNvidiaGPUExist() {
-				logrus.Warn("Nvidia GPU is not Exist. Bypassing GPU HealthCheck")
+				logrus.Warn("nvidia GPU is not Exist. Bypassing GPU HealthCheck")
 				logrus.Exit(0)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
@@ -51,44 +51,34 @@ func NewNvidiaCmd() *cobra.Command {
 				defer cancel()
 			} else {
 				defer func() {
-					logrus.WithField("component", "Nvidia").Info(fmt.Printf("Run NVIDIA HealthCheck Cmd context canceled"))
+					logrus.WithField("component", "nvidia").Info(fmt.Printf("Run NVIDIA HealthCheck Cmd context canceled"))
 					cancel()
 				}()
 			}
-			cfgFile, err := cmd.Flags().GetString("cfg")
-			if err != nil {
-				logrus.WithField("component", "Nvidia").Error(err)
-			} else {
-				if cfgFile != "" {
-					logrus.WithField("component", "Nvidia").Info("load cfgFile: " + cfgFile)
-				} else {
-					logrus.WithField("component", "Nvidia").Info("load default cfg...")
-				}
-			}
-
 			specFile, err := cmd.Flags().GetString("spec")
 			if err != nil {
-				logrus.WithField("component", "Nvidia").Error(err)
+				logrus.WithField("component", "nvidia").Error(err)
 			} else {
-				if specFile != "" {
-					logrus.WithField("component", "Nvidia").Info("load specFile: " + specFile)
+				specFile, err = specgen.EnsureSpecFile(specFile)
+				if err != nil {
+					logrus.WithField("daemon", "nvidia").Errorf("using default specFile: %v", err)
 				} else {
-					logrus.WithField("component", "Nvidia").Info("load default specFile...")
+					logrus.WithField("daemon", "nvidia").Info("load specFile: " + specFile)
 				}
 			}
 			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
 			if err != nil {
-				logrus.WithField("component", "Nvidia").Error(err)
+				logrus.WithField("component", "nvidia").Error(err)
 			} else {
-				logrus.WithField("component", "Nvidia").Info("ignore checkers", ignoredCheckersStr)
+				logrus.WithField("component", "nvidia").Info("ignore checkers", ignoredCheckersStr)
 			}
 			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
-			component, err := nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+			component, err := nvidia.NewComponent("", specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("component", "nvidia").Error(err)
 				return
 			}
-			result, err := RunComponentCheck(ctx, component, cfgFile, specFile, ignoredCheckers, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return
 			}
@@ -96,8 +86,7 @@ func NewNvidiaCmd() *cobra.Command {
 		},
 	}
 
-	NvidaCmd.Flags().StringP("cfg", "c", "", "Path to the Nvidia Cfg")
-	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the Nvidia specification")
+	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the nvidia specification")
 	NvidaCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 	NvidaCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 

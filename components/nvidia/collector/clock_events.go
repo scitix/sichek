@@ -25,9 +25,9 @@ import (
 )
 
 type ClockEvent struct {
-	Name               string `json:"name"`
-	ClockEventReasonId uint64 `json:"clock_event_reason_id"`
-	Description        string `json:"description"`
+	Name               string `json:"name" yaml:"name"`
+	ClockEventReasonId uint64 `json:"clock_event_reason_id" yaml:"clock_event_reason_id"`
+	Description        string `json:"description" yaml:"description"`
 }
 
 // WarningClockEvents ref. https://github.com/NVIDIA/go-nvml/blob/main/pkg/nvml/nvml.h#L2276
@@ -80,10 +80,10 @@ var CriticalClockEvents = map[uint64]ClockEvent{
 var gpuIdleId uint64 = 0x0000000000000001
 
 type ClockEvents struct {
-	IsSupported         bool         `json:"is_supported"`
-	GpuIdle             bool         `json:"gpu_idle"`
-	CriticalClockEvents []ClockEvent `json:"critical_clock_events"`
-	WarningClockEvents  []ClockEvent `json:"warning_clock_events"`
+	IsSupported         bool         `json:"is_supported" yaml:"is_supported"`
+	GpuIdle             bool         `json:"gpu_idle" yaml:"gpu_idle"`
+	CriticalClockEvents []ClockEvent `json:"critical_clock_events" yaml:"critical_clock_events"`
+	WarningClockEvents  []ClockEvent `json:"warning_clock_events" yaml:"warning_clock_events"`
 }
 
 func (clk *ClockEvents) JSON() ([]byte, error) {

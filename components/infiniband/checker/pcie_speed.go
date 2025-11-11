@@ -62,7 +62,11 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	result := config.InfinibandCheckItems[c.name]
 	result.Status = consts.StatusNormal
 
-	if len(infinibandInfo.IBHardWareInfo) == 0 {
+	infinibandInfo.RLock()
+	hwInfoLen := len(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+
+	if hwInfoLen == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Suggestion = ""
 		result.Detail = config.NOIBFOUND
@@ -70,10 +74,13 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	}
 
 	failedHcas := make([]string, 0)
-	spec := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
-	curr := make([]string, 0, len(infinibandInfo.IBHardWareInfo))
+	spec := make([]string, 0, hwInfoLen)
+	curr := make([]string, 0, hwInfoLen)
 	var failedHcasSpec []string
 	var failedHcasCurr []string
+	var devicesToUpdate []string
+	// 先加读锁读取所有数据
+	infinibandInfo.RLock()
 	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.WithField("checker", c.name).Debugf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
@@ -87,10 +94,19 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIESpeed)
 			failedHcasCurr = append(failedHcasCurr, hwInfo.PCIESpeed)
+			devicesToUpdate = append(devicesToUpdate, dev)
+		}
+	}
+	infinibandInfo.RUnlock()
+	// 批量更新状态（使用写锁）
+	if len(devicesToUpdate) > 0 {
+		infinibandInfo.Lock()
+		for _, dev := range devicesToUpdate {
 			tmp := infinibandInfo.IBHardWareInfo[dev]
 			tmp.PCIESpeedState = "1"
 			infinibandInfo.IBHardWareInfo[dev] = tmp
 		}
+		infinibandInfo.Unlock()
 	}
 
 	result.Curr = strings.Join(curr, ",")

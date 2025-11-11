@@ -6,3 +6,4 @@ cmd/sichek
 vendor/
 .idea/workspace.xml
 goreleaser*
+sicl

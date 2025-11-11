@@ -26,9 +26,9 @@ import (
 // UtilizationInfo ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g540824faa6cef45500e0d1dc2f50b321
 type UtilizationInfo struct {
 	// Percent of time over the past sample period during which one or more kernels was executing on the GPU.
-	GPUUsagePercent uint32 `json:"gpu_usage_percent"`
+	GPUUsagePercent uint32 `json:"gpu_usage_percent" yaml:"gpu_usage_percent"`
 	// Percent of time over the past sample period during which global (device) memory was being read or written.
-	MemoryUsagePercent uint32 `json:"memory_usage_percent"`
+	MemoryUsagePercent uint32 `json:"memory_usage_percent" yaml:"memory_usage_percent"`
 }
 
 func (util *UtilizationInfo) JSON() ([]byte, error) {

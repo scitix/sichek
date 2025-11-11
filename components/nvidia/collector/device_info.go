@@ -28,21 +28,21 @@ import (
 )
 
 type DeviceInfo struct {
-	Name         string          `json:"name"`
-	Index        int             `json:"Index"`
-	UUID         string          `json:"uuid"`
-	Serial       string          `json:"serial"`
-	VBIOSVersion string          `json:"vbios_version"`
-	PCIeInfo     PCIeInfo        `json:"pcie_info"`
-	States       StatesInfo      `json:"states_info"`
-	Clock        ClockInfo       `json:"clock_info"`
-	ClockEvents  ClockEvents     `json:"clock_events"`
-	Power        PowerInfo       `json:"power_info"`
-	Temperature  TemperatureInfo `json:"temperature_info"`
-	Utilization  UtilizationInfo `json:"utilization_info"`
-	NVLinkStates NVLinkStates    `json:"nvlink_state"`
-	MemoryErrors MemoryErrors    `json:"ecc_event"`
-	NProcess     int             `json:"nprocess"`
+	Name         string          `json:"name" yaml:"name"`
+	Index        int             `json:"Index" yaml:"Index"`
+	UUID         string          `json:"uuid" yaml:"uuid"`
+	Serial       string          `json:"serial" yaml:"serial"`
+	VBIOSVersion string          `json:"vbios_version" yaml:"vbios_version"`
+	PCIeInfo     PCIeInfo        `json:"pcie_info" yaml:"pcie_info"`
+	States       StatesInfo      `json:"states_info" yaml:"states_info"`
+	Clock        ClockInfo       `json:"clock_info" yaml:"clock_info"`
+	ClockEvents  ClockEvents     `json:"clock_events" yaml:"clock_events"`
+	Power        PowerInfo       `json:"power_info" yaml:"power_info"`
+	Temperature  TemperatureInfo `json:"temperature_info" yaml:"temperature_info"`
+	Utilization  UtilizationInfo `json:"utilization_info" yaml:"utilization_info"`
+	NVLinkStates NVLinkStates    `json:"nvlink_state" yaml:"nvlink_state"`
+	MemoryErrors MemoryErrors    `json:"ecc_event" yaml:"ecc_event"`
+	NProcess     int             `json:"nprocess" yaml:"nprocess"`
 }
 
 func (deviceInfo *DeviceInfo) JSON() ([]byte, error) {

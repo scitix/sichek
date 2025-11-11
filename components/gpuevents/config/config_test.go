@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scitix/sichek/components/nvidia/config"
+	"github.com/scitix/sichek/components/nvidia/utils"
 )
 
 func TestLoadEventRules(t *testing.T) {
@@ -115,7 +115,7 @@ gpu_custom_events:
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
 
 	// Validate the returned spec
-	device, err := config.GetDeviceID()
+	device, err := utils.GetDeviceID()
 	if err != nil {
 		t.Fatalf("Failed to GetDeviceID: %v", err)
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.NvidiaSpec, nvmlInst nvml.Interface) ([]common.Checker, error) {
+func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.NvidiaSpec, nvmlInstPtr *nvml.Interface) ([]common.Checker, error) {
 	checkerConstructors := map[string]func(*config.NvidiaSpec) (common.Checker, error){
 		config.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
 		config.IOMMUCheckerName:           dependence.NewIOMMUChecker,
@@ -63,7 +63,7 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 		}
 
 		if checkerName == config.HardwareCheckerName {
-			checker, err := NewHardwareChecker(cfg, nvmlInst)
+			checker, err := NewHardwareChecker(cfg, nvmlInstPtr)
 			if err != nil {
 				logrus.WithError(err).WithField("checker", checkerName).Error("Failed to create checker")
 				continue

@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net"
 	"os"
@@ -65,76 +64,76 @@ var (
 )
 
 type InfinibandInfo struct {
-	HCAPCINum      int                           `json:"hca_pci_num"`
-	IBPFDevs       map[string]string             `json:"ib_dev"`
-	IBPCIDevs      map[string]string             `json:"hca_pci_dev"`
-	IBHardWareInfo map[string]IBHardWareInfo     `json:"ib_hardware_info"`
-	IBSoftWareInfo IBSoftWareInfo                `json:"ib_software_info"`
-	PCIETreeInfo   map[string]PCIETreeInfo       `json:"pcie_tree_info"`
-	IBCounters     map[string]map[string]uint64  `json:"ib_counters"`
-	IBNicRole      string                        `json:"ib_nic_role"`
-	Time           time.Time                     `json:"time"`
-	GWCache        map[string]*gatewayCacheEntry `json:"gateway_cache"`
+	HCAPCINum      int                           `json:"hca_pci_num" yaml:"hca_pci_num"`
+	IBPFDevs       map[string]string             `json:"ib_dev" yaml:"ib_dev"`
+	IBPCIDevs      map[string]string             `json:"hca_pci_dev" yaml:"hca_pci_dev"`
+	IBHardWareInfo map[string]IBHardWareInfo     `json:"ib_hardware_info" yaml:"ib_hardware_info"`
+	IBSoftWareInfo IBSoftWareInfo                `json:"ib_software_info" yaml:"ib_software_info"`
+	PCIETreeInfo   map[string]PCIETreeInfo       `json:"pcie_tree_info" yaml:"pcie_tree_info"`
+	IBCounters     map[string]map[string]uint64  `json:"ib_counters" yaml:"ib_counters"`
+	IBNicRole      string                        `json:"ib_nic_role" yaml:"ib_nic_role"`
+	Time           time.Time                     `json:"time" yaml:"time"`
+	GWCache        map[string]*gatewayCacheEntry `json:"gateway_cache" yaml:"gateway_cache"`
 	mu             sync.RWMutex
 }
 
 type gatewayCacheEntry struct {
-	GatewayIP string    `json:"gateway_ip"`
-	Err       error     `json:"error"`
-	Timestamp time.Time `json:"timestamp"`
+	GatewayIP string    `json:"gateway_ip" yaml:"gateway_ip"`
+	Err       error     `json:"error" yaml:"error"`
+	Timestamp time.Time `json:"timestamp" yaml:"timestamp"`
 }
 
 type IBHardWareInfo struct {
-	IBDev            string `json:"IBdev"`
-	NetDev           string `json:"net_dev"`
-	HCAType          string `json:"hca_type"`
-	SystemGUID       string `json:"system_guid"`
-	NodeGUID         string `json:"node_guid"`
-	PFGW             string `json:"pf_gw"`
-	VFSpec           string `json:"vf_spec"`
-	VFNum            string `json:"vf_num"`
-	PhyState         string `json:"phy_state"`
-	PortState        string `json:"port_state"`
-	LinkLayer        string `json:"link_layer"`
-	NetOperstate     string `json:"net_operstate"`
-	PortSpeed        string `json:"port_speed"`
-	PortSpeedState   string `json:"port_speed_state"`
-	BoardID          string `json:"board_id"`
-	DeviceID         string `json:"device_id"`
-	PCIEBDF          string `json:"pcie_bdf"`
-	PCIESpeed        string `json:"pcie_speed"`
-	PCIESpeedState   string `json:"pcie_speed_state"`
-	PCIEWidth        string `json:"pcie_width"`
-	PCIEWidthState   string `json:"pcie_width_state"`
-	PCIETreeSpeedMin string `json:"pcie_tree_speed"`
-	PCIETreeWidthMin string `json:"pcie_tree_width"`
-	PCIEMRR          string `json:"pcie_mrr"`
-	Slot             string `json:"slot"`
-	NumaNode         string `json:"numa_node"`
-	CPULists         string `json:"cpu_lists"`
-	FWVer            string `json:"fw_ver"`
-	VPD              string `json:"vpd"`
-	OFEDVer          string `json:"ofed_ver"` // compatible with IB Spec Requirement
+	IBDev            string `json:"IBdev" yaml:"IBdev"`
+	NetDev           string `json:"net_dev" yaml:"net_dev"`
+	HCAType          string `json:"hca_type" yaml:"hca_type"`
+	SystemGUID       string `json:"system_guid" yaml:"system_guid"`
+	NodeGUID         string `json:"node_guid" yaml:"node_guid"`
+	PFGW             string `json:"pf_gw" yaml:"pf_gw"`
+	VFSpec           string `json:"vf_spec" yaml:"vf_spec"`
+	VFNum            string `json:"vf_num" yaml:"vf_num"`
+	PhyState         string `json:"phy_state" yaml:"phy_state"`
+	PortState        string `json:"port_state" yaml:"port_state"`
+	LinkLayer        string `json:"link_layer" yaml:"link_layer"`
+	NetOperstate     string `json:"net_operstate" yaml:"net_operstate"`
+	PortSpeed        string `json:"port_speed" yaml:"port_speed"`
+	PortSpeedState   string `json:"port_speed_state" yaml:"port_speed_state"`
+	BoardID          string `json:"board_id" yaml:"board_id"`
+	DeviceID         string `json:"device_id" yaml:"device_id"`
+	PCIEBDF          string `json:"pcie_bdf" yaml:"pcie_bdf"`
+	PCIESpeed        string `json:"pcie_speed" yaml:"pcie_speed"`
+	PCIESpeedState   string `json:"pcie_speed_state" yaml:"pcie_speed_state"`
+	PCIEWidth        string `json:"pcie_width" yaml:"pcie_width"`
+	PCIEWidthState   string `json:"pcie_width_state" yaml:"pcie_width_state"`
+	PCIETreeSpeedMin string `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
+	PCIETreeWidthMin string `json:"pcie_tree_width" yaml:"pcie_tree_width"`
+	PCIEMRR          string `json:"pcie_mrr" yaml:"pcie_mrr"`
+	Slot             string `json:"slot" yaml:"slot"`
+	NumaNode         string `json:"numa_node" yaml:"numa_node"`
+	CPULists         string `json:"cpu_lists" yaml:"cpu_lists"`
+	FWVer            string `json:"fw_ver" yaml:"fw_ver"`
+	VPD              string `json:"vpd" yaml:"vpd"`
+	OFEDVer          string `json:"ofed_ver" yaml:"ofed_ver"` // compatible with IB Spec Requirement
 }
 
 type PCIETreeInfo struct {
-	PCIETreeSpeed []PCIETreeSpeedInfo `json:"pcie_tree_speed"`
-	PCIETreeWidth []PCIETreeWidthInfo `json:"pcie_tree_width"`
+	PCIETreeSpeed []PCIETreeSpeedInfo `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
+	PCIETreeWidth []PCIETreeWidthInfo `json:"pcie_tree_width" yaml:"pcie_tree_width"`
 }
 
 type PCIETreeSpeedInfo struct {
-	BDF   string `json:"bdf"`
-	Speed string `json:"speed"`
+	BDF   string `json:"bdf" yaml:"bdf"`
+	Speed string `json:"speed" yaml:"speed"`
 }
 
 type PCIETreeWidthInfo struct {
-	BDF   string `json:"bdf"`
-	Width string `json:"width"`
+	BDF   string `json:"bdf" yaml:"bdf"`
+	Width string `json:"width" yaml:"width"`
 }
 
 type IBSoftWareInfo struct {
-	OFEDVer      string   `json:"ofed_ver"`
-	KernelModule []string `json:"kernel_module"`
+	OFEDVer      string   `json:"ofed_ver" yaml:"ofed_ver"`
+	KernelModule []string `json:"kernel_module" yaml:"kernel_module"`
 }
 
 func (i *InfinibandInfo) JSON() (string, error) {
@@ -143,6 +142,26 @@ func (i *InfinibandInfo) JSON() (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// RLock acquires a read lock for safe concurrent read access
+func (i *InfinibandInfo) RLock() {
+	i.mu.RLock()
+}
+
+// RUnlock releases a read lock
+func (i *InfinibandInfo) RUnlock() {
+	i.mu.RUnlock()
+}
+
+// Lock acquires a write lock for safe concurrent write access
+func (i *InfinibandInfo) Lock() {
+	i.mu.Lock()
+}
+
+// Unlock releases a write lock
+func (i *InfinibandInfo) Unlock() {
+	i.mu.Unlock()
 }
 
 func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
@@ -167,8 +186,9 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 	PFDevs := i.GetPFDevs(allIBDevs)
 
 	IBPFDevs := make(map[string]string)
+	re, _ := regexp.Compile(`^bond[0-9]$`)
 	for _, IBDev := range PFDevs {
-		if strings.Contains(IBDev, "bond") {
+		if re.MatchString(IBDev) {
 			continue
 		}
 		netPath := filepath.Join(IBSYSPathPre, IBDev, "device/net")
@@ -248,7 +268,70 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID []string, targetDeviceI
 	return foundDevices, nil
 }
 
+func (i *InfinibandInfo) GetBondInterface(slaveInterface string) (string, error) {
+	bondPattern := "/sys/class/net/bond*"
+
+	bondDirs, err := filepath.Glob(bondPattern)
+	if err != nil {
+		return "", err
+	}
+
+	for _, bondDir := range bondDirs {
+		slavesFile := filepath.Join(bondDir, "bonding/slaves")
+		data, err := os.ReadFile(slavesFile)
+		if err != nil {
+			continue
+		}
+
+		slaves := strings.Fields(string(data))
+		for _, slave := range slaves {
+			if slave == slaveInterface {
+				return filepath.Base(bondDir), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no bond interface found for %s", slaveInterface)
+}
+
+// GetNetInterfaceFromIB returns the final network interface (bond or physical)
+func (i *InfinibandInfo) GetNetInterfaceFromIB(ibDevice string) (string, error) {
+	// Step 1: Get the physical interface
+	netPath := filepath.Join("/sys/class/infiniband", ibDevice, "device/net")
+
+	entries, err := os.ReadDir(netPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read %s: %w", netPath, err)
+	}
+
+	if len(entries) == 0 {
+		return "", fmt.Errorf("no network interface found for %s", ibDevice)
+	}
+
+	physicalIface := entries[0].Name()
+
+	// Step 2: Check if this interface is part of a bond
+	bondIface, err := i.GetBondInterface(physicalIface)
+	if err == nil {
+		// It's part of a bond, return the bond interface
+		return bondIface, nil
+	}
+
+	// Step 3: Not part of a bond, return the physical interface
+	return physicalIface, nil
+}
+
 func (i *InfinibandInfo) GetIBdev2NetDev(IBDev string) []string {
+	if bonded, _ := i.IsNicBonded(); bonded {
+		// If the NIC is bonded, we need to find the active slave
+		bond, _ := i.GetNetInterfaceFromIB(IBDev)
+		// GetNetInterfaceFromIB returns a single interface name (string) for bonded devices;
+		// wrap it into a slice to match the function's []string return type.
+		if bond == "" {
+			return []string{}
+		}
+		return []string{bond}
+	}
 	return i.GetSysCnt(IBDev, "device/net")
 }
 
@@ -552,6 +635,34 @@ func (i *InfinibandInfo) FindGateway(ifaceName string) (string, error) {
 	return gateway, err
 }
 
+func (i *InfinibandInfo) CheckIPVersionViaSysfs(interfaceName string) (hasIPv4, hasIPv6 bool, err error) {
+	basePath := filepath.Join("/sys/class/net", interfaceName)
+
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		return false, false, fmt.Errorf("interface %s not found", interfaceName)
+	}
+
+	ipv4Path := "/proc/net/fib_trie"
+	if data, err := os.ReadFile(ipv4Path); err == nil {
+		if strings.Contains(string(data), interfaceName) {
+			hasIPv4 = true
+		}
+	}
+
+	ipv6Path := "/proc/net/if_inet6"
+	if data, err := os.ReadFile(ipv6Path); err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if strings.Contains(line, interfaceName) {
+				hasIPv6 = true
+				break
+			}
+		}
+	}
+
+	return hasIPv4, hasIPv6, nil
+}
+
 func (i *InfinibandInfo) GetPFGW(IBDev string) string {
 	linkLayer := i.GetIBDeVLinklayer(IBDev)
 
@@ -567,6 +678,16 @@ func (i *InfinibandInfo) GetPFGW(IBDev string) string {
 			return ""
 		}
 		ifaceName := netDevs[0]
+		_, hasIPv6, err := i.CheckIPVersionViaSysfs(ifaceName)
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("Failed to check IP version for interface %s: %v", ifaceName, err)
+			return ""
+		}
+		if hasIPv6 {
+			logrus.WithField("component", "infiniband").Infof("Interface %s has IPv6 address, skipping gateway lookup for IB device: %s", ifaceName, IBDev)
+			return "IPV6"
+		}
+		logrus.WithField("component", "infiniband").Infof("Interface %s has IPv4 address, continuing gateway lookup for IB device: %s", ifaceName, IBDev)
 
 		iface, err := net.InterfaceByName(ifaceName)
 		if err != nil {
@@ -673,18 +794,24 @@ func (i *InfinibandInfo) GetNICRole() string {
 func (i *InfinibandInfo) GetIBCounters(IBDev string) map[string]uint64 {
 	Counters := make(map[string]uint64, 0)
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	counterTypes := []string{"counters", "hw_counters"}
 
 	wg.Add(len(counterTypes))
 	for _, counterType := range counterTypes {
 		go func(ct string) {
 			defer wg.Done()
-			var err error
-			Counters, err = i.GetIBCounter(IBDev, ct)
+			counter, err := i.GetIBCounter(IBDev, ct)
 			if err != nil {
 				logrus.WithField("component", "infiniband").Errorf("Get IB Counter failed, err:%s", err)
 				return
 			}
+			// 使用互斥锁保护 map 的并发写入
+			mu.Lock()
+			for k, v := range counter {
+				Counters[k] = v
+			}
+			mu.Unlock()
 		}(counterType)
 	}
 	wg.Wait()
@@ -799,7 +926,7 @@ func (i *InfinibandInfo) ModifyPCIeMaxReadRequest(deviceAddr string, offset stri
 	// Set the new high nibble
 	newValue |= uint64(newHighNibble) << 12
 
-	log.Printf("Modifying PCIe Max Read Request for device %s at offset %s: current value 0x%04X, new value 0x%04X", deviceAddr, offset, currentValue, newValue)
+	logrus.WithField("component", "infiniband").Infof("Modifying PCIe Max Read Request for device %s at offset %s: current value 0x%04X, new value 0x%04X", deviceAddr, offset, currentValue, newValue)
 	// fmt.Printf("New value: 0x%04X\n", newValue)
 
 	// Write back the new value
@@ -1021,19 +1148,21 @@ func (i *InfinibandInfo) GetCPUList(IBDev string) []string {
 }
 
 func (i *InfinibandInfo) GetOFEDInfo(ctx context.Context) string {
-	var ver string
-	output, err := utils.ExecCommand(ctx, "ofed_info", "-s")
-	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("Fail to run the cmd: ofed_info -s, err:%v", err)
-	}
-	outputStr := string(output)
-	lines := strings.Split(outputStr, ":")
-	ver = lines[0]
-	if len(ver) == 0 {
-		ver = "Not Get"
+
+	if _, err := exec.LookPath("ofed_info"); err == nil {
+		if output, err := exec.CommandContext(ctx, "ofed_info", "-s").Output(); err == nil {
+			if ver := strings.Split(string(output), ":")[0]; ver != "" {
+				return ver
+			}
+		}
 	}
 
-	return ver
+	if data, err := os.ReadFile("/sys/module/mlx5_core/version"); err == nil {
+		if ver := strings.TrimSpace(string(data)); ver != "" {
+			return fmt.Sprintf("rdma_core:%s", ver)
+		}
+	}
+	return "Not Get"
 }
 
 func (i *InfinibandInfo) GetSystemGUID(IBDev string) []string {
@@ -1150,6 +1279,24 @@ func (i *InfinibandInfo) GetIBCounter(IBDev string, counterType string) (map[str
 
 	return Counters, nil
 }
+func (i *InfinibandInfo) IsNicBonded() (bool, error) {
+	re := regexp.MustCompile(`^mlx5_bond_[0-9]$`)
+	entries, err := os.ReadDir(IBSYSPathPre)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("could not read directory '%s': %w", IBSYSPathPre, err)
+	}
+
+	for _, entry := range entries {
+		if re.MatchString(entry.Name()) {
+			return true, nil
+		}
+	}
+	logrus.WithField("component", "infiniband").Infof("Info: No devices matching the pattern 'mlx5_bond_[0-9]' were found in '%s'.", IBSYSPathPre)
+	return false, nil
+}
 
 func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i := &InfinibandInfo{
@@ -1167,7 +1314,7 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i.HCAPCINum = len(i.IBPFDevs)
 	i.IBNicRole = i.GetNICRole()
 
-	i.IBSoftWareInfo.OFEDVer = i.GetOFEDInfo(ctx)
+	i.IBSoftWareInfo.OFEDVer = strings.TrimPrefix(i.GetOFEDInfo(ctx), "rdma-core:")
 	i.IBSoftWareInfo.KernelModule = i.GetKernelModule()
 
 	for IBDev := range i.IBPFDevs {

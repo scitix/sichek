@@ -26,12 +26,12 @@ import (
 )
 
 type TemperatureInfo struct {
-	GPUCurTemperature                  uint32 `json:"current_temperature_C"`
-	GPUThresholdTemperature            uint32 `json:"threshold_temperature_C"`
-	GPUThresholdTemperatureShutdown    uint32 `json:"threshold_temperature_shutdown_C"`
-	GPUThresholdTemperatureSlowdown    uint32 `json:"threshold_temperature_slowdown_C"`
-	MemoryCurTemperature               uint32 `json:"current_memory_temperature_C"`
-	MemoryMaxOperationLimitTemperature uint32 `json:"max_memory_operation_temperature_C"`
+	GPUCurTemperature                  uint32 `json:"current_temperature_C" yaml:"current_temperature_C"`
+	GPUThresholdTemperature            uint32 `json:"threshold_temperature_C" yaml:"threshold_temperature_C"`
+	GPUThresholdTemperatureShutdown    uint32 `json:"threshold_temperature_shutdown_C" yaml:"threshold_temperature_shutdown_C"`
+	GPUThresholdTemperatureSlowdown    uint32 `json:"threshold_temperature_slowdown_C" yaml:"threshold_temperature_slowdown_C"`
+	MemoryCurTemperature               uint32 `json:"current_memory_temperature_C" yaml:"current_memory_temperature_C"`
+	MemoryMaxOperationLimitTemperature uint32 `json:"max_memory_operation_temperature_C" yaml:"max_memory_operation_temperature_C"`
 }
 
 func (info *TemperatureInfo) JSON() ([]byte, error) {

@@ -35,10 +35,10 @@ func NewInfinibandMetrics() *IBMetrics {
 }
 
 func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
-	m.IBNumGauge.SetMetric("hca_num", nil, float64(infinibandInfo.HCAPCINum))
-	m.IBPCINumGauge.SetMetric("hca_pci_num", nil, float64(len(infinibandInfo.IBPCIDevs)))
-
 	// ib_hardware_info
+	infinibandInfo.RLock()
+	// m.IBNumGauge.SetMetric("hca_num", nil, float64(infinibandInfo.HCAPCINum))
+	// m.IBPCINumGauge.SetMetric("hca_pci_num", nil, float64(len(infinibandInfo.IBPCIDevs)))
 	for _, hardWareInfo := range infinibandInfo.IBHardWareInfo {
 		m.IBHardWareInfoGauge.SetMetric("phy_state", []string{hardWareInfo.IBDev}, convertState(hardWareInfo.PhyState))
 		m.IBHardWareInfoGauge.SetMetric("port_state", []string{hardWareInfo.IBDev}, convertState(hardWareInfo.PortState))
@@ -52,6 +52,7 @@ func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
 		m.IBHardWareInfoGauge.SetMetric("pcie_mrr", []string{hardWareInfo.IBDev}, utils.ParseStringToFloat(hardWareInfo.PCIEMRR))
 		m.IBHardWareInfoStrGauge.SetMetric("net_operstate", []string{hardWareInfo.IBDev, hardWareInfo.NetOperstate}, 1)
 	}
+	infinibandInfo.RUnlock()
 
 	// ib_software_info
 	m.IBSoftWareInfoGauge.ExportStructWithStrField(infinibandInfo.IBSoftWareInfo, []string{}, TagPrefix)

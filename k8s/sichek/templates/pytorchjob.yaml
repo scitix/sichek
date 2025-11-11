@@ -19,7 +19,7 @@ spec:
             roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
             k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
         {{- end }}
-        {{- if eq .Values.roceSharedMode "ipvlan" }}
+        {{- if eq .Values.roceSharedMode "volcengine" }}
         metadata:
           annotations:
             roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
@@ -54,6 +54,11 @@ spec:
             {{- if eq .Values.roceSharedMode "vf" }}
             - name: NCCL_IB_GID_INDEX
               value: "3"
+            {{- else if eq .Values.roceSharedMode "lingjun" }}
+            - name: NCCL_IB_ADDR_RANGE
+              value: "fd03:4511:1080::/41"
+            - name: NCCL_IB_ADDR_FAMILY
+              value: "AF_INET6"
             {{- end }}
             - name: POD_NAME
               valueFrom:
@@ -68,7 +73,7 @@ spec:
                 {{- range $i := until 8 }}
                 nvidia.com/rdma{{ $i }}: "1"
                 {{- end }}
-                {{- else if eq .Values.roceSharedMode "ipvlan" }}
+                {{- else if eq .Values.roceSharedMode "volcengine" }}
                 vke.volcengine.com/rdma_host: "1"
                 {{- else }}
                 rdma/hca_shared_devices_all: "1"
@@ -79,7 +84,7 @@ spec:
                 {{- range $i := until 8 }}
                 nvidia.com/rdma{{ $i }}: "1"
                 {{- end }}
-                {{- else if eq .Values.roceSharedMode "ipvlan" }}
+                {{- else if eq .Values.roceSharedMode "volcengine" }}
                 vke.volcengine.com/rdma_host: "1"
                 {{- else }}
                 rdma/hca_shared_devices_all: "1"
@@ -89,7 +94,7 @@ spec:
             volumeMounts:
             - mountPath: /dev/shm
               name: shm
-            {{- if eq .Values.roceSharedMode "ipvlan" }}
+            {{- if or eq .Values.roceSharedMode "volcengine" eq .Values.roceSharedMode "lingjun" }}
             - name: nccl-topo
               mountPath: /var/run/nvidia-topologyd
             {{- end }}
@@ -100,10 +105,15 @@ spec:
           - name: shm
             emptyDir:
               medium: Memory
-          {{- if eq .Values.roceSharedMode "ipvlan" }}
+          {{- if eq .Values.roceSharedMode "volcengine" }}
           - name: nccl-topo
             hostPath:
               path: /var/run/nvidia-topologyd
+          {{- end }}
+          {{- if eq .Values.roceSharedMode "lingjun" }}
+          - name: nccl-topo
+            hostPath:
+              path: /var/run/sys-topology
           {{- end }}
           tolerations:
           - key: node.kubernetes.io/unschedulable
@@ -122,7 +132,7 @@ spec:
             roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
             k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
         {{- end }}
-        {{- if eq .Values.roceSharedMode "ipvlan" }}
+        {{- if eq .Values.roceSharedMode "volcengine" }}
         metadata:
           annotations:
             roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
