@@ -48,7 +48,6 @@ var (
 	gatewayCacheTTL = 5 * time.Minute
 	IBVendorIDs     = []string{
 		"0x15b3", // Mellanox Technologies
-		"0x8086", // Intel Corporation
 	}
 
 	IBDeviceIDs = []string{
@@ -167,9 +166,25 @@ func (i *InfinibandInfo) Unlock() {
 func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDevs {
+		// pass mezz interface
 		if strings.Contains(IBDev, "mezz") {
 			continue
 		}
+
+		// ignore cx4 interface
+		hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
+		if _, err := os.Stat(hcaTypePath); err != nil {
+			continue
+		}
+		hcaTypeContent, err := os.ReadFile(hcaTypePath)
+		if err == nil {
+			hcaType := strings.TrimSpace(string(hcaTypeContent))
+			if strings.Contains(hcaType, "MT4117") {
+				continue
+			}
+		}
+
+		// ignore virtual functions
 		vfPath := path.Join(IBSYSPathPre, IBDev, "device", "physfn")
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
@@ -257,7 +272,6 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID []string, targetDeviceI
 		currentDeviceID := strings.TrimSpace(string(deviceBytes))
 
 		// 检查设备ID是否在目标列表中
-
 		if slices.Contains(targetDeviceIDs, currentDeviceID) {
 			log.Debugf("Found matching device: %s with vendor=%s, device=%s ", pciAddr, currentVendorID, currentDeviceID)
 			foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, currentDeviceID)
@@ -1309,10 +1323,14 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 		// Initialize counters map with IB devices
 		IBCounters: make(map[string]map[string]uint64),
 	}
+	// 获取pcie获取设备列表
 	i.IBPCIDevs, _ = i.FindIBPCIDevices(IBVendorIDs, IBDeviceIDs)
+	// 通过driver获取设备列表
 	i.IBPFDevs = i.GetIBPFdevs()
 	i.HCAPCINum = len(i.IBPFDevs)
 	i.IBNicRole = i.GetNICRole()
+	fmt.Println("debug1:", i.IBPCIDevs, len(i.IBPCIDevs))
+	fmt.Println("debug2:", i.HCAPCINum)
 
 	i.IBSoftWareInfo.OFEDVer = strings.TrimPrefix(i.GetOFEDInfo(ctx), "rdma-core:")
 	i.IBSoftWareInfo.KernelModule = i.GetKernelModule()
