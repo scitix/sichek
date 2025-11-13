@@ -166,10 +166,9 @@ func (i *InfinibandInfo) Unlock() {
 func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDevs {
-		// pass mezz interface
-		if strings.Contains(IBDev, "mezz") {
-			continue
-		}
+		// if strings.Contains(IBDev, "mezz") {
+		// 	continue
+		// }
 
 		// ignore cx4 interface
 		hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
@@ -1220,6 +1219,9 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	i.IBPFDevs = i.GetIBPFdevs()
 	i.HCAPCINum = len(i.IBPFDevs)
 	for IBDev := range i.IBPFDevs {
+		if strings.Contains(IBDev, "mezz") {
+			continue
+		}
 		i.IBCounters[IBDev] = i.GetIBCounters(IBDev)
 		perIBHWInfo := i.IBHardWareInfo[IBDev]
 		perIBHWInfo.NetOperstate = i.GetNetOperstate(IBDev)
@@ -1329,13 +1331,15 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i.IBPFDevs = i.GetIBPFdevs()
 	i.HCAPCINum = len(i.IBPFDevs)
 	i.IBNicRole = i.GetNICRole()
-	fmt.Println("debug1:", i.IBPCIDevs, len(i.IBPCIDevs))
-	fmt.Println("debug2:", i.HCAPCINum)
 
 	i.IBSoftWareInfo.OFEDVer = strings.TrimPrefix(i.GetOFEDInfo(ctx), "rdma-core:")
 	i.IBSoftWareInfo.KernelModule = i.GetKernelModule()
 
 	for IBDev := range i.IBPFDevs {
+		// pass mezz interface
+		if strings.Contains(IBDev, "mezz") {
+			continue
+		}
 		var perIBHWInfo IBHardWareInfo
 		perIBHWInfo.IBDev = IBDev
 		perIBHWInfo.NetOperstate = i.GetNetOperstate(IBDev)
