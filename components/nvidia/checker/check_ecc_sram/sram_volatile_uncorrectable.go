@@ -54,7 +54,8 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 	var failedGpuidPodnames []string
 	var memoryErrorEvents map[int]string
 	for _, device := range nvidiaInfo.DevicesInfo {
-		if device.MemoryErrors.VolatileECC.SRAM.Uncorrected > c.cfg.MemoryErrorThreshold.SRAMVolatileUncorrectableErrors {
+		if device.MemoryErrors.VolatileECC.SRAM.Uncorrected > c.cfg.MemoryErrorThreshold.SRAMVolatileUncorrectableErrors ||
+			device.MemoryErrors.TotalVolatileECC > 0 {
 			if memoryErrorEvents == nil {
 				memoryErrorEvents = make(map[int]string)
 			}
@@ -66,10 +67,8 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 			}
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			memoryErrorEvents[device.Index] = fmt.Sprintf(
-				"GPU %d:%s SRAM Volatile Uncorrectable Detected: %d, Threshold: %d\n",
-				device.Index, device.UUID,
-				device.MemoryErrors.VolatileECC.SRAM.Uncorrected,
-				c.cfg.MemoryErrorThreshold.SRAMVolatileUncorrectableErrors)
+				"GPU %d:%s SRAM Volatile Uncorrectable Detected\n",
+				device.Index, device.UUID)
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
