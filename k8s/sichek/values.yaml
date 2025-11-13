@@ -99,9 +99,14 @@ volumes:
 - name: nvidia-persistenced
   hostPath:
     path: /usr/bin/nvidia-persistenced
-- name: nvidia-lib
+- name: centos-nvidia-lib
+  hostPath:
+    path: /usr/lib64
+    type: DirectoryOrCreate
+- name: ubuntu-nvidia-lib
   hostPath:
     path: /usr/lib/x86_64-linux-gnu
+    type: DirectoryOrCreate
 # Additional volumeMounts on the output Deployment definition.
 volumeMounts:
 - name: host-dev
@@ -132,8 +137,11 @@ volumeMounts:
   mountPath: /usr/bin/nvidia-smi
   name: nvidia-bin
   readOnly: true
-- name: nvidia-lib
+- name: ubuntu-nvidia-lib
   mountPath: /host-usr/lib/x86_64-linux-gnu/
+  readOnly: true
+- name: centos-nvidia-lib
+  mountPath: /host-usr/lib64/
   readOnly: true
 nodeSelector: {}
 

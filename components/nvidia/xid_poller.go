@@ -17,90 +17,66 @@ package nvidia
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"sync"
 	"time"
 
+	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
-
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
 )
 
 type XidEventPoller struct {
 	Name           string
 	ErrorSupported bool
-	XidEventSet    nvml.EventSet
-	Ctx            context.Context
-	Cancel         context.CancelFunc
 	NvmlInst       nvml.Interface
-	EventChan      chan *common.Result
-	Cfg            *config.NvidiaUserConfig
+	NvmlMtx        *sync.RWMutex
+
+	Cfg       *config.NvidiaUserConfig
+	EventChan chan *common.Result
+
+	Ctx    context.Context
+	Cancel context.CancelFunc
+
+	XidEventSet nvml.EventSet
+	wg          sync.WaitGroup // Wait for Start() to exit
 }
 
-func NewXidEventPoller(ctx context.Context, cfg *config.NvidiaUserConfig, nvmlInst nvml.Interface, eventChan chan *common.Result) (*XidEventPoller, error) {
-	// it is ok to create and register the same/shared event set across multiple devices
-	xidEventSet, err := nvml.EventSetCreate()
-	if !errors.Is(err, nvml.SUCCESS) {
-		logrus.WithField("component", "nvidia").Errorf("failed to create event set: %v", nvml.ErrorString(err))
-		return nil, fmt.Errorf("failed to create event set: %v", nvml.ErrorString(err))
+func NewXidEventPoller(ctx context.Context, cfg *config.NvidiaUserConfig, nvmlInst nvml.Interface, nvmlMtx *sync.RWMutex, eventChan chan *common.Result) (*XidEventPoller, error) {
+	xidEventSet, ret := nvmlInst.EventSetCreate()
+	if ret != nvml.SUCCESS {
+		logrus.WithField("component", "nvidia").Errorf("failed to create event set: %v", nvml.ErrorString(ret))
+		return nil, fmt.Errorf("failed to create event set: %v", nvml.ErrorString(ret))
 	}
 	xctx, xcancel := context.WithCancel(ctx)
 	return &XidEventPoller{
-		Name:        "XidEvent",
-		XidEventSet: xidEventSet,
-		Ctx:         xctx,
-		Cancel:      xcancel,
-		NvmlInst:    nvmlInst,
-		Cfg:         cfg,
-		EventChan:   eventChan,
+		Name:           "XidEventPoller",
+		ErrorSupported: true,
+		NvmlInst:       nvmlInst,
+		NvmlMtx:        nvmlMtx,
+		Cfg:            cfg,
+		EventChan:      eventChan,
+		Ctx:            xctx,
+		Cancel:         xcancel,
+		XidEventSet:    xidEventSet,
 	}, nil
 }
 
 func (x *XidEventPoller) Start() error {
-	// Get the number of devices
-	numDevices, err := x.NvmlInst.DeviceGetCount()
-	var retErr error
-	if !errors.Is(err, nvml.SUCCESS) {
-		retErr = fmt.Errorf("failed to get XidEventPoller GPU device count: %v", err)
-		logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-		return retErr
-	}
+	x.wg.Add(1)
+	defer x.wg.Done()
 
-	// Get the device info
-	for i := 0; i < numDevices; i++ {
-		device, err := x.NvmlInst.DeviceGetHandleByIndex(i)
-		if !errors.Is(err, nvml.SUCCESS) {
-			retErr = fmt.Errorf("failed to get XidEventPoller GPU device %d: %v", i, err)
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
-		}
-
-		supportedEvents, err := device.GetSupportedEventTypes()
-		if errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
-			x.ErrorSupported = false
-			retErr = fmt.Errorf("GPU device %d does not support Xid events: %v", i, nvml.ErrorString(err))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
-		}
-		if !errors.Is(err, nvml.SUCCESS) {
-			retErr = fmt.Errorf("failed to get supported event types for XidEventPoller GPU device %d: %v", i, nvml.ErrorString(err))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
-		}
-		err = device.RegisterEvents(supportedEvents, x.XidEventSet)
-		if !errors.Is(err, nvml.SUCCESS) {
-			retErr = fmt.Errorf("failed to register events to GPU device %d: %v", i, nvml.ErrorString(err))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
-		}
+	if err := x.registerDevices(); err != nil {
+		return err
 	}
+	logrus.WithField("component", "nvidia").Infof(" %s Started", x.Name)
 
 	for {
 		select {
 		case <-x.Ctx.Done():
+			logrus.WithField("component", "nvidia").Infof(" %s stopped", x.Name)
 			return nil
 		default:
 		}
@@ -108,70 +84,125 @@ func (x *XidEventPoller) Start() error {
 		// waits for the duration specified in x.Cfg.UpdateInterval (in seconds)
 		// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlEvents.html#group__nvmlEvents
 		// e, err := x.XidEventSet.Wait(uint32(x.Cfg.UpdateInterval.Microseconds()))
-		e, err := x.XidEventSet.Wait(uint32(200))
+		event, ret := x.XidEventSet.Wait(200)
 
-		if errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
-			logrus.WithField("component", "nvidia").Warningf("XidEvent not supported -- Skipping: %v", nvml.ErrorString(err))
+		if ret == nvml.ERROR_NOT_SUPPORTED {
+			logrus.WithField("component", "nvidia").Warningf("XidEvent not supported -- Skipping: %v", nvml.ErrorString(ret))
+			continue
+		}
+		if ret == nvml.ERROR_TIMEOUT {
+			// no event within timeout
+			continue
+		}
+		if ret != nvml.SUCCESS {
+			logrus.WithField("component", "nvidia").Warningf("XidEventSet.Wait failure -- Retrying: %v", nvml.ErrorString(ret))
 			continue
 		}
 
-		if errors.Is(err, nvml.ERROR_TIMEOUT) {
-			// logrus.WithField("component", "nvidia").Warningf("XidEvent Not found during waiting time -- Retrying...\n")
-			continue
+		x.handleEvent(event)
+	}
+}
+
+func (x *XidEventPoller) registerDevices() error {
+	x.NvmlMtx.RLock()
+	defer x.NvmlMtx.RUnlock()
+
+	numDevices, ret := x.NvmlInst.DeviceGetCount()
+	if ret != nvml.SUCCESS {
+		retErr := fmt.Errorf("failed to get XidEventPoller GPU device count: %v", nvml.ErrorString(ret))
+		logrus.WithField("component", "nvidia").Warningf("%v", retErr)
+		return retErr
+	}
+
+	for i := 0; i < numDevices; i++ {
+		device, ret := x.NvmlInst.DeviceGetHandleByIndex(i)
+		if ret != nvml.SUCCESS {
+			retErr := fmt.Errorf("failed to get XidEventPoller GPU device %d: %v", i, nvml.ErrorString(ret))
+			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
+			return retErr
 		}
 
-		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "nvidia").Warningf("XidEventSet.Wait failure -- Retrying: %v", nvml.ErrorString(err))
-			continue
+		supportedEvents, ret := device.GetSupportedEventTypes()
+		if ret == nvml.ERROR_NOT_SUPPORTED {
+			x.ErrorSupported = false
+			retErr := fmt.Errorf("GPU device %d does not support Xid events: %v", i, nvml.ErrorString(ret))
+			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
+			return retErr
+		} else if ret != nvml.SUCCESS {
+			retErr := fmt.Errorf("failed to get supported event types for XidEventPoller GPU device %d: %v", i, nvml.ErrorString(ret))
+			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
+			return retErr
 		}
 
-		xid := e.EventData
-
-		if !config.IsCriticalXidEvent(xid) {
-			if xid != 0 {
-				logrus.WithField("component", "nvidia").Warningf("received a xid event %d which is not a critical XidEvent -- skipping\n", xid)
-			}
-			continue
+		ret = device.RegisterEvents(supportedEvents, x.XidEventSet)
+		if ret != nvml.SUCCESS {
+			retErr := fmt.Errorf("failed to register events to GPU device %d: %v", i, nvml.ErrorString(ret))
+			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
+			return retErr
 		}
+	}
+	return nil
+}
 
-		var deviceID int
-		deviceID, err = e.Device.GetModuleId()
-		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "nvidia").Warningf("failed to get deviceID: %v\n", nvml.ErrorString(err))
-			deviceID = -1
-		}
+func (x *XidEventPoller) handleEvent(e nvml.EventData) {
+	xid := e.EventData
+	if xid == 0 || !config.IsCriticalXidEvent(xid) {
+		logrus.WithField("component", "nvidia").Warningf("received a xid event %d which is not a critical XidEvent -- skipping", xid)
+		return
+	}
 
-		event := config.CriticalXidEvent[xid]
-		event.Detail = fmt.Sprintf("GPU device %d detect critical xid event %d", deviceID, xid)
-		event.Status = consts.StatusAbnormal
-		logrus.WithField("component", "nvidia").Errorf("%v\n", event.Detail)
+	x.NvmlMtx.RLock()
+	deviceID, ret := e.Device.GetModuleId()
+	x.NvmlMtx.RUnlock()
+	if ret != nvml.SUCCESS {
+		logrus.WithField("component", "nvidia").Warningf("failed to get deviceID: %v", nvml.ErrorString(ret))
+		deviceID = -1
+	}
 
-		resResult := &common.Result{
-			Item:     consts.ComponentNameNvidia,
-			Status:   event.Status,
-			Checkers: []*common.CheckerResult{&event},
-			Time:     time.Now(),
-		}
+	event := config.CriticalXidEvent[xid]
+	event.Detail = fmt.Sprintf("GPU device %d detect critical xid event %d", deviceID, xid)
+	event.Status = consts.StatusAbnormal
+	logrus.WithField("component", "nvidia").Errorf("%v\n", event.Detail)
 
-		select {
-		case <-x.Ctx.Done():
-			return nil
-		case x.EventChan <- resResult:
-			logrus.WithField("component", "nvidia").Infof("Notified xid event %d for GPU device %d\n", xid, deviceID)
-		default:
-			logrus.WithField("component", "nvidia").Warningf("xid event channel is full, skipping event")
-		}
+	resResult := &common.Result{
+		Item:     consts.ComponentNameNvidia,
+		Status:   event.Status,
+		Checkers: []*common.CheckerResult{&event},
+		Time:     time.Now(),
+	}
+
+	select {
+	case x.EventChan <- resResult:
+		logrus.WithField("component", "nvidia").Infof("Notified xid event %d for GPU device %d", xid, deviceID)
+	default:
+		logrus.WithField("component", "nvidia").Warningf("xid event channel is full, skipping event")
 	}
 }
 
 func (x *XidEventPoller) Stop() error {
+	// Cancel context to signal Start() to exit
 	x.Cancel()
-	if x.XidEventSet != nil {
-		err := x.XidEventSet.Free()
-		if !errors.Is(err, nvml.SUCCESS) {
-			return fmt.Errorf("failed to free event set: %v", nvml.ErrorString(err))
-		}
+
+	// Wait for Start() to actually exit (bounded wait)
+	done := make(chan struct{})
+	go func() {
+		x.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		logrus.WithField("component", "nvidia").Warningf("timed out waiting for XidEventPoller Start() to exit")
 	}
-	x.XidEventSet = nil
+
+	if x.XidEventSet != nil {
+		ret := x.XidEventSet.Free()
+		if ret != nvml.SUCCESS {
+			return fmt.Errorf("failed to free event set: %v", nvml.ErrorString(ret))
+		}
+		x.XidEventSet = nil
+	}
+
 	return nil
 }

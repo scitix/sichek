@@ -40,7 +40,7 @@ func getDefaultClient() *http.Client {
 // getConnectivityClient returns a client for connectivity checks
 func getConnectivityClient() *http.Client {
 	return &http.Client{
-		Timeout: 5 * time.Second, // Short timeout for connectivity check
+		Timeout: 30 * time.Second, // Short timeout for connectivity check
 	}
 }
 

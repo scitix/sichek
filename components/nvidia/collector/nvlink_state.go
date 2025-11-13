@@ -65,6 +65,7 @@ func (nvlinkStates *NVLinkStates) Get(dev nvml.Device, uuid string) error {
 	for link := 0; link < int(nvml.NVLINK_MAX_LINKS); link++ {
 		var nvlinkState NVLinkState
 		ret := nvlinkState.Get(dev, uuid, link)
+		break_loop := false
 		switch ret {
 		case nvml.SUCCESS:
 			if nvlinkState.NVlinkSupported {
@@ -72,9 +73,12 @@ func (nvlinkStates *NVLinkStates) Get(dev nvml.Device, uuid string) error {
 			}
 		case nvml.ERROR_INVALID_ARGUMENT, nvml.ERROR_NOT_SUPPORTED:
 			// No more nvlink links to query or no nvlink support
-			break
+			break_loop = true
 		default:
 			return fmt.Errorf("get nvlink state failed: %v", ret)
+		}
+		if break_loop {
+			break
 		}
 	}
 	// If we reach here, it means we have queried all links or encountered an error

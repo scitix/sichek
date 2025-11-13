@@ -210,8 +210,7 @@ func TestGpuPStateChecker_Check(t *testing.T) {
 
 func TestHardwareChecker_Check(t *testing.T) {
 	// Create a new HardwareChecker
-	nvmlInstPtr := &nvmlInst
-	checker, err := NewHardwareChecker(nvidiaSpecCfg, nvmlInstPtr)
+	checker, err := NewHardwareChecker(nvidiaSpecCfg)
 	if err != nil {
 		t.Fatalf("failed to create HardwareChecker: %v", err)
 	}
@@ -364,8 +363,7 @@ func TestSoftwareChecker_Check(t *testing.T) {
 
 func TestChecker_Check(t *testing.T) {
 	// Create a new SoftwareChecker
-	nvmlInstPtr := &nvmlInst
-	checkers, err := NewCheckers(&nvidiaUserCfg, nvidiaSpecCfg, nvmlInstPtr)
+	checkers, err := NewCheckers(&nvidiaUserCfg, nvidiaSpecCfg)
 	if err != nil {
 		t.Fatalf("failed to create Checkers: %v", err)
 	}
