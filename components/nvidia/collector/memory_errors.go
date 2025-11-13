@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/sirupsen/logrus"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 )
@@ -30,9 +31,11 @@ type MemoryErrors struct {
 
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1g08978d1c4fb52b6a4c72b39de144f1d9
 	// Volatile counts are reset each time the driver loads.
-	VolatileECC LocationErrors `json:"volatile" yaml:"volatile"`
+	VolatileECC      LocationErrors `json:"volatile" yaml:"volatile"`
+	TotalVolatileECC uint64         `json:"total_volatile_ecc" yaml:"total_volatile_ecc"`
 	// Aggregate counts persist across reboots (i.e. for the lifetime of the device).
-	AggregateECC LocationErrors `json:"aggregate" yaml:"aggregate"`
+	AggregateECC      LocationErrors `json:"aggregate" yaml:"aggregate"`
+	TotalAggregateECC uint64         `json:"total_aggregate_ecc" yaml:"total_aggregate_ecc"`
 }
 type ECCMode struct {
 	Current int32 `json:"Current" yaml:"Current"`
@@ -60,15 +63,16 @@ type LocationErrors struct {
 
 	// Memory locations types.
 	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceEnumvs.html#group__nvmlDeviceEnumvs_1g9bcbee49054a953d333d4aa11e8b9c25
-	// L1Cache          ErrorType `json:"GPU L1 Cache"`
-	// L2Cache          ErrorType `json:"GPU L2 Cache"`
-	DRAM ErrorType `json:"Turing+DRAM" yaml:"Turing+DRAM"`
-	// GPUDeviceMemory  ErrorType `json:"GPU Device Memory"`
-	// GPURegisterFile  ErrorType `json:"GPU Register File"`
-	// GPUTextureMemory ErrorType `json:"GPU Texture Memory"`
-	// SharedMemory     ErrorType `json:"Shared memory"`
-	// CBU              ErrorType `json:"CBU"`
-	SRAM ErrorType `json:"Turing+SRAM" yaml:"Turing+SRAM"`
+	L1Cache          ErrorType `json:"GPU L1 Cache" yaml:"GPU L1 Cache"`
+	L2Cache          ErrorType `json:"GPU L2 Cache" yaml:"GPU L2 Cache"`
+	DRAM             ErrorType `json:"Turing+DRAM" yaml:"Turing+DRAM"`
+	GPUDeviceMemory  ErrorType `json:"GPU Device Memory" yaml:"GPU Device Memory"`
+	GPURegisterFile  ErrorType `json:"GPU Register File" yaml:"GPU Register File"`
+	GPUTextureMemory ErrorType `json:"GPU Texture Memory" yaml:"GPU Texture Memory"`
+	SharedMemory     ErrorType `json:"Shared memory" yaml:"Shared memory"`
+	CBU              ErrorType `json:"CBU" yaml:"CBU"`
+	SRAM             ErrorType `json:"Turing+SRAM" yaml:"Turing+SRAM"`
+	// COUNT            ErrorType `json:"COUNT" yaml:"COUNT"`  ERROR_INVALID_ARGUMENT
 }
 
 type ErrorType struct {
@@ -201,7 +205,7 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.MEMORY_LOCATION_SRAM,
 	)
 	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
-		result = fmt.Errorf("(SRAM, Volatile, Corrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+		result = fmt.Errorf("(SRAM, Aggregate, Corrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
 
 	memErrors.AggregateECC.SRAM.Uncorrected, err = device.GetMemoryErrorCounter(
@@ -210,7 +214,195 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.MEMORY_LOCATION_SRAM,
 	)
 	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
-		result = fmt.Errorf("(SRAM, Volatile, UnCorrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+		result = fmt.Errorf("(SRAM, Aggregate, UnCorrected) failed to get total ecc errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}
+
+	memErrors.VolatileECC.SRAM.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_SRAM,
+	)
+	logrus.WithField("component", "nvidia").Warnf("(SRAM, Volatile, UnCorrected) get volatile sram uncorrectable errors for GPU %s: %v", uuid, memErrors.VolatileECC.SRAM.Uncorrected)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(SRAM, Volatile, UnCorrected) get volatile sram uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.SRAM.Corrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_CORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_SRAM,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(SRAM, Volatile, UnCorrected) get volatile sram corrected errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.L2Cache.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_L2_CACHE,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(L2_CACHE, Volatile, UnCorrected) get volatile l2 cache uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.L1Cache.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_L1_CACHE,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(L1_CACHE, Volatile, UnCorrected) get volatile l1 cache uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.GPURegisterFile.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_REGISTER_FILE,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(REGISTER_FILE, Volatile, UnCorrected) get volatile register file uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.GPUTextureMemory.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_TEXTURE_MEMORY,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(TEXTURE_MEMORY, Volatile, UnCorrected) get volatile texture memory uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.SharedMemory.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_TEXTURE_SHM,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(TEXTURE_SHM, Volatile, UnCorrected) get volatile texture shm uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.GPUDeviceMemory.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_DEVICE_MEMORY,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(DEVICE_MEMORY, Volatile, UnCorrected) get volatile device memory uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.CBU.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_CBU,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(CBU, Volatile, UnCorrected) get volatile cbu uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.TotalVolatileECC = memErrors.VolatileECC.L1Cache.Uncorrected +
+		memErrors.VolatileECC.L2Cache.Uncorrected +
+		memErrors.VolatileECC.GPURegisterFile.Uncorrected +
+		memErrors.VolatileECC.GPUTextureMemory.Uncorrected +
+		memErrors.VolatileECC.SharedMemory.Uncorrected +
+		memErrors.VolatileECC.GPUDeviceMemory.Uncorrected +
+		memErrors.VolatileECC.CBU.Uncorrected
+
+	if memErrors.TotalVolatileECC > 0 {
+		logrus.WithField("component", "nvidia").Warnf("Detected volatile ecc errors for GPU %s: TotalVolatileECC = %x", uuid, memErrors.TotalVolatileECC)
+	}
+
+	memErrors.AggregateECC.L2Cache.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_L2_CACHE,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(L2_CACHE, Aggregate, UnCorrected) get aggregate l2 cache uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.AggregateECC.L1Cache.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_L1_CACHE,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(L1_CACHE, Aggregate, UnCorrected) get aggregate l1 cache uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.AggregateECC.GPURegisterFile.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_REGISTER_FILE,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(REGISTER_FILE, Aggregate, UnCorrected) get aggregate register file uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.AggregateECC.GPUTextureMemory.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_TEXTURE_MEMORY,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(TEXTURE_MEMORY, Aggregate, UnCorrected) get aggregate texture memory uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.AggregateECC.SharedMemory.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_TEXTURE_SHM,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(TEXTURE_SHM, Aggregate, UnCorrected) get aggregate texture shm uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.AggregateECC.GPUDeviceMemory.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_DEVICE_MEMORY,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(DEVICE_MEMORY, Aggregate, UnCorrected) get aggregate device memory uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.AggregateECC.CBU.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.AGGREGATE_ECC,
+		nvml.MEMORY_LOCATION_CBU,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(CBU, Aggregate, UnCorrected) get aggregate cbu uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.TotalAggregateECC = memErrors.AggregateECC.L1Cache.Uncorrected +
+		memErrors.AggregateECC.L2Cache.Uncorrected +
+		memErrors.AggregateECC.GPURegisterFile.Uncorrected +
+		memErrors.AggregateECC.GPUTextureMemory.Uncorrected +
+		memErrors.AggregateECC.SharedMemory.Uncorrected +
+		memErrors.AggregateECC.GPUDeviceMemory.Uncorrected +
+		memErrors.AggregateECC.CBU.Uncorrected
+
+	if memErrors.TotalAggregateECC > 0 {
+		logrus.WithField("component", "nvidia").Warnf("Detected aggregate ecc errors for GPU %s: TotalAggregateECC = %x", uuid, memErrors.TotalAggregateECC)
+	}
+
+	memErrors.VolatileECC.DRAM.Uncorrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_UNCORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_DRAM,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(DRAM, Volatile, UnCorrected) get volatile dram uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
+	memErrors.VolatileECC.DRAM.Corrected, err = device.GetMemoryErrorCounter(
+		nvml.MEMORY_ERROR_TYPE_CORRECTED,
+		nvml.VOLATILE_ECC,
+		nvml.MEMORY_LOCATION_DRAM,
+	)
+	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
+		result = fmt.Errorf("(DRAM, Volatile, Corrected) get volatile dram corrected errors for GPU %s: %s", uuid, nvml.ErrorString(err))
+	}
+
 	return result
 }

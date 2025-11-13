@@ -9,11 +9,11 @@ spec:
   selector:
     matchLabels:
       app: {{ .Values.name }}
-    updateStrategy:
-      type: {{ .Values.daemon.updateStrategy}}
-      rollingUpdate:
-        maxSurge: 0
-        maxUnavailable: 10
+  updateStrategy:
+    type: {{ .Values.daemon.updateStrategy}}
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 10
   template:
     metadata:
       {{- with .Values.podAnnotations }}
