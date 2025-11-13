@@ -18,6 +18,7 @@ package nvidia
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,8 +40,9 @@ func TestNewXidEventPoller(t *testing.T) {
 	ctx := context.Background()
 	cfg := &config.NvidiaUserConfig{}
 	eventChan := make(chan *common.Result, 1)
+	var nvmlMtx sync.RWMutex
 
-	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
+	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, &nvmlMtx, eventChan)
 	if err != nil {
 		t.Errorf("failed to create XidEventPoller: %v", err)
 	}
@@ -61,8 +63,9 @@ func TestXidEventPoller_Start(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cfg := &config.NvidiaUserConfig{}
 	eventChan := make(chan *common.Result, 1)
+	var nvmlMtx sync.RWMutex
 
-	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, eventChan)
+	poller, err := NewXidEventPoller(ctx, cfg, nvmlInst, &nvmlMtx, eventChan)
 	if err != nil {
 		t.Errorf("failed to create XidEventPoller: %v", err)
 	}

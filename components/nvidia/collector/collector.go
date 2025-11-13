@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
@@ -60,29 +61,38 @@ func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expect
 	if err == nil {
 		collector.ExpectedDeviceCount = expectedDeviceCount
 		collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
-		collector.getUUID()
+		if err := collector.getUUID(); err != nil {
+			return nil, fmt.Errorf("failed to get UUID during collector initialization: %w", err)
+		}
 	} else {
 		return nil, fmt.Errorf("failed to NewNvidiaCollector: %v", err)
 	}
 	return collector, nil
 }
 
-func (collector *NvidiaCollector) getUUID() {
+func (collector *NvidiaCollector) getUUID() error {
 	collector.UUIDAllValidFlag = true
 	for i := 0; i < collector.ExpectedDeviceCount; i++ {
 		device, err := (*collector.nvmlInst).DeviceGetHandleByIndex(i)
 		if !errors.Is(err, nvml.SUCCESS) {
+			if invalidErr := utils.IsNvmlInvalidError(err); invalidErr != nil {
+				return invalidErr
+			}
 			collector.UUIDAllValidFlag = false
 			logrus.WithField("component", "NVIDIA-Collector-getUUID").Errorf("failed to get Nvidia GPU device %d: %v", i, err)
-			return
+			return nil
 		}
 		uuid, err := device.GetUUID()
 		if !errors.Is(err, nvml.SUCCESS) {
+			if invalidErr := utils.IsNvmlInvalidError(err); invalidErr != nil {
+				return invalidErr
+			}
 			logrus.WithField("component", "NVIDIA-Collector-getUUID").Errorf("failed to get UUID for GPU %d: %v", i, nvml.ErrorString(err))
 			collector.UUIDAllValidFlag = false
 		}
 		collector.DeviceUUIDs[i] = uuid
 	}
+	return nil
 }
 
 func (collector *NvidiaCollector) Name() string {
@@ -95,7 +105,9 @@ func (collector *NvidiaCollector) GetCfg() common.ComponentUserConfig {
 
 func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, error) {
 	if !collector.UUIDAllValidFlag {
-		collector.getUUID()
+		if err := collector.getUUID(); err != nil {
+			return nil, err
+		}
 	}
 
 	nvidia := &NvidiaInfo{
@@ -103,30 +115,49 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 		SoftwareInfo:        collector.softwareInfo,
 		ValiddeviceUUIDFlag: collector.UUIDAllValidFlag,
 		DeviceUUIDs:         collector.DeviceUUIDs,
+		GPUAvailability:     make(map[int]bool, collector.ExpectedDeviceCount),
+		LostGPUErrors:       make(map[int]string, collector.ExpectedDeviceCount),
 	}
 
 	// Get the number of devices
 	numDevices, err := (*collector.nvmlInst).DeviceGetCount()
 	if !errors.Is(err, nvml.SUCCESS) {
+		// Check if this is an error that indicates NVML is invalid
+		if invalidErr := utils.IsNvmlInvalidError(err); invalidErr != nil {
+			return nil, invalidErr
+		}
 		return nil, fmt.Errorf("failed to get Nvidia GPU device count: %v", err)
 	}
 	nvidia.DeviceCount = numDevices
 
-	// Get the device info
-	nvidia.DevicesInfo = make([]DeviceInfo, numDevices)
+	// Check GPU availability for all expected devices and get the device info
+	// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html#group__nvmlDeviceQueries_1g4cc7ff5253d53cc97b1afb606d614888
+	nvidia.DevicesInfo = make([]DeviceInfo, 0)
 	nvidia.DeviceUsedCount = 0
-	for i := 0; i < numDevices; i++ {
+	for i := 0; i < collector.ExpectedDeviceCount; i++ {
 		device, err := (*collector.nvmlInst).DeviceGetHandleByIndex(i)
 		if !errors.Is(err, nvml.SUCCESS) {
-			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU %d: %s", i, nvml.ErrorString(err))
+			if invalidErr := utils.IsNvmlInvalidError(err); invalidErr != nil {
+				return nil, invalidErr
+			}
+			nvidia.GPUAvailability[i] = false
+			nvidia.LostGPUErrors[i] = nvml.ErrorString(err)
+			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("GPU %d is not accessible: %s", i, nvidia.LostGPUErrors[i])
 			continue
 		}
-		err2 := nvidia.DevicesInfo[i].Get(device, i, collector.softwareInfo.DriverVersion)
+		nvidia.GPUAvailability[i] = true
+		var deviceInfo DeviceInfo
+		err2 := deviceInfo.Get(device, i, collector.softwareInfo.DriverVersion)
 		if err2 != nil {
+			if invalidErr := utils.IsNvmlInvalidError(err2); invalidErr != nil {
+				return nil, invalidErr
+			}
 			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
 			continue
 		}
-		if nvidia.DevicesInfo[i].NProcess > 0 {
+		// Only add successfully collected device info to the list
+		nvidia.DevicesInfo = append(nvidia.DevicesInfo, deviceInfo)
+		if deviceInfo.NProcess > 0 {
 			nvidia.DeviceUsedCount++
 		}
 	}
