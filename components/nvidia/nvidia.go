@@ -30,6 +30,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/components/nvidia/metrics"
+	nvidiautils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -58,6 +59,7 @@ type component struct {
 
 	healthCheckMtx sync.Mutex
 	serviceMtx     sync.RWMutex
+	nvmlMtx        sync.RWMutex
 	running        bool
 	resultChannel  chan *common.Result
 
@@ -100,7 +102,8 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 }
 
 /*
-  - TODO: reinit nvmlInst becomes invalid during the program's runtime
+  - ReNewNvml reinitializes NVML instance.
+    reinit nvmlInst becomes invalid during the program's runtime
     Key NVML Error Codes to Handle
     nvml.ERROR_UNINITIALIZED: NVML was not initialized or nvml.Shutdown was called.
     nvml.ERROR_DRIVER_NOT_LOADED: NVIDIA driver is not running or not installed.
@@ -109,7 +112,6 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
     nvml.ERROR_UNKNOWN: An unexpected issue occurred
     If nvmlInst becomes invalid, reinitialize it.
 */
-// ReNewNvml reinitializes NVML instance.
 // Note: The caller must hold c.healthCheckMtx lock before calling this function
 // to ensure thread-safe access to nvmlInst and xidPoller.
 func ReNewNvml(c *component) error {
@@ -121,6 +123,9 @@ func ReNewNvml(c *component) error {
 		}
 	}
 
+	// Acquire write lock to prevent any NVML calls during Shutdown/New
+	c.nvmlMtx.Lock()
+	defer c.nvmlMtx.Unlock()
 	if c.nvmlInst != nil {
 		StopNvml(c.nvmlInst)
 	}
@@ -133,7 +138,7 @@ func ReNewNvml(c *component) error {
 		}
 	} else {
 		c.nvmlInst = nvmlInst
-		// Update the shared pointer - all components (collector, checkers) will automatically use the new instance
+		// Update the shared pointer - collector will automatically use the new instance
 		if c.nvmlInstPtr != nil {
 			*c.nvmlInstPtr = nvmlInst
 		}
@@ -142,8 +147,8 @@ func ReNewNvml(c *component) error {
 		c.serviceMtx.RLock()
 		isRunning := c.running
 		c.serviceMtx.RUnlock()
-		if c.xidPoller != nil && isRunning {
-			newXidPoller, err := NewXidEventPoller(c.ctx, c.cfg, nvmlInst, c.resultChannel)
+		if isRunning {
+			newXidPoller, err := NewXidEventPoller(c.ctx, c.cfg, nvmlInst, &c.nvmlMtx, c.resultChannel)
 			if err != nil {
 				logrus.WithField("component", "nvidia").Errorf("failed to recreate xid poller after NVML reinit: %v", err)
 			} else {
@@ -218,21 +223,44 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return nil, err
 	}
 
-	// Pass the shared pointer to collector and checkers
+	// Create component first to get nvmlMtx address
+	component := &component{
+		componentName:  consts.ComponentNameNvidia,
+		ctx:            ctx,
+		cancel:         cancel,
+		cfg:            nvidiaCfg,
+		cfgMutex:       sync.RWMutex{},
+		nvmlInst:       nvmlInst,
+		nvmlInstPtr:    nvmlInstPtr,
+		cacheMtx:       sync.RWMutex{},
+		cacheBuffer:    make([]*common.Result, nvidiaCfg.Nvidia.CacheSize),
+		cacheInfo:      make([]common.Info, nvidiaCfg.Nvidia.CacheSize),
+		currIndex:      0,
+		cacheSize:      nvidiaCfg.Nvidia.CacheSize,
+		healthCheckMtx: sync.Mutex{},
+		serviceMtx:     sync.RWMutex{},
+		nvmlMtx:        sync.RWMutex{},
+		running:        false,
+		resultChannel:  make(chan *common.Result),
+	}
+
+	// Pass the shared pointer to collector
+	// Note: NVML calls in collector are protected by locks in nvidia.go where collector methods are called
+	component.nvmlMtx.Lock()
 	collectorPointer, err := collector.NewNvidiaCollector(ctx, nvmlInstPtr, nvidiaSpecCfg.GpuNums)
+	component.nvmlMtx.Unlock()
 	if err != nil {
 		logrus.WithField("component", "nvidia").Errorf("NewNvidiaCollector failed: %v", err)
 		return nil, err
 	}
 
-	checkers, err := checker.NewCheckers(nvidiaCfg, nvidiaSpecCfg, nvmlInstPtr)
+	checkers, err := checker.NewCheckers(nvidiaCfg, nvidiaSpecCfg)
 	if err != nil {
 		logrus.WithField("component", "nvidia").Errorf("NewCheckers failed: %v", err)
 		return nil, err
 	}
 
-	resultChannel := make(chan *common.Result)
-	xidPoller, err := NewXidEventPoller(ctx, nvidiaCfg, nvmlInst, resultChannel)
+	xidPoller, err := NewXidEventPoller(ctx, nvidiaCfg, nvmlInst, &component.nvmlMtx, component.resultChannel)
 	if err != nil {
 		logrus.WithField("component", "nvidia").Errorf("NewXidEventPoller failed: %v", err)
 		return nil, err
@@ -245,26 +273,13 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	if nvidiaCfg.Nvidia.EnableMetrics {
 		nvidiaMetrics = metrics.NewNvidiaMetrics()
 	}
-	component := &component{
-		componentName: consts.ComponentNameNvidia,
-		ctx:           ctx,
-		cancel:        cancel,
-		cfg:           nvidiaCfg,
-		cfgMutex:      sync.RWMutex{},
-		nvmlInst:      nvmlInst,
-		nvmlInstPtr:   nvmlInstPtr,
-		collector:     collectorPointer,
-		checkers:      checkers,
-		cacheMtx:      sync.RWMutex{},
-		cacheBuffer:   make([]*common.Result, nvidiaCfg.Nvidia.CacheSize),
-		cacheInfo:     make([]common.Info, nvidiaCfg.Nvidia.CacheSize),
-		currIndex:     0,
-		cacheSize:     nvidiaCfg.Nvidia.CacheSize,
-		xidPoller:     xidPoller,
-		running:       false,
-		resultChannel: resultChannel,
-		metrics:       nvidiaMetrics,
-	}
+
+	// Complete component initialization
+	component.collector = collectorPointer
+	component.checkers = checkers
+	component.xidPoller = xidPoller
+	component.metrics = nvidiaMetrics
+
 	return component, nil
 }
 
@@ -275,14 +290,15 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.healthCheckMtx.Lock()
 	defer c.healthCheckMtx.Unlock()
+
+	// Try to reinitialize NVML if instance is nil (from previous failed check)
 	if c.nvmlInst == nil {
 		err := ReNewNvml(c)
-		// Check again after reinitialization
 		if c.nvmlInst == nil {
-			logrus.WithField("component", "nvidia").Errorf("failed to Reinitialize NVML: %s", err.Error())
+			logrus.WithField("component", "nvidia").Errorf("failed to reinitialize NVML: %v", err)
 			checkerResult := &common.CheckerResult{
 				Name:        "NVMLInitFailed",
-				Description: fmt.Sprintf("failed to Reinitialize NVML: %s", err.Error()),
+				Description: fmt.Sprintf("failed to reinitialize NVML: %v", err),
 				Status:      consts.StatusAbnormal,
 				Level:       consts.LevelCritical,
 				Detail:      "",
@@ -295,17 +311,67 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 				Checkers: []*common.CheckerResult{checkerResult},
 				Time:     time.Now(),
 			}
-			return result, fmt.Errorf("failed to reinitialize NVML: %s", err.Error())
+			return result, fmt.Errorf("failed to reinitialize NVML: %w", err)
 		}
-		logrus.WithField("component", "nvidia").Errorf("Reinitialize NVML successfully")
+		logrus.WithField("component", "nvidia").Infof("reinitialized NVML successfully")
 	}
+
 	timer := common.NewTimer(fmt.Sprintf("%s-HealthCheck-Cost", c.componentName))
+	// Protect all NVML calls in collector with RLock
+	c.nvmlMtx.RLock()
 	nvidiaInfo, err := c.collector.Collect(ctx)
+	c.nvmlMtx.RUnlock()
 	timer.Mark("Collect")
+
 	if err != nil {
+		// Check if the error indicates NVML instance is invalid
+		if nvidiautils.CheckNvmlInvalidError(err) {
+			// Mark NVML instance as invalid, will be reinitialized on next HealthCheck
+			c.nvmlInst = nil
+			if c.nvmlInstPtr != nil {
+				*c.nvmlInstPtr = nil
+			}
+			logrus.WithField("component", "nvidia").Errorf("NVML instance is invalid, marking for reinitialization on next check: %v", err)
+
+			checkerResult := &common.CheckerResult{
+				Name:        "NVMLInvalid",
+				Description: fmt.Sprintf("NVML instance is invalid: %v", err),
+				Status:      consts.StatusAbnormal,
+				Level:       consts.LevelCritical,
+				Detail:      "",
+				ErrorName:   "NVMLInvalid",
+				Suggestion:  fmt.Sprintf("NVML will be reinitialized on next health check. Please check the %s status", c.componentName),
+			}
+			result := &common.Result{
+				Item:     consts.ComponentNameNvidia,
+				Status:   consts.StatusAbnormal,
+				Checkers: []*common.CheckerResult{checkerResult},
+				Time:     time.Now(),
+			}
+			return result, fmt.Errorf("NVML instance is invalid: %w", err)
+		}
+
+		// Other errors during collection, return error result
 		logrus.WithField("component", "nvidia").Errorf("failed to collect nvidia info: %v", err)
-		return nil, err
+		checkerResult := &common.CheckerResult{
+			Name:        "CollectFailed",
+			Description: fmt.Sprintf("failed to collect NVIDIA device information: %v", err),
+			Status:      consts.StatusAbnormal,
+			Level:       consts.LevelCritical,
+			Detail:      "",
+			ErrorName:   "CollectFailed",
+			Suggestion:  fmt.Sprintf("Please check the %s status", c.componentName),
+		}
+		result := &common.Result{
+			Item:     consts.ComponentNameNvidia,
+			Status:   consts.StatusAbnormal,
+			Checkers: []*common.CheckerResult{checkerResult},
+			Time:     time.Now(),
+		}
+		return result, fmt.Errorf("failed to collect nvidia info: %w", err)
 	}
+
+	// Successfully collected info, continue with normal flow
 	if c.cfg.Nvidia.EnableMetrics {
 		c.metrics.ExportMetrics(nvidiaInfo)
 	}

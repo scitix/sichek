@@ -32,6 +32,8 @@ type NvidiaInfo struct {
 	DeviceUsedCount     int                     `json:"device_used_count"`
 	DevicesInfo         []DeviceInfo            `json:"gpu_devices"`
 	DeviceToPodMap      map[string]*k8s.PodInfo `json:"device_to_pod_map"`
+	GPUAvailability     map[int]bool            `json:"gpu_availability"`
+	LostGPUErrors       map[int]string          `json:"lost_gpu_errors"` // Error messages for lost GPUs
 }
 
 func (nvidia *NvidiaInfo) JSON() (string, error) {

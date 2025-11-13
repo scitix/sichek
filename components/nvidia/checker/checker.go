@@ -22,18 +22,17 @@ import (
 	remap "github.com/scitix/sichek/components/nvidia/checker/check_remmaped_rows"
 	"github.com/scitix/sichek/components/nvidia/config"
 
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.NvidiaSpec, nvmlInstPtr *nvml.Interface) ([]common.Checker, error) {
+func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.NvidiaSpec) ([]common.Checker, error) {
 	checkerConstructors := map[string]func(*config.NvidiaSpec) (common.Checker, error){
-		config.PCIeACSCheckerName:         dependence.NewPCIeACSChecker,
-		config.IOMMUCheckerName:           dependence.NewIOMMUChecker,
-		config.NVFabricManagerCheckerName: dependence.NewNVFabricManagerChecker,
-		config.NvPeerMemCheckerName:       dependence.NewNvPeerMemChecker,
-		config.PCIeCheckerName:            NewPCIeChecker,
-		// config.HardwareCheckerName:                  NewHardwareChecker,
+		config.PCIeACSCheckerName:                   dependence.NewPCIeACSChecker,
+		config.IOMMUCheckerName:                     dependence.NewIOMMUChecker,
+		config.NVFabricManagerCheckerName:           dependence.NewNVFabricManagerChecker,
+		config.NvPeerMemCheckerName:                 dependence.NewNvPeerMemChecker,
+		config.PCIeCheckerName:                      NewPCIeChecker,
+		config.HardwareCheckerName:                  NewHardwareChecker,
 		config.SoftwareCheckerName:                  NewSoftwareChecker,
 		config.GpuPersistencedCheckerName:           NewGpuPersistenceChecker,
 		config.GpuPStateCheckerName:                 NewGpuPStateChecker,
@@ -59,17 +58,6 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 
 	for checkerName := range config.GPUCheckItems {
 		if _, found := ignoredSet[checkerName]; found {
-			continue
-		}
-
-		if checkerName == config.HardwareCheckerName {
-			checker, err := NewHardwareChecker(cfg, nvmlInstPtr)
-			if err != nil {
-				logrus.WithError(err).WithField("checker", checkerName).Error("Failed to create checker")
-				continue
-			}
-			usedCheckers = append(usedCheckers, checker)
-			usedCheckersName = append(usedCheckersName, checkerName)
 			continue
 		}
 

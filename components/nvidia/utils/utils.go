@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package nvidia
+package utils
 
 import (
 	"errors"
@@ -74,4 +74,30 @@ func GetComputeCapability(index int) (int, int, error) {
 	}
 
 	return major, minor, nil
+}
+
+// IsNvmlInvalidError checks if the error indicates NVML instance is invalid
+// Returns an error if invalid, nil otherwise
+func IsNvmlInvalidError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, nvml.ERROR_UNINITIALIZED) || errors.Is(err, nvml.ERROR_DRIVER_NOT_LOADED) {
+		return fmt.Errorf("NVML invalid error: %w", err)
+	}
+	if unwrapped := errors.Unwrap(err); unwrapped != nil {
+		if errors.Is(unwrapped, nvml.ERROR_UNINITIALIZED) || errors.Is(unwrapped, nvml.ERROR_DRIVER_NOT_LOADED) {
+			return fmt.Errorf("NVML invalid error: %w", unwrapped)
+		}
+	}
+	return nil
+}
+
+// CheckNvmlInvalidError checks if the error indicates NVML instance is invalid and needs reinitialization
+// Returns true for errors that indicate NVML is uninitialized or driver is not loaded
+func CheckNvmlInvalidError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return IsNvmlInvalidError(err) != nil
 }
