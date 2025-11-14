@@ -113,7 +113,7 @@ func (c *GpuIndicatorSnapshot) getInfobyLatestInfo(ctx context.Context) *DeviceI
 		Indicators: make(map[string]*IndicatorValues),
 	}
 
-	for i := range info.DeviceCount {
+	for i := range info.DevicesInfo {
 		deviceInfo := &info.DevicesInfo[i]
 		uuid := deviceInfo.UUID
 		// gpuIndexInt := deviceInfo.Index
