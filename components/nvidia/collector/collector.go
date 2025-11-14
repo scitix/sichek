@@ -149,11 +149,13 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 		var deviceInfo DeviceInfo
 		err2 := deviceInfo.Get(device, i, collector.softwareInfo.DriverVersion)
 		if err2 != nil {
-			if invalidErr := utils.IsNvmlInvalidError(err2); invalidErr != nil {
-				return nil, invalidErr
+			logger := logrus.WithField("component", "NVIDIA-Collector-Collect")
+			logger.Errorf("GPU %d: %s", i, err2.Error())
+			for j, partialErr := range deviceInfo.PartialErrors {
+				logger.Errorf("GPU %d:   %d. %s", i, j+1, partialErr)
 			}
-			logrus.WithField("component", "NVIDIA-Collector-Collect").Errorf("failed to get Nvidia GPU deviceInfo %d: %v", i, err2)
-			continue
+			nvidia.GPUAvailability[i] = false
+			nvidia.LostGPUErrors[i] = err2.Error()
 		}
 		// Only add successfully collected device info to the list
 		nvidia.DevicesInfo = append(nvidia.DevicesInfo, deviceInfo)

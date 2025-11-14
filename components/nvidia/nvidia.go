@@ -759,7 +759,11 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		}
 
 		gpuNumPrint := "GPU NUMs:"
-		fmt.Printf("%s\n", nvidiaInfo.DevicesInfo[0].Name)
+		if len(nvidiaInfo.DevicesInfo) > 0 {
+			fmt.Printf("%s\n", nvidiaInfo.DevicesInfo[0].Name)
+		} else {
+			fmt.Printf("No GPU devices available\n")
+		}
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, driverPrint, printInterval, iommuPrint, printInterval, persistencePrint)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, cudaVersionPrint, printInterval, acsPrint, printInterval, pstatePrint)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval-consts.PadLen, gpuNumPrint, printInterval, peermemPrint, printInterval, nvlinkPrint)
