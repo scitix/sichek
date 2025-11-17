@@ -141,7 +141,7 @@ pcie_topo:
 
     - node_id: 1 # NUMA1
       gpu_count: 4
-      ib_count: 5
+      ib_count: 4
 
     pci_switches:
     - gpu: 1

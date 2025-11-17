@@ -80,6 +80,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			case "InfiniBand":
 				expectedIb = "ib" + numberStr
 			}
+
 		} else {
 			logrus.WithField("component", "infiniband").Warnf("fail to extract number from '%s'.", expectedMlx5)
 		}
