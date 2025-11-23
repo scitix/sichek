@@ -72,8 +72,8 @@ func (c *HardwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]string, []string) {
 	var lostDeviceIDs []string
 	var lostDeviceIDErrs []string
-	for index := 0; index < c.spec.GpuNums; index++ {
-		if available := nvidiaInfo.GPUAvailability[index]; !available {
+	for index, available := range nvidiaInfo.GPUAvailability {
+		if !available {
 			errMsg := nvidiaInfo.LostGPUErrors[index]
 			lostDeviceIDErrs = append(lostDeviceIDErrs, fmt.Sprintf("NVIDIA GPU %d Error: %s\n", index, errMsg))
 

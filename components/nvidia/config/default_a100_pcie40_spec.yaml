@@ -1,6 +1,6 @@
 nvidia:
   "0x20f110de":
-    name: NVIDIA A100-PCIe-40GB
+    name: NVIDIA A100-PCIE-40GB
     gpu_nums: 8
     gpu_memory: 40
     software:
