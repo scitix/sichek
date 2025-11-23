@@ -41,7 +41,7 @@ type NvidiaCollector struct {
 	podResourceMapper *k8s.PodResourceMapper
 }
 
-func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expectedDeviceCount int) (*NvidiaCollector, error) {
+func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expectedDeviceCount int, expectedDeviceName string) (*NvidiaCollector, error) {
 	podResourceMapper := k8s.NewPodResourceMapper()
 	if podResourceMapper == nil {
 		err := fmt.Errorf("failed to create PodResourceMapper")
@@ -59,8 +59,27 @@ func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expect
 		}
 	}
 	if err == nil {
+		// Default to expectedDeviceCount
 		collector.ExpectedDeviceCount = expectedDeviceCount
-		collector.DeviceUUIDs = make(map[int]string, expectedDeviceCount)
+
+		// TODO(xdxiong): Remove this workaround after spec is changed to use machine model ID corresponding spec.
+		// This logic adjusts ExpectedDeviceCount based on NVML DeviceGetCount() for A100-PCIE-40GB,
+		// which should be handled by the spec configuration instead.
+		// Get device count and adjust ExpectedDeviceCount if needed
+		numDevices, err2 := (*collector.nvmlInst).DeviceGetCount()
+		if !errors.Is(err2, nvml.SUCCESS) {
+			if invalidErr := utils.IsNvmlInvalidError(err2); invalidErr != nil {
+				return nil, invalidErr
+			}
+			logrus.WithField("component", "NVIDIA-Collector").Warnf("failed to get device count: %v", err2)
+		} else {
+			// If device count is 4 and expected device name is NVIDIA A100-PCIE-40GB, set ExpectedDeviceCount to 4
+			if numDevices == 4 && expectedDeviceName == "NVIDIA A100-PCIE-40GB" {
+				logrus.WithField("component", "NVIDIA-Collector").Warnf("adjust ExpectedDeviceCount to 4 for NVIDIA A100-PCIE-40GB")
+				collector.ExpectedDeviceCount = 4
+			}
+		}
+		collector.DeviceUUIDs = make(map[int]string, collector.ExpectedDeviceCount)
 		if err := collector.getUUID(); err != nil {
 			return nil, fmt.Errorf("failed to get UUID during collector initialization: %w", err)
 		}
@@ -104,6 +123,10 @@ func (collector *NvidiaCollector) GetCfg() common.ComponentUserConfig {
 }
 
 func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, error) {
+	// Note: GPUAvailability, LostGPUErrors, and DevicesInfo are all sized based on ExpectedDeviceCount.
+	// Even if some GPUs are lost, GPUAvailability and LostGPUErrors will still contain entries for all
+	// expected device indices (0 to ExpectedDeviceCount-1), with lost GPUs marked as unavailable.
+	// The collection loop iterates through all ExpectedDeviceCount devices, ensuring complete coverage.
 	if !collector.UUIDAllValidFlag {
 		if err := collector.getUUID(); err != nil {
 			return nil, err
