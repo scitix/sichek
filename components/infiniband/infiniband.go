@@ -79,21 +79,25 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 			cancel()
 		}
 	}()
+	// load user config
 	cfg := &config.InfinibandUserConfig{}
 	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Infiniband == nil {
 		logrus.WithField("component", "infiniband").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
-		return nil, fmt.Errorf("NewInfinibandComponent get user config failed")
+		return nil, fmt.Errorf("get user confgig failed: %w", err)
 	}
 	if len(ignoredCheckers) > 0 {
 		cfg.Infiniband.IgnoredCheckers = ignoredCheckers
 	}
 
+	// load spec file
 	ibSpec, err := config.LoadSpec(specFile)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("load spec file failed: %w", err)
 	}
+
+	// log spec in json format
 	specJSON, jsonErr := json.MarshalIndent(ibSpec, "", "  ")
 	if jsonErr != nil {
 		logrus.WithField("component", "infiniband").Errorf("Failed to marshal spec to JSON: %v", jsonErr)
@@ -101,20 +105,24 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		logrus.WithField("component", "infiniband").Infof("Infiniband Spec loaded (JSON):\n%s", string(specJSON))
 	}
 
+	// initialize metrics if enabled
 	var infinibandMetrics *metrics.IBMetrics
 	if cfg.Infiniband.EnableMetrics {
 		infinibandMetrics = metrics.NewInfinibandMetrics()
 	}
 
+	// create collector
 	collector, err := collector.NewIBCollector(ctx)
 	if err != nil {
 		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
+		return nil, fmt.Errorf("failed to create infiniband collector: %w", err)
 	}
 
+	// create checkers
 	checkers, err := checker.NewCheckers(cfg, ibSpec, collector)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create infiniband checkers: %w", err)
 	}
 
 	component := &component{
@@ -131,10 +139,9 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 		cacheSize:     cfg.Infiniband.CacheSize,
 		metrics:       infinibandMetrics,
 	}
-	// step4: start the service
+	// create common service
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 
-	// step5: return the component
 	return component, nil
 }
 

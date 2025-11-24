@@ -87,7 +87,8 @@ memory:
 	}
 	// Call the Get method
 	nvmlInstPtr := &nvmlInst
-	nvidiaCollector, err := collector.NewNvidiaCollector(ctx, nvmlInstPtr, 8)
+	// pass an empty string as the fourth argument to match the new signature
+	nvidiaCollector, err := collector.NewNvidiaCollector(ctx, nvmlInstPtr, 8, "")
 	if err != nil {
 		return fmt.Errorf("failed to create NvidiaCollector: %v", err)
 	}
