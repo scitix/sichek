@@ -166,9 +166,10 @@ func (i *InfinibandInfo) Unlock() {
 func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDevs {
-		// if strings.Contains(IBDev, "mezz") {
-		// 	continue
-		// }
+		// ignore mezzanine cards
+		if strings.Contains(IBDev, "mezz") {
+			continue
+		}
 
 		// ignore cx4 interface
 		hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
@@ -1217,7 +1218,16 @@ func (i *InfinibandInfo) GetKernelModule() []string {
 func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	i.IBPCIDevs, _ = i.FindIBPCIDevices(IBVendorIDs, IBDeviceIDs)
 	i.IBPFDevs = i.GetIBPFdevs()
-	i.HCAPCINum = len(i.IBPFDevs)
+	var pciNum int
+	for IBDev := range i.IBPFDevs {
+		// 处理bond接口
+		if strings.Contains(IBDev, "mlx5_bond") {
+			pciNum += 2
+		} else {
+			pciNum += 1
+		}
+	}
+	i.HCAPCINum = pciNum
 	for IBDev := range i.IBPFDevs {
 		if strings.Contains(IBDev, "mezz") {
 			continue

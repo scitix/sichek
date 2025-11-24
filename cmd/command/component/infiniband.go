@@ -76,9 +76,9 @@ func NewInfinibandCmd() *cobra.Command {
 		},
 	}
 
-	infinibandCmd.Flags().StringVar(&specFile, "spec", "", "Path to the Infinibnad Spec")
-	infinibandCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose output")
-	infinibandCmd.Flags().StringVar(&ignoredCheckers, "ignored-checkers", "", "Ignored checkers")
+	infinibandCmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to the Infiniband Spec")
+	infinibandCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
+	infinibandCmd.Flags().StringVarP(&ignoredCheckers, "ignored-checkers", "i", "", "Ignored checkers")
 
 	return infinibandCmd
 }

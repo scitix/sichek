@@ -457,7 +457,7 @@ func TestNvidiaCollector_Collect(t *testing.T) {
 	defer cancel()
 	// Create a NvidiaInfo instance
 	nvmlInstPtr := &nvmlInst
-	NvidiaCollector, err := NewNvidiaCollector(ctx, nvmlInstPtr, 8)
+	NvidiaCollector, err := NewNvidiaCollector(ctx, nvmlInstPtr, 8, "")
 	if err != nil {
 		t.Fatalf("Failed to create NvidiaCollector: %v", err)
 	}
