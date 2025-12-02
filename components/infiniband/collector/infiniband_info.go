@@ -52,6 +52,7 @@ var (
 
 	IBDeviceIDs = []string{
 		"0x101b", // MT28908 Family [ConnectX-6]
+		"0x101d", // MT28908 Family [ConnectX-6]
 		"0x1021", // CMT2910 Family [ConnectX-7]
 		"0x1023", // CX8 Family [ConnectX-8]
 		"0xa2dc", // BlueField-3 E-series SuperNIC
@@ -1352,7 +1353,32 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i.IBPCIDevs, _ = i.FindIBPCIDevices(IBVendorIDs, IBDeviceIDs)
 	// 通过driver获取设备列表
 	i.IBPFDevs = i.GetIBPFdevs()
-	i.HCAPCINum = len(i.IBPFDevs)
+	// i.HCAPCINum = len(i.IBPFDevs)
+
+	var pciNum int
+	for IBDev := range i.IBPFDevs {
+		// 处理bond接口
+		if strings.Contains(IBDev, "mlx5_bond") {
+			// skip mgt bond intrface
+			hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
+			contentBytes, err := os.ReadFile(hcaTypePath)
+			if err != nil {
+
+				fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+				os.Exit(1)
+			}
+
+			content := strings.TrimSpace(string(contentBytes))
+			if strings.Contains(content, "MT4119") {
+				continue
+			}
+			pciNum += 2
+		} else {
+			pciNum += 1
+		}
+	}
+	i.HCAPCINum = pciNum
+
 	i.IBNicRole = i.GetNICRole()
 
 	i.IBSoftWareInfo.OFEDVer = strings.TrimPrefix(i.GetOFEDInfo(ctx), "rdma-core:")
