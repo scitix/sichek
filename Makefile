@@ -53,8 +53,8 @@ docker:
 	--build-arg INSTALL_DIR=${INSTALL_DIR} \
 	--build-arg VERSION=${VERSION} \
 	--build-arg SICL_VERSION=${SICL_VERSION} \
-	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}.debug -f docker/Dockerfile .
-	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}.debug
+	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
 
 release:
 	# VERSION_MAJOR=${VERSION_MAJOR} VERSION_MINOR=${VERSION_MINOR} VERSION_PATCH=${VERSION_PATCH} \
