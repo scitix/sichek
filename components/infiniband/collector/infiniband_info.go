@@ -1222,6 +1222,19 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	for IBDev := range i.IBPFDevs {
 		// 处理bond接口
 		if strings.Contains(IBDev, "mlx5_bond") {
+			// skip mgt bond intrface
+			hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
+			contentBytes, err := os.ReadFile(hcaTypePath)
+			if err != nil {
+
+				fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+				os.Exit(1)
+			}
+
+			content := strings.TrimSpace(string(contentBytes))
+			if strings.Contains(content, "MT4119") {
+				continue
+			}
 			pciNum += 2
 		} else {
 			pciNum += 1
