@@ -34,7 +34,7 @@ func TestEventFilter(t *testing.T) {
 		expectedHits []string // expected checker names
 	}
 
-	// 准备测试日志内容
+	// Prepare test log content
 	tempFile, err := os.CreateTemp("", "test.log")
 	require.NoError(t, err)
 	defer os.Remove(tempFile.Name())
@@ -56,7 +56,7 @@ func TestEventFilter(t *testing.T) {
 					Regexp:      "test2",
 					Description: "desc2", Level: consts.LevelInfo, Suggestion: "sug2",
 				},
-				"test10": { // 不匹配
+				"test10": { // No match
 					Name:        "test10",
 					LogFile:     tempFile.Name(),
 					Regexp:      "test10",

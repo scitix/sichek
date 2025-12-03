@@ -23,7 +23,7 @@ type InfinibandUserConfig struct {
 	Infiniband *InfinibandConfig `json:"infiniband" yaml:"infiniband"`
 }
 
-// InfinibandConfig 实现ComponentsConfig 接口
+// InfinibandConfig implements ComponentsConfig interface
 type InfinibandConfig struct {
 	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`

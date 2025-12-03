@@ -90,7 +90,7 @@ func TestCompareVersion(t *testing.T) {
 		{"535.*", "535.99.99", true},         // Version is below wildcard range
 	}
 
-	// 运行测试
+	// Run tests
 	for _, test := range tests {
 		result := common.CompareVersion(test.spec, test.version)
 		if result != test.expect {

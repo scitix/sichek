@@ -21,23 +21,23 @@ echo_warn() {
     printf "[${color_yellow}WARN${color_reset}] ${_cmdLog}\n"
 }
 
-# 临时label相关变量
+# Temporary label related variables
 TEMP_LABEL_KEY="sichek-temp-test"
-TEMP_LABEL_VALUE="$(date +%s)-$$"  # 使用时间戳和进程ID确保唯一性
-declare -a LABELED_NODES=()  # 存储被标记的节点
-declare -a HOSTNAMES=()      # 全局数组，存储解析的hostnames
-# 函数：解析hostname列表
+TEMP_LABEL_VALUE="$(date +%s)-$$"  # Use timestamp and process ID to ensure uniqueness
+declare -a LABELED_NODES=()  # Store labeled nodes
+declare -a HOSTNAMES=()      # Global array to store parsed hostnames
+# Function: Parse hostname list
 parse_hostnames() {
   local hostfile="$1"
   local host="$2"
   local hostnames=()
 
-  # 优先使用host参数，如果host参数有效则忽略hostfile
+  # Prefer host parameter, ignore hostfile if host parameter is valid
   if [ "$host" != "None" ] && [ -n "$host" ]; then
     echo_info "Parsing hostnames from parameter: $host"
     IFS=',' read -ra HOST_ARRAY <<< "$host"
     for hostname in "${HOST_ARRAY[@]}"; do
-      # 去掉前后空格
+      # Trim leading and trailing spaces
       hostname=$(echo "$hostname" | xargs)
       if [[ -n "$hostname" ]]; then
         hostnames+=("$hostname")
@@ -46,9 +46,9 @@ parse_hostnames() {
   elif [ "$hostfile" != "None" ] && [ -n "$hostfile" ] && [ -f "$hostfile" ]; then
     echo_info "Reading hostnames from file: $hostfile"
     while IFS= read -r line; do
-      # 跳过空行和注释行
+      # Skip empty lines and comment lines
       if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
-        # 提取hostname（去掉可能的IP地址和端口号）
+        # Extract hostname (remove possible IP address and port number)
         hostname=$(echo "$line" | awk '{print $1}' | cut -d: -f1)
         if [[ -n "$hostname" ]]; then
           hostnames+=("$hostname")
@@ -57,11 +57,11 @@ parse_hostnames() {
     done < "$hostfile"
   fi
 
-  # 将结果存储到全局数组
+  # Store results in global array
   HOSTNAMES=("${hostnames[@]}")
 }
 
-# 函数：为节点设置临时label
+# Function: Set temporary labels on nodes
 label_nodes() {
   local hostnames=("$@")
 
@@ -80,12 +80,12 @@ label_nodes() {
     fi
   done
 
-  # 更新NODE_SELECTOR以使用临时label
+  # Update NODE_SELECTOR to use temporary label
   NODE_SELECTOR="$TEMP_LABEL_KEY=$TEMP_LABEL_VALUE"
   echo_info "Updated nodeSelector to: $NODE_SELECTOR"
 }
 
-# 函数：清理临时labels
+# Function: Clean up temporary labels
 cleanup_labels() {
   if [ ${#LABELED_NODES[@]} -gt 0 ]; then
     echo_info "Cleaning up temporary labels..."
@@ -96,16 +96,16 @@ cleanup_labels() {
   fi
 }
 
-# 函数：处理hostfile和host参数，设置临时labels
+# Function: Process hostfile and host parameters, set temporary labels
 setup_host_labels() {
   local hostfile="$1"
   local host="$2"
   local node_selector="$3"
 
-  # 解析hostname列表到全局数组
+  # Parse hostname list into global array
   parse_hostnames "$hostfile" "$host"
 
-  # 如果提供了hostfile或host参数，设置临时labels
+  # If hostfile or host parameter is provided, set temporary labels
   if [ ${#HOSTNAMES[@]} -gt 0 ]; then
     echo_info "Found ${#HOSTNAMES[@]} hostname(s) to test: ${HOSTNAMES[*]}"
     label_nodes "${HOSTNAMES[@]}"

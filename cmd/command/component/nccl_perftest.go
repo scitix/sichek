@@ -194,7 +194,7 @@ func GetDefaultNcclTestPath(testBin string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("get curr file path failed")
 	}
-	upperDir := filepath.Dir(filepath.Dir(curFile)) // 两级上层目录
+	upperDir := filepath.Dir(filepath.Dir(curFile))
 	defaultScriptsDirPath = filepath.Join(upperDir, "scripts", testBin)
 	return defaultScriptsDirPath, nil
 }

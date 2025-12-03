@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "🔍 检查 NVIDIA 驱动参数 (StreamMemOPs / PeerMappingOverride) 是否开启..."
+echo "🔍 Checking if NVIDIA driver parameters (StreamMemOPs / PeerMappingOverride) are enabled..."
 
 # key params to check
 PARAMS=$(cat /proc/driver/nvidia/params | grep -E 'StreamMemOPs|PeerMappingOverride' || true)
@@ -25,9 +25,9 @@ if ! echo "$PARAMS" | grep -q "PeerMappingOverride=1"; then
 fi
 
 if [[ $OK -eq 1 ]]; then
-    echo "✅ Driver Hack params are enabled, can support GPU→NIC direct connection"
+    echo "✅ IBGDA is enabled"
     exit 0
 else
-    echo "⚠️ Some params are not enabled, please check /etc/modprobe.d/nvidia.conf and restart system"
+    echo "⚠️ IBGDA is not enabled, please check /etc/modprobe.d/nvidia.conf and restart system"
     exit 1
 fi

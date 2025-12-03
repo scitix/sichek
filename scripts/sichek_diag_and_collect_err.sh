@@ -22,7 +22,7 @@ Defaults:
   host                    = None (comma-separated hostnames)
 "
 
-# 参数解析
+# Parse parameters
 JOB_NAME=${1:-"diag"}
 NAMESPACE=${2:-"default"}
 NODE_SELECTOR="None"
@@ -42,9 +42,9 @@ fi
 HOSTFILE=${9:-"None"}
 HOST=${10:-"None"}
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
-# 将 nodeSelector 解析为 key=value
+# Parse nodeSelector as key=value
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
 
 CMD=$CMD" -s $DEFAULT_SPEC"
@@ -84,14 +84,14 @@ cleanup() {
   echo "Cleaning up : $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME"
   echo_back "kubectl delete job $DIAGJOB_NAME -n $NAMESPACE --ignore-not-found"
-  # 清理临时labels
+  # Clean up temporary labels
   cleanup_labels
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "========================================================================="
 echo_info "Waiting for Job $DIAGJOB_NAME to complete..."

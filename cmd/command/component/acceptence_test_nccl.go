@@ -66,7 +66,6 @@ Defaults:
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 			script := "/var/sichek/scripts/nccl_benchmark_single_node.sh"
-			// 构造参数顺序：<job> <namespace> <cmd> <nodeSelector> <imageRepo> <imageTag> <timeout> <rdmaMode> <hostfile> <host>
 			argList := []string{
 				jobName,
 				namespace,

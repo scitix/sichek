@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 默认最小剩余数量（可通过参数覆盖）
+# Default minimum remaining count (can be overridden by parameters)
 MIN_FREE_GPU=8
 MIN_FREE_IB=32
 
-# 参数解析
+# Parse parameters
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --gpu)
@@ -17,16 +17,16 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     *)
-      echo "未知参数: $1"
-      echo "用法: $0 [--gpu <最少剩余GPU数>] [--ib <最少剩余IB数>]"
+      echo "Unknown parameter: $1"
+      echo "Usage: $0 [--gpu <minimum remaining GPU count>] [--ib <minimum remaining IB count>]"
       exit 1
       ;;
   esac
 done
 
-# 检查 jq 是否安装
+# Check if jq is installed
 if ! command -v jq &>/dev/null; then
-  echo "❌ 需要安装 jq 才能运行此脚本"
+  echo "❌ jq needs to be installed to run this script"
   echo "   Ubuntu/Debian: sudo apt-get install -y jq"
   echo "   CentOS/RHEL:   sudo yum install -y jq"
   echo "   MacOS:         brew install jq"
@@ -36,7 +36,7 @@ fi
 GPU_RES="nvidia.com/gpu"
 IB_RES="rdma/hca_shared_devices_all"
 
-echo "🔍 查找 GPU剩余(allocatable - allocated) ≥ ${MIN_FREE_GPU} 且 IB剩余 ≥ ${MIN_FREE_IB} 的节点..."
+echo "🔍 Finding nodes where GPU remaining (allocatable - allocated) ≥ ${MIN_FREE_GPU} and IB remaining ≥ ${MIN_FREE_IB}..."
 echo
 
 printf "%-30s | %-10s %-10s %-10s | %-10s %-10s %-10s\n" \
@@ -45,23 +45,23 @@ echo "--------------------------------------------------------------------------
 
 matched_node=0
 for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.status.allocatable["nvidia.com/gpu"]) | .metadata.name'); do
-  # GPU容量 & 可分配
+  # GPU capacity & allocatable
   gpu_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.capacity[$res] // 0')
   gpu_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.allocatable[$res] // 0')
-  # GPU已分配
+  # GPU allocated
   gpu_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
     -o json | jq "[.items[].spec.containers[].resources.requests[\"$GPU_RES\"] | (tonumber? // 0)] | add // 0")
   gpu_free=$((gpu_allocatable - gpu_allocated))
 
-  # IB容量 & 可分配
+  # IB capacity & allocatable
   ib_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.capacity[$res] // 0')
   ib_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.allocatable[$res] // 0')
-  # IB已分配
+  # IB allocated
   ib_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
     -o json | jq "[.items[].spec.containers[].resources.requests[\"$IB_RES\"] | (tonumber? // 0)] | add // 0")
   ib_free=$((ib_allocatable - ib_allocated))
 
-  # 条件：剩余资源 ≥ 指定值
+  # Condition: remaining resources ≥ specified value
   if [[ "$gpu_free" -ge "$MIN_FREE_GPU" && "$ib_free" -ge "$MIN_FREE_IB" ]]; then
     printf "%-30s | %-10s %-10s %-10s | %-10s %-10s %-10s\n" \
       "$node" "$gpu_capacity" "$gpu_allocatable" "$gpu_free" \
@@ -72,8 +72,8 @@ done
 
 echo "------------------------------------------------------------------------------------------------------"
 if [[ $matched_node -eq 0 ]]; then
-  echo "❌ 没有找到符合条件的节点。"
+  echo "❌ No nodes found matching the criteria."
 else
-  echo "✅ 找到 $matched_node 个节点符合条件。"
+  echo "✅ Found $matched_node nodes matching the criteria."
 fi
 echo "------------------------------------------------------------------------------------------------------"

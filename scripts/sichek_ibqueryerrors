@@ -18,18 +18,18 @@ from collections import defaultdict
 
 def parse_iblinkinfo_for_topology():
     """
-    解析 iblinkinfo 输出来获取拓扑信息
-    返回: (switches, groups) 其中 switches 包含类型信息，groups 是分组信息
+    Parse iblinkinfo output to get topology information
+    Returns: (switches, groups) where switches contains type information, groups is grouping information
     """
     switches = {}
     hosts = {}
 
-    # 创建临时文件来存储 iblinkinfo 输出
+    # Create temporary file to store iblinkinfo output
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as tmp_file:
         tmp_path = tmp_file.name
 
     try:
-        # 运行 iblinkinfo 并保存到临时文件
+        # Run iblinkinfo and save to temporary file
         result = subprocess.run(
             ['iblinkinfo', '--switches-only'],
             stdout=open(tmp_path, 'w'),
@@ -41,27 +41,27 @@ def parse_iblinkinfo_for_topology():
             print(f"[⚠️ Warning] iblinkinfo failed with return code {result.returncode}")
             return {}, {}
 
-        # 解析文件
+        # Parse file
         switches, hosts = parse_iblinkinfo_file(tmp_path)
 
     except Exception as e:
         print(f"[⚠️ Warning] Failed to parse topology: {e}")
         return {}, {}
     finally:
-        # 清理临时文件
+        # Clean up temporary file
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
-    # 分类拓扑
+    # Classify topology
     topo = classify_topology(switches, hosts)
 
-    # 分组 leaf switches
+    # Group leaf switches
     groups = group_leaf_switches_by_hosts(switches)
 
     return switches, groups
 
 def parse_iblinkinfo_file(file_path: str):
-    """解析 iblinkinfo 输出文件"""
+    """Parse iblinkinfo output file"""
     switches = {}
     hosts = {}
 
@@ -76,7 +76,7 @@ def parse_iblinkinfo_file(file_path: str):
         for line in f:
             line = line.rstrip()
 
-            # Switch 起始行
+            # Switch line
             m = sw_re.match(line)
             if m:
                 sw_guid, sw_name = m.groups()
@@ -92,7 +92,7 @@ def parse_iblinkinfo_file(file_path: str):
                 switches[sw_guid] = current_sw
                 continue
 
-            # 端口行
+            # Port line
             m = port_re.match(line)
             if m and current_sw:
                 lid, port, state, peer_lid, peer_port, peer_name = m.groups()
@@ -119,7 +119,7 @@ def parse_iblinkinfo_file(file_path: str):
                 }
                 current_sw["ports"].append(port_info)
 
-                # 如果是 HCA，把 host 记录下来
+                # If it's an HCA, record the host
                 if peer_type == "hca":
                     peer_parts = peer_name.split()
                     host_id = peer_parts[0]
@@ -139,7 +139,7 @@ def parse_iblinkinfo_file(file_path: str):
                         "full_name": peer_name
                     })
 
-    # 计算每个交换机的端口统计信息
+    # Calculate port statistics for each switch
     for sw_id, sw in switches.items():
         total = len(sw["ports"])
         up = sum(1 for p in sw["ports"] if "LinkUp" in p["state"])
@@ -152,17 +152,17 @@ def parse_iblinkinfo_file(file_path: str):
     return switches, hosts
 
 def classify_topology(switches: dict, hosts: dict):
-    """分类拓扑结构：Leaf / Spine / Superspine / Interconnect"""
+    """Classify topology structure: Leaf / Spine / Superspine / Interconnect"""
     leaf_sw, spine_sw, superspine_sw, interconnect_sw = [], [], [], []
 
-    # 第一步：识别Leaf Switch（连接HCA的交换机）
+    # Step 1: Identify Leaf Switches (switches connected to HCA)
     for sw_id, sw in switches.items():
         hca_ports = [p for p in sw["ports"] if p.get("peer") and p.get("peer").get("type") == "hca"]
         if hca_ports:
             sw["type"] = "leaf_sw"
             leaf_sw.append(sw)
 
-    # 第二步：识别连接到Leaf Switch的交换机（这些是Spine Switch）
+    # Step 2: Identify switches connected to Leaf Switches (these are Spine Switches)
     leaf_names = {sw["name"] for sw in leaf_sw}
     for sw_id, sw in switches.items():
         if sw.get("type") == "leaf_sw":
@@ -178,7 +178,7 @@ def classify_topology(switches: dict, hosts: dict):
             sw["type"] = "spine_sw"
             spine_sw.append(sw)
 
-    # 第三步：识别Superspine Switch（连接到Spine Switch的交换机）
+    # Step 3: Identify Superspine Switches (switches connected to Spine Switches)
     spine_names = {sw["name"] for sw in spine_sw}
     for sw_id, sw in switches.items():
         if sw.get("type") in ["leaf_sw", "spine_sw"]:
@@ -194,7 +194,7 @@ def classify_topology(switches: dict, hosts: dict):
             sw["type"] = "superspine_sw"
             superspine_sw.append(sw)
 
-    # 第四步：识别Interconnect Switch
+    # Step 4: Identify Interconnect Switches
     for sw_id, sw in switches.items():
         if sw.get("type") in ["leaf_sw", "spine_sw", "superspine_sw"]:
             continue
@@ -212,10 +212,10 @@ def classify_topology(switches: dict, hosts: dict):
     }
 
 def group_leaf_switches_by_hosts(switches: dict):
-    """根据Leaf Switch连接的host进行分组"""
+    """Group Leaf Switches by connected hosts"""
     leaf_switches = [sw for sw in switches.values() if sw.get("type") == "leaf_sw"]
 
-    # 收集每个Leaf Switch的Host集合
+    # Collect host set for each Leaf Switch
     leaf_hosts = {}
     for sw in leaf_switches:
         hosts = set()
@@ -228,21 +228,21 @@ def group_leaf_switches_by_hosts(switches: dict):
                 hosts.add(host)
         leaf_hosts[sw["guid"]] = hosts
 
-    # 根据host集合分组
+    # Group by host set
     groups = defaultdict(list)
     for sw_guid, hosts in leaf_hosts.items():
         host_key = tuple(sorted(hosts))
         groups[host_key].append(sw_guid)
 
-    # 过滤掉空组
+    # Filter out empty groups
     groups = {k: v for k, v in groups.items() if k}
 
     return groups
 
 def get_switch_info(guid: str, switches: dict, groups: dict) -> Tuple[str, str]:
     """
-    获取交换机信息
-    返回: (type_info, group_info)
+    Get switch information
+    Returns: (type_info, group_info)
     """
     if guid not in switches:
         return "unknown", "unknown"
@@ -251,7 +251,7 @@ def get_switch_info(guid: str, switches: dict, groups: dict) -> Tuple[str, str]:
     switch_type = sw.get("type", "unknown")
 
     if switch_type == "leaf_sw":
-        # 查找这个 leaf switch 属于哪个组
+        # Find which group this leaf switch belongs to
         for group_id, (hosts, sw_guids) in enumerate(groups.items(), 1):
             if guid in sw_guids:
                 return "leaf", f"group-{group_id}"
@@ -265,7 +265,7 @@ def get_switch_info(guid: str, switches: dict, groups: dict) -> Tuple[str, str]:
     else:
         return "unknown", "unknown"
 
-# === 采集函数 ===
+# === Collection function ===
 def run_ibqueryerrors() -> Dict[str, Dict[str, Dict[str, int]]]:
     try:
         result = subprocess.run(
@@ -305,16 +305,16 @@ def run_ibqueryerrors() -> Dict[str, Dict[str, Dict[str, int]]]:
 
     return results
 
-# === 上报 Prometheus 指标 ===
+# === Report Prometheus metrics ===
 #def update_prometheus_metrics(data: Dict[str, Dict[str, Dict[str, int]]]):
 #    for guid, ports in data.items():
 #        for port, counters in ports.items():
 #            for name, value in counters.items():
 #                IB_ERROR_COUNTER.labels(guid=guid, port=port, error=name).set(value)
 
-# === 排序并输出报告 ===
+# === Sort and output reports ===
 def generate_reports(data: Dict[str, Dict[str, Dict[str, int]]], linkdown_threshold=10):
-    # 获取拓扑信息
+    # Get topology information
     switches, groups = parse_iblinkinfo_for_topology()
 
     print("\n==== 🔁 LinkDownedCounter Top Switches (port ALL) ====")
@@ -356,7 +356,7 @@ def generate_reports(data: Dict[str, Dict[str, Dict[str, int]]], linkdown_thresh
                 switch_type, group_info = get_switch_info(guid, switches, groups)
                 alert_rows.append((guid, port, cnt, switch_type, group_info))
 
-    # 按 LinkDownedCounter 值从高到低排序
+    # Sort by LinkDownedCounter value from high to low
     alert_rows.sort(key=lambda x: x[2], reverse=True)
 
     for guid, port, count, switch_type, group_info in alert_rows:
@@ -364,7 +364,7 @@ def generate_reports(data: Dict[str, Dict[str, Dict[str, int]]], linkdown_thresh
         group_display = f"({group_info})" if group_info != "unknown" else ""
         print(f"[ALERT] {guid} port {port} {type_display:12} {group_display:15} → LinkDownedCounter = {count}")
 
-# === 主逻辑循环 ===
+# === Main logic loop ===
 # def run_exporter(interval_sec=60, port=9384):
 #     start_http_server(port)
 #     print(f"🚀 Prometheus exporter started at :{port}, polling every {interval_sec}s")
@@ -378,11 +378,11 @@ def generate_reports(data: Dict[str, Dict[str, Dict[str, int]]], linkdown_thresh
 
 #     threading.Thread(target=loop, daemon=True).start()
 
-# === 入口 ===
+# === Entry point ===
 if __name__ == "__main__":
     # run_exporter(interval_sec=60, port=9384)
     # while True:
-    #     time.sleep(3600)  # 主线程阻塞
+    #     time.sleep(3600)  # Main thread blocking
 
     data = run_ibqueryerrors()
     #update_prometheus_metrics(data)

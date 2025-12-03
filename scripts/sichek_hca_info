@@ -4,13 +4,13 @@ print_ib_info() {
     for ibdev in /sys/class/infiniband/*; do
         IBDEV=$(basename "$ibdev")
         HCA_PATH="/sys/class/infiniband/$IBDEV"
-        PORT="1"  # 默认使用 port 1
+        PORT="1"  # Default to port 1
 
-        # 获取 net device（可能有多个，这里取第一个）
+        # Get net device (there may be multiple, take the first one here)
         NETDEV=$(ls "$HCA_PATH"/device/net 2>/dev/null | head -n1)
         NET_PATH="/sys/class/net/$NETDEV"
 
-        # PCIe 信息
+        # PCIe information
         PCIE_PATH=$(readlink -f "$HCA_PATH"/device)
         PCIEBDF=$(basename "$PCIE_PATH")
         SLOT=$(basename $(dirname "$PCIE_PATH"))
@@ -20,7 +20,7 @@ print_ib_info() {
         NUMANODE=$(cat "$PCIE_PATH"/numa_node 2>/dev/null)
         CPULISTS=$(cat "$PCIE_PATH"/local_cpulist 2>/dev/null)
 
-        # InfiniBand 属性
+        # InfiniBand attributes
         HCATYPE=$(cat "$HCA_PATH"/hw_rev 2>/dev/null)
         SYSTEMGUID=$(cat "$HCA_PATH"/sys_image_guid 2>/dev/null)
         NODEGUID=$(cat "$HCA_PATH"/node_guid 2>/dev/null)
@@ -33,13 +33,13 @@ print_ib_info() {
         BOARDID=$(cat "$HCA_PATH"/board_id 2>/dev/null)
         DEVICEID=$(cat "$PCIE_PATH"/device 2>/dev/null)
 
-        # 网卡状态
+        # Network card status
         NETOPERSTATE=$(cat "$NET_PATH"/operstate 2>/dev/null)
 
-        # OFED 版本（根据路径，可能需要用户调整 OFED 安装位置）
+        # OFED version (path may need user adjustment based on OFED installation location)
         OFEDVER=$(ofed_info -s 2>/dev/null | awk '{print $2}')
 
-        # 输出 JSON（格式化输出）
+        # Output JSON (formatted output)
         cat <<EOF
 {
   "IBdev": "$IBDEV",

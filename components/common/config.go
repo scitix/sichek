@@ -118,7 +118,7 @@ func LoadSpecFromProductionPath(spec interface{}) error {
 // 	}
 
 // 	client := &http.Client{
-// 		Timeout: 3 * time.Second, // 设置总超时时间（包括连接 + 读取）
+// 		Timeout: 3 * time.Second, // Set total timeout (including connection + read)
 // 	}
 // 	resp, err := client.Get(url)
 // 	if err != nil {
@@ -144,7 +144,7 @@ func LoadSpecFromProductionPath(spec interface{}) error {
 
 // LoadUserConfig loads the default user config from production default dir or dev default dir based on runtime.Caller
 func LoadDefaultEventRules(eventRule interface{}, component string) error {
-	// 1. try to load default config from production default dir
+	// 1. Try to load default config from production default dir
 	defaultEventRuleCfg := filepath.Join(consts.DefaultProductionCfgPath, component, consts.DefaultEventRuleName)
 	_, err := os.Stat(defaultEventRuleCfg)
 	if err == nil {
@@ -153,7 +153,7 @@ func LoadDefaultEventRules(eventRule interface{}, component string) error {
 			return nil
 		}
 	}
-	// 2. try to load default config from default config directory based on caller path
+	// 2. Try to load default config from default config directory based on caller path
 	_, curFile, _, ok := runtime.Caller(0)
 	if !ok {
 		return fmt.Errorf("get curr file path failed")
@@ -174,7 +174,7 @@ func LoadUserConfig(file string, config interface{}) error {
 			return nil
 		}
 	}
-	// 2. try to load default config from production env if no file specified
+	// 2. Try to load default config from production env if no file specified
 	defaultUserCfg := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
 	_, err := os.Stat(defaultUserCfg)
 	if err == nil {
@@ -184,7 +184,7 @@ func LoadUserConfig(file string, config interface{}) error {
 			return nil
 		}
 	}
-	// 3. try to load default spec from default config directory based on caller path
+	// 3. Try to load default spec from default config directory based on caller path
 	_, curFile, _, ok := runtime.Caller(0)
 	if !ok {
 		return fmt.Errorf("get curr file path failed")

@@ -170,7 +170,7 @@ func Upload(fileURL string, data []byte) error {
 
 	client := getDefaultClient()
 
-	// OSS / S3 风格的对象上传应使用 PUT，而非 POST
+	// OSS / S3 style object upload should use PUT, not POST
 	req, err := http.NewRequest("PUT", fileURL, bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create PUT request: %v", err)

@@ -7,3 +7,6 @@ vendor/
 .idea/workspace.xml
 goreleaser*
 sicl
+sichek
+*.yaml
+*docs.bkup

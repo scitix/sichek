@@ -10,10 +10,10 @@ spec:
     matchLabels:
       app: {{ .Values.name }}
   updateStrategy:
+    type: {{ .Values.daemon.updateStrategy }}
     rollingUpdate:
       maxSurge: 0
       maxUnavailable: 10
-    type: {{ .Values.daemon.updateStrategy }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -86,7 +86,6 @@ spec:
                     ln -sf $LIB_DIR/$lib /host-nvidia/$lib
                   fi
               done
-              
               echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/host-nvidia" >> ~/.bashrc
               export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/host-nvidia
               sichek daemon run -s /var/sichek/config/{{ .Values.defaultSpec }}

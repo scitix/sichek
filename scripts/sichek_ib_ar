@@ -4,35 +4,35 @@ set -e
 OUTDIR=/tmp/ibdiagnet_report
 LOGFILE=$OUTDIR/ibdiagnet2.log
 
-# 检查 ibdiagnet 是否存在
+# Check if ibdiagnet exists
 if ! command -v ibdiagnet >/dev/null 2>&1; then
-    echo "❌ 未找到 ibdiagnet，请先安装 ibutils2 / MLNX_OFED 包"
+    echo "❌ ibdiagnet not found, please install ibutils2 / MLNX_OFED package first"
     exit 1
 fi
 
-# 执行 ibdiagnet
+# Execute ibdiagnet
 ibdiagnet -r -o $OUTDIR > /dev/null 2>&1
 
-# 确认日志文件存在
+# Verify log file exists
 if [ ! -f "$LOGFILE" ]; then
-    echo "❌ 未找到 $LOGFILE, 请检查 ibdiagnet 是否执行成功"
+    echo "❌ $LOGFILE not found, please check if ibdiagnet executed successfully"
     exit 1
 fi
 
-# 提取总交换机数
+# Extract total switch count
 total_switches=$(grep "IB Switches" "$LOGFILE" | awk '{print $4}')
 
-# 提取启用 AR 的交换机数
+# Extract count of switches with AR enabled
 ar_enabled=$(grep "Adaptive Routing is enabled on" "$LOGFILE" | awk '{print $6}' | tr -dc '0-9')
 
-# 输出结果
+# Output results
 if [ -n "$total_switches" ] && [ -n "$ar_enabled" ]; then
     rate=$(awk "BEGIN {printf \"%.2f\", ($ar_enabled/$total_switches)*100}")
     if [ "$rate" != "100.00" ]; then
-        echo "🚨 严重警告: AR 启用交换机数: $ar_enabled / 总交换机数: $total_switches (启用率: $rate%)"
+        echo "🚨 Critical Warning: AR enabled switches: $ar_enabled / Total switches: $total_switches (Enable rate: $rate%)"
     else
-        echo "✅ AR 启用交换机数: $ar_enabled / 总交换机数: $total_switches (启用率: $rate%)"
+        echo "✅ AR enabled switches: $ar_enabled / Total switches: $total_switches (Enable rate: $rate%)"
     fi
 else
-    echo "⚠️ 未能解析出交换机信息，请检查 $LOGFILE 内容"
+    echo "⚠️ Failed to parse switch information, please check $LOGFILE content"
 fi

@@ -146,8 +146,10 @@ func (x *XidEventPoller) registerDevices() error {
 
 func (x *XidEventPoller) handleEvent(e nvml.EventData) {
 	xid := e.EventData
-	if xid == 0 || !config.IsCriticalXidEvent(xid) {
-		logrus.WithField("component", "nvidia").Warningf("received a xid event %d which is not a critical XidEvent -- skipping", xid)
+	if !config.IsCriticalXidEvent(xid) {
+		if xid != 0 {
+			logrus.WithField("component", "nvidia").Warningf("received a xid event %d which is not a critical XidEvent -- skipping\n", xid)
+		}
 		return
 	}
 

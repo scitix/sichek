@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "=== IBGDA 前置条件健康检查 ==="
+echo "=== IBGDA Prerequisites Health Check ==="
 ##########################################################################
 ##  ref. https://docs.nvidia.com/nvshmem/api/using.html#using-the-nvshmem-gpu-initiated-communications-transport
 ##  The IBGDA transport has the following prerequisites:
@@ -50,7 +50,7 @@ else
     fail_flag=1
 fi
 
-# 2. MLNX OFED 版本
+# 2. MLNX OFED version
 if command -v ofed_info >/dev/null 2>&1; then
     ofed=$(ofed_info -s 2>/dev/null)
     ver=$(echo "$ofed" | grep -oE '[0-9]+\.[0-9]+' | head -n1)
@@ -65,21 +65,21 @@ else
     fail_flag=1
 fi
 
-# 3. NVIDIA 驱动
+# 3. NVIDIA driver
 nvidia_ver=$(modinfo nvidia 2>/dev/null | grep ^version: | awk '{print $2}')
 if [[ -n "$nvidia_ver" ]]; then
     if version_ge "$nvidia_ver" "510.40.3"; then
-        print_row "NVIDIA 驱动" "✅" "$nvidia_ver"
+        print_row "NVIDIA Driver" "✅" "$nvidia_ver"
     else
-        print_row "NVIDIA 驱动" "❌" "$nvidia_ver (need >=510.40.3)"
+        print_row "NVIDIA Driver" "❌" "$nvidia_ver (need >=510.40.3)"
         fail_flag=1
     fi
 else
-    print_row "NVIDIA 驱动" "❌" "nvidia.ko module not found"
+    print_row "NVIDIA Driver" "❌" "nvidia.ko module not found"
     fail_flag=1
 fi
 
-# 4. PeerMem 模块
+# 4. PeerMem module
 peermem_mod=$(lsmod | grep -E 'nvidia_peermem|nv_peer_mem' | awk '{print $1}' | head -n1)
 if [[ -n "$peermem_mod" ]]; then
     peermem_ver=$(modinfo $peermem_mod | grep ^version: | awk '{print $2}')
@@ -99,13 +99,13 @@ if [[ -n "$peermem_mod" ]]; then
         fi
     fi
 else
-    print_row "PeerMem 模块" "❌" "nvidia_peermem / nv_peer_mem not loaded"
+    print_row "PeerMem Module" "❌" "nvidia_peermem / nv_peer_mem not loaded"
     fail_flag=1
 fi
 
 echo "+----------------------+-----+--------------------------------------------------------------+"
 
-# 汇总退出
+# Summary and exit
 if [[ $fail_flag -eq 0 ]]; then
     echo "✅ All IBGDA prerequisites are satisfied"
     exit 0

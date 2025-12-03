@@ -22,7 +22,7 @@ Defaults:
   host                    = None (comma-separated hostnames)
 "
 
-# 参数解析
+# Parse parameters
 JOB_NAME=${1:-"llama2-13b-bench"}
 NAMESPACE=${2:-"default"}
 NODE_SELECTOR="None"
@@ -40,7 +40,7 @@ HOST=${10:-"None"}
 WORKER_POD_IDENTIFIER_STRING="worker"
 MAX_PARALLEL_JOBS=200
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
@@ -56,14 +56,14 @@ cleanup() {
   echo_info "Cleaning up Helm release: $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME -n $NAMESPACE || true"
   echo_back "kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found"
-  cleanup_labels  # 清理临时labels
+  cleanup_labels  # Clean up temporary labels
   [[ -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "================================================================================"
 echo_info "Launching MPIJob '$JOB_NAME' with $NUM_WORKERS workers in namespace '$NAMESPACE'"
@@ -215,12 +215,12 @@ for i in "${!pod_names_array[@]}"; do
   TFLOPS_VALUES=()
 
   if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
-    # 去除不可见字符（如颜色码）
+    # Remove invisible characters (such as color codes)
     OUTPUT=$(cat "$TEMP_FILE" | sed -r "s/\x1B\[[0-9;]*[mGK]//g")
 
-    # 提取所有 TFLOP/s/GPU 数值
+    # Extract all TFLOP/s/GPU values
     while IFS= read -r line; do
-      # 使用更宽松的正则匹配 TFLOP 值
+      # Use more lenient regex to match TFLOP values
       val=$(echo "$line" | awk -F'throughput per GPU \\(TFLOP/s/GPU\\):' '{if (NF>1) print $2}' | awk '{print $1}')
 
       if [[ -n "$val" && "$val" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
@@ -230,7 +230,7 @@ for i in "${!pod_names_array[@]}"; do
 
     if [ ${#TFLOPS_VALUES[@]} -gt 0 ]; then
       ACTUAL_PARSED_COUNT=$((ACTUAL_PARSED_COUNT + 1))
-      # 统计
+      # Calculate statistics
       sum=0
       min=${TFLOPS_VALUES[0]}
       max=${TFLOPS_VALUES[0]}

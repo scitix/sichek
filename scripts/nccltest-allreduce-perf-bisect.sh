@@ -106,14 +106,14 @@ check_nodes_performance() {
 binary_check() {
   local group=("$@")
 
-  # 如果是单个，直接记录为 slow
+  # If single, directly record as slow
   if [ ${#group[@]} -eq 1 ]; then
     local node_name=$(get_node_name "${group[0]}")
     SLOW_NODES+=("$node_name")
     return
   fi
 
-  # 如果 group <= 4，直接测试，不再二分
+  # If group <= 4, test directly, no more binary search
   if [ ${#group[@]} -le 4 ]; then
     check_nodes_performance "${group[@]}"
     if [ $? -ne 0 ]; then
@@ -125,7 +125,7 @@ binary_check() {
     return
   fi
 
-  # 否则继续递归二分
+  # Otherwise continue recursive binary search
   check_nodes_performance "${group[@]}"
   if [ $? -eq 0 ]; then
     return

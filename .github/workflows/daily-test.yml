@@ -1,0 +1,71 @@
+name: daily-test
+
+on:
+  # schedule:
+  #   - cron: '0 2 * * *' # 每天 02:00 UTC
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/sync-to-github
+
+jobs:
+  checks:
+    name: Daily checks (tests + goreleaser snapshot)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.modcache
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # - name: Run unit tests
+      #   run: go test ./... -v
+
+      - name: Run goreleaser snapshot (no publish)
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List goreleaser artifacts
+        run: |
+          echo "=== dist directory ==="
+          ls -lah dist
+          echo
+          echo "=== tree dist ==="
+          find dist -maxdepth 2 -type f
+
+      - name: Run goreleaser snapshot with sicl (no publish)
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INCLUDE_SICL: "true"
+          SICL_VERSION: "sicl-25.11-1.cuda128.ubuntu2004.run"
+
+      - name: List goreleaser artifacts with sicl
+        run: |
+          echo "=== dist directory ==="
+          ls -lah dist
+          echo
+          echo "=== tree dist ==="
+          find dist -maxdepth 2 -type f

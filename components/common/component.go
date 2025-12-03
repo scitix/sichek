@@ -163,7 +163,7 @@ func (s *CommonService) Start() <-chan *Result {
 	return s.resultChannel
 }
 
-// Stop 用于systemD的停止
+// Stop is used for systemd stop
 func (s *CommonService) Stop() error {
 	s.cancel()
 	s.mutex.Lock()
@@ -174,7 +174,7 @@ func (s *CommonService) Stop() error {
 
 }
 
-// Update 更新组件的配置信息，比如采样周期
+// Update updates component configuration information, such as sampling period
 func (s *CommonService) Update(cfg ComponentUserConfig) error {
 	s.cfgMutex.Lock()
 	s.cfg = cfg
@@ -182,7 +182,7 @@ func (s *CommonService) Update(cfg ComponentUserConfig) error {
 	return nil
 }
 
-// Status 返回组件的运行情况
+// Status returns the running status of the component
 func (s *CommonService) Status() bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

@@ -22,7 +22,7 @@ Defaults:
   diagMode                = conn (conn: connectivity diag, perf: performance diag)
 "
 
-# 参数解析
+# Parse parameters
 JOB_NAME=${1:-"nccl-diag-bisect"}
 NAMESPACE=${2:-"default"}
 NODE_SELECTOR="None"
@@ -37,7 +37,7 @@ HOSTFILE=${9:-"None"}
 HOST=${10:-"None"}
 DIAG_MODE=${11:-"conn"}
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 
 echo "========================================================================="
@@ -73,13 +73,13 @@ cleanup() {
   echo "Cleaning up : $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME"
   echo_back "kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found"
-  cleanup_labels  # 清理临时labels
+  cleanup_labels  # Clean up temporary labels
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "========================================================================="
 echo_info "Waiting for MPIJob $MPIJOB_NAME to enter 'Running' state."
@@ -109,12 +109,12 @@ fi
 [ -n "$LAUNCHER_POD" ] || { echo "Error: cannot find launcher Pod"; exit 1; }
 echo "Found launcher pod: $LAUNCHER_POD"
 
-# 获取pod到node的映射关系
+# Get pod-to-node mapping
 echo "========================================================================="
 echo_info "🔍 Getting pod-to-node mapping..."
 echo "========================================================================="
 
-# 获取所有worker pods及其对应的节点
+# Get all worker pods and their corresponding nodes
 POD_NODE_MAPPING=""
 WORKER_PODS=$(kubectl get pods -n "$NAMESPACE" -l training.kubeflow.org/job-name="$MPIJOB_NAME" \
   -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep -v 'launcher')
@@ -135,16 +135,16 @@ echo "========================================================================="
 echo_info "🚀 Starting NCCL diagnostics using binary search strategy..."
 echo "========================================================================="
 
-# 根据diag-mode选择对应的脚本
+# Select corresponding script based on diag-mode
 if [ "$DIAG_MODE" == "perf" ]; then
   CMD="bash /var/sichek/scripts/nccltest-allreduce-perf-bisect.sh"
 fi
 
-# 如果有pod-node映射，将其作为参数传递给bisect脚本
+# If pod-node mapping exists, pass it as parameter to bisect script
 if [ -n "$POD_NODE_MAPPING" ]; then
   CMD="${CMD} --pod-node-mapping '${POD_NODE_MAPPING}'"
 fi
-# 添加mpirun timeout参数
+# Add mpirun timeout parameter
 CMD="${CMD} --mpirun-timeout ${TIMEOUT_TO_COMPLETE}"
 
 echo_info "Executing command: $CMD"

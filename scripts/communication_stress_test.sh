@@ -31,7 +31,7 @@ Examples:
   $0 --job-name \"my-test\" --host \"node1,node2\" --test-cmd \"mpirun --version\"
 "
 
-# 默认参数值
+# Default parameter values
 JOB_NAME="comm-stress-test"
 NAMESPACE="default"
 NODE_SELECTOR="None"
@@ -45,7 +45,7 @@ ROCE_SHARED_MODE="none"
 HOSTFILE="None"
 HOST="None"
 
-# 解析命令行参数
+# Parse command line arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
     -j|--job-name)
@@ -111,7 +111,7 @@ done
 WORKER_POD_IDENTIFIER_STRING="worker"
 MAX_PARALLEL_JOBS=200
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
@@ -133,14 +133,14 @@ cleanup() {
   echo "Cleaning up Helm release: $JOB_NAME"
   helm uninstall $JOB_NAME -n $NAMESPACE || true
   kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found
-  cleanup_labels  # 清理临时labels
+  cleanup_labels  # Clean up temporary labels
   [[ -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "================================================================================"
 echo "Launching Communication Stress Test '$JOB_NAME' with $NUM_WORKERS workers in namespace '$NAMESPACE'"
@@ -179,7 +179,7 @@ while true; do
   sleep 5
 done
 
-# 定位 launcher Pod（先从 status，再 name grep）
+# Locate launcher Pod (first from status, then name grep)
 LAUNCHER_POD=$(
   kubectl get mpijob "$MPIJOB_NAME" -n "$NAMESPACE" \
     -o jsonpath='{.status.launcherStatus.podName}' 2>/dev/null || true
@@ -194,7 +194,7 @@ fi
 [ -n "$LAUNCHER_POD" ] || { echo "Error: cannot find launcher Pod"; exit 1; }
 echo "Found launcher pod: $LAUNCHER_POD"
 
-# 收集 Worker Pod 列表及其节点
+# Collect Worker Pod list and their nodes
 echo
 echo "Test machines - Worker Pods and their nodes:"
 WORKER_INFO=$(
@@ -208,7 +208,7 @@ else
   echo "$WORKER_INFO" | sed 's/^/  - /'
 fi
 
-# 执行用户指定的测试命令
+# Execute user-specified test command
 echo
 echo "================================================================================"
 echo "Executing Communication Stress Test Command"
@@ -219,20 +219,20 @@ echo "==========================================================================
 
 TMP_LOG="$TMP_DIR/communication_test_output.txt"
 
-# 使用 timeout 命令包装测试命令执行，同时输出到控制台和文件
+# Use timeout command to wrap test command execution, output to both console and file
 echo "Starting test execution..."
 echo "================================================================================"
 echo "REAL-TIME OUTPUT FROM LAUNCHER POD:"
 echo "================================================================================"
 
-# 使用 tee 同时输出到控制台和文件
+# Use tee to output to both console and file
 if ! kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "timeout $TIMEOUT_TO_COMPLETE $TEST_CMD" 2>&1 | tee $TMP_LOG ; then
   echo "WARNING: Test command failed or timed out after $TIMEOUT_TO_COMPLETE seconds"
 fi
 
 echo "================================================================================"
 
-# 检查命令执行状态
+# Check command execution status
 if kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "echo \$?" > /dev/null 2>&1; then
   exit_code=$(kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "echo \$?" 2>/dev/null | tail -n1)
   if [ "$exit_code" = "0" ]; then
