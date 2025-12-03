@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -76,6 +77,16 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			numberStr := parts[len(parts)-1]
 			switch infinibandInfo.IBHardWareInfo[expectedMlx5].LinkLayer {
 			case "Ethernet":
+				// Just for js cluster which uses eth1X for roce device naming
+				name, err := os.Hostname()
+				if err != nil {
+					logrus.WithField("component", "infiniband").Errorf("fail to get hostname: %v", err)
+					os.Exit(1)
+				}
+				if strings.HasPrefix(name, "js") {
+					expectedIb = "eth1" + numberStr
+					break
+				}
 				expectedIb = "eth" + numberStr
 			case "InfiniBand":
 				expectedIb = "ib" + numberStr
@@ -94,7 +105,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	if len(mismatchPairs) > 0 {
 		result.Status = consts.StatusAbnormal
 		result.Device = strings.Join(mismatchPairs, ",")
-		// 在锁保护下读取 IBPFDevs
+		// Read IBPFDevs under lock protection
 		infinibandInfo.RLock()
 		ibpfDevsCopy := make(map[string]string)
 		for k, v := range infinibandInfo.IBPFDevs {

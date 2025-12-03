@@ -22,7 +22,7 @@ Defaults:
   host                    = None (comma-separated hostnames)
 "
 
-# 参数解析
+# Parse parameters
 JOB_NAME=${1:-"nccl-test-2"}
 NAMESPACE=${2:-"default"}
 NODE_SELECTOR="None"
@@ -40,7 +40,7 @@ HOST=${10:-"None"}
 WORKER_POD_IDENTIFIER_STRING="worker"
 MAX_PARALLEL_JOBS=200
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
@@ -65,14 +65,14 @@ cleanup() {
   echo "Cleaning up Helm release: $JOB_NAME"
   helm uninstall $JOB_NAME -n $NAMESPACE || true
   kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found
-  cleanup_labels  # 清理临时labels
+  cleanup_labels  # Clean up temporary labels
   [[ -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "================================================================================"
 echo "Launching MPIJob '$JOB_NAME' with $NUM_WORKERS workers in namespace '$NAMESPACE'"
@@ -109,7 +109,7 @@ while true; do
   sleep 5
 done
 
-# 2) 定位 launcher Pod（先从 status，再 name grep）
+# 2) Locate launcher Pod (first from status, then name grep)
 LAUNCHER_POD=$(
   kubectl get mpijob "$MPIJOB_NAME" -n "$NAMESPACE" \
     -o jsonpath='{.status.launcherStatus.podName}' 2>/dev/null || true
@@ -124,10 +124,10 @@ fi
 [ -n "$LAUNCHER_POD" ] || { echo "Error: cannot find launcher Pod"; exit 1; }
 echo "Found launcher pod: $LAUNCHER_POD"
 
-# 3) 收集 Worker Pod 列表及其节点
+# 3) Collect Worker Pod list and their nodes
 echo
 echo "Test machines (Worker Pods and their nodes):"
-# 注意：MPIJob 脚本中 job-role 是 "Worker"（首字母大写）
+# Note: In MPIJob script, job-role is "Worker" (capitalized)
 WORKER_INFO=$(
   kubectl get pods \
   -l training.kubeflow.org/replica-type=worker,training.kubeflow.org/job-name="$MPIJOB_NAME" \
@@ -139,39 +139,44 @@ else
   echo "$WORKER_INFO" | sed 's/^/  - /'
 fi
 
-# 4) 定义 NCCL 基准测试命令
+# 4) Define NCCL benchmark test command
 # MPIRUN_BASE="/usr/local/sihpc/libexec/nccl-tests/nccl_test -n 100 -w 10 -c 1 -b 8G -e 8G"
 # MPIRUN_BASE="/usr/local/sihpc/libexec/nccl-tests/nccl_test -n 20 -w 5 -c 1"
-MPIRUN_BASE="/usr/local/sihpc/libexec/nccl-tests/nccl_test"
-COMMON_OPTS="--allow-run-as-root --map-by ppr:8:node \
-  --mca oob_tcp_if_include eth0 --mca pml ^ucx \
-  --mca btl self,tcp --mca btl_tcp_if_include eth0 \
-  --mca routed direct --mca plm_rsh_no_tree_spawn 1"
-
-declare -a TEST_LABELS=("all_reduce" "all_gather" "reduce_scatter" "all2all")
-declare -a TEST_CMDS=(
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE"
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lallgather"
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lreducescatter"
-  "/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -lalltoall"
+NCCL_TEST="/usr/local/sihpc/libexec/nccl-tests/nccl_test"
+MPIRUN_BIN="/usr/local/sihpc/bin/mpirun"
+MPIRUN_OPTS=(
+  --allow-run-as-root
+  --map-by ppr:8:node
+  --mca oob_tcp_if_include eth0
+  --mca pml ^ucx
+  --mca btl self,tcp
+  --mca btl_tcp_if_include eth0
+  --mca routed direct
+  --mca plm_rsh_no_tree_spawn 1
+)
+MPI_ENV_OPTS=(
+  -x UCX_TLS=tcp
 )
 
-if [[ $CMD != "" ]];then
-  TEST_CMDS=("/usr/local/sihpc/bin/mpirun $COMMON_OPTS -x UCX_TLS=tcp $MPIRUN_BASE -l${CMD}")
-  TEST_LABELS=("$CMD")
+declare -a TEST_LABELS=("all_reduce" "all_gather" "reduce_scatter" "all2all")
+declare -a TEST_CMDS=("allreduce" "allgather" "reducescatter" "alltoall")
+
+if [[ -n "$CMD" && "$CMD" =~ (allreduce|allgather|reducescatter|alltoall) ]]; then
+  TEST_CMDS=("$CMD")
+  TEST_LABELS=("custom_nccltest")
 fi
 
 declare -A RESULTS
 
-# 5) 循环执行并抓取带宽
+# 5) Loop execution and capture bandwidth
 for i in "${!TEST_LABELS[@]}"; do
   label="${TEST_LABELS[$i]}"
   cmd="${TEST_CMDS[$i]}"
   TMP_LOG="$TMP_DIR/output_${label}.txt"
 
-  # 等待 LAUNCHER_POD 处于 Running 状态
+  # Wait for LAUNCHER_POD to be in Running state
   echo "Waiting for pod $LAUNCHER_POD to be in 'Running' state..."
-  MAX_WAIT=300   # 最大等待时间（秒）
+  MAX_WAIT=300   # Maximum wait time (seconds)
   SLEEP_INTERVAL=5
   WAITED=0
 
@@ -188,40 +193,48 @@ for i in "${!TEST_LABELS[@]}"; do
       sleep $SLEEP_INTERVAL
       WAITED=$((WAITED + SLEEP_INTERVAL))
   done
-  echo
+  RUN_CMD=(
+    timeout "$TIMEOUT_TO_COMPLETE"
+    "$MPIRUN_BIN"
+    "${MPIRUN_OPTS[@]}"
+    "${MPI_ENV_OPTS[@]}"
+    "$NCCL_TEST"
+    "-l${cmd}"
+  )
   echo ">>> Running NCCL test: $label"
-  echo "    Command: timeout $TIMEOUT_TO_COMPLETE $cmd  > $TMP_LOG 2>&1"
+  echo "    Command: ${RUN_CMD[@]}"
   echo
-  # 使用 timeout 命令包装 mpirun 执行
-  if ! kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- /bin/bash -c "timeout $TIMEOUT_TO_COMPLETE $cmd" > $TMP_LOG 2>&1 ; then
-    echo "WARNING: $cmd failed or timed out after $TIMEOUT_TO_COMPLETE seconds"
+  # Use timeout command to wrap mpirun execution
+  if ! kubectl -n "$NAMESPACE" exec "$LAUNCHER_POD" -- \
+    "${RUN_CMD[@]}" > $TMP_LOG 2>&1 ; then
+    echo "WARNING: NCCL test $label failed or timed out after $TIMEOUT_TO_COMPLETE seconds"
     tail -n 20 $TMP_LOG
   fi
   output=$(cat $TMP_LOG)
 
-  # 检查是否因为超时而失败
+  # Check if failed due to timeout
   if echo "$output" | grep -q "timeout: command terminated"; then
     echo "ERROR: Command timed out after $TIMEOUT_TO_COMPLETE seconds"
     RESULTS["$label"]="TIMEOUT"
     exit 1
   fi
 
-  # 打印原始输出
+  # Print raw output
   echo "$output" | grep "Avg bus bandwidth"
 
-  # 提取 Avg bus bandwidth
+  # Extract Avg bus bandwidth
   bw=$(echo "$output" \
     | grep -E "Avg bus bandwidth" \
     | sed -E 's/.*: *([0-9]+\.[0-9]+).*/\1/')
 
   if [ -z "$bw" ]; then
-    echo "Warning: 未能解析 '$label' 带宽，记作 0"
+    echo "Warning: Failed to parse '$label' bandwidth, set to 0"
     bw=0
   fi
   RESULTS["$label"]="$bw"
 done
 
-# 6) 打印汇总
+# 6) Print summary
 echo
 echo "========== NCCL Benchmark Summary for $MPIJOB_NAME =========="
 printf "\n%-20s %10s\n" "Test" "GB/s"

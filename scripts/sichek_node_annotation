@@ -3,7 +3,7 @@
 check_node_sichek_status() {
   local ready_only=false
 
-  # 解析参数
+  # Parse parameters
   while [[ $# -gt 0 ]]; do
     case "$1" in
       ready-only)
@@ -30,12 +30,12 @@ check_node_sichek_status() {
     "\(.name)|\(.unschedulable)|\(.ready)|\(.sichek)"
   ' | while IFS='|' read -r name unschedulable ready sichek; do
 
-    # 如果加了 --ready-only 且节点不是 Ready，就跳过
+    # Skip if --ready-only is set and node is not Ready
     if $ready_only && [[ "$ready" != "True" || "$unschedulable" == "true" ]]; then
       continue
     fi
 
-    # 状态标签
+    # Status label
     if [[ "$ready" != "True" ]]; then
       ready_label=$(printf "\033[1;31mNotReady\033[0m")   # 🔴
     elif [[ "$unschedulable" == "true" ]]; then

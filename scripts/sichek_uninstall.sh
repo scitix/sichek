@@ -19,17 +19,17 @@ Defaults:
 Note: Number of workers will be automatically derived from hostfile or host parameter.
 "
 
-# 参数解析
+# Parse parameters
 NAMESPACE=${1:-"hi-sys-monitor"}
 IMAGE_REPO=${2:-"registry-us-east.scitix.ai/hisys/sichek"}
 IMAGE_TAG=${3:-"latest"}
 HOSTFILE=${4:-"None"}
 HOST=${5:-"None"}
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "None"
 
-# 从解析的hostnames中推导worker数量
+# Derive worker count from parsed hostnames
 NUM_WORKERS=${#HOSTNAMES[@]}
 if [ $NUM_WORKERS -eq 0 ]; then
   echo_warn "No hostnames provided, exiting..."
@@ -49,7 +49,7 @@ if [ ${#HOSTNAMES[@]} -gt 0 ]; then
 fi
 echo "========================================================================="
 
-# 构建helm命令参数
+# Build helm command arguments
 HELM_ARGS=(
   "upgrade" "--install" "uninstall-all" "/var/sichek/k8s/sichek/"
   "--atomic"
@@ -65,18 +65,18 @@ HELM_ARGS=(
 # Cleanup function to handle script exit
 cleanup() {
   echo_info "Cleaning up sichek uninstall..."
-  # 清理临时labels
+  # Clean up temporary labels
   cleanup_labels
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo_info "Running helm command: helm ${HELM_ARGS[*]}"
 
-# 执行helm uninstall
+# Execute helm uninstall
 if helm "${HELM_ARGS[@]}"; then
   echo "========================================================================="
   echo_info "✅ sichek uninstall completed successfully!"

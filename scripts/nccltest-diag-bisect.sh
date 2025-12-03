@@ -65,7 +65,7 @@ binary_check() {
     return
   fi
 
-  # 如果 group <= 2，直接测试，不再二分
+  # If group <= 2, test directly, no more binary search
   if [ ${#group[@]} -le 2 ]; then
     check_nodes "${group[@]}"
     if [ $? -ne 0 ]; then
@@ -76,7 +76,7 @@ binary_check() {
     fi
     return
   fi
-  # 否则继续递归二分
+  # Otherwise continue recursive binary search
   check_nodes "${group[@]}"
   if [ $? -eq 0 ]; then
     return

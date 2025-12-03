@@ -57,9 +57,9 @@ func (c *RoCEChecker) GetSpec() common.CheckerSpec {
 func (c *RoCEChecker) _doConnectivityCheck(netDev, netGW string) (bool, string) {
 	timeout := 2 * time.Second
 
-	// 方案A: 尝试ICMP Ping (需要root权限)
-	// 注意：标准的Go ICMP库不直接支持绑定到特定接口(`-I`选项)。
-	// 连通性测试通常由内核的路由表决定出口。这里的netDev参数主要用于日志和逻辑分组。
+	// Option A: Try ICMP Ping (requires root permissions)
+	// Note: The standard Go ICMP library does not directly support binding to a specific interface (`-I` option).
+	// Connectivity tests are usually determined by the kernel's routing table for the egress interface. The netDev parameter here is mainly used for logging and logical grouping.
 	err := c._icmpPing(netGW, timeout)
 	if err == nil {
 		logrus.WithFields(logrus.Fields{"netdev": netDev, "gateway": netGW}).Debug("ICMP ping successful.")
@@ -67,7 +67,7 @@ func (c *RoCEChecker) _doConnectivityCheck(netDev, netGW string) (bool, string) 
 	}
 	logrus.WithError(err).Warnf("ICMP ping to gateway %s failed, falling back to TCP check", netGW)
 
-	// 方案B: 回退到TCP连接测试 (无需特殊权限)
+	// Option B: Fall back to TCP connection test (no special permissions required)
 	commonPorts := []string{"443", "80", "22"}
 	for _, port := range commonPorts {
 		conn, tcpErr := net.DialTimeout("tcp", net.JoinHostPort(netGW, port), timeout)
@@ -78,12 +78,12 @@ func (c *RoCEChecker) _doConnectivityCheck(netDev, netGW string) (bool, string) 
 		}
 	}
 
-	// 如果所有方法都失败了
+	// If all methods failed
 	finalErrMsg := fmt.Sprintf("gateway '%s' is unreachable. All checks failed. Last error: %v", netGW, err)
 	return false, finalErrMsg
 }
 
-// _icmpPing 是一个发送ICMP Echo请求的辅助函数。
+// _icmpPing is a helper function that sends ICMP Echo requests
 func (c *RoCEChecker) _icmpPing(targetIP string, timeout time.Duration) error {
 	conn, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
 	if err != nil {

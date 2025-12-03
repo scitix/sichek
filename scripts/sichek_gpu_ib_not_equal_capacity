@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 默认期望值（可通过参数覆盖）
+# Default expected values (can be overridden by parameters)
 EXPECTED_GPU=8
 EXPECTED_IB=32
 
-# 参数解析
+# Parse parameters
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --gpu)
@@ -17,16 +17,16 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     *)
-      echo "未知参数: $1"
-      echo "用法: $0 [--gpu <期望GPU数>] [--ib <期望IB数>]"
+      echo "Unknown parameter: $1"
+      echo "Usage: $0 [--gpu <expected GPU count>] [--ib <expected IB count>]"
       exit 1
       ;;
   esac
 done
 
-# 检查 jq 是否安装
+# Check if jq is installed
 if ! command -v jq &>/dev/null; then
-  echo "❌ 需要安装 jq 才能运行此脚本"
+  echo "❌ jq needs to be installed to run this script"
   echo "   Ubuntu/Debian: sudo apt-get install -y jq"
   echo "   CentOS/RHEL:   sudo yum install -y jq"
   exit 1
@@ -35,7 +35,7 @@ fi
 GPU_RES="nvidia.com/gpu"
 IB_RES="rdma/hca_shared_devices_all"
 
-echo "🔍 检查节点 GPU(cap=${EXPECTED_GPU}) 和 IB(cap=${EXPECTED_IB}) capacity/allocatable 是否匹配..."
+echo "🔍 Checking if node GPU (cap=${EXPECTED_GPU}) and IB (cap=${EXPECTED_IB}) capacity/allocatable match..."
 echo
 
 printf "%-30s | %-10s %-10s | %-10s %-10s\n" "NODE" "GPU_CAP" "GPU_ALLOCATABLE" "IB_CAP" "IB_ALLOCATABLE"
@@ -43,15 +43,15 @@ echo "--------------------------------------------------------------------------
 
 unmatched_node=0
 for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.status.allocatable["nvidia.com/gpu"]) | .metadata.name'); do
-  # 获取 GPU
+  # Get GPU
   gpu_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.capacity[$res] // 0')
   gpu_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.allocatable[$res] // 0')
 
-  # 获取 IB
+  # Get IB
   ib_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.capacity[$res] // 0')
   ib_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.allocatable[$res] // 0')
 
-  # 检查是否不匹配
+  # Check if not matching
   if [[ "$gpu_capacity" != "$EXPECTED_GPU" ]] || [[ "$gpu_allocatable" != "$EXPECTED_GPU" ]] \
      || [[ "$ib_capacity" != "$EXPECTED_IB" ]] || [[ "$ib_allocatable" != "$EXPECTED_IB" ]]; then
     printf "%-30s | %-10s %-10s | %-10s %-10s\n" \
@@ -62,8 +62,8 @@ done
 
 echo "-----------------------------------------------------------------------------------"
 if [[ $unmatched_node -eq 0 ]]; then
-  echo "✅ 所有节点的 GPU 和 IB capacity/allocatable 都等于期望值。"
+  echo "✅ All nodes have GPU and IB capacity/allocatable equal to expected values."
 else
-  echo "❌ 找到 $unmatched_node 个节点的 GPU 或 IB capacity/allocatable 不等于期望值。"
+  echo "❌ Found $unmatched_node nodes where GPU or IB capacity/allocatable does not equal expected values."
 fi
 echo "-----------------------------------------------------------------------------------"

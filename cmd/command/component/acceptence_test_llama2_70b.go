@@ -68,7 +68,6 @@ Defaults:
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutToComplete)*time.Second)
 			defer cancel()
 
-			// 构造参数顺序：<job> <namespace> <cmd> <imageRepo> <imageTag> <timeout> <scheduler> <roceMode> <hostfile> <host>
 			argList := []string{
 				jobName,
 				namespace,

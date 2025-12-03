@@ -251,7 +251,7 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID []string, targetDeviceI
 		pciAddr := entry.Name()
 		deviceDir := filepath.Join(PCIPath, pciAddr)
 
-		// 读取并比较厂商ID
+		// Read and compare vendor ID
 		vendorBytes, err := os.ReadFile(filepath.Join(deviceDir, "vendor"))
 		if err != nil {
 			log.Warnf("Could not read vendor file for %s, skipping. Error: %v", pciAddr, err)
@@ -259,12 +259,12 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID []string, targetDeviceI
 		}
 		currentVendorID := strings.TrimSpace(string(vendorBytes))
 
-		// 如果厂商ID不匹配，直接跳过此设备
+		// If vendor ID doesn't match, skip this device directly
 		if !slices.Contains(targetVendorID, currentVendorID) {
 			continue
 		}
 
-		// 厂商ID匹配，接着读取设备ID
+		// Vendor ID matches, then read device ID
 		deviceBytes, err := os.ReadFile(filepath.Join(deviceDir, "device"))
 		if err != nil {
 			log.Warnf("Could not read device file for %s, skipping. Error: %v", pciAddr, err)
@@ -272,7 +272,7 @@ func (i *InfinibandInfo) FindIBPCIDevices(targetVendorID []string, targetDeviceI
 		}
 		currentDeviceID := strings.TrimSpace(string(deviceBytes))
 
-		// 检查设备ID是否在目标列表中
+		// Check if device ID is in the target list
 		if slices.Contains(targetDeviceIDs, currentDeviceID) {
 			log.Debugf("Found matching device: %s with vendor=%s, device=%s ", pciAddr, currentVendorID, currentDeviceID)
 			foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, currentDeviceID)
@@ -400,15 +400,15 @@ func (i *InfinibandInfo) GetIBDeVLinklayer(IBDev string) string {
 	return linkLayer
 }
 
-// 优先查询策略路由，如果没有则查询接口路由
+// Prioritize querying policy routing, if not found then query interface routing
 func (i *InfinibandInfo) _findGatewayWithNetlink(ifaceName string) (string, error) {
-	// 通过接口名获取接口的Link对象
+	// Get interface Link object by interface name
 	link, err := netlink.LinkByName(ifaceName)
 	if err != nil {
 		return "", fmt.Errorf("netlink: failed to find interface '%s': %w", ifaceName, err)
 	}
 
-	// --- 1. 优先查询策略路由 ---
+	// --- 1. Prioritize querying policy routing ---
 	gateway, err := i._findGatewayFromPolicyRouting(link)
 	if err == nil && gateway != "" {
 		logrus.WithFields(logrus.Fields{
@@ -423,13 +423,13 @@ func (i *InfinibandInfo) _findGatewayWithNetlink(ifaceName string) (string, erro
 		"error":     err,
 	}).Debug("Policy routing lookup failed, falling back to interface routing")
 
-	// --- 2. 回退到接口路由查询 ---
+	// --- 2. Fall back to interface routing query ---
 	return i._findGatewayFromInterfaceRouting(link, ifaceName)
 }
 
-// _findGatewayFromPolicyRouting 通过策略路由查找网关
+// _findGatewayFromPolicyRouting finds gateway through policy routing
 func (i *InfinibandInfo) _findGatewayFromPolicyRouting(link netlink.Link) (string, error) {
-	// 获取接口的IPv4地址作为源地址
+	// Get interface IPv4 addresses as source addresses
 	sourceIPs, err := i._getInterfaceIPv4Addresses(link)
 	if err != nil {
 		return "", fmt.Errorf("failed to get interface addresses: %w", err)
@@ -439,25 +439,25 @@ func (i *InfinibandInfo) _findGatewayFromPolicyRouting(link netlink.Link) (strin
 		return "", fmt.Errorf("no IPv4 address found on interface")
 	}
 
-	// 获取路由规则
+	// Get routing rules
 	rules, err := netlink.RuleList(netlink.FAMILY_V4)
 	if err != nil {
 		return "", fmt.Errorf("failed to list routing rules: %w", err)
 	}
 
-	// 按优先级排序规则（较小的优先级值先处理）
+	// Sort rules by priority (smaller priority values processed first)
 	sort.Slice(rules, func(i, j int) bool {
 		return rules[i].Priority < rules[j].Priority
 	})
 
-	// 遍历每个源IP地址
+	// Iterate through each source IP address
 	for _, sourceIP := range sourceIPs {
 		logrus.WithFields(logrus.Fields{
 			"component": "infiniband",
 			"source_ip": sourceIP.String(),
 		}).Debug("Checking policy rules for source IP")
 
-		// 检查匹配的路由规则 - 修改这里，传递结构体而不是指针
+		// Check matching routing rules - modified here, pass struct instead of pointer
 		for _, rule := range rules {
 			if i._isRuleMatchingSource(rule, sourceIP) {
 				gateway, err := i._findGatewayInTable(rule.Table, sourceIP)
@@ -479,28 +479,28 @@ func (i *InfinibandInfo) _findGatewayFromPolicyRouting(link netlink.Link) (strin
 	return "", fmt.Errorf("no gateway found in policy routing tables")
 }
 
-// _isRuleMatchingSource 检查路由规则是否匹配源地址 - 修改参数类型
+// _isRuleMatchingSource checks if routing rule matches source address - modified parameter type
 func (i *InfinibandInfo) _isRuleMatchingSource(rule netlink.Rule, sourceIP net.IP) bool {
-	// 检查规则是否指定了源地址匹配
+	// Check if rule specifies source address matching
 	if rule.Src != nil {
-		// 精确匹配源IP
+		// Exact match source IP
 		if rule.Src.IP.Equal(sourceIP) {
 			return true
 		}
-		// 网络匹配（如果规则指定了网段）
+		// Network match (if rule specifies network segment)
 		if rule.Src.Contains(sourceIP) {
 			return true
 		}
 		return false
 	}
 
-	// 如果规则没有指定源地址（from all），则匹配所有
+	// If rule doesn't specify source address (from all), match all
 	return true
 }
 
-// _findGatewayInTable 在指定路由表中查找网关
+// _findGatewayInTable finds gateway in specified routing table
 func (i *InfinibandInfo) _findGatewayInTable(tableID int, sourceIP net.IP) (string, error) {
-	// 获取指定表的路由
+	// Get routes in specified table
 	routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{
 		Table: tableID,
 	}, netlink.RT_FILTER_TABLE)
@@ -517,7 +517,7 @@ func (i *InfinibandInfo) _findGatewayInTable(tableID int, sourceIP net.IP) (stri
 
 	var fallbackGateway net.IP
 
-	// 查找默认路由
+	// Find default route
 	for _, route := range routes {
 		if route.Dst == nil && route.Gw != nil {
 			logrus.WithFields(logrus.Fields{
@@ -529,13 +529,13 @@ func (i *InfinibandInfo) _findGatewayInTable(tableID int, sourceIP net.IP) (stri
 			return route.Gw.String(), nil
 		}
 
-		// 记录备选网关
+		// Record fallback gateway
 		if fallbackGateway == nil && route.Gw != nil {
 			fallbackGateway = route.Gw
 		}
 	}
 
-	// 返回备选网关
+	// Return fallback gateway
 	if fallbackGateway != nil {
 		logrus.WithFields(logrus.Fields{
 			"component":  "infiniband",
@@ -549,7 +549,7 @@ func (i *InfinibandInfo) _findGatewayInTable(tableID int, sourceIP net.IP) (stri
 	return "", fmt.Errorf("no gateway found in table %d", tableID)
 }
 
-// _getInterfaceIPv4Addresses 获取接口的IPv4地址
+// _getInterfaceIPv4Addresses gets interface IPv4 addresses
 func (i *InfinibandInfo) _getInterfaceIPv4Addresses(link netlink.Link) ([]net.IP, error) {
 	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 	if err != nil {
@@ -558,7 +558,7 @@ func (i *InfinibandInfo) _getInterfaceIPv4Addresses(link netlink.Link) ([]net.IP
 
 	var ips []net.IP
 	for _, addr := range addrs {
-		if addr.IP.To4() != nil { // 确保是IPv4地址
+		if addr.IP.To4() != nil { // Ensure it's an IPv4 address
 			ips = append(ips, addr.IP)
 		}
 	}
@@ -566,9 +566,9 @@ func (i *InfinibandInfo) _getInterfaceIPv4Addresses(link netlink.Link) ([]net.IP
 	return ips, nil
 }
 
-// _findGatewayFromInterfaceRouting 通过接口路由查找网关（原有逻辑）
+// _findGatewayFromInterfaceRouting finds gateway through interface routing (original logic)
 func (i *InfinibandInfo) _findGatewayFromInterfaceRouting(link netlink.Link, ifaceName string) (string, error) {
-	// 只查找与该接口关联的IPv4路由
+	// Only find IPv4 routes associated with this interface
 	routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
 	if err != nil {
 		return "", fmt.Errorf("netlink: failed to list routes for '%s': %w", ifaceName, err)
@@ -580,10 +580,10 @@ func (i *InfinibandInfo) _findGatewayFromInterfaceRouting(link netlink.Link, ifa
 		"routes":    len(routes),
 	}).Debug("Checking interface routes")
 
-	// 遍历路由表，寻找网关
+	// Iterate through routing table, looking for gateway
 	var fallbackGateway net.IP
 	for _, route := range routes {
-		// 优先返回默认路由
+		// Prioritize returning default route
 		if route.Dst == nil && route.Gw != nil {
 			logrus.WithFields(logrus.Fields{
 				"component": "infiniband",
@@ -594,13 +594,13 @@ func (i *InfinibandInfo) _findGatewayFromInterfaceRouting(link netlink.Link, ifa
 			return route.Gw.String(), nil
 		}
 
-		// 记录备选网关
+		// Record fallback gateway
 		if fallbackGateway == nil && route.Gw != nil {
 			fallbackGateway = route.Gw
 		}
 	}
 
-	// 返回备选网关
+	// Return fallback gateway
 	if fallbackGateway != nil {
 		logrus.WithFields(logrus.Fields{
 			"component": "infiniband",
@@ -611,36 +611,36 @@ func (i *InfinibandInfo) _findGatewayFromInterfaceRouting(link netlink.Link, ifa
 		return fallbackGateway.String(), nil
 	}
 
-	// 如果都没找到
+	// If nothing found
 	return "", fmt.Errorf("netlink: no gateway found for interface '%s'", ifaceName)
 }
 
 func (i *InfinibandInfo) FindGateway(ifaceName string) (string, error) {
-	// --- 1. 快速路径: 使用读锁检查缓存 ---
+	// --- 1. Fast path: Use read lock to check cache ---
 	i.mu.RLock()
 	entry, exists := i.GWCache[ifaceName]
 	if exists && time.Since(entry.Timestamp) < gatewayCacheTTL {
 		logrus.WithField("component", "infiniband").Infof("Gateway cache hit for interface %s: %s", ifaceName, entry.GatewayIP)
 		i.mu.RUnlock()
-		return entry.GatewayIP, entry.Err // 直接返回缓存的结果
+		return entry.GatewayIP, entry.Err // Directly return cached result
 	}
 	i.mu.RUnlock()
 
-	// --- 2. 慢速路径: 使用写锁执行查询并更新缓存 ---
+	// --- 2. Slow path: Use write lock to execute query and update cache ---
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
-	// --- 双重检查锁定: 在我们等待写锁时，可能已有其他goroutine完成了刷新 ---
+	// --- Double-check locking: While waiting for write lock, another goroutine may have completed refresh ---
 	entry, exists = i.GWCache[ifaceName]
 	if exists && time.Since(entry.Timestamp) < gatewayCacheTTL {
 		logrus.WithField("component", "infiniband").Infof("Gateway cache hit after lock for interface %s.", ifaceName)
 		return entry.GatewayIP, entry.Err
 	}
 
-	// --- 缓存未命中或已过期，执行真正的查询 ---
+	// --- Cache miss or expired, execute actual query ---
 	gateway, err := i._findGatewayWithNetlink(ifaceName)
 
-	// --- 将新结果写入缓存 ---
+	// --- Write new result to cache ---
 	i.GWCache[ifaceName] = &gatewayCacheEntry{
 		GatewayIP: gateway,
 		Err:       err,
@@ -821,7 +821,7 @@ func (i *InfinibandInfo) GetIBCounters(IBDev string) map[string]uint64 {
 				logrus.WithField("component", "infiniband").Errorf("Get IB Counter failed, err:%s", err)
 				return
 			}
-			// 使用互斥锁保护 map 的并发写入
+			// Use mutex to protect concurrent writes to map
 			mu.Lock()
 			for k, v := range counter {
 				Counters[k] = v
@@ -979,7 +979,7 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 		logrus.WithField("component", "infiniband").Warnf("Could not get BDF for IB device %s", IBDev)
 		return ""
 	}
-	// bdf 是终端设备自身的 BDF 地址
+	// bdf is the BDF address of the terminal device itself
 	bdf := bdfList[0]
 
 	devicePath := filepath.Join(PCIPath, bdf)
@@ -994,7 +994,7 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 
 	allBdfsInPath := re.FindAllString(string(linkPath), -1)
 
-	// 过滤掉设备自身的BDF。
+	// Filter out the device's own BDF
 	var upstreamBdfs []string
 	for _, foundBdf := range allBdfsInPath {
 		if foundBdf != bdf {
@@ -1003,13 +1003,13 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 	}
 
 	if len(upstreamBdfs) == 0 {
-		// 如果没有上游设备（例如设备直连CPU），这很正常，直接返回即可。
+		// If there are no upstream devices (e.g., device directly connected to CPU), this is normal, just return
 		logrus.WithField("component", "infiniband").Infof("No upstream PCIe devices found in path for %s, skipping check.", bdf)
 		return ""
 	}
 
 	if len(upstreamBdfs) == 1 {
-		// 如果只有一个上游设备，说明它直接连接到CPU，这种情况也很正常，直接返回即可。
+		// If there's only one upstream device, it means it's directly connected to CPU, this is also normal, just return
 		logrus.WithField("component", "infiniband").Infof("Only one upstream PCIe device found in path for %s, likely direct to CPU, skipping check.", bdf)
 		return ""
 	}
@@ -1019,7 +1019,7 @@ func (i *InfinibandInfo) GetPCIETreeMin(IBDev, linkType string) string {
 	var minNumericString string
 	minNumericValue := math.MaxFloat64
 
-	// 现在，我们只遍历上游设备的BDF列表
+	// Now, we only iterate through the BDF list of upstream devices
 	for _, currentBdf := range upstreamBdfs {
 		logrus.WithField("component", "infiniband").Infof("Checking upstream device %s for property %s", currentBdf, linkType)
 		propertyFilePath := filepath.Join(PCIPath, currentBdf, linkType)
@@ -1221,7 +1221,7 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	i.IBPFDevs = i.GetIBPFdevs()
 	var pciNum int
 	for IBDev := range i.IBPFDevs {
-		// 处理bond接口
+		// Handle bond interface
 		if strings.Contains(IBDev, "mlx5_bond") {
 			// skip mgt bond intrface
 			hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
@@ -1243,9 +1243,30 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	}
 	i.HCAPCINum = pciNum
 	for IBDev := range i.IBPFDevs {
+		bdf := i.GetBDF(IBDev)[0]
+		if len(bdf) > 0 && strings.HasSuffix(bdf, ".1") {
+			netDir := fmt.Sprintf("/sys/bus/pci/devices/%s/net", bdf)
+			files, err := os.ReadDir(netDir)
+			if err != nil {
+				logrus.WithField("component", "infiniband").Errorf("Error reading net dir (driver loaded?): %v", err)
+				continue
+			}
+
+			if len(files) == 0 {
+				logrus.WithField("component", "infiniband").Errorf("No network interface found for this BDF: %s", bdf)
+				continue
+			}
+			masterPath := fmt.Sprintf("/sys/class/net/%s/master", files[0].Name())
+			_, err = os.Lstat(masterPath)
+			if os.IsNotExist(err) {
+				continue
+			}
+		}
+
 		if strings.Contains(IBDev, "mezz") {
 			continue
 		}
+
 		i.IBCounters[IBDev] = i.GetIBCounters(IBDev)
 		perIBHWInfo := i.IBHardWareInfo[IBDev]
 		perIBHWInfo.NetOperstate = i.GetNetOperstate(IBDev)
@@ -1349,15 +1370,15 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 		// Initialize counters map with IB devices
 		IBCounters: make(map[string]map[string]uint64),
 	}
-	// 获取pcie获取设备列表
+	// Get PCIe device list
 	i.IBPCIDevs, _ = i.FindIBPCIDevices(IBVendorIDs, IBDeviceIDs)
-	// 通过driver获取设备列表
+	// Get device list through driver
 	i.IBPFDevs = i.GetIBPFdevs()
 	// i.HCAPCINum = len(i.IBPFDevs)
 
 	var pciNum int
 	for IBDev := range i.IBPFDevs {
-		// 处理bond接口
+		// Handle bond interface
 		if strings.Contains(IBDev, "mlx5_bond") {
 			// skip mgt bond intrface
 			hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
@@ -1385,6 +1406,26 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i.IBSoftWareInfo.KernelModule = i.GetKernelModule()
 
 	for IBDev := range i.IBPFDevs {
+		// skip one card two poor and not bonded
+		bdf := i.GetBDF(IBDev)[0]
+		if len(bdf) > 0 && strings.HasSuffix(bdf, ".1") {
+			netDir := fmt.Sprintf("/sys/bus/pci/devices/%s/net", bdf)
+			files, err := os.ReadDir(netDir)
+			if err != nil {
+				logrus.WithField("component", "infiniband").Errorf("Error reading net dir (driver loaded?): %v", err)
+				continue
+			}
+
+			if len(files) == 0 {
+				logrus.WithField("component", "infiniband").Errorf("No network interface found for this BDF: %s", bdf)
+				continue
+			}
+			masterPath := fmt.Sprintf("/sys/class/net/%s/master", files[0].Name())
+			_, err = os.Lstat(masterPath)
+			if os.IsNotExist(err) {
+				continue
+			}
+		}
 		// pass mezz interface
 		if strings.Contains(IBDev, "mezz") {
 			continue

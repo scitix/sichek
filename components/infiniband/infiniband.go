@@ -228,7 +228,7 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 	return nil, nil
 }
 
-// 更新组件的配置信息，同时更新service
+// Update component configuration information and update service at the same time
 func (c *component) Update(cfg common.ComponentUserConfig) error {
 	c.cfgMutex.Lock()
 	config, ok := cfg.(*config.InfinibandUserConfig)
@@ -240,17 +240,17 @@ func (c *component) Update(cfg common.ComponentUserConfig) error {
 	return c.service.Update(cfg)
 }
 
-// Start方法用于systemD的启动，周期性地执行HealthCheck函数获取数据，并将结果发送到resultChannel
+// Start method is used for systemd startup, periodically executes HealthCheck function to get data and sends results to resultChannel
 func (c *component) Start() <-chan *common.Result {
 	return c.service.Start()
 }
 
-// 返回组件的运行情况
+// Return the running status of the component
 func (c *component) Status() bool {
 	return c.service.Status()
 }
 
-// 用于systemD的停止
+// Used for systemd stop
 func (c *component) Stop() error {
 	return c.service.Stop()
 

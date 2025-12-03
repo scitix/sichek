@@ -151,7 +151,7 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 
 	curr := infinibandInfo.IBSoftWareInfo.OFEDVer
-	// 如果返回driver version，且系统文件下有值，说明驱动正常加载，直接返回驱动版本
+	// If driver version is returned and system file has value, it means driver is loaded normally, return driver version directly
 	if strings.Contains(curr, "core") {
 		logrus.WithField("component", "infiniband").Infof("OFED version not get from rdma-core, but found IB PF devices, using rdma-core version")
 		result.Curr = strings.TrimPrefix(curr, "rdma_core:")
@@ -171,7 +171,7 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		hca := c.spec.HCAs[hwInfo.BoardID]
 		if hca.Hardware.OFEDVer != "" {
 			spec = hca.Hardware.OFEDVer
-			logrus.Warnf("use the IB device's OFED spec to check the system OFED version")
+			logrus.Warnf("Use the IB device's OFED spec to check the system OFED version")
 		}
 	}
 	infinibandInfo.RUnlock()
