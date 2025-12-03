@@ -67,7 +67,6 @@ Defaults:
 			defer cancel()
 
 			script := "/var/sichek/scripts/nccl_benchmark_multi_node.sh"
-			// 构造参数顺序：<job> <namespace> <nodeSelector> <numWorkers> <cmd> <imageRepo> <imageTag> <timeout> <scheduler> <roceMode> <hostfile> <host>
 			argList := []string{
 				jobName,
 				namespace,
@@ -94,7 +93,7 @@ Defaults:
 
 	runCmd.Flags().StringVar(&jobName, "job-name", "at-nccltest2", "Name of the PyTorchJob")
 	runCmd.Flags().StringVar(&namespace, "namespace", "default", "Kubernetes namespace")
-	runCmd.Flags().StringVar(&cmdStr, "cmd", "bash /var/sichek/scripts/nccl_benchmark_multi_node.sh", "Command to run inside pod")
+	runCmd.Flags().StringVar(&cmdStr, "cmd", "", "Command to run inside pod")
 	runCmd.Flags().IntVar(&timeoutToComplete, "timeout", 600, "Timeout for job completion in seconds")
 	runCmd.Flags().StringVar(&hostfile, "hostfile", "None", "File containing hostnames, one per line")
 	runCmd.Flags().StringVar(&host, "host", "None", "Comma-separated hostnames")

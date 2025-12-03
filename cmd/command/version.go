@@ -26,9 +26,9 @@ import (
 )
 
 var (
-	Major     = "0"
-	Minor     = "3"
-	Patch     = "0"
+	Major     = ""
+	Minor     = ""
+	Patch     = ""
 	GitCommit = "none"
 	GoVersion = "none"
 	BuildTime = "unknown"
@@ -41,7 +41,7 @@ func NewVersionCmd() *cobra.Command {
 		Short:   "Print the version number of sichek",
 		Long:    "All software has versions. This is sichek's",
 		Run: func(cmd *cobra.Command, args []string) {
-			version := "v" + Major + "." + Minor + "." + Patch
+			var version string
 			if GitCommit == "none" {
 				GitCommit = getGitCommit()
 			}
@@ -51,6 +51,11 @@ func NewVersionCmd() *cobra.Command {
 			if BuildTime == "unknown" {
 				now := time.Now()
 				BuildTime = now.Format("2006-01-02T15:04:05")
+			}
+			if Major == "" {
+				version = "dev-" + GitCommit
+			} else {
+				version = "v" + Major + "." + Minor + "." + Patch
 			}
 			cmd.Printf("Version: %s\nGit Commit: %s\nGo Version: %s\nBuildTime: %s\n", version, GitCommit, GoVersion, BuildTime)
 		},

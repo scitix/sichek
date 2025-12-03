@@ -21,7 +21,7 @@ Defaults:
   host                    = None (comma-separated hostnames)
 "
 
-# 参数解析
+# Parse parameters
 JOB_NAME=${1:-"llama2-70b-bench"}
 NAMESPACE=${2:-"default"}
 NODE_SELECTOR="None"
@@ -35,7 +35,7 @@ ROCE_SHARED_MODE=${8:-"none"}
 HOSTFILE=${9:-"None"}
 HOST=${10:-"None"}
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 if [ ${#HOSTNAMES[@]} -gt 0 ]; then
   echo_info "Target hostnames: ${HOSTNAMES[*]}"
@@ -49,7 +49,7 @@ fi
 GBS=$((128 * $NUM_WORKERS))
 CMD="GBS=$GBS $CMD"
 
-# 将 nodeSelector 解析为 key=value
+# Parse nodeSelector as key=value
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
 echo "========================================================================="
 echo_info "Starting PyTorchJob '$JOB_NAME' in namespace '$NAMESPACE'..."
@@ -74,13 +74,13 @@ cleanup() {
   echo "Cleaning up : $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME"
   echo_back "kubectl delete pytorchjob $PYTORCHJOB_NAME -n $NAMESPACE --ignore-not-found"
-  cleanup_labels  # 清理临时labels
+  cleanup_labels  # Clean up temporary labels
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "========================================================================="
 echo_info "Waiting for pytorchjob $PYTORCHJOB_NAME to enter 'Running' state."
@@ -103,7 +103,7 @@ if (( elapsed >= timeout )); then
     echo_warn "Timeout Waiting for pytorchjob $PYTORCHJOB_NAME to reach Running state."
 fi
 
-# 获取最后一个 worker pod（按名称排序）
+# Get last worker pod (sorted by name)
 LAST_POD=$(kubectl get pod -n "$NAMESPACE" -l "training.kubeflow.org/replica-type=worker" |grep $PYTORCHJOB_NAME \
   | awk '{print $1}' | sort -V | tail -n 1)
 
@@ -140,7 +140,7 @@ fi
 echo "========================================================================="
 echo_info "Fetching Pod Logs $PYTORCHJOB_NAME and Parsing TFLOPS values..."
 echo "========================================================================="
-# 获取 TFLOP/s/GPU 日志条目
+# Get TFLOP/s/GPU log entries
 TFLOPS=$(kubectl logs -n "$NAMESPACE" "$LAST_POD" 2>/dev/null | grep -oP 'throughput per GPU \(TFLOP/s/GPU\):\s*\K[0-9]+(\.[0-9]+)?')
 
 if [[ -z "$TFLOPS" ]]; then
@@ -148,10 +148,10 @@ if [[ -z "$TFLOPS" ]]; then
   exit 1
 fi
 
-# 打印表头
+# Print table header
 printf "%-30s | %-9s | %-9s | %-9s | %-9s\n" "Job Name" "Avg" "Min" "Max" "StdDev"
 
-# 使用 awk 统计 TFLOPS 值
+# Use awk to calculate TFLOPS statistics
 echo "$TFLOPS" | awk -v job="$PYTORCHJOB_NAME" '
 {
   sum += $1; count += 1;

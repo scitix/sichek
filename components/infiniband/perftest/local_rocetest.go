@@ -29,13 +29,13 @@ import (
 )
 
 type RoCEV2DeviceInfo struct {
-	Dev      string // IB设备名
-	Port     string // IB端口
+	Dev      string // IB device name
+	Port     string // IB port
 	Index    string // GID Index
-	Gid      string // GID值
-	Iface    string // 绑定的网络设备名，如 eth0
-	Status   string // 绑定设备的UP/DOWN状态
-	IPv4Addr string // 绑定设备的IPv4地址
+	Gid      string // GID value
+	Iface    string // Bound network device name, e.g., eth0
+	Status   string // Bound device UP/DOWN status
+	IPv4Addr string // Bound device IPv4 address
 }
 
 func CheckRoCEPerfHealth(

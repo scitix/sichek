@@ -22,7 +22,7 @@ Defaults:
   host                    = None (comma-separated hostnames)
 "
 
-# 参数解析
+# Parse parameters
 JOB_NAME=${1:-"nccl-test-1"}
 NAMESPACE=${2:-"default"}
 NODE_SELECTOR="None"
@@ -41,7 +41,7 @@ WORKER_POD_IDENTIFIER_STRING="worker"
 MAX_PARALLEL_JOBS=200
 NCCL_COMMAND_IN_POD="UCX_TLS=tcp timeout $TIMEOUT_TO_COMPLETE $NCCL_COMMAND_IN_POD"
 
-# 使用common.sh中的函数处理hostfile和host参数
+# Use functions from common.sh to process hostfile and host parameters
 setup_host_labels "$HOSTFILE" "$HOST" "$NODE_SELECTOR"
 
 NODE_SELECTOR_ARGS="--set nodeSelector.$NODE_SELECTOR"
@@ -66,14 +66,14 @@ cleanup() {
   echo_info "Cleaning up Helm release: $JOB_NAME"
   echo_back "helm uninstall $JOB_NAME -n $NAMESPACE || true"
   echo_back "kubectl delete mpijob $MPIJOB_NAME -n $NAMESPACE --ignore-not-found"
-  cleanup_labels  # 清理临时labels
+  cleanup_labels  # Clean up temporary labels
   [[ -d "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
   exit 0
 }
-trap cleanup EXIT        # 脚本退出时调用
-trap cleanup INT         # Ctrl+C 中断
-trap cleanup TERM        # 被 kill 时
-trap cleanup ERR         # 脚本出错也清理（可选）
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
 
 echo "================================================================================"
 echo_info "Launching MPIJob '$JOB_NAME' with $NUM_WORKERS workers in namespace '$NAMESPACE'"

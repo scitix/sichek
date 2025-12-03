@@ -80,7 +80,7 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 	var failedHcasSpec []string
 	var failedHcasCurr []string
 	var devicesToUpdate []string
-	// 先加读锁读取所有数据
+	// First acquire read lock to read all data
 	infinibandInfo.RLock()
 	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
@@ -99,7 +99,7 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 		}
 	}
 	infinibandInfo.RUnlock()
-	// 批量更新状态（使用写锁）
+	// Batch update status (using write lock)
 	if len(devicesToUpdate) > 0 {
 		infinibandInfo.Lock()
 		for _, dev := range devicesToUpdate {
