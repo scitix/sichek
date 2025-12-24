@@ -90,6 +90,10 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 	}
 
 	filterPointer, err := filter.NewEventFilter(consts.ComponentNameGpfs, eventRules, 100)
+	if err != nil {
+		logrus.WithField("component", "gpfs").Warnf("NewGpfsComponent create event filter failed: %v", err)
+		filterPointer = nil
+	}
 
 	collector, err := collector.NewGPFSCollector()
 	if err != nil {
@@ -133,14 +137,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 	result := common.Check(ctx, c.componentName, xstorHealthInfo, c.checkers)
 	timer.Mark("xstorhealth-check")
-	eventResult := c.filter.Check()
-	timer.Mark("event-filter")
-	if eventResult != nil {
-		result.Checkers = append(result.Checkers, eventResult.Checkers...)
-		if eventResult.Status == consts.StatusAbnormal {
-			result.Status = consts.StatusAbnormal
-			if consts.LevelPriority[result.Level] < consts.LevelPriority[eventResult.Level] {
-				result.Level = eventResult.Level
+	if c.filter != nil {
+		eventResult := c.filter.Check()
+		timer.Mark("event-filter")
+		if eventResult != nil {
+			result.Checkers = append(result.Checkers, eventResult.Checkers...)
+			if eventResult.Status == consts.StatusAbnormal {
+				result.Status = consts.StatusAbnormal
+				if consts.LevelPriority[result.Level] < consts.LevelPriority[eventResult.Level] {
+					result.Level = eventResult.Level
+				}
 			}
 		}
 	}
@@ -149,7 +155,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
-	if result.Status == consts.StatusAbnormal {
+	if result.Status == consts.StatusAbnormal && consts.LevelPriority[result.Level] > consts.LevelPriority[consts.LevelInfo] {
 		logrus.WithField("component", "gpfs").Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "gpfs").Infof("Health Check PASSED")
@@ -221,26 +227,23 @@ func (c *component) GetTimeout() time.Duration {
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	checkAllPassed := true
-	var mountPrint string
+	if result.Status == consts.StatusAbnormal && consts.LevelPriority[result.Level] > consts.LevelPriority[consts.LevelInfo] {
+		checkAllPassed = false
+	}
 	gpfsEvent := make(map[string]string)
 
+	utils.PrintTitle("GPFS", "-")
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
-		statusColor := consts.Green
-		if result.Status != consts.StatusNormal {
-			statusColor = consts.Red
+		if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
 			checkAllPassed = false
 			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", consts.Red, result.ErrorName, consts.Reset)
 		}
-
-		switch result.Name {
-		case "GPFSUnmount":
-			mountPrint = fmt.Sprintf("GPFS: %sMounted%s", statusColor, consts.Reset)
-		}
 	}
 
-	utils.PrintTitle("GPFS", "-")
-	fmt.Printf("%s\n", mountPrint)
+	if checkAllPassed {
+		fmt.Printf("GPFS: %sMounted%s\n", consts.Green, consts.Reset)
+	}
 	for _, v := range gpfsEvent {
 		fmt.Printf("\t%s\n", v)
 	}
