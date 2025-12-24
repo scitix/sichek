@@ -25,7 +25,7 @@ before:
 # Snapshot 模式（CI / push）
 # -----------------------------
 snapshot:
-  name_template: "{{ .ProjectName }}"
+  name_template: "{{ .Version }}"
   version_template: "v0.0.0-snapshot-{{ .ShortCommit }}"
 
 # -----------------------------
