@@ -39,6 +39,7 @@ func checkNuma(devices map[string]*DeviceInfo, numaConfig []*config.NumaConfig) 
 		if !ok {
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d missing in actual data\n", cfg.NodeID))
+			continue
 		}
 		if stat.GPUCount != cfg.GPUCount {
 
