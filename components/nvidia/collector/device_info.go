@@ -107,11 +107,14 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	if err2 != nil {
 		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get pcie info: %v", err2))
 	}
+	deviceID := fmt.Sprintf("0x%x", deviceInfo.PCIeInfo.DEVID)
 
 	// Get Clock info
-	err2 = deviceInfo.Clock.Get(device, uuid)
-	if err2 != nil {
-		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get clock info: %v", err2))
+	if deviceID != "0x2b8510de" { // skip clock info for 5090
+		err2 = deviceInfo.Clock.Get(device, uuid)
+		if err2 != nil {
+			deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get clock info: %v", err2))
+		}
 	}
 
 	// clock events are supported in version 535 and above
@@ -135,8 +138,7 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	}
 
 	// Get Temperature info (skip for L40)
-	deviceID := fmt.Sprintf("0x%x", deviceInfo.PCIeInfo.DEVID)
-	if deviceID != "0x26b510de" { // skip temperature events for L40
+	if deviceID != "0x26b510de" && deviceID != "0x2b8510de" { // skip temperature events for L40 and 5090
 		err2 = deviceInfo.Temperature.Get(device, uuid)
 		if err2 != nil {
 			deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get temperature info: %v", err2))
@@ -150,9 +152,11 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	}
 
 	// Get MemoryErrors info
-	err2 = deviceInfo.MemoryErrors.Get(device, uuid)
-	if err2 != nil {
-		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get memory errors info: %v", err2))
+	if deviceID != "0x2b8510de" { // skip memory errors for 5090
+		err2 = deviceInfo.MemoryErrors.Get(device, uuid)
+		if err2 != nil {
+			deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get memory errors info: %v", err2))
+		}
 	}
 
 	// Get NVLinkStates info

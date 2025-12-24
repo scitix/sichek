@@ -121,6 +121,9 @@ func NewDaemonRunCmd() *cobra.Command {
 			signal.Notify(signals, service.AllowedSignals...)
 			components := make(map[string]common.Component)
 			for _, componentName := range consts.DefaultComponents {
+				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
+					continue
+				}
 				if slices.Contains(ignoredComponents, componentName) {
 					continue
 				}

@@ -55,9 +55,9 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	info := ""
 	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
-		// For device `NVIDIA L40`, PCIe link generation may not be its maximum when pstate is not P0
+		// For device `NVIDIA L40` and `NVIDIA 5090`, PCIe link generation may not be its maximum when pstate is not P0
 		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX &&
-			(!device.ClockEvents.IsSupported || (device.ClockEvents.IsSupported && !device.ClockEvents.GpuIdle)) {
+			(!device.ClockEvents.IsSupported || (device.ClockEvents.IsSupported && device.States.GpuPstate != 8)) {
 			info += fmt.Sprintf("GPU %d: %v PCIe link gen is %v, expected gen is %d\n",
 				device.Index, device.PCIeInfo.BDFID, device.PCIeInfo.PCILinkGen, device.PCIeInfo.PCILinkGenMAX)
 			result.Status = consts.StatusAbnormal

@@ -117,3 +117,15 @@ func IsNvidiaGPUExist() bool {
 	}
 	return false
 }
+
+func IsInfinibandExist() bool {
+	const dir = "/sys/class/infiniband"
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return false
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	return len(entries) > 0
+}

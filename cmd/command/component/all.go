@@ -94,6 +94,9 @@ func NewAllCmd() *cobra.Command {
 			checkResults := make([]*CheckResults, len(consts.DefaultComponents))
 			var wg sync.WaitGroup
 			for idx, componentName := range consts.DefaultComponents {
+				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
+					continue
+				}
 				if slices.Contains(ignoredComponents, componentName) {
 					continue
 				}
@@ -126,7 +129,7 @@ func NewAllCmd() *cobra.Command {
 					logrus.WithField("component", "nvidia").Errorf("failed to get compute capability: %v", err)
 				}
 				// check IBGDA for H-generation and above GPUs
-				if !slices.Contains(ignoredComponents, "IBGDA") && major >= 9 {
+				if !slices.Contains(ignoredComponents, "IBGDA") && major >= 9 && major < 11 {
 
 					cmd := exec.Command("bash", consts.DefaultProductionPath+"/scripts/sichek_ibgda")
 					output, err := cmd.Output()
