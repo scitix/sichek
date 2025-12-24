@@ -148,7 +148,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Name:        NvlinkCheckerName,
 		Description: "Check if all the Nvidia GPUs Nvlink are active",
 		Status:      consts.StatusNormal,
-		Level:       consts.LevelCritical,
+		Level:       consts.LevelFatal,
 		Detail:      "All NVLink are active",
 		ErrorName:   "NvlinkNotActive",
 		Suggestion:  "Reboot the system",

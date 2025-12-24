@@ -112,7 +112,6 @@ func NewAllCmd() *cobra.Command {
 				if err != nil {
 					logrus.WithField("component", "nvidia").Errorf("failed to get compute capability: %v", err)
 				}
-				// check IBGDA for H-generation and above GPUs
 				shouldCheckIBGDA := slices.Contains(componentsToCheck, "IBGDA") && major >= 9 && major < 11
 				if shouldCheckIBGDA {
 					cmd := exec.Command("bash", consts.DefaultProductionPath+"/scripts/sichek_ibgda")

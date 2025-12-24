@@ -8,5 +8,3 @@ vendor/
 goreleaser*
 sicl
 sichek
-*.yaml
-*docs.bkup

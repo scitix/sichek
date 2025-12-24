@@ -23,6 +23,8 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	filter "github.com/scitix/sichek/components/common/eventfilter"
+	"github.com/scitix/sichek/components/gpfs/checker"
+	"github.com/scitix/sichek/components/gpfs/collector"
 	"github.com/scitix/sichek/components/gpfs/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -36,6 +38,8 @@ type component struct {
 	componentName string
 	cfg           *config.GpfsUserConfig
 	cfgMutex      sync.Mutex
+	collector     *collector.GPFSCollector
+	checkers      []common.Checker
 	filter        *filter.EventFilter
 
 	cacheMtx    sync.RWMutex
@@ -91,11 +95,23 @@ func newGpfsComponent(cfgFile string, specFile string) (comp *component, err err
 		filterPointer = nil
 	}
 
+	collector, err := collector.NewGPFSCollector()
+	if err != nil {
+		logrus.WithField("component", "gpfs").Errorf("NewGpfsComponent create collector failed: %v", err)
+		return nil, err
+	}
+
+	checkers, err := checker.NewCheckers(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	component := &component{
 		ctx:           ctx,
 		cancel:        cancel,
 		componentName: consts.ComponentNameGpfs,
+		collector:     collector,
+		checkers:      checkers,
 		filter:        filterPointer,
 		cfg:           cfg,
 		cacheBuffer:   make([]*common.Result, cfg.Gpfs.CacheSize),
@@ -114,7 +130,13 @@ func (c *component) Name() string {
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	timer := common.NewTimer(fmt.Sprintf("%s-HealthCheck-Cost", c.componentName))
-	result := common.Check(ctx, c.componentName, nil, nil)
+	xstorHealthInfo, err := c.collector.Collect(ctx)
+	if err != nil {
+		logrus.WithField("component", "gpfs").Errorf("failed to collect gpfs xstor health info: %v", err)
+		return nil, err
+	}
+	result := common.Check(ctx, c.componentName, xstorHealthInfo, c.checkers)
+	timer.Mark("xstorhealth-check")
 	if c.filter != nil {
 		eventResult := c.filter.Check()
 		timer.Mark("event-filter")
