@@ -5,7 +5,8 @@ on:
     - cron: '0 2 * * *' # 每天 02:00 UTC
   workflow_dispatch:
   push:
-
+    branches:
+      - '**'
 jobs:
   checks:
     name: Daily checks (tests + goreleaser snapshot)
