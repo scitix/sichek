@@ -65,73 +65,9 @@ infiniband:
       ofed_ver: "MLNX_OFED_LINUX-24.10-2.1.8.0"
     pcie_acs: "disable"
     hca_specs:
-      MT_0000000838:
-        hardware:
-          hca_type: "MT4129"
-          board_id: "MT_0000000838"
-          fw_ver: ">=28.39.2048" #"28.43.2566"
-          vpd: "NVIDIA ConnectX-7 HHHL Adapter card, 400GbE / NDR IB (default mode), Single-port OSFP, PCIe 5.0 x16, Crypto Disabled, Secure Boot Enabled"
-          net_port: 1
-          port_speed: "400 Gb/sec (4X NDR)"
-          phy_state: "LinkUp"
-          port_state: "ACTIVE"
-          net_operstate: "down"
-          link_layer: "InfiniBand"
-          pcie_width: "16"
-          pcie_speed: "32.0 GT/s PCIe"
-          pcie_tree_width: "32"
-          pcie_tree_speed: "16"
-          pcie_acs: "disable"
-          pcie_mrr: "4096"
-      DEL0000000036:
-        hardware:
-          hca_type: "MT4123"
-          board_id: "DEL0000000036"
-          fw_ver: ">=20.39.2048"
-          vpd: "Nvidia ConnectX-7 Single Port Infiniband NDR OSFP Adapter"
-          net_port: 1
-          port_speed: "400 Gb/sec (4X NDR)"
-          phy_state: "LinkUp"
-          port_state: "ACTIVE"
-          net_operstate: "down"
-          link_layer: "InfiniBand"
-          pcie_width: "16"
-          pcie_speed: "32.0 GT/s PCIe"
-          pcie_tree_width: "32"
-          pcie_tree_speed: "16"
-          pcie_acs: "disable"
-          pcie_mrr: "4096"
-        perf:
-          one_way_bw: 360 # Gbps
-          avg_latency_us: 10 # us
-      MT_0000000223: {}
-  lh:
-    ib_devs:
-      mlx5_0: ib0
-      mlx5_1: ib1
-      mlx5_2: ib2
-      mlx5_3: ib3
-      mlx5_4: ib4
-      mlx5_5: ib5
-      mlx5_6: ib6
-      mlx5_7: ib7
-      mlx5_8: ib8
-    sw_deps:
-      kernel_module:
-        - "rdma_ucm"
-        - "rdma_cm"
-        - "ib_ipoib"
-        - "mlx5_core"
-        - "mlx5_ib"
-        - "ib_uverbs"
-        - "ib_umad"
-        - "ib_cm"
-        - "ib_core"
-        - "mlxfw"
-      ofed_ver: "MLNX_OFED_LINUX-24.10-2.1.8.0"
-    pcie_acs: "disable"
-    hca_specs:
       MT_0000000838: {}
+      DEL0000000036: {}
+      MT_0000000223: {}
 pcie_topo:
   "0x233510de":
     numa_config:

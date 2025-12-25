@@ -14,11 +14,6 @@ infiniband:
   ignored_checkers:
     - "net_operstate"
 
-ethernet:
-  query_interval: 10s
-  cache_size: 5
-  enable_metrics: true
-
 gpfs:
   query_interval: 10s
   cache_size: 5
@@ -29,12 +24,7 @@ cpu:
   cache_size: 5
   enable_metrics: true
 
-memory:
-  query_interval: 10s
-  cache_size: 5
-  enable_metrics: true
-
-gpu_custom_events:
+gpuevents:
   query_interval: 10s
   cache_size: 5
   nvsmi: false
@@ -55,3 +45,12 @@ syslog:
   query_interval: 10s
   cache_size: 5
   skip_percent: 100
+
+IBGDA:
+  enable: true
+
+nccltest:
+  enable: true
+
+pcietopo:
+  enable: true

@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/signal"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/scitix/sichek/cmd/command/component"
@@ -91,19 +90,11 @@ func NewDaemonRunCmd() *cobra.Command {
 			} else {
 				logrus.WithField("daemon", "run").Infof("enable components = %v", usedComponentStr)
 			}
-			usedComponents := make([]string, 0)
-			if len(usedComponentStr) > 0 {
-				usedComponents = strings.Split(usedComponentStr, ",")
-			}
 			ignoreComponentStr, err := cmd.Flags().GetString("ignore-components")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
 				logrus.WithField("daemon", "run").Infof("ignore-components = %v", ignoreComponentStr)
-			}
-			ignoredComponents := make([]string, 0)
-			if len(ignoreComponentStr) > 0 {
-				ignoredComponents = strings.Split(ignoreComponentStr, ",")
 			}
 			annoKey, err := cmd.Flags().GetString("annotation-key")
 			if err != nil {
@@ -120,14 +111,13 @@ func NewDaemonRunCmd() *cobra.Command {
 			done := service.HandleSignals(cancel, signals, serviceChan)
 			signal.Notify(signals, service.AllowedSignals...)
 			components := make(map[string]common.Component)
-			for _, componentName := range consts.DefaultComponents {
+
+			componentsToCheck := component.DetermineComponentsToCheck(usedComponentStr, ignoreComponentStr, cfgFile, "daemon")
+			for _, componentName := range componentsToCheck {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
 					continue
 				}
-				if slices.Contains(ignoredComponents, componentName) {
-					continue
-				}
-				if len(usedComponentStr) > 0 && !slices.Contains(usedComponents, componentName) {
+				if !slices.Contains(consts.DefaultComponents, componentName) {
 					continue
 				}
 				component, err := component.NewComponent(componentName, cfgFile, specFile, nil)
@@ -157,7 +147,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			<-done
 		},
 	}
-	daemonRunCmd.Flags().StringP("cfg", "c", "", "Path to the Infinibnad Cfg")
+	daemonRunCmd.Flags().StringP("cfg", "c", "", "Path to the user config file")
 	daemonRunCmd.Flags().StringP("spec", "s", "", "Path to the specification file")
 	daemonRunCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by `,`")
 	daemonRunCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")

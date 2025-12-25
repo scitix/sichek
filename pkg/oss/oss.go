@@ -25,10 +25,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
+
+func GetOssCfgPath() string {
+	return os.Getenv("OSS_URL")
+}
+
+func HasOssCfgPath() bool {
+	return os.Getenv("OSS_URL") != ""
+}
 
 // getDefaultClient returns a default OSS client
 func getDefaultClient() *http.Client {
@@ -48,7 +55,10 @@ func getConnectivityClient() *http.Client {
 func CheckConnectivity(url string) error {
 	client := getConnectivityClient()
 	if url == "" {
-		url = consts.DefaultOssCfgPath
+		url = GetOssCfgPath()
+		if url == "" {
+			return fmt.Errorf("OSS_URL environment variable is not set")
+		}
 	}
 
 	resp, err := client.Get(url)
@@ -200,7 +210,11 @@ func CheckFileExists(fileURL string) (bool, error) {
 
 	// Try to download to verify existence (without saving)
 	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
-		fileURL = fmt.Sprintf("%s/%s", consts.DefaultOssCfgPath, fileURL)
+		ossPath := GetOssCfgPath()
+		if ossPath == "" {
+			return false, fmt.Errorf("OSS_URL environment variable is not set")
+		}
+		fileURL = fmt.Sprintf("%s/%s", ossPath, fileURL)
 	}
 
 	// Check OSS connectivity first

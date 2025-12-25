@@ -73,7 +73,7 @@ spec:
               # Check if spec file exists locally, if not download from OSS
               if chroot /host test -f /var/sichek/config/{{ .Values.defaultSpec }}; then
                 echo "Spec file exists locally, moving to default_spec.yaml"
-                chroot /host mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+                chroot /host cp /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
               else
                 echo "Spec file not found locally, downloading from OSS"
                 chroot /host curl -o /var/sichek/config/default_spec.yaml "https://oss-ap-southeast.scitix.ai/hisys-sichek/specs/{{ .Values.defaultSpec }}"

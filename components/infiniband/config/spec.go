@@ -170,30 +170,42 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			ibSpec = spec
 		} else {
 			// If no specific cluster specification is found, fall back to the default specification
-			ossIbSpec := &InfinibandSpecs{}
-			url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameInfiniband, clusterName)
-			logrus.WithField("component", "InfiniBand").Infof("Loading spec from OSS for clusterName %s: %s", clusterName, url)
-			// Attempt to load spec from OSS
-			err := oss.LoadSpecFromURL(url, ossIbSpec)
-			if err == nil && ossIbSpec.Specs != nil {
-				if spec, ok := ossIbSpec.Specs[clusterName]; ok {
-					ibSpec = spec
+			ossPath := oss.GetOssCfgPath()
+			if ossPath == "" {
+				// If OSS_URL is not set, try to use default spec if available
+				if _, ok := specs.Specs["default"]; !ok {
+					return nil, fmt.Errorf("no default infiniband specification found for cluster %s and OSS_URL environment variable is not set", clusterName)
+				}
+				logrus.WithField("infiniband", "spec").
+					Warnf("No specific InfiniBand specification found for cluster %s and OSS_URL is not set; falling back to default specification", clusterName)
+				ibSpec = specs.Specs["default"]
+			} else {
+				ossIbSpec := &InfinibandSpecs{}
+				url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameInfiniband, clusterName)
+				logrus.WithField("component", "InfiniBand").Infof("Loading spec from OSS for clusterName %s: %s", clusterName, url)
+				// Attempt to load spec from OSS
+				err := oss.LoadSpecFromURL(url, ossIbSpec)
+				if err == nil && ossIbSpec.Specs != nil {
+					if spec, ok := ossIbSpec.Specs[clusterName]; ok {
+						ibSpec = spec
+					} else {
+						if _, ok := specs.Specs["default"]; !ok {
+							return nil, fmt.Errorf("no default infiniband specification found for cluster %s", clusterName)
+						} else {
+							logrus.WithField("infiniband", "spec").
+								Warnf("No specific InfiniBand specification found for cluster %s; falling back to default specification", clusterName)
+							ibSpec = specs.Specs["default"]
+						}
+					}
 				} else {
+					// OSS load failed, fall back to default if available
 					if _, ok := specs.Specs["default"]; !ok {
-						return nil, fmt.Errorf("no default infiniband specification found for cluster %s", clusterName)
+						return nil, fmt.Errorf("no default infiniband specification found for cluster %s and failed to load from OSS: %v", clusterName, err)
 					} else {
 						logrus.WithField("infiniband", "spec").
-							Warnf("No specific InfiniBand specification found for cluster %s; falling back to default specification", clusterName)
+							Warnf("Failed to load InfiniBand specification from OSS for cluster %s; falling back to default specification: %v", clusterName, err)
 						ibSpec = specs.Specs["default"]
 					}
-				}
-			} else {
-				if _, ok := specs.Specs["default"]; !ok {
-					return nil, fmt.Errorf("no default infiniband specification found for cluster %s", clusterName)
-				} else {
-					logrus.WithField("infiniband", "spec").
-						Warnf("No specific InfiniBand specification found for cluster %s; falling back to default specification", clusterName)
-					ibSpec = specs.Specs["default"]
 				}
 			}
 		}

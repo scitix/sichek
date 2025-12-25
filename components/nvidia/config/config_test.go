@@ -411,9 +411,13 @@ func TestLoadComponentUserConfig_WithDefaultConfig(t *testing.T) {
 }
 
 func TestLoadSpecFromOss(t *testing.T) {
+	ossPath := oss.GetOssCfgPath()
+	if ossPath == "" {
+		t.Skip("OSS_URL environment variable is not set, skipping OSS test")
+	}
 	nvidiaSpec := &NvidiaSpecs{}
 	gpuId := "test"
-	url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameNvidia, gpuId)
+	url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameNvidia, gpuId)
 	err := oss.LoadSpecFromURL(url, nvidiaSpec)
 	if err != nil {
 		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)

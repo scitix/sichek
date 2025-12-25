@@ -115,7 +115,11 @@ func EnsureSpecFile(specName string) (string, error) {
 	// Download from OSS: specName maybe is a URL or a file name
 	fileURL := specName
 	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
-		fileURL = fmt.Sprintf("%s/%s", consts.DefaultOssCfgPath, specName)
+		ossPath := oss.GetOssCfgPath()
+		if ossPath == "" {
+			return "", fmt.Errorf("OSS_URL environment variable is not set, cannot download spec from OSS")
+		}
+		fileURL = fmt.Sprintf("%s/%s", ossPath, specName)
 	} else {
 		parsedURL, err := url.Parse(fileURL)
 		if err != nil {

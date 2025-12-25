@@ -127,9 +127,13 @@ func TestLoadSpecFromDevDefaultFile(t *testing.T) {
 }
 
 func TestLoadSpecFromOss(t *testing.T) {
+	ossPath := oss.GetOssCfgPath()
+	if ossPath == "" {
+		t.Skip("OSS_URL environment variable is not set, skipping OSS test")
+	}
 	hcaSpec := &HCASpecs{}
 	ibDevBoardId := "test"
-	url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameHCA, ibDevBoardId)
+	url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameHCA, ibDevBoardId)
 	err := oss.LoadSpecFromURL(url, hcaSpec)
 	if err != nil {
 		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)

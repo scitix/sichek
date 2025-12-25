@@ -259,7 +259,11 @@ func NewSpecConfigViewCmd() *cobra.Command {
 
 				if !loaded {
 					// Try to load from OSS
-					specUrl := consts.DefaultOssCfgPath + "/" + consts.DefaultSpecCfgName
+					ossPath := oss.GetOssCfgPath()
+					if ossPath == "" {
+						return fmt.Errorf("OSS_URL environment variable is not set, cannot load spec from OSS")
+					}
+					specUrl := ossPath + "/" + consts.DefaultSpecCfgName
 					fmt.Printf("🔍 No local spec file found, checking spec: %s\n...", specUrl)
 					spec, err = LoadSpecFromOSS(specUrl)
 					if err != nil {
@@ -586,7 +590,11 @@ func UploadSpecToOSS(spec *SpecConfig, specName string) (string, error) {
 	}
 
 	// Use OSS client to upload
-	specUrl := consts.DefaultOssCfgPath + "/" + specName
+	ossPath := oss.GetOssCfgPath()
+	if ossPath == "" {
+		return "", fmt.Errorf("OSS_URL environment variable is not set, cannot upload spec to OSS")
+	}
+	specUrl := ossPath + "/" + specName
 	err = oss.Upload(specUrl, data)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload spec to OSS: %v", err)

@@ -36,7 +36,7 @@ const (
 )
 
 type GpuEventRules struct {
-	Rules map[string]*GpuEventRule `yaml:"gpu_custom_events" json:"gpu_custom_events"`
+	Rules map[string]*GpuEventRule `yaml:"gpuevents" json:"gpuevents"`
 }
 
 type GpuEventRule struct {
