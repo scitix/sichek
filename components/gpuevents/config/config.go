@@ -22,7 +22,7 @@ import (
 )
 
 type GpuCostomEventsUserConfig struct {
-	UserConfig *UserConfig `json:"gpu_custom_events" yaml:"gpu_custom_events"`
+	UserConfig *UserConfig `json:"gpuevents" yaml:"gpuevents"`
 }
 
 type UserConfig struct {
@@ -49,7 +49,7 @@ func (c *GpuCostomEventsUserConfig) SetQueryInterval(newInterval common.Duration
 func (c *GpuCostomEventsUserConfig) LoadUserConfigFromYaml(file string) error {
 	err := common.LoadUserConfig(file, c)
 	if err != nil || c.UserConfig == nil {
-		return fmt.Errorf("failed to load default gpu_custom_events user config: %v", err)
+		return fmt.Errorf("failed to load default gpuevents user config: %v", err)
 	}
 	c.UserConfig.ProcessedIgnoreNamespace = make(map[string]struct{})
 	for _, nameSpace := range c.UserConfig.IgnoreNamespace {

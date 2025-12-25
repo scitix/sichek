@@ -1,4 +1,4 @@
-gpu_custom_events:
+gpuevents:
   GPUHang:
     name: "GPUHang"
     description: "GPU Hang"

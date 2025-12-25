@@ -25,12 +25,13 @@ WORKDIR /go/src/sichek
 
 COPY . .
 
-RUN make goreleaser
+RUN goreleaser release --snapshot --clean
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
+ENV NVIDIA_VISIBLE_DEVICES=""
 
 RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list 2>/dev/null || true && \
     apt-get update && \

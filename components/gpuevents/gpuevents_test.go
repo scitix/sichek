@@ -43,7 +43,7 @@ func TestGPUEvents(t *testing.T) {
 
 	// Write config data to the temporary files
 	configData := `
-gpu_custom_events:
+gpuevents:
   query_interval: 30s
   cache_size: 5
   nvsmi: false
@@ -96,7 +96,7 @@ gpu_custom_events:
 					break
 				}
 			}
-		} 
+		}
 		if i > 30 {
 			if result.Status != consts.StatusAbnormal {
 				t.Errorf("Expected StatusAbnormal, got %s", result.Status)

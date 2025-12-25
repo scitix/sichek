@@ -24,6 +24,7 @@ import (
 
 	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/oss"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -44,7 +45,7 @@ func NewConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Manage sichek configuration",
-		Long:  "Interactive configuration tool for sichek (supporting presets and manual input)",
+		Long:  "Interactive configuration tool for sichek",
 	}
 
 	cmd.AddCommand(newConfigInitCmd())
@@ -57,7 +58,7 @@ func NewConfigCmd() *cobra.Command {
 func newConfigInitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "create",
-		Short: "Init configuration interactively (support presets)",
+		Short: "Init configuration interactively",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configDir := filepath.Join(os.Getenv("HOME"), ".sichek")
 			if err := os.MkdirAll(configDir, 0755); err != nil {
@@ -72,196 +73,16 @@ func newConfigInitCmd() *cobra.Command {
 
 			reader := bufio.NewReader(os.Stdin)
 
-			// preset templates
-			presets := map[string]map[string]string{
-				"us-east": {
-					"image_repo":            "registry-us-east.scitix.ai/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-us-east.scitix.ai/hisys/megatron",
-					"pytorchjob_image_tag":  "0.12.1-a845aa7",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=4 MBS=2 bash /workspace/Megatron-LM/examples/llama/train_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "cetus_spec.yaml",
-				},
-				"us-west": {
-					"image_repo":            "registry-us-west.scitix.ai/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-us-west.scitix.ai/hisys/megatron",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/Megatron-LM/examples/llama/train_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/Megatron-LM/examples/llama/train_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "pisces_spec.yaml",
-				},
-				"ap-southeast": {
-					"image_repo":            "registry-ap-southeast.scitix.ai/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-ap-southeast.scitix.ai/hisys/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "aries_spec.yaml",
-				},
-				"cn-shanghai": {
-					"image_repo":            "registry-cn-shanghai.siflow.cn/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-cn-shanghai.siflow.cn/hisys/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "vf",
-					"default_spec":          "hercules_spec.yaml",
-				},
-				"cn-beijing": {
-					"image_repo":            "registry-cn-beijing.siflow.cn/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-cn-beijing.siflow.cn/hisys/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "auriga_spec.yaml",
-				},
-				"cn-wulanchabu": {
-					"image_repo":            "registry-cn-wulanchabu.siflow.cn/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-cn-wulanchabu.siflow.cn/hisys/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "draco_spec.yaml",
-				},
-				"longmen": {
-					"image_repo":            "registry-longmen.siflow.cn/hisys/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "registry-longmen.siflow.cn/hisys/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "si-scheduler",
-					"roce_shared_mode":      "volcengine",
-					"default_spec":          "longmen_spec.yaml",
-				},
-				// "sm": {
-				// 	"image_repo":           "harbor.vela.sm.ubiquant.com:8443/hpc/sichek",
-				// 	"image_tag":            "latest",
-				// 	"pytorchjob_image_repo":     "harbor.vela.sm.ubiquant.com:8443/hpc/megatron",
-				// 	"pytorchjob_image_tag": "24.06-sicl-0723",
-				// 	"scheduler":            "ubischeduler",
-				// 	"roce_shared_mode":     "none",
-				// },
-				"bm": {
-					"image_repo":            "harbor.libra.bm.ubiquant.com:8443/hpc/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "harbor.libra.bm.ubiquant.com:8443/hpc/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "ubischeduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "inner_spec.yaml",
-				},
-				"xbm": {
-					"image_repo":            "xbm-harbor.oasis.mountainxplorer.ai/hpc/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "xbm-harbor.oasis.mountainxplorer.ai/hpc/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "ubischeduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "inner_spec.yaml",
-				},
-				"my": {
-					"image_repo":            "harbor.my.roctech.sg/hpc/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "harbor.my.roctech.sg/hpc/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "ubischeduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "inner_spec.yaml",
-				},
-				"gx": {
-					"image_repo":            "gx-harbor.oasis.oceanxplorer.ai/hpc/sichek",
-					"image_tag":             "latest",
-					"pytorchjob_image_repo": "gx-harbor.oasis.oceanxplorer.ai/hpc/ngc_pytorch",
-					"pytorchjob_image_tag":  "24.06-sicl-0723",
-					"at_llama70b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh",
-					"at_llama13b_cmd":       "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh",
-					"scheduler":             "ubischeduler",
-					"roce_shared_mode":      "none",
-					"default_spec":          "inner_spec.yaml",
-				},
-			}
-
-			// select mode
-			fmt.Println("Select config mode: ")
-			fmt.Println("  1) us-east  (us-east cluster)")
-			fmt.Println("  2) us-west (us-west cluster)")
-			fmt.Println("  3) ap-southeast (ap-southeast cluster)")
-			fmt.Println("  4) cn-shanghai (cn-shanghai cluster)")
-			fmt.Println("  5) cn-beijing (cn-beijing cluster)")
-			fmt.Println("  6) cn-wulanchabu (cn-wulanchabu cluster)")
-			fmt.Println("  7) longmen (longmen cluster)")
-			// fmt.Println("  8) sm (sm cluster)")
-			fmt.Println("  8) bm (bm cluster)")
-			fmt.Println("  9) xbm (xbm cluster)")
-			fmt.Println("  10) my (my cluster)")
-			fmt.Println("  11) gx (gx cluster)")
-			fmt.Print("Enter choice [1-11] or other to customize: ")
-
-			choice, _ := reader.ReadString('\n')
-			choice = strings.TrimSpace(choice)
-
-			var cfg map[string]string
-			switch choice {
-			case "1", "us-east":
-				cfg = presets["us-east"]
-			case "2", "us-west":
-				cfg = presets["us-west"]
-			case "3", "ap-southeast":
-				cfg = presets["ap-southeast"]
-			case "4", "cn-shanghai":
-				cfg = presets["cn-shanghai"]
-			case "5", "cn-beijing":
-				cfg = presets["cn-beijing"]
-			case "6", "cn-wulanchabu":
-				cfg = presets["cn-wulanchabu"]
-			case "7", "longmen":
-				cfg = presets["longmen"]
-			// case "8", "sm":
-			// 	cfg = presets["sm"]
-			case "8", "bm":
-				cfg = presets["bm"]
-			case "9", "xbm":
-				cfg = presets["xbm"]
-			case "10", "my":
-				cfg = presets["my"]
-			case "11", "gx":
-				cfg = presets["gx"]
-			default:
-				cfg = map[string]string{
-					"image_repo":            ask(reader, v, "image_repo", "sichek image repository", "registry-us-east.scitix.ai/hisys/sichek"),
-					"image_tag":             ask(reader, v, "image_tag", "sichek image tag", "latest"),
-					"pytorchjob_image_repo": ask(reader, v, "pytorchjob_image_repo", "at_llama70b image repository", "registry-us-east.scitix.ai/hisys/megatron"),
-					"pytorchjob_image_tag":  ask(reader, v, "pytorchjob_image_tag", "at_llama70b image tag", "0.12.1-a845aa7"),
-					"at_llama70b_cmd":       ask(reader, v, "at_llama70b_cmd", "at_llama70b cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh"),
-					"at_llama13b_cmd":       ask(reader, v, "at_llama13b_cmd", "at_llama13b cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh"),
-					"scheduler":             ask(reader, v, "scheduler", "scheduler", "si-scheduler"),
-					"roce_shared_mode":      ask(reader, v, "roce_shared_mode", "roce shared mode", "none"),
-					"default_spec":          ask(reader, v, "default_spec", "default spec", "cetus_spec.yaml"),
-				}
+			cfg := map[string]string{
+				"image_repo":            ask(reader, v, "image_repo", "sichek image repository", "registry-us-east.scitix.ai/hisys/sichek"),
+				"image_tag":             ask(reader, v, "image_tag", "sichek image tag", "latest"),
+				"pytorchjob_image_repo": ask(reader, v, "pytorchjob_image_repo", "at_llama70b image repository", "registry-us-east.scitix.ai/hisys/megatron"),
+				"pytorchjob_image_tag":  ask(reader, v, "pytorchjob_image_tag", "at_llama70b image tag", "0.12.1-a845aa7"),
+				"at_llama70b_cmd":       ask(reader, v, "at_llama70b_cmd", "at_llama70b cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh"),
+				"at_llama13b_cmd":       ask(reader, v, "at_llama13b_cmd", "at_llama13b cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh"),
+				"scheduler":             ask(reader, v, "scheduler", "scheduler", "si-scheduler"),
+				"roce_shared_mode":      ask(reader, v, "roce_shared_mode", "roce shared mode", "none"),
+				"default_spec":          ask(reader, v, "default_spec", "default spec", "cetus_spec.yaml"),
 			}
 
 			// Validate default_spec before saving config
@@ -376,7 +197,12 @@ func validateSpecExists(specName string) bool {
 	fmt.Println("❌ Spec validation failed!")
 	fmt.Printf("📁 Spec file '%s' not found in:\n", specName)
 	fmt.Printf("   - Production path: %s\n", consts.DefaultProductionCfgPath)
-	fmt.Printf("   - OSS: %s\n", consts.DefaultOssCfgPath)
+	ossPath := oss.GetOssCfgPath()
+	if ossPath != "" {
+		fmt.Printf("   - OSS: %s\n", ossPath)
+	} else {
+		fmt.Printf("   - OSS: (OSS_URL environment variable not set)\n")
+	}
 	fmt.Println()
 	fmt.Println("💡 Please create the spec file first:")
 	fmt.Println("   sichek spec create -f spec-filename")

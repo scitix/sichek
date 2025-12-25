@@ -17,6 +17,9 @@ package component
 
 import (
 	"context"
+	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,4 +64,74 @@ func PrintCheckResults(summaryPrint bool, checkResult *CheckResults) {
 	StatusMutex.Lock()
 	ComponentStatuses[checkResult.component.Name()] = passed
 	StatusMutex.Unlock()
+}
+
+// GetComponentsFromConfig extracts component names from default_user_config.yaml.
+// It returns only components with enable=true (excluding "metrics").
+func GetComponentsFromConfig(cfgFile string) ([]string, error) {
+	var config map[string]interface{}
+	err := common.LoadUserConfig(cfgFile, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	components := []string{}
+	for key, value := range config {
+		// Skip "metrics" as it's not a component
+		if key == "metrics" {
+			continue
+		}
+		// Check if this is a component config (should be a map)
+		_, ok := value.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		components = append(components, key)
+	}
+	return components, nil
+}
+
+// DetermineComponentsToCheck determines which components to check based on enable-components flag,
+// ignore-components flag, and the configuration file.
+// Parameters:
+//   - enableComponents: comma-separated list of components to enable (from -E flag), empty string means use config
+//   - ignoredComponents: list of components to ignore (from -I flag)
+//   - cfgFile: path to the user config file
+//   - logField: field name for logging (e.g., "all" or "daemon")
+//
+// Returns the list of component names to check.
+func DetermineComponentsToCheck(enableComponents string, ignoredComponents string, cfgFile string, logField string) []string {
+	var componentsToCheck []string
+	if cfgFile == "" {
+		cfgFile = filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
+	}
+	if len(enableComponents) > 0 {
+		usedComponents := []string{}
+		for _, comp := range slices.Compact(strings.Split(enableComponents, ",")) {
+			if comp != "" {
+				usedComponents = append(usedComponents, strings.TrimSpace(comp))
+			}
+		}
+		componentsToCheck = usedComponents
+		logrus.WithField(logField, logField).Infof("using enabled components from -E flag: %v", componentsToCheck)
+	} else {
+		// Otherwise, load components from default_user_config.yaml and exclude -I components
+		configComponents, err := GetComponentsFromConfig(cfgFile)
+		if err != nil {
+			logrus.WithField(logField, logField).Warnf("failed to load components from config, falling back to DefaultComponents: %v", err)
+			componentsToCheck = consts.DefaultComponents
+		}
+		// Filter out ignored components
+		ignoredComponentsList := []string{}
+		if len(ignoredComponents) > 0 {
+			ignoredComponentsList = strings.Split(ignoredComponents, ",")
+		}
+		for _, comp := range configComponents {
+			if !slices.Contains(ignoredComponentsList, comp) {
+				componentsToCheck = append(componentsToCheck, comp)
+			}
+		}
+		logrus.WithField(logField, logField).Infof("using components from config (excluding -I): %v", componentsToCheck)
+	}
+	return componentsToCheck
 }

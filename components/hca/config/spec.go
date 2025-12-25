@@ -181,9 +181,15 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 			result.HcaSpec[ibDevBoardId] = spec
 		} else {
 			// If the spec is not found in the current spec, try to load it from OSS
+			ossPath := oss.GetOssCfgPath()
+			if ossPath == "" {
+				logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec and OSS_URL environment variable is not set, skipping", ibDevBoardId)
+				missing = append(missing, ibDevBoardId)
+				continue
+			}
 			logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec, trying to load from OSS", ibDevBoardId)
 			tmpSpecs := &HCASpecs{}
-			url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameHCA, ibDevBoardId)
+			url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameHCA, ibDevBoardId)
 			logrus.WithField("component", "hca").Infof("Loading spec from OSS for board ID %s: %s", ibDevBoardId, url)
 			// Attempt to load spec from OSS
 			err := oss.LoadSpecFromURL(url, tmpSpecs)

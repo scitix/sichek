@@ -40,7 +40,7 @@ func TestLoadEventRules(t *testing.T) {
 
 	// Write sample data to the temporary files
 	specData := `
-gpu_custom_events:
+gpuevents:
   GPUHang:
     name: "GPUHang"
     description: "GPU Hang"

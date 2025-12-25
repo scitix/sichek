@@ -74,33 +74,17 @@ func NewAllCmd() *cobra.Command {
 				logrus.WithField("daemon", "all").Info("load specFile: " + specFile)
 			}
 
-			logrus.WithField("component", "all").Infof("enable components = %v", enableComponents)
-			var usedComponents []string
-			if len(enableComponents) > 0 {
-				usedComponents = strings.Split(enableComponents, ",")
-			}
-
-			logrus.WithField("component", "all").Infof("ignore-components = %v", ignoreComponents)
-			var ignoredComponents []string
-			if len(ignoreComponents) > 0 {
-				ignoredComponents = strings.Split(ignoreComponents, ",")
-			}
-
 			logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckers)
 			var ignoredCheckersList []string
 			if len(ignoredCheckers) > 0 {
 				ignoredCheckersList = strings.Split(ignoredCheckers, ",")
 			}
-			checkResults := make([]*CheckResults, len(consts.DefaultComponents))
+
+			componentsToCheck := DetermineComponentsToCheck(enableComponents, ignoreComponents, "", "all")
+			checkResults := make([]*CheckResults, len(componentsToCheck))
 			var wg sync.WaitGroup
-			for idx, componentName := range consts.DefaultComponents {
+			for idx, componentName := range componentsToCheck {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
-					continue
-				}
-				if slices.Contains(ignoredComponents, componentName) {
-					continue
-				}
-				if len(enableComponents) > 0 && !slices.Contains(usedComponents, componentName) {
 					continue
 				}
 				wg.Add(1)
@@ -129,8 +113,8 @@ func NewAllCmd() *cobra.Command {
 					logrus.WithField("component", "nvidia").Errorf("failed to get compute capability: %v", err)
 				}
 				// check IBGDA for H-generation and above GPUs
-				if !slices.Contains(ignoredComponents, "IBGDA") && major >= 9 && major < 11 {
-
+				shouldCheckIBGDA := slices.Contains(componentsToCheck, "IBGDA") && major >= 9 && major < 11
+				if shouldCheckIBGDA {
 					cmd := exec.Command("bash", consts.DefaultProductionPath+"/scripts/sichek_ibgda")
 					output, err := cmd.Output()
 					if err != nil {
@@ -147,7 +131,7 @@ func NewAllCmd() *cobra.Command {
 					}
 				}
 				// check nccl perf test
-				if !slices.Contains(ignoredComponents, "nccltest") {
+				if slices.Contains(componentsToCheck, "nccltest") {
 					ncclCmd := NewNcclPerftestCmd()
 					args := []string{"--begin", "2g", "--end", "2g"}
 					ncclCmd.SetArgs(args)
@@ -157,7 +141,7 @@ func NewAllCmd() *cobra.Command {
 					}
 				}
 				// check pcie topology
-				if !slices.Contains(ignoredComponents, "topo") {
+				if slices.Contains(componentsToCheck, "topo") {
 					res, err := topotest.CheckGPUTopology(specFile)
 					if err != nil {
 						logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)

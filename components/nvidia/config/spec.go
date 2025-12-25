@@ -195,8 +195,12 @@ func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
 		for gpu, spec := range s.Specs {
 			logrus.WithField("component", "nvidia").Infof("    %s: %s", gpu, spec.Name)
 		}
+		ossPath := oss.GetOssCfgPath()
+		if ossPath == "" {
+			return nil, fmt.Errorf("NVIDIA spec for local GPU %s not found in provided specs and OSS_URL environment variable is not set", localDeviceID)
+		}
 		nvidiaSpec := &NvidiaSpecs{}
-		url := fmt.Sprintf("%s/%s/%s.yaml", consts.DefaultOssCfgPath, consts.ComponentNameNvidia, localDeviceID)
+		url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameNvidia, localDeviceID)
 		logrus.WithField("component", "nvidia").Infof("Loading spec from OSS for gpu %s: %s", localDeviceID, url)
 		err := oss.LoadSpecFromURL(url, nvidiaSpec)
 		if err == nil && nvidiaSpec.Specs != nil {
