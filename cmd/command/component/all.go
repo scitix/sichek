@@ -18,7 +18,6 @@ package component
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -31,7 +30,6 @@ import (
 	gpuevents "github.com/scitix/sichek/components/gpuevents"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nvidia"
-	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/components/syslog"
