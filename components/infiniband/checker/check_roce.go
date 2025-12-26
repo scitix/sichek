@@ -271,6 +271,9 @@ func (c *RoCEChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	infinibandInfo.RUnlock()
 
 	for _, dev := range devices {
+		if strings.Contains(dev.IBDev, "mlx_bond") {
+			continue
+		}
 		IBDev := dev.IBDev
 		checkPerVFSpec.dev = IBDev
 		checkPerNetGw.dev = IBDev
