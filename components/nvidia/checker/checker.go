@@ -31,6 +31,8 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 		config.IOMMUCheckerName:                     dependence.NewIOMMUChecker,
 		config.NVFabricManagerCheckerName:           dependence.NewNVFabricManagerChecker,
 		config.NvPeerMemCheckerName:                 dependence.NewNvPeerMemChecker,
+		config.IBGDACheckerName:                     NewIBGDAChecker,
+		config.P2PCheckerName:                       NewP2PChecker,
 		config.PCIeCheckerName:                      NewPCIeChecker,
 		config.HardwareCheckerName:                  NewHardwareChecker,
 		config.SoftwareCheckerName:                  NewSoftwareChecker,
