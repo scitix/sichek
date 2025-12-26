@@ -32,7 +32,7 @@ func NewNvidiaMetrics() *NvidiaMetrics {
 	NvidiaDeviceGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index"})
 	NvidiaDeviceClkEventGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "clock_event_reason_id"})
 	NvidiaIBGDAStatusGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"status"})
-	NvidiaP2PStatusGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"src_index", "dst_index"})
+	NvidiaP2PStatusGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"status"})
 	return &NvidiaMetrics{
 		NvidiaDevCntGauge:         NvidiaDevCntGauge,
 		NvidiaSoftwareInfoGauge:   NvidiaSoftwareInfoGauge,
@@ -79,7 +79,7 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 	// Note: For Single GPU (DeviceCount <= 1), we consider status as OK (1.0) or you can set to 0 if preferred.
 	// Current logic maintains 1.0 default unless a failure is found in the matrix.
 	m.NvidiaP2PStatusGauge.SetMetric("p2p_global_connected", []string{"connected"}, p2pGlobalStatus)
-	
+
 	for _, device := range metrics.DevicesInfo {
 		deviceIdx := fmt.Sprintf("%d", device.Index)
 		m.NvidiaDeviceGauge.ExportStruct(device.PCIeInfo, []string{deviceIdx}, TagPrefix)
