@@ -87,6 +87,9 @@ func NewAllCmd() *cobra.Command {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
 					continue
 				}
+				if !slices.Contains(consts.DefaultComponents, componentName) {
+					continue
+				}
 				wg.Add(1)
 				go func(idx int, componentName string) {
 					defer wg.Done()
@@ -140,10 +143,10 @@ func NewAllCmd() *cobra.Command {
 					}
 				}
 				// check pcie topology
-				if slices.Contains(componentsToCheck, "topo") {
+				if slices.Contains(componentsToCheck, "pcie_topo") {
 					res, err := topotest.CheckGPUTopology(specFile)
 					if err != nil {
-						logrus.WithField("component", "topo").Errorf("check topotest err: %v", err)
+						logrus.WithField("component", "pcie_topo").Errorf("check pcie_topo err: %v", err)
 						return
 					}
 					passed := topotest.PrintInfo(res, !eventonly && verbos)

@@ -167,10 +167,6 @@ func (i *InfinibandInfo) Unlock() {
 func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDevs {
-		// ignore mezzanine cards
-		if strings.Contains(IBDev, "mezz") {
-			continue
-		}
 
 		// ignore cx4 interface
 		hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
@@ -1243,6 +1239,11 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	}
 	i.HCAPCINum = pciNum
 	for IBDev := range i.IBPFDevs {
+		// skip mezzanine card
+		if strings.Contains(IBDev, "mezz") {
+			continue
+		}
+
 		bdf := i.GetBDF(IBDev)[0]
 		if len(bdf) > 0 && strings.HasSuffix(bdf, ".1") {
 			netDir := fmt.Sprintf("/sys/bus/pci/devices/%s/net", bdf)
@@ -1261,10 +1262,6 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
-		}
-
-		if strings.Contains(IBDev, "mezz") {
-			continue
 		}
 
 		i.IBCounters[IBDev] = i.GetIBCounters(IBDev)
@@ -1425,10 +1422,6 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
-		}
-		// pass mezz interface
-		if strings.Contains(IBDev, "mezz") {
-			continue
 		}
 		var perIBHWInfo IBHardWareInfo
 		perIBHWInfo.IBDev = IBDev
