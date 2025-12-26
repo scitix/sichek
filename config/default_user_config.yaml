@@ -52,5 +52,5 @@ IBGDA:
 nccltest:
   enable: true
 
-pcietopo:
+pcie_topo:
   enable: true

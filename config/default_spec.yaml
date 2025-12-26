@@ -62,7 +62,7 @@ infiniband:
         - "ib_cm"
         - "ib_core"
         - "mlxfw"
-      ofed_ver: "MLNX_OFED_LINUX-24.10-2.1.8.0"
+      ofed_ver: ">=MLNX_OFED_LINUX-24.10-2.1.8.0"
     pcie_acs: "disable"
     hca_specs:
       MT_0000000838: {}
