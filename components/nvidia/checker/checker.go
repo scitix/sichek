@@ -21,6 +21,7 @@ import (
 	sram "github.com/scitix/sichek/components/nvidia/checker/check_ecc_sram"
 	remap "github.com/scitix/sichek/components/nvidia/checker/check_remmaped_rows"
 	"github.com/scitix/sichek/components/nvidia/config"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils" // Added import
 
 	"github.com/sirupsen/logrus"
 )
@@ -54,12 +55,28 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 		ignoredSet[checker] = struct{}{}
 	}
 
+	// Check Compute Capability for IBGDA Logic
+	shouldCheckIBGDA := false
+	major, _, err := nvutils.GetComputeCapability(0)
+	if err != nil {
+		logrus.WithField("component", "NVIDIA-Checker").Warnf("Failed to get compute capability for IBGDA check: %v", err)
+	} else {
+		// Only check IBGDA if major is between 9 (inclusive) and 11 (exclusive)
+		shouldCheckIBGDA = major >= 9 && major < 11
+	}
+
 	usedCheckersName := make([]string, 0)
 	usedCheckers := make([]common.Checker, 0)
 	cfg := nvidiaSpecCfg
 
 	for checkerName := range config.GPUCheckItems {
 		if _, found := ignoredSet[checkerName]; found {
+			continue
+		}
+
+		// Skip IBGDA checker if compute capability requirements are not met
+		if checkerName == config.IBGDACheckerName && !shouldCheckIBGDA {
+			logrus.WithField("component", "NVIDIA-Checker").Infof("Skipping %s (Compute Capability major version %d not in [9, 11))", config.IBGDACheckerName, major)
 			continue
 		}
 
