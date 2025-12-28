@@ -46,8 +46,6 @@ syslog:
   cache_size: 5
   skip_percent: 100
 
-IBGDA:
-  enable: true
 
 nccltest:
   enable: true

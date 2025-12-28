@@ -20,6 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"os"
+    "strings"
+    "bufio"
+	"path/filepath"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/utils"
@@ -140,6 +144,9 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 		DeviceUUIDs:         collector.DeviceUUIDs,
 		GPUAvailability:     make(map[int]bool, collector.ExpectedDeviceCount),
 		LostGPUErrors:       make(map[int]string, collector.ExpectedDeviceCount),
+		IbgdaEnable:         collector.getDriverParams(),
+		IbgdaConfigCount:    collector.getIBGDAConfigCount(), 
+		P2PStatusMatrix:     collector.getP2PStatusMatrix(),
 	}
 
 	// Get the number of devices
@@ -194,4 +201,104 @@ func (collector *NvidiaCollector) Collect(ctx context.Context) (*NvidiaInfo, err
 	}
 	nvidia.DeviceToPodMap = deviceToPodMap
 	return nvidia, nil
+}
+
+func (collector *NvidiaCollector) getDriverParams() map[string]string {
+    params := make(map[string]string)
+    path := "/proc/driver/nvidia/params"
+    
+    file, err := os.Open(path)
+    if err != nil {
+        logrus.WithField("component", "NvidiaCollector").Debugf("failed to open driver params: %v", err)
+        return nil 
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        line := strings.TrimSpace(scanner.Text())
+        if line == "" || strings.HasPrefix(line, "#") {
+            continue
+        }
+        
+        parts := strings.SplitN(line, ":", 2)
+        if len(parts) == 2 {
+            key := strings.TrimSpace(parts[0])
+            val := strings.TrimSpace(parts[1])
+            params[key] = val
+        }
+    }
+    
+    return params
+}
+
+func (collector *NvidiaCollector) getIBGDAConfigCount() int {
+	matches, err := filepath.Glob("/etc/modprobe.d/*.conf")
+	if err != nil { return 0 }
+
+	countOps := 0
+	countPeer := 0
+
+	for _, match := range matches {
+		file, err := os.Open(match)
+		if err != nil { continue }
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if strings.HasPrefix(line, "#") || !strings.Contains(line, "options nvidia") {
+				continue
+			}
+			if strings.Contains(line, "EnableStreamMemOPs") {
+				countOps++
+			}
+			if strings.Contains(line, "PeerMappingOverride") {
+				countPeer++
+			}
+		}
+		file.Close()
+	}
+
+	if countOps > countPeer {
+		return countOps
+	}
+	return countPeer
+}
+
+
+func (collector *NvidiaCollector) getP2PStatusMatrix() map[string]bool {
+	if collector.nvmlInst == nil {
+		return nil
+	}
+
+	matrix := make(map[string]bool)
+	count := collector.ExpectedDeviceCount
+
+	for i := 0; i < count; i++ {
+		handle1, ret1 := (*collector.nvmlInst).DeviceGetHandleByIndex(i)
+		if ret1 != nvml.SUCCESS {
+			continue
+		}
+
+		for j := 0; j < count; j++ {
+			if i == j {
+				continue
+			}
+
+			handle2, ret2 := (*collector.nvmlInst).DeviceGetHandleByIndex(j)
+			if ret2 != nvml.SUCCESS {
+				continue
+			}
+
+			status, ret := handle1.GetP2PStatus(handle2, nvml.P2P_CAPS_INDEX_READ)
+			
+			key := fmt.Sprintf("%d-%d", i, j)
+			
+			if ret == nvml.SUCCESS && status == nvml.P2P_STATUS_OK {
+				matrix[key] = true
+			} else {
+				matrix[key] = false
+			}
+		}
+	}
+	return matrix
 }

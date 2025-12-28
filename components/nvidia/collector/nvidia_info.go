@@ -34,6 +34,9 @@ type NvidiaInfo struct {
 	DeviceToPodMap      map[string]*k8s.PodInfo `json:"device_to_pod_map"`
 	GPUAvailability     map[int]bool            `json:"gpu_availability"`
 	LostGPUErrors       map[int]string          `json:"lost_gpu_errors"` // Error messages for lost GPUs
+	IbgdaEnable         map[string]string       `json:"ibgda_enable"`
+	IbgdaConfigCount    int                     `json:"ibgda_config_count"` // Added field for config count
+	P2PStatusMatrix     map[string]bool         `json:"p2p_status_matrix"`  // New field for P2P status
 }
 
 func (nvidia *NvidiaInfo) JSON() (string, error) {

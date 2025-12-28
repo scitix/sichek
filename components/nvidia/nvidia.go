@@ -601,6 +601,8 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		pstatePrint        string
 		gpuStatusPrint     string
 		fabricmanagerPrint string
+		ibgdaPrint		   string
+		p2pPrint           string
 	)
 	systemEvent := make(map[string]string)
 	gpuStatus := make(map[string]string)
@@ -623,6 +625,25 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				acsPrint = fmt.Sprintf("PCIe ACS: %sEnabled%s", consts.Red, consts.Reset)
 				systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", consts.Red, consts.Reset)
 			}
+			case config.IBGDACheckerName:
+    		if result.Status == consts.StatusNormal {
+        		ibgdaPrint = fmt.Sprintf("IBGDA: %sEnabled%s", consts.Green, consts.Reset)
+    		} else {
+        		ibgdaPrint = fmt.Sprintf("IBGDA: %sDisabled%s", consts.Red, consts.Reset)
+        		systemEvent[config.IBGDACheckerName] = fmt.Sprintf("%sIBGDA is not enabled correctly%s", consts.Red, consts.Reset)
+				systemEvent[config.IBGDACheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+    		}
+		case config.P2PCheckerName:
+        	if result.Status == consts.StatusNormal {
+            	if strings.Contains(result.Detail, "Disabled") {
+                	p2pPrint = fmt.Sprintf("P2P: %sNotSupported%s", consts.Yellow, consts.Reset)
+            	} else {
+                	p2pPrint = fmt.Sprintf("P2P: %sOK%s", consts.Green, consts.Reset)
+       			}
+        	} else {
+            	p2pPrint = fmt.Sprintf("P2P: %sError%s", consts.Red, consts.Reset)
+            	systemEvent[config.P2PCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+        	}
 		case config.IOMMUCheckerName:
 			if result.Status == consts.StatusNormal {
 				iommuPrint = fmt.Sprintf("IOMMU: %sOFF%s", consts.Green, consts.Reset)
@@ -766,6 +787,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		}
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, driverPrint, printInterval, iommuPrint, printInterval, persistencePrint)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, cudaVersionPrint, printInterval, acsPrint, printInterval, pstatePrint)
+		fmt.Printf("%-*s%-*s\n", printInterval, p2pPrint, printInterval, ibgdaPrint)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval-consts.PadLen, gpuNumPrint, printInterval, peermemPrint, printInterval, nvlinkPrint)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval+consts.PadLen, gpuStatusPrint, printInterval, fabricmanagerPrint, printInterval, pcieLinkPrint)
 		fmt.Println()

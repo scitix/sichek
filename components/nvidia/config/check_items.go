@@ -41,6 +41,8 @@ const (
 	SoftwareCheckerName                  = "software"
 	GpuTemperatureCheckerName            = "temperature"
 	NvlsErrorCheckerName                 = "NVLSError"
+	IBGDACheckerName                     = "ibgda"
+	P2PCheckerName						 = "p2p_topo"
 )
 
 // GPUCheckItems is a map of check items for GPU
@@ -216,6 +218,24 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		ErrorName:   "HighSRAMCorrectableErrors",
 		Suggestion:  "Diagnostic the GPU for hardware issue",
 	},
+	IBGDACheckerName: {
+        Name:        IBGDACheckerName,
+        Description: "Check if IBGDA (GPUDirect Async) settings are enabled",
+        Status:      consts.StatusNormal,
+        Level:       consts.LevelCritical,
+        Detail:      "IBGDA parameters are correct",
+        ErrorName:   "IBGDANotEnabled",
+        Suggestion:  "Add 'options nvidia NVreg_RegistryDwords=\"EnableStreamMemOPs=1;PeerMappingOverride=1\"' to /etc/modprobe.d/nvidia.conf and reboot",
+    },
+	P2PCheckerName: {
+        Name:        P2PCheckerName,
+        Description: "Check GPU Peer-to-Peer (P2P) Read capabilities",
+        Status:      consts.StatusNormal,
+        Level:       consts.LevelWarning,
+        Detail:      "P2P is enabled between GPUs",
+        ErrorName:   "P2PNotSupported",
+        Suggestion:  "Check NVLink connections or PCIe topology settings (ACS)",
+    },
 }
 
 var CriticalXidEvent = map[uint64]common.CheckerResult{
