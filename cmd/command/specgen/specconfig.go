@@ -28,7 +28,7 @@ import (
 	nvidiaSpec "github.com/scitix/sichek/components/nvidia/config"
 	pcieSpec "github.com/scitix/sichek/components/pcie/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -173,27 +173,27 @@ func NewSpecConfigCreateCmd() *cobra.Command {
 				fmt.Printf("✅ Spec configuration saved to %s\n", outputFullPath)
 			}
 
-			// Auto upload to OSS (default behavior, unless --no-upload is specified)
+			// Auto upload to SICHEK_SPEC_URL (default behavior, unless --no-upload is specified)
 			if !noUpload {
 				if specName == "" {
 					// Use filename as spec name
 					specName = filepath.Base(outputFile)
 				}
 
-				fmt.Println("\n📤 Uploading to OSS...")
-				ossURL, err := UploadSpecToOSS(spec, specName)
+				fmt.Println("\nUploading to SICHEK_SPEC_URL...")
+				specURL, err := UploadSpec(spec, specName)
 				if err != nil {
-					fmt.Printf("⚠️  Failed to upload to OSS: %v\n", err)
-					fmt.Println("💡 You can upload manually later with: sichek spec upload --file", outputFile)
+					fmt.Printf("⚠️  Failed to upload to SICHEK_SPEC_URL: %v\n", err)
+					fmt.Println("   You can upload manually later with: sichek spec upload --file", outputFile)
 				} else {
-					fmt.Printf("✅ Spec uploaded to OSS: %s\n", ossURL)
+					fmt.Printf("✅ Spec uploaded to SICHEK_SPEC_URL: %s\n", specURL)
 				}
 			}
 
 			fmt.Println("\n📝 Next steps:")
 			fmt.Println("1. Use 'sichek spec view' to preview the configuration")
 			if noUpload {
-				fmt.Println("2. Use 'sichek spec upload' to upload to OSS")
+				fmt.Println("2. Use 'sichek spec upload' to upload to SICHEK_SPEC_URL")
 			}
 
 			return nil
@@ -201,7 +201,7 @@ func NewSpecConfigCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&outputFile, "spec-filename", "f", "", "Output file path (required)")
-	cmd.Flags().BoolVar(&noUpload, "no-upload", false, "Skip automatic upload to OSS")
+	cmd.Flags().BoolVar(&noUpload, "no-upload", false, "Skip automatic upload to SICHEK_SPEC_URL")
 	cmd.MarkFlagRequired("spec-filename")
 
 	return cmd
@@ -215,7 +215,7 @@ func NewSpecConfigViewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view [file|spec-name]",
 		Short: "View spec configuration",
-		Long:  "View spec configuration from file, OSS spec name, or current system",
+		Long:  "View spec configuration from file, SICHEK_SPEC_URL spec name, or current system",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var spec *SpecConfig
@@ -225,12 +225,12 @@ func NewSpecConfigViewCmd() *cobra.Command {
 				// Load from specified file, URL, or spec name
 				input := args[0]
 				if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
-					// Direct OSS URL
-					spec, err = LoadSpecFromOSS(input)
+					// Direct URL
+					spec, err = LoadSpecFromURL(input)
 					if err != nil {
-						return fmt.Errorf("failed to load spec from OSS %s: %v", input, err)
+						return fmt.Errorf("failed to load spec from url %s: %v", input, err)
 					}
-					fmt.Printf("✅ Loaded spec from OSS: %s\n", input)
+					fmt.Printf("✅ Loaded spec from url: %s\n", input)
 				} else if strings.Contains(input, "/") || strings.Contains(input, ".") {
 					// File path (contains path separator or file extension)
 					spec, err = LoadSpecFromFile(input)
@@ -258,16 +258,16 @@ func NewSpecConfigViewCmd() *cobra.Command {
 				}
 
 				if !loaded {
-					// Try to load from OSS
-					ossPath := oss.GetOssCfgPath()
-					if ossPath == "" {
-						return fmt.Errorf("OSS_URL environment variable is not set, cannot load spec from OSS")
+					// Try to load from remote SICHEK_SPEC_URL
+					specURL := httpclient.GetSichekSpecURL()
+					if specURL == "" {
+						return fmt.Errorf("SICHEK_SPEC_URL environment variable is not set, cannot load spec from SICHEK_SPEC_URL")
 					}
-					specUrl := ossPath + "/" + consts.DefaultSpecCfgName
-					fmt.Printf("🔍 No local spec file found, checking spec: %s\n...", specUrl)
-					spec, err = LoadSpecFromOSS(specUrl)
+					specUrl := specURL + "/" + consts.DefaultSpecCfgName
+					fmt.Printf("No local spec file found, checking spec from url: %s\n...", specUrl)
+					spec, err = LoadSpecFromURL(specUrl)
 					if err != nil {
-						return fmt.Errorf("failed to check OSS for specs: %v", err)
+						return fmt.Errorf("failed to load spec from url %s: %v", specUrl, err)
 					}
 				}
 			}
@@ -398,15 +398,15 @@ func CreateDefaultSpec() *SpecConfig {
 	}
 }
 
-// LoadSpecFromOSS loads spec configuration from OSS URL
-func LoadSpecFromOSS(url string) (*SpecConfig, error) {
+// LoadSpecFromURL loads spec configuration from URL
+func LoadSpecFromURL(url string) (*SpecConfig, error) {
 	if url == "" {
-		return nil, fmt.Errorf("OSS URL is empty")
+		return nil, fmt.Errorf("Spec URL is empty")
 	}
 
 	var spec SpecConfig
-	if err := oss.LoadSpecFromURL(url, &spec); err != nil {
-		return nil, fmt.Errorf("failed to load spec from OSS: %v", err)
+	if err := httpclient.LoadSpecFromURL(url, &spec); err != nil {
+		return nil, fmt.Errorf("failed to load spec from URL %s: %v", url, err)
 	}
 
 	return &spec, nil
@@ -535,8 +535,8 @@ func NewSpecConfigUploadCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "upload",
-		Short: "Upload spec configuration to OSS",
-		Long:  "Upload a spec configuration file to the OSS storage for sharing and distribution",
+		Short: "Upload spec configuration to remote SICHEK_SPEC_URL",
+		Long:  "Upload a spec configuration file to the remote URL (specified by SICHEK_SPEC_URL) for sharing and distribution",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if specFile == "" {
 				return fmt.Errorf("spec file path is required. Use --file flag to specify the file")
@@ -551,16 +551,16 @@ func NewSpecConfigUploadCmd() *cobra.Command {
 				return fmt.Errorf("failed to load spec from %s: %v", specFile, err)
 			}
 
-			// Upload to OSS
-			ossURL, err := UploadSpecToOSS(spec, specName)
+			// Upload spec
+			specURL, err := UploadSpec(spec, specName)
 			if err != nil {
-				return fmt.Errorf("failed to upload spec to OSS: %v", err)
+				return fmt.Errorf("failed to upload spec: %v", err)
 			}
 
 			fmt.Printf("✅ Spec configuration uploaded successfully\n")
-			fmt.Printf("📁 Spec Name: %s\n", specName)
-			fmt.Printf("🌐 OSS URL: %s\n", ossURL)
-			fmt.Println("\n📝 Next steps:")
+			fmt.Printf("   Spec Name: %s\n", specName)
+			fmt.Printf("   Spec URL: %s\n", specURL)
+			fmt.Println("\n  Next steps:")
 			fmt.Println("1. Use 'sichek spec list' to see all available specs")
 			fmt.Println("2. Use 'sichek spec view <url>' to view the uploaded spec")
 
@@ -573,8 +573,8 @@ func NewSpecConfigUploadCmd() *cobra.Command {
 	return cmd
 }
 
-// UploadSpecToOSS uploads a spec configuration to OSS
-func UploadSpecToOSS(spec *SpecConfig, specName string) (string, error) {
+// UploadSpec uploads a spec configuration to the remote URL specified by SICHEK_SPEC_URL
+func UploadSpec(spec *SpecConfig, specName string) (string, error) {
 	if spec == nil {
 		return "", fmt.Errorf("spec configuration is nil")
 	}
@@ -589,15 +589,15 @@ func UploadSpecToOSS(spec *SpecConfig, specName string) (string, error) {
 		return "", fmt.Errorf("failed to marshal spec to YAML: %v", err)
 	}
 
-	// Use OSS client to upload
-	ossPath := oss.GetOssCfgPath()
-	if ossPath == "" {
-		return "", fmt.Errorf("OSS_URL environment variable is not set, cannot upload spec to OSS")
+	// Use http client to upload
+	specURL := httpclient.GetSichekSpecURL()
+	if specURL == "" {
+		return "", fmt.Errorf("SICHEK_SPEC_URL environment variable is not set, cannot upload spec to SICHEK_SPEC_URL")
 	}
-	specUrl := ossPath + "/" + specName
-	err = oss.Upload(specUrl, data)
+	specUrl := specURL + "/" + specName
+	err = httpclient.Upload(specUrl, data)
 	if err != nil {
-		return "", fmt.Errorf("failed to upload spec to OSS: %v", err)
+		return "", fmt.Errorf("failed to upload spec to remote url %s: %v", specUrl, err)
 	}
 
 	return specUrl, nil

@@ -12,6 +12,15 @@ jobs:
     name: Daily checks (tests + goreleaser snapshot)
     runs-on: ubuntu-latest
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          sudo docker system prune -af || true
+          df -h
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -34,22 +43,6 @@ jobs:
 
       # - name: Run unit tests
       #   run: go test ./... -v
-
-      - name: Run goreleaser snapshot (no publish)
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          version: v2.13.1
-          args: release --snapshot --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: List goreleaser artifacts
-        run: |
-          echo "=== dist directory ==="
-          ls -lah dist
-          echo
-          echo "=== tree dist ==="
-          find dist -maxdepth 2 -type f
 
       - name: Run goreleaser snapshot with sicl (no publish)
         uses: goreleaser/goreleaser-action@v2

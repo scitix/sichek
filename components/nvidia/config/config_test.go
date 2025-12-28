@@ -28,7 +28,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 )
 
 func TestLoadSpecFromYaml(t *testing.T) {
@@ -410,15 +410,15 @@ func TestLoadComponentUserConfig_WithDefaultConfig(t *testing.T) {
 	}
 }
 
-func TestLoadSpecFromOss(t *testing.T) {
-	ossPath := oss.GetOssCfgPath()
-	if ossPath == "" {
-		t.Skip("OSS_URL environment variable is not set, skipping OSS test")
+func TestLoadSpecFromRemoteURL(t *testing.T) {
+	specURL := httpclient.GetSichekSpecURL()
+	if specURL == "" {
+		t.Skip("SICHEK_SPEC_URL environment variable is not set, skipping remote URL test")
 	}
 	nvidiaSpec := &NvidiaSpecs{}
 	gpuId := "test"
-	url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameNvidia, gpuId)
-	err := oss.LoadSpecFromURL(url, nvidiaSpec)
+	url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameNvidia, gpuId)
+	err := httpclient.LoadSpecFromURL(url, nvidiaSpec)
 	if err != nil {
 		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)
 	}
