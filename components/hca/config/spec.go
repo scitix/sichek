@@ -9,7 +9,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -32,7 +32,7 @@ type HCAPerf struct {
 
 // LoadSpec loads the HCA specifications from the provided file and merges with default locations.
 // The provided file has higher priority - if the same board ID exists in both, the provided file's spec will be used.
-// After merging, it filters the specs for the local host and loads missing specs from OSS if needed.
+// After merging, it filters the specs for the local host and loads missing specs from remote SICHEK_SPEC_URL if needed.
 func LoadSpec(file string) (*HCASpecs, error) {
 	s := &HCASpecs{}
 	if s.HcaSpec == nil {
@@ -75,7 +75,7 @@ func LoadSpec(file string) (*HCASpecs, error) {
 		return nil, fmt.Errorf("failed to load HCA spec from any source, please check the configuration")
 	}
 
-	// 4. Filter specs for local host and load missing specs from OSS
+	// 4. Filter specs for local host and load missing specs from remote SICHEK_SPEC_URL
 	// This will check all board IDs on the host and ensure each has a spec
 	result, err := FilterSpecsForLocalHost(s)
 	if err != nil {
@@ -160,7 +160,7 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 }
 
 // FilterSpecsForLocalHost retrieves the hca specification for the current host by checking the board IDs of the IB devices.
-// It loads the specification from OSS if the board ID is not found in the current spec.
+// It loads the specification from remote SICHEK_SPEC_URL if the board ID is not found in the current spec.
 func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 	if allSpecs == nil || allSpecs.HcaSpec == nil {
 		return nil, fmt.Errorf("HCA spec is not initialized")
@@ -180,30 +180,30 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 			// If the spec is found in the current spec, add it to the result
 			result.HcaSpec[ibDevBoardId] = spec
 		} else {
-			// If the spec is not found in the current spec, try to load it from OSS
-			ossPath := oss.GetOssCfgPath()
-			if ossPath == "" {
-				logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec and OSS_URL environment variable is not set, skipping", ibDevBoardId)
+			// If the spec is not found in the current spec, try to load it from remote SICHEK_SPEC_URL
+			specURL := httpclient.GetSichekSpecURL()
+			if specURL == "" {
+				logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec and SICHEK_SPEC_URL environment variable is not set, skipping", ibDevBoardId)
 				missing = append(missing, ibDevBoardId)
 				continue
 			}
-			logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec, trying to load from OSS", ibDevBoardId)
+			logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec, trying to load from remote SICHEK_SPEC_URL", ibDevBoardId)
 			tmpSpecs := &HCASpecs{}
-			url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameHCA, ibDevBoardId)
-			logrus.WithField("component", "hca").Infof("Loading spec from OSS for board ID %s: %s", ibDevBoardId, url)
-			// Attempt to load spec from OSS
-			err := oss.LoadSpecFromURL(url, tmpSpecs)
+			url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameHCA, ibDevBoardId)
+			logrus.WithField("component", "hca").Infof("Loading spec for board ID %s from %s", ibDevBoardId, url)
+			// Attempt to load spec from remote URL
+			err := httpclient.LoadSpecFromURL(url, tmpSpecs)
 			if err == nil && tmpSpecs.HcaSpec != nil {
-				// If the spec is found in OSS, add it to the main spec
+				// If the spec is found at remote URL, add it to the main spec
 				if spec, ok := tmpSpecs.HcaSpec[ibDevBoardId]; ok {
 					result.HcaSpec[ibDevBoardId] = spec
 				} else {
-					logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in OSS, skipping", ibDevBoardId)
+					logrus.WithField("component", "hca").Warnf("spec for board ID %s not found from remote URL %s, skipping", ibDevBoardId, url)
 					missing = append(missing, ibDevBoardId)
 					continue
 				}
 			} else {
-				logrus.WithField("component", "hca").Errorf("failed to load spec from OSS for board ID %s: %v", ibDevBoardId, err)
+				logrus.WithField("component", "hca").Errorf("failed to load spec from remote URL %s for board ID %s: %v", url, ibDevBoardId, err)
 				missing = append(missing, ibDevBoardId)
 			}
 		}

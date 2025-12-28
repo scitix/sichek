@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/sirupsen/logrus"
 )
 
@@ -94,7 +94,7 @@ func promptFloat(msg string, def ...float64) float64 {
 	return val
 }
 
-// EnsureSpecFile ensures a spec file exists locally, downloading from OSS if needed
+// EnsureSpecFile ensures a spec file exists locally, or downloading from remote SICHEK_SPEC_URL if needed
 func EnsureSpecFile(specName string) (string, error) {
 	// if specName is empty, return empty to caller to use default spec file
 	if specName == "" {
@@ -112,14 +112,14 @@ func EnsureSpecFile(specName string) (string, error) {
 		return specPath, nil
 	}
 
-	// Download from OSS: specName maybe is a URL or a file name
+	// Download from remote URL: specName maybe is a URL or a file name
 	fileURL := specName
 	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
-		ossPath := oss.GetOssCfgPath()
-		if ossPath == "" {
-			return "", fmt.Errorf("OSS_URL environment variable is not set, cannot download spec from OSS")
+		specURL := httpclient.GetSichekSpecURL()
+		if specURL == "" {
+			return "", fmt.Errorf("SICHEK_SPEC_URL environment variable is not set, cannot download spec from remote URL")
 		}
-		fileURL = fmt.Sprintf("%s/%s", ossPath, specName)
+		fileURL = fmt.Sprintf("%s/%s", specURL, specName)
 	} else {
 		parsedURL, err := url.Parse(fileURL)
 		if err != nil {
@@ -129,7 +129,7 @@ func EnsureSpecFile(specName string) (string, error) {
 		specPath = filepath.Join(targetDir, specName)
 	}
 	logrus.WithField("component", "specgen").Infof("downloading spec file %s from OSS to %s", fileURL, specPath)
-	err := oss.Download(fileURL, specPath)
+	err := httpclient.Download(fileURL, specPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to download spec file %s from OSS: %v", fileURL, err)
 	}

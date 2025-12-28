@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package oss
+package httpclient
 
 import (
 	"bytes"
@@ -29,15 +29,15 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func GetOssCfgPath() string {
-	return os.Getenv("OSS_URL")
+func GetSichekSpecURL() string {
+	return os.Getenv("SICHEK_SPEC_URL")
 }
 
-func HasOssCfgPath() bool {
-	return os.Getenv("OSS_URL") != ""
+func HasSichekSpecURL() bool {
+	return os.Getenv("SICHEK_SPEC_URL") != ""
 }
 
-// getDefaultClient returns a default OSS client
+// getDefaultClient returns a default HTTP client
 func getDefaultClient() *http.Client {
 	return &http.Client{
 		Timeout: 30 * time.Second,
@@ -51,29 +51,29 @@ func getConnectivityClient() *http.Client {
 	}
 }
 
-// CheckConnectivity checks if the OSS endpoint is reachable
+// CheckConnectivity checks if the HTTP endpoint is reachable
 func CheckConnectivity(url string) error {
 	client := getConnectivityClient()
 	if url == "" {
-		url = GetOssCfgPath()
+		url = GetSichekSpecURL()
 		if url == "" {
-			return fmt.Errorf("OSS_URL environment variable is not set")
+			return fmt.Errorf("SICHEK_SPEC_URL environment variable is not set")
 		}
 	}
 
 	resp, err := client.Get(url)
 	if err != nil {
-		return fmt.Errorf("OSS endpoint %s is not reachable: %v", url, err)
+		return fmt.Errorf("HTTP endpoint %s is not reachable: %v", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 500 {
-		return nil // OSS endpoint is reachable
+		return nil // HTTP endpoint is reachable
 	}
-	return fmt.Errorf("OSS endpoint %s returned status %d", url, resp.StatusCode)
+	return fmt.Errorf("HTTP endpoint %s returned status %d", url, resp.StatusCode)
 }
 
-// Download downloads a file from OSS to local path
+// Download downloads a file from HTTP URL to local path
 func Download(fileURL, targetPath string) error {
 	if fileURL == "" {
 		return fmt.Errorf("file name or url cannot be empty")
@@ -92,12 +92,12 @@ func Download(fileURL, targetPath string) error {
 	client := getDefaultClient()
 	resp, err := client.Get(fileURL)
 	if err != nil {
-		return fmt.Errorf("failed to fetch spec from OSS %s: %v", fileURL, err)
+		return fmt.Errorf("failed to fetch file from %s: %v", fileURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("spec file not found in OSS (status: %d)", resp.StatusCode)
+		return fmt.Errorf("file not found at %s (status: %d)", fileURL, resp.StatusCode)
 	}
 
 	// Create target directory if it doesn't exist
@@ -106,22 +106,22 @@ func Download(fileURL, targetPath string) error {
 		return fmt.Errorf("failed to create directory %s: %v", dir, err)
 	}
 
-	// Download and save the spec file
+	// Download and save the file
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read spec content: %v", err)
+		return fmt.Errorf("failed to read file content: %v", err)
 	}
 
 	var tmp interface{}
 	if err := yaml.Unmarshal(body, &tmp); err != nil {
-		return fmt.Errorf("spec file is not valid YAML: %v", err)
+		return fmt.Errorf("file is not valid YAML: %v", err)
 	}
 
 	if err := os.WriteFile(targetPath, body, 0644); err != nil {
 		return fmt.Errorf("failed to write file to %s: %v", targetPath, err)
 	}
 
-	logrus.WithField("component", "oss").Infof("successfully downloaded file to: %s", targetPath)
+	logrus.WithField("component", "httpclient").Infof("successfully downloaded file to: %s", targetPath)
 	return nil
 }
 
@@ -164,7 +164,7 @@ func LoadSpecFromURL(url string, spec interface{}) error {
 	return nil
 }
 
-// Upload uploads a YAML spec file (as []byte) to OSS-compatible storage.
+// Upload uploads a YAML spec file (as []byte) to HTTP-compatible storage.
 func Upload(fileURL string, data []byte) error {
 	if fileURL == "" {
 		return fmt.Errorf("file url cannot be empty")
@@ -180,7 +180,7 @@ func Upload(fileURL string, data []byte) error {
 
 	client := getDefaultClient()
 
-	// OSS / S3 style object upload should use PUT, not POST
+	// HTTP PUT request for file upload
 	req, err := http.NewRequest("PUT", fileURL, bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create PUT request: %v", err)
@@ -189,45 +189,46 @@ func Upload(fileURL string, data []byte) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to upload spec to %s: %v", fileURL, err)
+		return fmt.Errorf("failed to upload file to %s: %v", fileURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to upload spec (status %d): %s", resp.StatusCode, string(body))
+		return fmt.Errorf("failed to upload file (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	logrus.Infof("✅ Successfully uploaded YAML spec to: %s", fileURL)
+	logrus.Infof("✅ Successfully uploaded YAML file to: %s", fileURL)
 	return nil
 }
 
-// CheckFileExists checks if a file exists in OSS
+// CheckFileExists checks if a file exists at the given HTTP URL
 func CheckFileExists(fileURL string) (bool, error) {
 	if fileURL == "" {
-		return false, fmt.Errorf("spec name or url cannot be empty")
+		return false, fmt.Errorf("file name or url cannot be empty")
 	}
 
 	// Try to download to verify existence (without saving)
 	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
-		ossPath := GetOssCfgPath()
-		if ossPath == "" {
-			return false, fmt.Errorf("OSS_URL environment variable is not set")
+		specURL := GetSichekSpecURL()
+		if specURL == "" {
+			return false, fmt.Errorf("SICHEK_SPEC_URL environment variable is not set")
 		}
-		fileURL = fmt.Sprintf("%s/%s", ossPath, fileURL)
+		fileURL = fmt.Sprintf("%s/%s", specURL, fileURL)
 	}
 
-	// Check OSS connectivity first
+	// Check HTTP connectivity first
 	if err := CheckConnectivity(fileURL); err != nil {
-		return false, fmt.Errorf("OSS %s not reachable: %v", fileURL, err)
+		return false, fmt.Errorf("HTTP endpoint %s not reachable: %v", fileURL, err)
 	}
 
 	client := getDefaultClient()
 	resp, err := client.Get(fileURL)
 	if err != nil {
-		return false, fmt.Errorf("failed to check file in OSS: %v", err)
+		return false, fmt.Errorf("failed to check file at %s: %v", fileURL, err)
 	}
 	defer resp.Body.Close()
 
 	return resp.StatusCode == 200, nil
 }
+

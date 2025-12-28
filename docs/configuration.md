@@ -60,7 +60,7 @@ Spec files define expected hardware layouts and characteristics. Each component 
     - for production env: `/var/sichek/config/xx-component/*_spec.yaml`
     - for development env: based on `runtime.Caller` → `path-to-sichek/component/config/*_spec.yaml`
 
-  - Cloud-based OSS fallback (e.g., when spec for a specific board ID is missing)
+  - Remote URL fallback (e.g., when spec for a specific board ID is missing, load from SICHEK_SPEC_URL)
 
 - Filters the loaded specs to include only those applicable to the local host hardware
 
@@ -80,7 +80,7 @@ The spec loading process follows a multi-stage fallback strategy:
   - If running in a production environment, scan a predefined config directory for `_spec.yaml` files(e.g., `/var/sichek/config/xx-component/*_spec.yaml`).
   - If running in a development environment, scan a predefined config directory for `_spec.yaml` files(e.g., `path-to-sichek/component/xx=component/config/*_spec.yaml`).
 
-4. **OSS fallback for missing hardware specs**: If the local hardware (e.g., a specific HCA board ID) is not found in the current spec set, attempt to load it from an OSS (Object Storage Service) by fetching a YAML file for that specific ID.
+4. **Remote URL fallback for missing hardware specs**: If the local hardware (e.g., a specific HCA board ID) is not found in the current spec set, attempt to load it from a remote URL (specified by SICHEK_SPEC_URL environment variable) by fetching a YAML file for that specific ID.
 
 #### Local Filtering
 
@@ -90,7 +90,7 @@ After loading the complete set of available specs, the system calls `FilterSpecF
 
 - Retain only the relevant specs based on the hardware's unique identifiers (e.g., board IDs)
 
-- Attempt to auto-fill missing entries from cloud sources (e.g., OSS)
+- Attempt to auto-fill missing entries from remote URL (specified by SICHEK_SPEC_URL)
 
 This ensures that each node only loads specs that are directly applicable to its own devices.
 

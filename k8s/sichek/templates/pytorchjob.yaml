@@ -94,7 +94,7 @@ spec:
             volumeMounts:
             - mountPath: /dev/shm
               name: shm
-            {{- if or eq .Values.roceSharedMode "volcengine" eq .Values.roceSharedMode "lingjun" }}
+            {{- if or (eq .Values.roceSharedMode "volcengine") (eq .Values.roceSharedMode "lingjun") }}
             - name: nccl-topo
               mountPath: /var/run/nvidia-topologyd
             {{- end }}

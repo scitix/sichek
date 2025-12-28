@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 )
 
 func TestLoadSpecFromFile(t *testing.T) {
@@ -126,15 +126,15 @@ func TestLoadSpecFromDevDefaultFile(t *testing.T) {
 	}
 }
 
-func TestLoadSpecFromOss(t *testing.T) {
-	ossPath := oss.GetOssCfgPath()
-	if ossPath == "" {
-		t.Skip("OSS_URL environment variable is not set, skipping OSS test")
+func TestLoadSpecFromRemoteURL(t *testing.T) {
+	specURL := httpclient.GetSichekSpecURL()
+	if specURL == "" {
+		t.Skip("SICHEK_SPEC_URL environment variable is not set, skipping remote URL test")
 	}
 	hcaSpec := &HCASpecs{}
 	ibDevBoardId := "test"
-	url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameHCA, ibDevBoardId)
-	err := oss.LoadSpecFromURL(url, hcaSpec)
+	url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameHCA, ibDevBoardId)
+	err := httpclient.LoadSpecFromURL(url, hcaSpec)
 	if err != nil {
 		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)
 	}

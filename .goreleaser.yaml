@@ -25,9 +25,12 @@ before:
 # Snapshot 模式（CI / push）
 # -----------------------------
 snapshot:
-  name_template: "{{ .Version }}"
-  version_template: "v0.0.0-snapshot-{{ .ShortCommit }}"
-
+  version_template: >-
+    {{- if index .Env "BUILD_TIME" -}}
+    0.0.0~dev-{{ index .Env "BUILD_TIME" }}-{{ .ShortCommit }}
+    {{- else -}}
+    {{ .Version }}
+    {{- end -}}
 # -----------------------------
 # 正式 Release（tag vX.Y.Z）
 # -----------------------------

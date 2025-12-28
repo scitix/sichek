@@ -26,7 +26,7 @@ import (
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -157,7 +157,7 @@ func extractClusterName() string {
 }
 
 // FilterSpec retrieves the InfiniBand specification for the current cluster.
-// If no specific cluster specification is found, it falls back to the default specification from OSS.
+// If no specific cluster specification is found, it falls back to the default specification from SICHEK_SPEC_URL.
 // If no default specification is found, it returns an error.
 // It also loads the HCA specifications based on the hardware available on the node.
 // If the HCA specifications cannot be loaded, it logs an error and returns the error.
@@ -170,23 +170,23 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			ibSpec = spec
 		} else {
 			// If no specific cluster specification is found, fall back to the default specification
-			ossPath := oss.GetOssCfgPath()
-			if ossPath == "" {
-				// If OSS_URL is not set, try to use default spec if available
+			specURL := httpclient.GetSichekSpecURL()
+			if specURL == "" {
+				// If SICHEK_SPEC_URL is not set, try to use default spec if available
 				if _, ok := specs.Specs["default"]; !ok {
-					return nil, fmt.Errorf("no default infiniband specification found for cluster %s and OSS_URL environment variable is not set", clusterName)
+					return nil, fmt.Errorf("no default infiniband specification found for cluster %s and SICHEK_SPEC_URL environment variable is not set", clusterName)
 				}
 				logrus.WithField("infiniband", "spec").
-					Warnf("No specific InfiniBand specification found for cluster %s and OSS_URL is not set; falling back to default specification", clusterName)
+					Warnf("No specific InfiniBand specification found for cluster %s and SICHEK_SPEC_URL is not set; falling back to default specification", clusterName)
 				ibSpec = specs.Specs["default"]
 			} else {
-				ossIbSpec := &InfinibandSpecs{}
-				url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameInfiniband, clusterName)
-				logrus.WithField("component", "InfiniBand").Infof("Loading spec from OSS for clusterName %s: %s", clusterName, url)
-				// Attempt to load spec from OSS
-				err := oss.LoadSpecFromURL(url, ossIbSpec)
-				if err == nil && ossIbSpec.Specs != nil {
-					if spec, ok := ossIbSpec.Specs[clusterName]; ok {
+				remoteIbSpec := &InfinibandSpecs{}
+				url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameInfiniband, clusterName)
+				logrus.WithField("component", "InfiniBand").Infof("Loading spec for clusterName %s from %s", clusterName, url)
+				// Attempt to load spec from remote URL
+				err := httpclient.LoadSpecFromURL(url, remoteIbSpec)
+				if err == nil && remoteIbSpec.Specs != nil {
+					if spec, ok := remoteIbSpec.Specs[clusterName]; ok {
 						ibSpec = spec
 					} else {
 						if _, ok := specs.Specs["default"]; !ok {
@@ -198,12 +198,12 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 						}
 					}
 				} else {
-					// OSS load failed, fall back to default if available
+					// failed to load from remote URL, fall back to default if available
 					if _, ok := specs.Specs["default"]; !ok {
-						return nil, fmt.Errorf("no default infiniband specification found for cluster %s and failed to load from OSS: %v", clusterName, err)
+						return nil, fmt.Errorf("no default infiniband specification found for cluster %s and failed to load from remote URL: %v", clusterName, err)
 					} else {
 						logrus.WithField("infiniband", "spec").
-							Warnf("Failed to load InfiniBand specification from OSS for cluster %s; falling back to default specification: %v", clusterName, err)
+							Warnf("Failed to load InfiniBand specification from remote URL for cluster %s; falling back to default specification: %v", clusterName, err)
 						ibSpec = specs.Specs["default"]
 					}
 				}
@@ -230,7 +230,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 
 		// Load HCA specs from provided file and merge with default specs
 		// This will load from the provided file, merge with built-in specs (provided file has higher priority),
-		// and load missing specs from OSS for all board IDs on the host
+		// and load missing specs from remote URL for all board IDs on the host
 		hcaSpecs, err := hcaConfig.LoadSpec(file)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)

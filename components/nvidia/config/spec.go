@@ -24,7 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -195,22 +195,22 @@ func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
 		for gpu, spec := range s.Specs {
 			logrus.WithField("component", "nvidia").Infof("    %s: %s", gpu, spec.Name)
 		}
-		ossPath := oss.GetOssCfgPath()
-		if ossPath == "" {
-			return nil, fmt.Errorf("NVIDIA spec for local GPU %s not found in provided specs and OSS_URL environment variable is not set", localDeviceID)
+		specURL := httpclient.GetSichekSpecURL()
+		if specURL == "" {
+			return nil, fmt.Errorf("NVIDIA spec for local GPU %s not found in provided specs and SICHEK_SPEC_URL environment variable is not set", localDeviceID)
 		}
 		nvidiaSpec := &NvidiaSpecs{}
-		url := fmt.Sprintf("%s/%s/%s.yaml", ossPath, consts.ComponentNameNvidia, localDeviceID)
-		logrus.WithField("component", "nvidia").Infof("Loading spec from OSS for gpu %s: %s", localDeviceID, url)
-		err := oss.LoadSpecFromURL(url, nvidiaSpec)
+		url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameNvidia, localDeviceID)
+		logrus.WithField("component", "nvidia").Infof("Loading spec for gpu %s from %s", localDeviceID, url)
+		err := httpclient.LoadSpecFromURL(url, nvidiaSpec)
 		if err == nil && nvidiaSpec.Specs != nil {
 			if spec, ok := nvidiaSpec.Specs[localDeviceID]; ok {
 				nvSpec = spec
 			} else {
-				return nil, fmt.Errorf("failed to find NVIDIA spec for local GPU %s in OSS", localDeviceID)
+				return nil, fmt.Errorf("failed to find NVIDIA spec for local GPU %s from remote URL %s", localDeviceID, url)
 			}
 		} else {
-			return nil, fmt.Errorf("failed to load NVIDIA spec from OSS: %v", err)
+			return nil, fmt.Errorf("failed to load NVIDIA spec from remote URL %s: %v", url, err)
 		}
 	}
 	return nvSpec, nil
