@@ -108,40 +108,6 @@ func LoadSpecFromProductionPath(spec interface{}) error {
 	return nil
 }
 
-// // LoadFromOssSpec downloads and parses a YAML spec from a given URL into the provided spec structure.
-// func LoadSpecFromOss(url string, spec interface{}) error {
-// 	if url == "" {
-// 		return fmt.Errorf("url is empty")
-// 	}
-// 	if !(len(url) >= 7 && (url[:7] == "http://" || url[:8] == "https://")) {
-// 		return fmt.Errorf("unsupported URL scheme (must start with http:// or https://): %s", url)
-// 	}
-
-// 	client := &http.Client{
-// 		Timeout: 3 * time.Second, // Set total timeout (including connection + read)
-// 	}
-// 	resp, err := client.Get(url)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to fetch spec from %s: %w", url, err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if resp.StatusCode != http.StatusOK {
-// 		return fmt.Errorf("unexpected HTTP status %d while fetching %s", resp.StatusCode, url)
-// 	}
-
-// 	data, err := io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to read body from %s: %w", url, err)
-// 	}
-
-// 	if err := yaml.Unmarshal(data, spec); err != nil {
-// 		return fmt.Errorf("failed to unmarshal YAML from %s: %w", url, err)
-// 	}
-
-// 	return nil
-// }
-
 // LoadUserConfig loads the default user config from production default dir or dev default dir based on runtime.Caller
 func LoadDefaultEventRules(eventRule interface{}, component string) error {
 	// 1. Try to load default config from production default dir

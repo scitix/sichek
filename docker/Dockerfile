@@ -25,7 +25,12 @@ WORKDIR /go/src/sichek
 
 COPY . .
 
-RUN goreleaser release --snapshot --clean
+ARG BUILD_TIME
+RUN if [ -n "$BUILD_TIME" ]; then \
+      BUILD_TIME=$BUILD_TIME goreleaser release --snapshot --clean ; \
+    else \
+      goreleaser release --snapshot --clean ; \
+    fi
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu20.04
 

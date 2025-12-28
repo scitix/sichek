@@ -24,7 +24,7 @@ import (
 
 	"github.com/scitix/sichek/cmd/command/specgen"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/oss"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -74,15 +74,15 @@ func newConfigInitCmd() *cobra.Command {
 			reader := bufio.NewReader(os.Stdin)
 
 			cfg := map[string]string{
-				"image_repo":            ask(reader, v, "image_repo", "sichek image repository", "registry-us-east.scitix.ai/hisys/sichek"),
+				"image_repo":            ask(reader, v, "image_repo", "sichek image repository", "ghcr.io/scitix/sichek"),
 				"image_tag":             ask(reader, v, "image_tag", "sichek image tag", "latest"),
-				"pytorchjob_image_repo": ask(reader, v, "pytorchjob_image_repo", "at_llama70b image repository", "registry-us-east.scitix.ai/hisys/megatron"),
-				"pytorchjob_image_tag":  ask(reader, v, "pytorchjob_image_tag", "at_llama70b image tag", "0.12.1-a845aa7"),
-				"at_llama70b_cmd":       ask(reader, v, "at_llama70b_cmd", "at_llama70b cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=4 PP=4 MBS=1 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_70b_bf16.sh"),
-				"at_llama13b_cmd":       ask(reader, v, "at_llama13b_cmd", "at_llama13b cmd", "MAX_STEPS=65 MOCK_DATA=true ENABLE_CKPT=0 LOG_INTERVAL=1 TP=2 PP=1 GBS=256 bash /workspace/deep_learning_examples/training/Megatron-LM/llm/llama/run_meg_lm_llama2_13b_bf16.sh"),
-				"scheduler":             ask(reader, v, "scheduler", "scheduler", "si-scheduler"),
+				"pytorchjob_image_repo": ask(reader, v, "pytorchjob_image_repo", "at_llama70b image repository", ""),
+				"pytorchjob_image_tag":  ask(reader, v, "pytorchjob_image_tag", "at_llama70b image tag", ""),
+				"at_llama70b_cmd":       ask(reader, v, "at_llama70b_cmd", "at_llama70b cmd", ""),
+				"at_llama13b_cmd":       ask(reader, v, "at_llama13b_cmd", "at_llama13b cmd", ""),
+				"scheduler":             ask(reader, v, "scheduler", "k8s scheduler", ""),
 				"roce_shared_mode":      ask(reader, v, "roce_shared_mode", "roce shared mode", "none"),
-				"default_spec":          ask(reader, v, "default_spec", "default spec", "cetus_spec.yaml"),
+				"default_spec":          ask(reader, v, "default_spec", "default spec", ""),
 			}
 
 			// Validate default_spec before saving config
@@ -185,7 +185,7 @@ func ask(reader *bufio.Reader, v *viper.Viper, key, desc, def string) string {
 	return input
 }
 
-// validateSpecExists checks if the specified spec file exists in production path or OSS
+// validateSpecExists checks if the specified spec file exists in production path or SICHEK_SPEC_URL
 // Returns true if spec exists, false otherwise
 func validateSpecExists(specName string) bool {
 	specPath, err := specgen.EnsureSpecFile(specName)
@@ -197,11 +197,11 @@ func validateSpecExists(specName string) bool {
 	fmt.Println("❌ Spec validation failed!")
 	fmt.Printf("📁 Spec file '%s' not found in:\n", specName)
 	fmt.Printf("   - Production path: %s\n", consts.DefaultProductionCfgPath)
-	ossPath := oss.GetOssCfgPath()
-	if ossPath != "" {
-		fmt.Printf("   - OSS: %s\n", ossPath)
+	specURL := httpclient.GetSichekSpecURL()
+	if specURL != "" {
+		fmt.Printf("   - SICHEK_SPEC_URL: %s\n", specURL)
 	} else {
-		fmt.Printf("   - OSS: (OSS_URL environment variable not set)\n")
+		fmt.Printf("   - SICHEK_SPEC_URL: (SICHEK_SPEC_URL environment variable not set)\n")
 	}
 	fmt.Println()
 	fmt.Println("💡 Please create the spec file first:")
