@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/nvidia/collector"
 	common "github.com/scitix/sichek/metrics"
@@ -20,6 +21,8 @@ type NvidiaMetrics struct {
 	NvidiaDevUUIDGauge        *common.GaugeVecMetricExporter
 	NvidiaDeviceGauge         *common.GaugeVecMetricExporter
 	NvidiaDeviceClkEventGauge *common.GaugeVecMetricExporter
+	NvidiaIBGDAStatusGauge    *common.GaugeVecMetricExporter
+	NvidiaP2PStatusGauge      *common.GaugeVecMetricExporter
 }
 
 func NewNvidiaMetrics() *NvidiaMetrics {
@@ -28,12 +31,16 @@ func NewNvidiaMetrics() *NvidiaMetrics {
 	NvidiaDevUUIDGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "uuid"})
 	NvidiaDeviceGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index"})
 	NvidiaDeviceClkEventGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "clock_event_reason_id"})
+	NvidiaIBGDAStatusGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"status"})
+	NvidiaP2PStatusGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"status"})
 	return &NvidiaMetrics{
 		NvidiaDevCntGauge:         NvidiaDevCntGauge,
 		NvidiaSoftwareInfoGauge:   NvidiaSoftwareInfoGauge,
 		NvidiaDevUUIDGauge:        NvidiaDevUUIDGauge,
 		NvidiaDeviceGauge:         NvidiaDeviceGauge,
 		NvidiaDeviceClkEventGauge: NvidiaDeviceClkEventGauge,
+		NvidiaIBGDAStatusGauge:    NvidiaIBGDAStatusGauge,
+		NvidiaP2PStatusGauge:      NvidiaP2PStatusGauge,
 	}
 }
 
@@ -42,6 +49,36 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 	m.NvidiaDevCntGauge.SetMetric("device_count", nil, float64(metrics.DeviceCount))
 	// SoftwareInfo
 	m.NvidiaSoftwareInfoGauge.ExportStructWithStrField(metrics.SoftwareInfo, []string{}, TagPrefix)
+
+	ibgdaVal := 0.0
+	if metrics.IbgdaEnable != nil {
+		valOps, okOps := metrics.IbgdaEnable["EnableStreamMemOPs"]
+		conditionOps := okOps && valOps == "1"
+
+		valPeer, okPeer := metrics.IbgdaEnable["PeerMappingOverride"]
+		valReg, hasReg := metrics.IbgdaEnable["RegistryDwords"]
+		
+		conditionPeer := (okPeer && valPeer == "1") || (hasReg && strings.Contains(valReg, "PeerMappingOverride=1"))
+
+		if conditionOps && conditionPeer {
+			ibgdaVal = 1.0
+		}
+	}
+	m.NvidiaIBGDAStatusGauge.SetMetric("ibgda_status", []string{"enabled"}, ibgdaVal)
+
+
+	p2pGlobalStatus := 1.0
+	if metrics.DeviceCount > 1 && metrics.P2PStatusMatrix != nil {
+		for _, supported := range metrics.P2PStatusMatrix {
+			if !supported {
+				p2pGlobalStatus = 0.0
+				break
+			}
+		}
+	}
+	// Note: For Single GPU (DeviceCount <= 1), we consider status as OK (1.0) or you can set to 0 if preferred.
+	// Current logic maintains 1.0 default unless a failure is found in the matrix.
+	m.NvidiaP2PStatusGauge.SetMetric("p2p_global_connected", []string{"connected"}, p2pGlobalStatus)
 
 	for _, device := range metrics.DevicesInfo {
 		deviceIdx := fmt.Sprintf("%d", device.Index)

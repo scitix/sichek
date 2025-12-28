@@ -18,7 +18,6 @@ package component
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -31,7 +30,6 @@ import (
 	gpuevents "github.com/scitix/sichek/components/gpuevents"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/nvidia"
-	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/components/syslog"
@@ -111,27 +109,7 @@ func NewAllCmd() *cobra.Command {
 			}
 
 			if utils.IsNvidiaGPUExist() {
-				major, _, err := nvutils.GetComputeCapability(0)
-				if err != nil {
-					logrus.WithField("component", "nvidia").Errorf("failed to get compute capability: %v", err)
-				}
-				shouldCheckIBGDA := slices.Contains(componentsToCheck, "IBGDA") && major >= 9 && major < 11
-				if shouldCheckIBGDA {
-					cmd := exec.Command("bash", consts.DefaultProductionPath+"/scripts/sichek_ibgda")
-					output, err := cmd.Output()
-					if err != nil {
-						fmt.Printf("❌ IBGDA Check Failed: %v\n", err)
-						ComponentStatuses["IBGDA"] = false
-					} else {
-						fmt.Print(string(output))
-						// check script exit status to determine if passed
-						if cmd.ProcessState != nil && cmd.ProcessState.ExitCode() == 0 {
-							ComponentStatuses["IBGDA"] = true
-						} else {
-							ComponentStatuses["IBGDA"] = false
-						}
-					}
-				}
+				
 				// check nccl perf test
 				if slices.Contains(componentsToCheck, "nccltest") {
 					ncclCmd := NewNcclPerftestCmd()
