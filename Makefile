@@ -18,7 +18,6 @@ all:
 
 goreleaser:
 	BUILD_TIME=${BUILD_TIME} \
-	INCLUDE_SICL=1 SICL_VERSION=${SICL_VERSION} \
 	goreleaser release --snapshot --clean
 	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.deb
 	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz
@@ -28,7 +27,7 @@ docker:
 	--build-arg BUILD_TIME=${BUILD_TIME} \
 	--build-arg SICL_VERSION=${SICL_VERSION} \
 	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
-	# docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
 
 sichek:
 	BUILD_TIME=${BUILD_TIME} \
