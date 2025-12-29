@@ -8,29 +8,17 @@ dist: dist
 
 before:
   hooks:
-    - go mod tidy
-    - go mod vendor
-    - rm -rf ./sicl
-    - mkdir -p ./sicl
-    - bash -c 'if [ "$INCLUDE_SICL" = "true" ]; then
-        echo "Downloading SICL...";
-        curl -fsSL -o ./sicl/${SICL_VERSION} https://oss-ap-southeast.scitix.ai/scitix-release/${SICL_VERSION};
-        chmod +x ./sicl/${SICL_VERSION};
-        echo "SICL downloaded successfully";
-      else
-        echo "Skipping SICL download (INCLUDE_SICL=$INCLUDE_SICL)";
-        touch ./sicl/placeholder.txt;
-      fi'
+  - go mod tidy
+  - go mod vendor
+  - rm -rf ./sicl
+  - mkdir -p ./sicl
+  - bash -c 'if [ "$INCLUDE_SICL" = "true" ]; then echo "Downloading SICL..."; curl -fsSL -o ./sicl/${SICL_VERSION} https://oss-ap-southeast.scitix.ai/scitix-release/${SICL_VERSION}; chmod +x ./sicl/${SICL_VERSION}; echo "SICL downloaded successfully"; else echo "Skipping SICL download (INCLUDE_SICL=$INCLUDE_SICL)"; touch ./sicl/placeholder.txt; fi'
 # -----------------------------
 # Snapshot 模式（CI / push）
 # -----------------------------
 snapshot:
   version_template: >-
-    {{- if index .Env "BUILD_TIME" -}}
-    0.0.0~dev-{{ index .Env "BUILD_TIME" }}-{{ .ShortCommit }}
-    {{- else -}}
-    {{ .Version }}
-    {{- end -}}
+    {{- if index .Env "BUILD_TIME" -}} {{ .Tag }}~dev-{{ index .Env "BUILD_TIME" }}-{{ .ShortCommit }} {{- else -}} {{ .Version }} {{- end -}}
 # -----------------------------
 # 正式 Release（tag vX.Y.Z）
 # -----------------------------
@@ -42,75 +30,75 @@ release:
 # Build
 # -----------------------------
 builds:
-  - id: sichek
-    main: ./cmd/main.go
-    binary: sichek
-    goos:
-      - linux
-    goarch:
-      - amd64
-    flags:
-      - -mod=vendor
-    ldflags:
-      - "-s -w"
-      - "-X github.com/scitix/sichek/cmd/command.Major={{ .Major }}"
-      - "-X github.com/scitix/sichek/cmd/command.Minor={{ .Minor }}"
-      - "-X github.com/scitix/sichek/cmd/command.Patch={{ .Patch }}"
-      - "-X github.com/scitix/sichek/cmd/command.GitCommit={{ .ShortCommit }}"
-      - "-X github.com/scitix/sichek/cmd/command.BuildTime={{ .Date }}"
+- id: sichek
+  main: ./cmd/main.go
+  binary: sichek
+  goos:
+  - linux
+  goarch:
+  - amd64
+  flags:
+  - -mod=vendor
+  ldflags:
+  - "-s -w"
+  - "-X github.com/scitix/sichek/cmd/command.Major={{ .Major }}"
+  - "-X github.com/scitix/sichek/cmd/command.Minor={{ .Minor }}"
+  - "-X github.com/scitix/sichek/cmd/command.Patch={{ .Patch }}"
+  - "-X github.com/scitix/sichek/cmd/command.GitCommit={{ .ShortCommit }}"
+  - "-X github.com/scitix/sichek/cmd/command.BuildTime={{ .Date }}"
 
 # -----------------------------
 # Linux 包（deb / rpm）
 # -----------------------------
 nfpms:
-  - id: sichek
-    package_name: sichek
-    ids: [sichek]
-    formats: [deb, rpm]
-    maintainer: hhu
-    description: "Sichek: check node components, e.g. CPU, GPU, IB etc"
-    license: Apache 2.0
+- id: sichek
+  package_name: sichek
+  ids: [ sichek ]
+  formats: [ deb, rpm ]
+  maintainer: hhu
+  description: "Sichek: check node components, e.g. CPU, GPU, IB etc"
+  license: Apache 2.0
 
-    bindir: "/usr/local/bin"
+  bindir: "/usr/local/bin"
 
-    file_name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+  file_name_template: >-
+    {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
-    scripts:
-      postinstall: ./scripts/postinstall.sh
-      preremove: ./scripts/preuninstall.sh
+  scripts:
+    postinstall: ./scripts/postinstall.sh
+    preremove: ./scripts/preuninstall.sh
 
-    contents:
-      - src: ./components/cpu/config/*.yaml
-        dst: /var/sichek/config/cpu/
-      - src: ./components/dmesg/config/*.yaml
-        dst: /var/sichek/config/dmesg/
-      - src: ./components/gpfs/config/*.yaml
-        dst: /var/sichek/config/gpfs/
-      - src: ./components/gpuevents/config/*.yaml
-        dst: /var/sichek/config/gpuevents/
-      - src: ./components/infiniband/config/*.yaml
-        dst: /var/sichek/config/infiniband/
-      - src: ./components/memory/config/*.yaml
-        dst: /var/sichek/config/memory/
-      - src: ./components/podlog/config/*.yaml
-        dst: /var/sichek/config/podlog/
-      - src: ./components/syslog/config/*.yaml
-        dst: /var/sichek/config/syslog/
-      - src: ./components/nvidia/config/*.yaml
-        dst: /var/sichek/config/nvidia/
-      - src: ./components/hca/config/*.yaml
-        dst: /var/sichek/config/hca/
-      - src: ./components/pcie/config/*.yaml
-        dst: /var/sichek/config/pcie/
-      - src: ./config/*.yaml
-        dst: /var/sichek/config/
-      - src: ./scripts/*
-        dst: /var/sichek/scripts/
-      - src: ./k8s/sichek/*
-        dst: /var/sichek/k8s/sichek
-      - src: ./sicl/*
-        dst: /var/sichek/sicl/
+  contents:
+  - src: ./components/cpu/config/*.yaml
+    dst: /var/sichek/config/cpu/
+  - src: ./components/dmesg/config/*.yaml
+    dst: /var/sichek/config/dmesg/
+  - src: ./components/gpfs/config/*.yaml
+    dst: /var/sichek/config/gpfs/
+  - src: ./components/gpuevents/config/*.yaml
+    dst: /var/sichek/config/gpuevents/
+  - src: ./components/infiniband/config/*.yaml
+    dst: /var/sichek/config/infiniband/
+  - src: ./components/memory/config/*.yaml
+    dst: /var/sichek/config/memory/
+  - src: ./components/podlog/config/*.yaml
+    dst: /var/sichek/config/podlog/
+  - src: ./components/syslog/config/*.yaml
+    dst: /var/sichek/config/syslog/
+  - src: ./components/nvidia/config/*.yaml
+    dst: /var/sichek/config/nvidia/
+  - src: ./components/hca/config/*.yaml
+    dst: /var/sichek/config/hca/
+  - src: ./components/pcie/config/*.yaml
+    dst: /var/sichek/config/pcie/
+  - src: ./config/*.yaml
+    dst: /var/sichek/config/
+  - src: ./scripts/*
+    dst: /var/sichek/scripts/
+  - src: ./k8s/sichek/*
+    dst: /var/sichek/k8s/sichek
+  - src: ./sicl/*
+    dst: /var/sichek/sicl/
 
 # -----------------------------
 # Changelog
@@ -119,5 +107,5 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
+    - "^docs:"
+    - "^test:"

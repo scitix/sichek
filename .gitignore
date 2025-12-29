@@ -8,3 +8,6 @@ vendor/
 goreleaser*
 sicl
 sichek
+*.deb
+*.rpm
+*.tar.gz

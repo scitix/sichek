@@ -6,7 +6,8 @@ INSTALL_DIR := /usr/local/bin
 # Version variables (can be overridden)
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 BUILD_TIME := $(shell date -u '+%Y%m%dT%H%M%SZ')
-VERSION := dev-${BUILD_TIME}-${GIT_COMMIT}
+SICHEK_VERSION = $(shell git tag --sort=-v:refname | head -n 1)
+VERSION := $(SICHEK_VERSION)-dev-${BUILD_TIME}-${GIT_COMMIT}
 TASKGUARD_VERISON := v0.1.0
 SICL_VERSION := sicl-25.11-1.cuda128.ubuntu2004.run
 
@@ -18,9 +19,19 @@ all:
 
 goreleaser:
 	BUILD_TIME=${BUILD_TIME} \
+	INCLUDE_SICL=${INCLUDE_SICL} SICL_VERSION=${SICL_VERSION} \
 	goreleaser release --snapshot --clean
-	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.deb
-	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz
+	@echo "Uploading packages to siflow_oss/hisys-sichek/dev/"
+	@for pattern in "deb" "rpm" "tar.gz"; do \
+		file=$$(ls dist/*linux_amd64.$$pattern 2>/dev/null | head -n1); \
+		if [ -n "$$file" ]; then \
+			echo "Copying $$file"; \
+			ossctl cp "$$file" siflow_oss/hisys-sichek/dev/; \
+		else \
+			echo "No $$pattern file found"; \
+		fi; \
+	done
+	@echo "Package upload completed"
 
 docker:
 	docker build \
@@ -30,11 +41,18 @@ docker:
 	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
 
 sichek:
-	BUILD_TIME=${BUILD_TIME} \
-	INCLUDE_SICL=1 SICL_VERSION=${SICL_VERSION} \
-	goreleaser release --snapshot --clean
-	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.deb
-	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz
+	INCLUDE_SICL=true $(MAKE) goreleaser
+	@echo "Uploading packages to scitix_oss/hisys-sichek/dev/"
+	@for pattern in "deb" "rpm" "tar.gz"; do \
+		file=$$(ls dist/*linux_amd64.$$pattern 2>/dev/null | head -n1); \
+		if [ -n "$$file" ]; then \
+			echo "Copying $$file"; \
+			ossctl cp "$$file" scitix_oss/hisys-sichek/dev/${VERSION}/; \
+		else \
+			echo "No $$pattern file found"; \
+		fi; \
+	done
+	@echo "Package upload completed"
 	docker build \
 	--build-arg BUILD_TIME=${BUILD_TIME} \
 	--build-arg SICL_VERSION=${SICL_VERSION} \
@@ -49,3 +67,5 @@ taskguard:
 
 clean:
 	rm -f build/bin/*
+	rm -rf dist/*
+	rm -rf scitix_oss
