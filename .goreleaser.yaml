@@ -18,7 +18,7 @@ before:
 # -----------------------------
 snapshot:
   version_template: >-
-    {{- if index .Env "BUILD_TIME" -}} {{ .Tag }}~dev-{{ index .Env "BUILD_TIME" }}-{{ .ShortCommit }} {{- else -}} {{ .Version }} {{- end -}}
+    {{- if index .Env "BUILD_TIME" -}}v{{ .Major }}.{{ .Minor }}.{{ .Patch }}{{- if .Prerelease }}-{{ .Prerelease }}{{- end -}}-dev-{{ index .Env "BUILD_TIME" }}-{{ .ShortCommit }}{{- else -}}v{{ .Major }}.{{ .Minor }}.{{ .Patch }}{{- if .Prerelease }}-{{ .Prerelease }}{{- end -}}{{- end -}}
 # -----------------------------
 # 正式 Release（tag vX.Y.Z）
 # -----------------------------
