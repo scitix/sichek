@@ -123,7 +123,11 @@ func NewDaemonRunCmd() *cobra.Command {
 				component, err := component.NewComponent(componentName, cfgFile, specFile, nil)
 				if err != nil {
 					logrus.WithField("daemon", "run").Errorf("failed to create component %s: %v", componentName, err)
-					continue
+					os.Exit(-1)
+				}
+				if component == nil {
+					logrus.WithField("daemon", "run").Errorf("component %s is nil after creation, skipping", componentName)
+					os.Exit(-1)
 				}
 				components[componentName] = component
 			}

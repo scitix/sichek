@@ -54,7 +54,7 @@ var (
 	dmesgComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+func NewComponent(cfgFile string, specFile string, skipPercent int64) (common.Component, error) {
 	var err error
 	dmesgComponentOnce.Do(func() {
 		defer func() {
@@ -62,12 +62,12 @@ func NewComponent(cfgFile string, specFile string) (common.Component, error) {
 				err = fmt.Errorf("panic occurred when create component dmesg: %v", r)
 			}
 		}()
-		dmesgComponent, err = newComponent(cfgFile, specFile)
+		dmesgComponent, err = newComponent(cfgFile, specFile, skipPercent)
 	})
 	return dmesgComponent, err
 }
 
-func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string, skipPercent int64) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -88,7 +88,7 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 	if len(eventRules.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
-	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers)
+	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers, skipPercent)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create Dmesg CommandFilter")
 	}
