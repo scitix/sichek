@@ -49,7 +49,6 @@ infiniband:
       mlx5_5: ib5
       mlx5_6: ib6
       mlx5_7: ib7
-      mlx5_8: ib8
     sw_deps:
       kernel_module:
         - "rdma_ucm"
