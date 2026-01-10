@@ -172,7 +172,7 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing PodLog HealthCheck")
 		}
-		return podlog.NewComponent(cfgFile, specFile)
+		return podlog.NewComponent(cfgFile, specFile, true) // default to only check running pods
 	case consts.ComponentNameSyslog:
 		// if skipPercent is -1, use the value from the config file
 		return syslog.NewComponent(cfgFile, "", 0)

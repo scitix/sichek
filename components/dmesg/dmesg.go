@@ -199,12 +199,9 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	checkAllPassed := true
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
-		switch result.Name {
-		case "DmesgErrorChecker":
-			if result.Status == consts.StatusAbnormal {
-				checkAllPassed = false
-				dmesgEvent["DmesgErrorChecker"] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
-			}
+		if result.Status == consts.StatusAbnormal {
+			checkAllPassed = false
+			dmesgEvent[result.Name] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 		}
 	}
 
@@ -213,8 +210,9 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		fmt.Printf("%sNo Dmesg event detected%s\n", consts.Green, consts.Reset)
 		return checkAllPassed
 	}
+	fmt.Printf("%sDetected %d Types of Abnormal Dmesg Events:%s\n", consts.Red, len(dmesgEvent), consts.Reset)
 	for n := range dmesgEvent {
-		fmt.Printf("\tDetected %d Kernel Events:\n %s\n", len(dmesgEvent), dmesgEvent[n])
+		fmt.Printf("\t%s%s%s Events:\n %s\n", consts.Yellow, n, consts.Reset, dmesgEvent[n])
 	}
 	return checkAllPassed
 }

@@ -20,7 +20,7 @@ dmesg:
       regexp: 'SXid.*?: (\d+),'
       level: info
     NCCLSegFault:
-      name: "nccl"
+      name: "NCCLSegFault"
       log_file: "/tmp/sichek.dmesg.log"
       description: "libnccl segment fault error in dmesg"
       regexp: '.*segfault at.*in libnccl*'
