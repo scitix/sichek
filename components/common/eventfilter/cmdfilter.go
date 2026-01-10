@@ -38,7 +38,7 @@ type CommandFilter struct {
 	EventFilter *EventFilter
 }
 
-func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig) (*CommandFilter, error) {
+func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig, skipPercent int64) (*CommandFilter, error) {
 	var res CommandFilter
 	res.Regex = make([]*RegexFilter, 0)
 	res.Commands = make([]*Command, 0)
@@ -60,7 +60,7 @@ func NewCommandFilter(cmd []string, rules map[string]*common.EventRuleConfig) (*
 	res.LogFileName = append(res.LogFileName, logFileName)
 
 	var err error
-	res.EventFilter, err = NewEventFilter("dmesg", rules, 100)
+	res.EventFilter, err = NewEventFilter("dmesg", rules, skipPercent)
 	if err != nil {
 		logrus.WithField("CommandFilter", res.Regex).Error("failed to create fileFilter")
 		return nil, err

@@ -189,6 +189,10 @@ func NewComponent(cfgFile string, specFile string, ignoredCheckers []string) (co
 	nvidiaComponentOnce.Do(func() {
 		nvidiaComponent, err = newNvidia(cfgFile, specFile, ignoredCheckers)
 	})
+	// Ensure we never return nil component without error
+	if nvidiaComponent == nil && err == nil {
+		return nil, fmt.Errorf("nvidia component initialization failed: component is nil but no error was returned")
+	}
 	return nvidiaComponent, err
 }
 
@@ -220,7 +224,12 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	}
 	nvidiaSpecCfg, err := config.LoadSpec(specFile)
 	if err != nil {
-		return nil, err
+		logrus.WithField("component", "nvidia").Errorf("LoadSpec failed: %v", err)
+		return nil, fmt.Errorf("failed to load NVIDIA spec: %w", err)
+	}
+	if nvidiaSpecCfg == nil {
+		logrus.WithField("component", "nvidia").Errorf("LoadSpec returned nil spec")
+		return nil, fmt.Errorf("NVIDIA spec is nil after loading from %s", specFile)
 	}
 
 	// Create component first to get nvmlMtx address
@@ -601,7 +610,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		pstatePrint        string
 		gpuStatusPrint     string
 		fabricmanagerPrint string
-		ibgdaPrint		   string
+		ibgdaPrint         string
 		p2pPrint           string
 	)
 	systemEvent := make(map[string]string)
@@ -625,25 +634,25 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				acsPrint = fmt.Sprintf("PCIe ACS: %sEnabled%s", consts.Red, consts.Reset)
 				systemEvent[config.PCIeACSCheckerName] = fmt.Sprintf("%sNot All PCIe ACS Are Disabled%s", consts.Red, consts.Reset)
 			}
-			case config.IBGDACheckerName:
-    		if result.Status == consts.StatusNormal {
-        		ibgdaPrint = fmt.Sprintf("IBGDA: %sEnabled%s", consts.Green, consts.Reset)
-    		} else {
-        		ibgdaPrint = fmt.Sprintf("IBGDA: %sDisabled%s", consts.Red, consts.Reset)
-        		systemEvent[config.IBGDACheckerName] = fmt.Sprintf("%sIBGDA is not enabled correctly%s", consts.Red, consts.Reset)
+		case config.IBGDACheckerName:
+			if result.Status == consts.StatusNormal {
+				ibgdaPrint = fmt.Sprintf("IBGDA: %sEnabled%s", consts.Green, consts.Reset)
+			} else {
+				ibgdaPrint = fmt.Sprintf("IBGDA: %sDisabled%s", consts.Red, consts.Reset)
+				systemEvent[config.IBGDACheckerName] = fmt.Sprintf("%sIBGDA is not enabled correctly%s", consts.Red, consts.Reset)
 				systemEvent[config.IBGDACheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
-    		}
+			}
 		case config.P2PCheckerName:
-        	if result.Status == consts.StatusNormal {
-            	if strings.Contains(result.Detail, "Disabled") {
-                	p2pPrint = fmt.Sprintf("P2P: %sNotSupported%s", consts.Yellow, consts.Reset)
-            	} else {
-                	p2pPrint = fmt.Sprintf("P2P: %sOK%s", consts.Green, consts.Reset)
-       			}
-        	} else {
-            	p2pPrint = fmt.Sprintf("P2P: %sError%s", consts.Red, consts.Reset)
-            	systemEvent[config.P2PCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
-        	}
+			if result.Status == consts.StatusNormal {
+				if strings.Contains(result.Detail, "Disabled") {
+					p2pPrint = fmt.Sprintf("P2P: %sNotSupported%s", consts.Yellow, consts.Reset)
+				} else {
+					p2pPrint = fmt.Sprintf("P2P: %sOK%s", consts.Green, consts.Reset)
+				}
+			} else {
+				p2pPrint = fmt.Sprintf("P2P: %sError%s", consts.Red, consts.Reset)
+				systemEvent[config.P2PCheckerName] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+			}
 		case config.IOMMUCheckerName:
 			if result.Status == consts.StatusNormal {
 				iommuPrint = fmt.Sprintf("IOMMU: %sOFF%s", consts.Green, consts.Reset)
