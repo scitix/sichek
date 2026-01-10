@@ -37,7 +37,7 @@ func (c *P2PChecker) Check(ctx context.Context, data any) (*common.CheckerResult
 	}
 
 	result := config.GPUCheckItems[config.P2PCheckerName]
-    
+
 	if nvidiaInfo.DeviceCount <= 1 {
 		result.Status = consts.StatusNormal
 		result.Detail = "Skipped (Single GPU)"
@@ -46,7 +46,7 @@ func (c *P2PChecker) Check(ctx context.Context, data any) (*common.CheckerResult
 
 	matrix := nvidiaInfo.P2PStatusMatrix
 	if matrix == nil || len(matrix) == 0 {
-		result.Status = consts.StatusNormal 
+		result.Status = consts.StatusNormal
 		result.Detail = "P2P status unavailable"
 		return &result, nil
 	}
@@ -58,23 +58,23 @@ func (c *P2PChecker) Check(ctx context.Context, data any) (*common.CheckerResult
 		if supported {
 			supportedCount++
 		} else {
-            parts := strings.Split(key, "-")
-            if len(parts) == 2 {
-			    missingLinks = append(missingLinks, fmt.Sprintf("GPU%s -> GPU%s: Not Supported", parts[0], parts[1]))
-            }
+			parts := strings.Split(key, "-")
+			if len(parts) == 2 {
+				missingLinks = append(missingLinks, fmt.Sprintf("GPU%s -> GPU%s: Not Supported", parts[0], parts[1]))
+			}
 		}
 	}
 
 	if supportedCount == 0 {
-		result.Status = consts.StatusNormal 
+		result.Status = consts.StatusNormal
 		result.Detail = "P2P is globally Disabled/Not Supported on this machine"
 	} else if len(missingLinks) > 0 {
 		result.Status = consts.StatusAbnormal
-        if len(missingLinks) > 5 {
-		    result.Detail = fmt.Sprintf("Partial P2P failure detected (%d links broken). Examples:\n%s\n...", len(missingLinks), strings.Join(missingLinks[:5], "\n"))
-        } else {
-            result.Detail = fmt.Sprintf("Partial P2P failure detected:\n%s", strings.Join(missingLinks, "\n"))
-        }
+		if len(missingLinks) > 5 {
+			result.Detail = fmt.Sprintf("Partial P2P failure detected (%d links broken). Examples:\n%s\n...", len(missingLinks), strings.Join(missingLinks[:5], "\n"))
+		} else {
+			result.Detail = fmt.Sprintf("Partial P2P failure detected:\n%s", strings.Join(missingLinks, "\n"))
+		}
 	} else {
 		result.Status = consts.StatusNormal
 		result.Detail = "P2P (Read) is fully supported between all GPUs"

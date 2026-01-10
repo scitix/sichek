@@ -62,7 +62,7 @@ func (c *XStorHealthChecker) Check(ctx context.Context, data any) (*common.Check
 	if !ok {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Empty %s check result", c.name)
-		result.Level = consts.LevelInfo		// empty check result not cordon node, set alert level as info
+		result.Level = consts.LevelInfo // empty check result not cordon node, set alert level as info
 		logrus.WithField("components", "GPFS-XStorHealth").Errorf("XStorHealth check %s result empty", c.name)
 		return &result, nil
 	}

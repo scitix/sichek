@@ -25,8 +25,8 @@ type CpuUserConfig struct {
 
 type CPUConfig struct {
 	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64         `json:"cache_size" yaml:"cache_size"`
-	EnableMetrics bool          `json:"enable_metrics" yaml:"enable_metrics"`
+	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
+	EnableMetrics bool            `json:"enable_metrics" yaml:"enable_metrics"`
 }
 
 func (c *CpuUserConfig) GetQueryInterval() common.Duration {
