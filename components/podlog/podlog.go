@@ -208,29 +208,9 @@ func (c *component) walkPodLogFiles(dir string, filterFunc func(absPath string, 
 		if strings.HasSuffix(path, ".gz") {
 			return nil // Skip gzipped files
 		}
-		if strings.Contains(path, "kube-system_") {
-			return nil // Skip kube-system files
-		}
-		if strings.Contains(path, "monitoring_") {
-			return nil // Skip nvidia-gpu-monitoring files
-		}
-		if strings.Contains(path, "fluent_") {
-			return nil // Skip fluent namespace files
-		}
-		if strings.Contains(path, "pingmesh_") {
-			return nil // Skip pingmesh namespace files
-		}
-		if strings.Contains(path, "rdma-doctor-system_") {
-			return nil // Skip rdma-doctor-system namespace files
-		}
-		if strings.Contains(path, "roce-operator-system_") {
-			return nil // Skip roce-operator-system namespace files
-		}
-		if strings.Contains(path, "scitix-system_") {
-			return nil // Skip scitix-system namespace files
-		}
-		if strings.Contains(path, "stream-mirror_") {
-			return nil // Skip stream-mirror namespace files
+		// Check if path should be ignored based on configured ignore_namespaces
+		if c.shouldIgnoreNamespace(path) {
+			return nil
 		}
 		if _, exists := allFiles[path]; exists {
 			return nil // Skip if the file has already been processed
@@ -391,4 +371,20 @@ func getPodNameFromFileName(fileName string) (string, error) {
 		return "", fmt.Errorf("invalid fileName format=%s, expected at least one '_' character", fileName)
 	}
 	return parts[1], nil
+}
+
+func (c *component) shouldIgnoreNamespace(path string) bool {
+	c.cfgMutex.Lock()
+	defer c.cfgMutex.Unlock()
+
+	if c.cfg == nil || c.cfg.Podlog == nil {
+		return false
+	}
+
+	for _, namespace := range c.cfg.Podlog.IgnoreNamespaces {
+		if strings.Contains(path, namespace+"_") {
+			return true
+		}
+	}
+	return false
 }

@@ -36,6 +36,15 @@ gpuevents:
 podlog:
   query_interval: 10s
   cache_size: 5
+  ignore_namespaces:
+    - "kube-system"
+    - "monitoring"
+    - "fluent"
+    - "pingmesh"
+    - "rdma-doctor-system"
+    - "roce-operator-system"
+    - "scitix-system"
+    - "stream-mirror"
 
 dmesg:
   query_interval: 10s
