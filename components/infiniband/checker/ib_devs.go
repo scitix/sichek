@@ -64,9 +64,15 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	var mismatchPairs []string
 	infinibandInfo.RLock()
 	for expectedMlx5 := range c.spec.IBPFDevs {
+		// skip mezzanine card in check
+		if strings.Contains(expectedMlx5, "mezz") {
+			logrus.WithField("component", "infiniband").Debugf("skip mezzanine card %s in check", expectedMlx5)
+			continue
+		}
 		actualIb, found := infinibandInfo.IBPFDevs[expectedMlx5]
 		if !found {
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
+			logrus.WithField("component", "infiniband").Debugf("mismatch pair %s in check", expectedMlx5)
 			continue
 		}
 
@@ -97,6 +103,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		}
 
 		if actualIb != expectedIb {
+			logrus.WithField("component", "infiniband").Debugf("mismatch pair %s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb)
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
 		}
 	}
@@ -109,6 +116,10 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		infinibandInfo.RLock()
 		ibpfDevsCopy := make(map[string]string)
 		for k, v := range infinibandInfo.IBPFDevs {
+			if strings.Contains(k, "mezz") {
+				logrus.WithField("component", "infiniband").Debugf("skip mezzanine card %s in detail display", k)
+				continue
+			}
 			ibpfDevsCopy[k] = v
 		}
 		infinibandInfo.RUnlock()

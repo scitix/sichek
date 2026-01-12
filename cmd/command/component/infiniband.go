@@ -44,6 +44,7 @@ func NewInfinibandCmd() *cobra.Command {
 				logrus.SetLevel(logrus.ErrorLevel)
 				defer cancel()
 			} else {
+				logrus.SetLevel(logrus.DebugLevel)
 				defer func() {
 					logrus.WithField("component", "infiniband").Info("Run infiniband Cmd context canceled")
 					cancel()
