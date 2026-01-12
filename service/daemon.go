@@ -49,8 +49,8 @@ type DaemonService struct {
 	notifier             Notifier
 }
 
-func NewService(components map[string]common.Component, annoKey string, cfgFile string) (s Service, err error) {
-	go metrics.InitPrometheus(cfgFile)
+func NewService(components map[string]common.Component, annoKey string, cfgFile string, metricsPort int) (s Service, err error) {
+	go metrics.InitPrometheus(cfgFile, metricsPort)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {

@@ -222,7 +222,6 @@ func (memErrors *MemoryErrors) getECCErrors(device nvml.Device, uuid string) err
 		nvml.VOLATILE_ECC,
 		nvml.MEMORY_LOCATION_SRAM,
 	)
-	logrus.WithField("component", "nvidia").Warnf("(SRAM, Volatile, UnCorrected) get volatile sram uncorrectable errors for GPU %s: %v", uuid, memErrors.VolatileECC.SRAM.Uncorrected)
 	if !errors.Is(err, nvml.SUCCESS) && !errors.Is(err, nvml.ERROR_NOT_SUPPORTED) {
 		result = fmt.Errorf("(SRAM, Volatile, UnCorrected) get volatile sram uncorrectable errors for GPU %s: %s", uuid, nvml.ErrorString(err))
 	}

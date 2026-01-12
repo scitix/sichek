@@ -26,6 +26,7 @@ type DmesgUserConfig struct {
 type DmesgConfig struct {
 	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
+	SkipPercent   int64           `json:"skip_percent" yaml:"skip_percent"`
 }
 
 func (c *DmesgUserConfig) GetQueryInterval() common.Duration {

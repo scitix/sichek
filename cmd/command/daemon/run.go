@@ -50,6 +50,19 @@ func NewDaemonRunCmd() *cobra.Command {
 			logCompress, _ := cmd.Flags().GetBool("log-compress")
 			logAlsoStdout, _ := cmd.Flags().GetBool("log-also-stdout")
 
+			// Get log level
+			logLevelStr, _ := cmd.Flags().GetString("log-level")
+			logLevel := logrus.WarnLevel // default level
+			if logLevelStr != "" {
+				parsedLevel, err := logrus.ParseLevel(logLevelStr)
+				if err != nil {
+					logrus.WithField("daemon", "run").Warnf("invalid log level '%s', using default 'warn': %v", logLevelStr, err)
+				} else {
+					logLevel = parsedLevel
+					logrus.WithField("daemon", "run").Infof("using log level: %s", logLevelStr)
+				}
+			}
+
 			// Initialize logger with file rotation support
 			logConfig := utils.LogConfig{
 				LogFile:            logFile,
@@ -59,7 +72,7 @@ func NewDaemonRunCmd() *cobra.Command {
 				Compress:           logCompress,
 				AlsoOutputToStdout: logAlsoStdout,
 			}
-			utils.InitLoggerWithConfig(logrus.WarnLevel, false, logConfig)
+			utils.InitLoggerWithConfig(logLevel, false, logConfig)
 			cfgFile, err := cmd.Flags().GetString("cfg")
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
@@ -102,6 +115,13 @@ func NewDaemonRunCmd() *cobra.Command {
 			} else {
 				logrus.WithField("daemon", "run").Infof("set annotation-key %s", annoKey)
 			}
+			metricsPort, err := cmd.Flags().GetInt("metrics-port")
+			if err != nil {
+				logrus.WithField("daemon", "run").Error(err)
+				metricsPort = 0
+			} else if metricsPort > 0 {
+				logrus.WithField("daemon", "run").Infof("using metrics port from command line: %d", metricsPort)
+			}
 
 			start := time.Now()
 			signals := make(chan os.Signal, 2048)
@@ -123,11 +143,15 @@ func NewDaemonRunCmd() *cobra.Command {
 				component, err := component.NewComponent(componentName, cfgFile, specFile, nil)
 				if err != nil {
 					logrus.WithField("daemon", "run").Errorf("failed to create component %s: %v", componentName, err)
-					continue
+					os.Exit(-1)
+				}
+				if component == nil {
+					logrus.WithField("daemon", "run").Errorf("component %s is nil after creation, skipping", componentName)
+					os.Exit(-1)
 				}
 				components[componentName] = component
 			}
-			daemonService, err := service.NewService(components, annoKey, cfgFile)
+			daemonService, err := service.NewService(components, annoKey, cfgFile, metricsPort)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return
@@ -152,7 +176,9 @@ func NewDaemonRunCmd() *cobra.Command {
 	daemonRunCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by `,`")
 	daemonRunCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
 	daemonRunCmd.Flags().StringP("annotation-key", "A", "", "k8s node annotation key")
+	daemonRunCmd.Flags().IntP("metrics-port", "p", 0, "Prometheus metrics server port(0 means use config file)")
 	daemonRunCmd.Flags().StringP("log-file", "f", "/tmp/sichek.log", "Path to log file (enables file logging with rotation)")
+	daemonRunCmd.Flags().StringP("log-level", "l", "warn", "Log level (trace, debug, info, warn, error, fatal, panic)")
 	daemonRunCmd.Flags().Int("log-max-size", 10, "Maximum size in megabytes of the log file before rotation")
 	daemonRunCmd.Flags().Int("log-max-backups", 10, "Maximum number of old log files to retain")
 	daemonRunCmd.Flags().Int("log-max-age", 10, "Maximum number of days to retain old log files")

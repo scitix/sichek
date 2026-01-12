@@ -85,7 +85,7 @@ dmesg:
 	}
 
 	start := time.Now()
-	component, err := NewComponent(configFile.Name(), specFile.Name())
+	component, err := NewComponent(configFile.Name(), specFile.Name(), 0)
 	if err != nil {
 		t.Log(err)
 		return
