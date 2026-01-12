@@ -1,27 +1,31 @@
 dmesg: 
-  cmd: ["dmesg", "-T"]
-  event_checkers:
-    SysOOM:
-      name: "sys_oom"
-      log_file: "/tmp/sichek.dmesg.log"
-      description: "oom error in dmesg"
-      regexp: 'Out of memory:'
-      level: info 
-    CgroupOOM:
-      name: "cgroup_oom"
-      log_file: "/tmp/sichek.dmesg.log"
-      description: "oom error in dmesg"
-      regexp: 'Memory cgroup out of memory'
-      level: info
-    NVSXID:
-      name: "nvidia_sxid"
-      log_file: "/tmp/sichek.dmesg.log"
-      description: "nv sxid error in dmesg"
-      regexp: 'SXid.*?: (\d+),'
-      level: info
-    NCCLSegFault:
-      name: "NCCLSegFault"
-      log_file: "/tmp/sichek.dmesg.log"
-      description: "libnccl segment fault error in dmesg"
-      regexp: '.*segfault at.*in libnccl*'
-      level: info
+  SysOOM:
+    name: "SysOOM"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "oom error in dmesg"
+    regexp: 'Out of memory:'
+    level: info 
+  CgroupOOM:
+    name: "CgroupOOM"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "oom error in dmesg"
+    regexp: 'Memory cgroup out of memory'
+    level: info
+  NVSXID:
+    name: "NVSXID"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "nv sxid error in dmesg"
+    regexp: 'SXid.*?: (\d+),'
+    level: info
+  NCCLSegFault:
+    name: "NCCLSegFault"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "libnccl segment fault error in dmesg"
+    regexp: '.*segfault at.*in libnccl*'
+    level: info
+  NvErrResetRequired:
+    name: "NvErrResetRequired"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "GspRmAlloc failed, Reset required [NV_ERR_RESET_REQUIRED]"
+    regexp: 'Reset required \[NV_ERR_RESET_REQUIRED\]'
+    level: critical
