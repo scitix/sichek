@@ -126,7 +126,11 @@ func NewNcclPerftestCmd() *cobra.Command {
 				logrus.WithField("perftest", "nccl").Error(err)
 				return
 			}
-			if expectedBandwidthGbps == 0 {
+			// If both begin and end buffers are 8 bytes by default, disable bandwidth check
+			if beginBuffer == "8" && endBuffer == "8" {
+				expectedBandwidthGbps = 0
+				fmt.Println("8-byte message size detected, skipping bandwidth check (connectivity test only)")
+			} else if expectedBandwidthGbps == 0 {
 				nvidiaSpecCfg, err := config.LoadSpec("/var/sichek/config/default_spec.yaml")
 				if err != nil {
 					logrus.WithField("perftest", "nccl").Errorf("failed to load default spec: %v", err)
@@ -233,8 +237,6 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	// Override or add specific environment variables
 	if cfg.DisableNvls {
 		envMap["NCCL_NVLS_ENABLE"] = "0"
-	} else {
-		envMap["NCCL_NVLS_ENABLE"] = "1"
 	}
 	if cfg.Gpulist != "" {
 		fmt.Printf("CUDA_VISIBLE_DEVICES: %s\n", cfg.Gpulist)
