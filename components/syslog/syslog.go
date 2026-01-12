@@ -93,6 +93,10 @@ func newSyslogComponent(cfgFile string, eventRulesFile string, skipPercent int64
 	// if skipPercent is -1, use the value from the config file
 	if skipPercent == -1 {
 		skipPercent = cfg.Syslog.SkipPercent
+		// if config file doesn't have skip_percent or it's 0, use default 100
+		if skipPercent == 0 {
+			skipPercent = 100
+		}
 	}
 	filterPointer, err := filter.NewEventFilter(consts.ComponentNameSyslog, eventRules, skipPercent)
 	if err != nil {

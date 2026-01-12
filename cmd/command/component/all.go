@@ -153,7 +153,8 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 	case consts.ComponentNameInfiniband:
 		return infiniband.NewInfinibandComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameDmesg:
-		return dmesg.NewComponent(cfgFile, specFile, 0)
+		// if skipPercent is -1, use the value from the config file (default: 100)
+		return dmesg.NewComponent(cfgFile, specFile, -1)
 	case consts.ComponentNameGpuEvents:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing GpuEvents HealthCheck")
@@ -172,10 +173,11 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing PodLog HealthCheck")
 		}
-		return podlog.NewComponent(cfgFile, specFile, true) // default to only check running pods
+		// if skipPercent is -1, use the value from the config file (default: 100)
+		return podlog.NewComponent(cfgFile, specFile, true, -1) // default to only check running pods
 	case consts.ComponentNameSyslog:
 		// if skipPercent is -1, use the value from the config file
-		return syslog.NewComponent(cfgFile, "", 0)
+		return syslog.NewComponent(cfgFile, "", -1)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}

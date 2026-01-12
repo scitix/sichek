@@ -36,6 +36,7 @@ gpuevents:
 podlog:
   query_interval: 10s
   cache_size: 5
+  skip_percent: 100
   ignore_namespaces:
     - "kube-system"
     - "monitoring"
@@ -50,6 +51,7 @@ podlog:
 dmesg:
   query_interval: 10s
   cache_size: 5
+  skip_percent: 100
 
 syslog:
   query_interval: 10s

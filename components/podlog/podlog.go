@@ -43,7 +43,8 @@ type component struct {
 	cfgMutex      sync.Mutex
 
 	podResourceMapper *k8s.PodResourceMapper
-	onlyRunningPods   bool // true: only check running pods; false: check all pods in log_dir
+	onlyRunningPods   bool  // true: only check running pods; false: check all pods in log_dir
+	skipPercent       int64 // skip percent for file reading
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -59,7 +60,7 @@ var (
 	podlogComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string, specFile string, onlyRunningPods bool) (common.Component, error) {
+func NewComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPercent int64) (common.Component, error) {
 	var err error
 	podlogComponentOnce.Do(func() {
 		defer func() {
@@ -67,12 +68,12 @@ func NewComponent(cfgFile string, specFile string, onlyRunningPods bool) (common
 				err = fmt.Errorf("panic occurred when create component nccl: %v", r)
 			}
 		}()
-		podlogComponent, err = newComponent(cfgFile, specFile, onlyRunningPods)
+		podlogComponent, err = newComponent(cfgFile, specFile, onlyRunningPods, skipPercent)
 	})
 	return podlogComponent, err
 }
 
-func newComponent(cfgFile string, specFile string, onlyRunningPods bool) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPercent int64) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -92,6 +93,15 @@ func newComponent(cfgFile string, specFile string, onlyRunningPods bool) (comp c
 		return nil, err
 	}
 
+	// if skipPercent is -1, use the value from the config file
+	if skipPercent == -1 {
+		skipPercent = cfg.Podlog.SkipPercent
+		// if config file doesn't have skip_percent or it's 0, use default 100
+		if skipPercent == 0 {
+			skipPercent = 100
+		}
+	}
+
 	podResourceMapper := k8s.NewPodResourceMapper()
 	component := &component{
 		ctx:           ctx,
@@ -102,6 +112,7 @@ func newComponent(cfgFile string, specFile string, onlyRunningPods bool) (comp c
 
 		podResourceMapper: podResourceMapper,
 		onlyRunningPods:   onlyRunningPods,
+		skipPercent:       skipPercent,
 
 		cacheResultBuffer: make([]*common.Result, cfg.Podlog.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, cfg.Podlog.CacheSize),
@@ -147,7 +158,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			eventChecker.LogFile = joinedLogFiles
 		}
 	}
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodlog, c.eventRule.EventCheckers, 0)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodlog, c.eventRule.EventCheckers, c.skipPercent)
 	if err != nil {
 		logrus.WithError(err).Error("failed to create filter in podlog component")
 		return nil, err

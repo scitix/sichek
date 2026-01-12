@@ -88,6 +88,14 @@ func newComponent(cfgFile string, specFile string, skipPercent int64) (comp comm
 	if len(eventRules.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
+	// if skipPercent is -1, use the value from the config file
+	if skipPercent == -1 {
+		skipPercent = dmsgCfg.Dmesg.SkipPercent
+		// if config file doesn't have skip_percent or it's 0, use default 100
+		if skipPercent == 0 {
+			skipPercent = 100
+		}
+	}
 	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers, skipPercent)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create Dmesg CommandFilter")

@@ -62,7 +62,7 @@ func NewPodLogCmd() *cobra.Command {
 					logrus.WithField("component", "podlog").Info("load default specFile...")
 				}
 			}
-			component, err := podlog.NewComponent(cfgFile, specFile, false) // default to check all pods in log_dir
+			component, err := podlog.NewComponent(cfgFile, specFile, false, 0) // default to check all pods in log_dir, skipPercent=0
 			if err != nil {
 				logrus.WithField("component", "podlog").Error(err)
 				return
