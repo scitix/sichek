@@ -24,8 +24,10 @@ type PodlogUserConfig struct {
 }
 
 type PodLogConfig struct {
-	QueryInterval common.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize     int64           `json:"cache_size" yaml:"cache_size"`
+	QueryInterval    common.Duration `json:"query_interval" yaml:"query_interval"`
+	CacheSize        int64           `json:"cache_size" yaml:"cache_size"`
+	IgnoreNamespaces []string        `json:"ignore_namespaces" yaml:"ignore_namespaces"`
+	SkipPercent      int64           `json:"skip_percent" yaml:"skip_percent"`
 }
 
 func (c *PodlogUserConfig) GetQueryInterval() common.Duration {

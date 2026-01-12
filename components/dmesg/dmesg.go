@@ -54,7 +54,7 @@ var (
 	dmesgComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+func NewComponent(cfgFile string, specFile string, skipPercent int64) (common.Component, error) {
 	var err error
 	dmesgComponentOnce.Do(func() {
 		defer func() {
@@ -62,12 +62,12 @@ func NewComponent(cfgFile string, specFile string) (common.Component, error) {
 				err = fmt.Errorf("panic occurred when create component dmesg: %v", r)
 			}
 		}()
-		dmesgComponent, err = newComponent(cfgFile, specFile)
+		dmesgComponent, err = newComponent(cfgFile, specFile, skipPercent)
 	})
 	return dmesgComponent, err
 }
 
-func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string, skipPercent int64) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -88,7 +88,15 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 	if len(eventRules.EventCheckers) == 0 {
 		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
 	}
-	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers)
+	// if skipPercent is -1, use the value from the config file
+	if skipPercent == -1 {
+		skipPercent = dmsgCfg.Dmesg.SkipPercent
+		// if config file doesn't have skip_percent or it's 0, use default 100
+		if skipPercent == 0 {
+			skipPercent = 100
+		}
+	}
+	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers, skipPercent)
 	if err != nil {
 		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create Dmesg CommandFilter")
 	}
@@ -199,12 +207,9 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	checkAllPassed := true
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
-		switch result.Name {
-		case "DmesgErrorChecker":
-			if result.Status == consts.StatusAbnormal {
-				checkAllPassed = false
-				dmesgEvent["DmesgErrorChecker"] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
-			}
+		if result.Status == consts.StatusAbnormal {
+			checkAllPassed = false
+			dmesgEvent[result.Name] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
 		}
 	}
 
@@ -213,8 +218,9 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		fmt.Printf("%sNo Dmesg event detected%s\n", consts.Green, consts.Reset)
 		return checkAllPassed
 	}
+	fmt.Printf("%sDetected %d Types of Abnormal Dmesg Events:%s\n", consts.Red, len(dmesgEvent), consts.Reset)
 	for n := range dmesgEvent {
-		fmt.Printf("\tDetected %d Kernel Events:\n %s\n", len(dmesgEvent), dmesgEvent[n])
+		fmt.Printf("\t%s%s%s Events:\n %s\n", consts.Yellow, n, consts.Reset, dmesgEvent[n])
 	}
 	return checkAllPassed
 }

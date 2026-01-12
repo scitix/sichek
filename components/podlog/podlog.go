@@ -43,6 +43,8 @@ type component struct {
 	cfgMutex      sync.Mutex
 
 	podResourceMapper *k8s.PodResourceMapper
+	onlyRunningPods   bool  // true: only check running pods; false: check all pods in log_dir
+	skipPercent       int64 // skip percent for file reading
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -58,7 +60,7 @@ var (
 	podlogComponentOnce sync.Once
 )
 
-func NewComponent(cfgFile string, specFile string) (common.Component, error) {
+func NewComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPercent int64) (common.Component, error) {
 	var err error
 	podlogComponentOnce.Do(func() {
 		defer func() {
@@ -66,12 +68,12 @@ func NewComponent(cfgFile string, specFile string) (common.Component, error) {
 				err = fmt.Errorf("panic occurred when create component nccl: %v", r)
 			}
 		}()
-		podlogComponent, err = newComponent(cfgFile, specFile)
+		podlogComponent, err = newComponent(cfgFile, specFile, onlyRunningPods, skipPercent)
 	})
 	return podlogComponent, err
 }
 
-func newComponent(cfgFile string, specFile string) (comp common.Component, err error) {
+func newComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPercent int64) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		if err != nil {
@@ -91,6 +93,15 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		return nil, err
 	}
 
+	// if skipPercent is -1, use the value from the config file
+	if skipPercent == -1 {
+		skipPercent = cfg.Podlog.SkipPercent
+		// if config file doesn't have skip_percent or it's 0, use default 100
+		if skipPercent == 0 {
+			skipPercent = 100
+		}
+	}
+
 	podResourceMapper := k8s.NewPodResourceMapper()
 	component := &component{
 		ctx:           ctx,
@@ -100,6 +111,8 @@ func newComponent(cfgFile string, specFile string) (comp common.Component, err e
 		eventRule:     eventRules,
 
 		podResourceMapper: podResourceMapper,
+		onlyRunningPods:   onlyRunningPods,
+		skipPercent:       skipPercent,
 
 		cacheResultBuffer: make([]*common.Result, cfg.Podlog.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, cfg.Podlog.CacheSize),
@@ -115,7 +128,15 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	allFiles, err := c.GetRunningPodFilePaths(c.eventRule.DirPath)
+	var allFiles []string
+	var err error
+	if c.onlyRunningPods {
+		allFiles, err = c.GetRunningPodFilePaths(c.eventRule.DirPath)
+		logrus.WithField("component", "podlog").Debugf("using GetRunningPodFilePaths mode (only running gpu pods)")
+	} else {
+		allFiles, err = c.GetAllPodFilePaths(c.eventRule.DirPath)
+		logrus.WithField("component", "podlog").Debugf("using GetAllPodFilePaths mode (all pods)")
+	}
 	if err != nil {
 		logrus.WithError(err).Errorf("failed to walkdir in %s", c.eventRule.DirPath)
 		return nil, err
@@ -137,7 +158,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			eventChecker.LogFile = joinedLogFiles
 		}
 	}
-	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodlog, c.eventRule.EventCheckers, 0)
+	filterPointer, err := filter.NewEventFilter(consts.ComponentNamePodlog, c.eventRule.EventCheckers, c.skipPercent)
 	if err != nil {
 		logrus.WithError(err).Error("failed to create filter in podlog component")
 		return nil, err
@@ -180,21 +201,14 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	return result, nil
 }
 
-func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
-	deviceToPodMap, err := c.podResourceMapper.GetDeviceToPodMap()
-	if err != nil {
-		logrus.WithField("component", "podlog").WithError(err).Error("failed to GetDeviceToPodMap")
-		return nil, err
-	}
-	runningPodSet := make(map[string]struct{})
-	for _, podInfo := range deviceToPodMap {
-		runningPodSet[podInfo.PodName] = struct{}{}
-	}
-	// Walk through the directory to find valid pod log files
-	runningPodFilePaths := make([]string, 0)
+// walkPodLogFiles walks through the directory and collects pod log file paths.
+// filterFunc is called for each valid log file with (absPath, podName, podNameErr).
+// If filterFunc returns true, the file is included in the result.
+func (c *component) walkPodLogFiles(dir string, filterFunc func(absPath string, podName string, podNameErr error) bool) ([]string, error) {
+	filePaths := make([]string, 0)
 	allFiles := make(map[string]struct{})
 
-	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			logrus.WithField("component", "podlog").WithError(walkErr).Errorf("skip dir %s", path)
 			return nil // Skip the path if there is an error
@@ -204,6 +218,10 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 		}
 		if strings.HasSuffix(path, ".gz") {
 			return nil // Skip gzipped files
+		}
+		// Check if path should be ignored based on configured ignore_namespaces
+		if c.shouldIgnoreNamespace(path) {
+			return nil
 		}
 		if _, exists := allFiles[path]; exists {
 			return nil // Skip if the file has already been processed
@@ -218,13 +236,9 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 			logrus.WithField("component", "podlog").WithError(err).Errorf("failed to get absolute path for %s", path)
 			return nil // Skip if we can't get the absolute path
 		}
-		podName, err := getPodNameFromFileName(absPath)
-		if err != nil {
-			logrus.WithError(err).Warnf("cannot extract podName from %s", absPath)
-			return nil
-		}
-		if _, exists := runningPodSet[podName]; exists {
-			runningPodFilePaths = append(runningPodFilePaths, absPath)
+		podName, podNameErr := getPodNameFromFileName(absPath)
+		if filterFunc(absPath, podName, podNameErr) {
+			filePaths = append(filePaths, absPath)
 		}
 		return nil
 	})
@@ -232,7 +246,39 @@ func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 		logrus.WithField("component", "podlog").WithError(err).Errorf("failed to walk dir %s", dir)
 		return nil, fmt.Errorf("failed to walk dir %s: %w", dir, err)
 	}
-	return runningPodFilePaths, err
+	return filePaths, nil
+}
+
+func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
+	deviceToPodMap, err := c.podResourceMapper.GetDeviceToPodMap()
+	if err != nil {
+		logrus.WithField("component", "podlog").WithError(err).Error("failed to GetDeviceToPodMap")
+		return nil, err
+	}
+	runningPodSet := make(map[string]struct{})
+	for _, podInfo := range deviceToPodMap {
+		runningPodSet[podInfo.PodName] = struct{}{}
+	}
+
+	// Walk through the directory to find valid running pod log files
+	return c.walkPodLogFiles(dir, func(absPath string, podName string, podNameErr error) bool {
+		if podNameErr != nil {
+			logrus.WithError(podNameErr).Warnf("cannot extract podName from %s", absPath)
+			return false
+		}
+		_, exists := runningPodSet[podName]
+		return exists
+	})
+}
+
+func (c *component) GetAllPodFilePaths(dir string) ([]string, error) {
+	return c.walkPodLogFiles(dir, func(absPath string, podName string, podNameErr error) bool {
+		if podNameErr != nil {
+			logrus.WithError(podNameErr).Warnf("cannot extract podName from %s, but still include it", absPath)
+			return false
+		}
+		return true
+	})
 }
 
 func (c *component) CacheResults() ([]*common.Result, error) {
@@ -291,32 +337,15 @@ func (c *component) GetTimeout() time.Duration {
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
-	ncclEvents := make(map[string]string)
 
 	utils.PrintTitle("PodLog", "-")
 	checkAllPassed := true
 	if result != nil {
 		checkerResults := result.Checkers
-		for _, result := range checkerResults {
-			switch result.Name {
-			case "NCCLTimeoutChecker":
-				if result.Status == consts.StatusAbnormal {
-					ncclEvents["NCCLTimeoutChecker"] = fmt.Sprintf("%sDetect NCCLTimeout in pod %s%s", consts.Red, result.Device, consts.Reset)
-				}
-			}
-		}
 		for _, checkerResult := range checkerResults {
-			switch checkerResult.Name {
-			case "NCCLTimeoutChecker":
-				if result.Status == consts.StatusAbnormal {
-					checkAllPassed = false
-					fmt.Printf("\t%sNCCL timeout detected%s\n", consts.Red, consts.Reset)
-					fmt.Printf("\tAffected Pods  : %s\n", checkerResult.Device)
-					fmt.Printf("\tTimeout Count  : %s\n", checkerResult.Curr)
-					if checkerResult.Suggestion != "" {
-						fmt.Printf("\tSuggestion     : %s\n", checkerResult.Suggestion)
-					}
-				}
+			if checkerResult.Status == consts.StatusAbnormal {
+				checkAllPassed = false
+				fmt.Printf("\t%sDetected %s error for %s times in %s%s\n", consts.Red, checkerResult.ErrorName, checkerResult.Curr, checkerResult.Device, consts.Reset)
 			}
 		}
 	}
@@ -336,4 +365,20 @@ func getPodNameFromFileName(fileName string) (string, error) {
 		return "", fmt.Errorf("invalid fileName format=%s, expected at least one '_' character", fileName)
 	}
 	return parts[1], nil
+}
+
+func (c *component) shouldIgnoreNamespace(path string) bool {
+	c.cfgMutex.Lock()
+	defer c.cfgMutex.Unlock()
+
+	if c.cfg == nil || c.cfg.Podlog == nil {
+		return false
+	}
+
+	for _, namespace := range c.cfg.Podlog.IgnoreNamespaces {
+		if strings.Contains(path, namespace+"_") {
+			return true
+		}
+	}
+	return false
 }

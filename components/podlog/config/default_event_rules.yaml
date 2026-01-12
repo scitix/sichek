@@ -1,17 +1,38 @@
 podlog:
   log_dir: "/var/log/pods"
   event_checkers:
-    nccltimeout:
-      name: "NCCLTimeout"
+    CUDAOutOfMemory:
+      name: "CUDAOutOfMemory"
       log_file: ""
-      description: "NCCL Timeout error"
-      regexp: "Watchdog caught collective operation timeout"
+      description: "CUDA out of memory"
+      regexp: "RuntimeError: CUDA error: out of memory"
       level: "error"
-      suggestion: "Check the NCCL log for timeout error, stop and restart the job"
-    eccerror:
+      suggestion: "Check the Job pod log for out of memory error, stop and restart the job"
+    ECCError:
       name: "ECCError"
       log_file: ""
       description: "ECC error"
       regexp: "CUDA error: uncorrectable ECC error encountered"
       level: "error"
-      suggestion: "Check the Job log for ECC error, stop and restart the job"
+      suggestion: "Check the Job pod log for ECC error, stop and restart the job"
+    NCCLNetIBError:
+      name: "NCCLNetIBError"
+      log_file: ""
+      description: "NCCL net IB error"
+      regexp: "NCCL WARN NET/IB: Got completion from peer"
+      level: "error"
+      suggestion: "Check the Job pod log for net IB error, stop and restart the job"
+    DiskQuotaExceeded:
+      name: "DiskQuotaExceeded"
+      log_file: ""
+      description: "OSError: [Errno 122] Disk quota exceeded"
+      regexp: "Disk quota exceeded"
+      level: "error"
+      suggestion: "Check the Job pod log for disk quota exceeded error, stop and restart the job"
+    ValueError:
+      name: "ValueError:"
+      log_file: ""
+      description: "Python ValueError"
+      regexp: "ValueError:"
+      level: "error"
+      suggestion: "Check the Job pod log for ValueError error, stop and restart the job"
