@@ -201,7 +201,8 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 	re, _ := regexp.Compile(`^bond[0-9]$`)
 	for _, IBDev := range PFDevs {
 		if re.MatchString(IBDev) {
-			continue
+			logrus.WithField("component", "infiniband").Infof("Ignoring bond interface: %s", IBDev)
+			// continue
 		}
 		netPath := filepath.Join(IBSYSPathPre, IBDev, "device/net")
 		if _, err := os.Stat(netPath); os.IsNotExist(err) {
