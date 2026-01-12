@@ -103,9 +103,9 @@ func InitPrometheus(cfgFile string, metricsPort int) {
 
 	// start Prometheus HTTP
 	http.Handle("/metrics", promhttp.Handler())
+	logrus.WithField("component", "metrics").Infof("Starting Prometheus metrics server on port %d", port)
 	if err := http.ListenAndServe(":"+strconv.Itoa(port), nil); err != nil {
 		logrus.WithField("component", "metrics").Errorf("failed to start Prometheus metrics server: %v", err)
 		return
 	}
-	logrus.WithField("component", "metrics").Infof("Prometheus metrics server started on port %d", port)
 }
