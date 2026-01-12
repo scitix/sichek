@@ -29,3 +29,15 @@ dmesg:
     description: "GspRmAlloc failed, Reset required [NV_ERR_RESET_REQUIRED]"
     regexp: 'Reset required \[NV_ERR_RESET_REQUIRED\]'
     level: critical
+  NvErrObjectNotFound:
+    name: "NvErrObjectNotFound"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "Requested object not found [NV_ERR_OBJECT_NOT_FOUND] in dmesg"
+    regexp: 'NV_ERR_OBJECT_NOT_FOUND'
+    level: critical
+  LibcSegFault:
+    name: "LibcSegFault"
+    log_file: "/tmp/sichek.dmesg.log"
+    description: "libc segment fault error in dmesg"
+    regexp: '.*segfault at.*in libc.*'
+    level: info

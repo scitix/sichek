@@ -79,6 +79,7 @@ func (c *EventCache) MatchLine(line string) {
 
 	for name, eventRule := range c.runtimeEventRules {
 		if eventRule.RegexObj.MatchString(line) {
+			logrus.WithField("EventCache", "MatchLine").Infof("matched line: %s for rule: %s", line, name)
 			c.add(name, line)
 		}
 	}

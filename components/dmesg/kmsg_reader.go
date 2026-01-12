@@ -18,9 +18,12 @@ package dmesg
 import (
 	"bufio"
 	"io"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 type KmsgReader struct {
@@ -46,7 +49,6 @@ func NewKmsgReader(r io.Reader, skipPercent int64) (*KmsgReader, error) {
 func (r *KmsgReader) Start(onLine func(string)) {
 	if r.skipPercent == 100 {
 		if seeker, ok := r.file.(io.Seeker); ok {
-			// /dev/kmsg, *os.File
 			if _, err := seeker.Seek(0, io.SeekEnd); err != nil {
 				logrus.WithError(err).Error("seek /dev/kmsg to tail failed")
 			} else {
@@ -55,13 +57,19 @@ func (r *KmsgReader) Start(onLine func(string)) {
 		} else {
 			scanner := bufio.NewScanner(r.file)
 			for scanner.Scan() {
-				// skip all lines
+				// skip all lines before
 			}
-			logrus.Warn("skipPercent=100 in Unit Test)")
+			logrus.Warn("skipPercent=100 in Unit Test")
 		}
 	} else {
 		logrus.Info("kmsg reader starts from head (skipPercent=0)")
 	}
+
+	// Base time：wall clock + monotonic
+	wallNow := time.Now()
+	var ts unix.Timespec
+	_ = unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
+	monoNow := time.Duration(ts.Sec)*time.Second + time.Duration(ts.Nsec)
 
 	go func() {
 		scanner := bufio.NewScanner(r.file)
@@ -73,11 +81,35 @@ func (r *KmsgReader) Start(onLine func(string)) {
 			}
 
 			line := scanner.Text()
-			// /dev/kmsg format: <pri>,<seq>,<ts>,<flags>;message
-			if idx := strings.Index(line, ";"); idx != -1 {
-				onLine(line[idx+1:])
+			// <pri>,<seq>,<ts>,<flags>;message
+			idx := strings.Index(line, ";")
+			if idx == -1 {
+				continue
 			}
+
+			meta := line[:idx]
+			msg := line[idx+1:]
+
+			fields := strings.Split(meta, ",")
+			if len(fields) < 3 {
+				continue
+			}
+
+			tsNano, err := strconv.ParseInt(fields[2], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			// monotonic → wall clock
+			eventMono := time.Duration(tsNano)
+			eventTime := wallNow.Add(eventMono - monoNow)
+
+			// dmesg -T Style
+			prefix := eventTime.Format("[Mon Jan _2 15:04:05 2006] ")
+
+			onLine(prefix + msg)
 		}
+
 		if err := scanner.Err(); err != nil {
 			logrus.WithError(err).Error("read /dev/kmsg failed")
 		}
