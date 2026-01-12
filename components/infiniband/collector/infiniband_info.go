@@ -171,12 +171,14 @@ func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 		// ignore cx4 interface
 		hcaTypePath := path.Join(IBSYSPathPre, IBDev, "hca_type")
 		if _, err := os.Stat(hcaTypePath); err != nil {
+			logrus.WithField("component", "infiniband").Infof("Ignoring IBDev: %s, error: %v", IBDev, err)
 			continue
 		}
 		hcaTypeContent, err := os.ReadFile(hcaTypePath)
 		if err == nil {
 			hcaType := strings.TrimSpace(string(hcaTypeContent))
 			if strings.Contains(hcaType, "MT4117") {
+				logrus.WithField("component", "infiniband").Infof("Ignoring MT4117 IBDev: %s", IBDev)
 				continue
 			}
 		}
@@ -184,8 +186,10 @@ func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 		// ignore virtual functions
 		vfPath := path.Join(IBSYSPathPre, IBDev, "device", "physfn")
 		if _, err := os.Stat(vfPath); err == nil {
+			logrus.WithField("component", "infiniband").Infof("Ignoring virtual function: %s", IBDev)
 			continue // Skip virtual functions
 		} else {
+			logrus.WithField("component", "infiniband").Infof("Found IBDev: %s", IBDev)
 			PFDevs = append(PFDevs, IBDev)
 		}
 	}
