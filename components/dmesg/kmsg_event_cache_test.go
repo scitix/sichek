@@ -104,6 +104,23 @@ func TestEventRulesComprehensive(t *testing.T) {
 			},
 			ExpectedCount: 2, // Only the last two lines match the regex
 		},
+		"NvErrObjectNotFound": {
+			RuleName: "NvErrObjectNotFound",
+			MockLogLines: []string{
+				"[Mon Jan  5 06:51:22 2026] NVRM: nvCheckOkFailedNoLog: Check failed: Requested object not found [NV_ERR_OBJECT_NOT_FOUND] (0x00000057) returned from status @ mem_multicast_fabric.c:2917",
+				"[Mon Jan  5 06:51:22 2026] NVRM: nvCheckOkFailedNoLog: Check failed: Requested object not found [NV_ERR_OBJECT_NOT_FOUND] (0x00000057) returned from status @ mem_multicast_fabric.c:2917",
+				"[Mon Jan  5 06:51:22 2026] NVRM: nvCheckOkFailedNoLog: Check failed: Requested object not found [NV_ERR_OBJECT_NOT_FOUND] (0x00000057) returned from status @ mem_multicast_fabric.c:2917",
+			},
+			ExpectedCount: 3,
+		},
+		"LibcSegFault": {
+			RuleName: "LibcSegFault",
+			MockLogLines: []string{
+				"[Tue Nov 11 06:40:07 2025] SiRPCHandl-2_32[2721614]: segfault at 0 ip 00007f53772fbfc4 sp 00007f4e367fb898 error 4 in libc.so.6[7f5377282000+188000]",
+				"[Tue Nov 11 06:43:07 2025] SiRPCHandl-2_32[2728319]: segfault at 0 ip 00007f0f82b94fc4 sp 00007f0a42ffc898 error 4 in libc.so.6[7f0f82b1b000+188000]",
+			},
+			ExpectedCount: 2,
+		},
 	}
 
 	// Test each rule
