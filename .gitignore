@@ -8,3 +8,5 @@ vendor/
 goreleaser*
 sicl
 sichek
+siflow_oss/
+scitix_oss/
