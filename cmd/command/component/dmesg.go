@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"time"
 
 	"github.com/scitix/sichek/components/dmesg"
 	"github.com/scitix/sichek/consts"
@@ -67,6 +68,8 @@ func NewDmesgCmd() *cobra.Command {
 				logrus.WithField("component", "Dmesg").Error(err)
 				return
 			}
+			component.Start()
+			time.Sleep(2 * time.Second)
 			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
 			if err != nil {
 				return

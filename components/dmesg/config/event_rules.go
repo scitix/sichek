@@ -23,19 +23,14 @@ import (
 )
 
 type DmesgEventRules struct {
-	Rules *DmesgEventRule `yaml:"dmesg" json:"dmesg"`
+	Rules common.EventRuleGroup `yaml:"dmesg" json:"dmesg"`
 }
 
-type DmesgEventRule struct {
-	DmesgCmd      []string              `json:"cmd" yaml:"cmd"`
-	EventCheckers common.EventRuleGroup `json:"event_checkers" yaml:"event_checkers"`
-}
-
-func LoadDefaultEventRules() (*DmesgEventRule, error) {
+func LoadDefaultEventRules() (common.EventRuleGroup, error) {
 	eventRules := &DmesgEventRules{}
 	err := common.LoadDefaultEventRules(eventRules, consts.ComponentNameDmesg)
 	if err == nil && eventRules.Rules != nil {
 		return eventRules.Rules, nil
 	}
-	return nil, fmt.Errorf("failed to load eventRules: %v", err)
+	return nil, fmt.Errorf("failed to load dmesg event rules: %v", err)
 }
