@@ -1454,6 +1454,7 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 		}
 		if len(i.GetBDF(IBDev)) >= 1 {
 			perIBHWInfo.PCIEBDF = i.GetBDF(IBDev)[0]
+			logrus.WithField("component", "infiniband").Infof("IBDev: %s, PCIEBDF: %s", IBDev, perIBHWInfo.PCIEBDF)
 		}
 		if len(i.GetPCIEMRR(ctx, IBDev)) >= 1 {
 			perIBHWInfo.PCIEMRR = i.GetPCIEMRR(ctx, IBDev)[0]
