@@ -24,10 +24,10 @@ type NvidiaUserConfig struct {
 }
 
 type NvidiaConfig struct {
-	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
-	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
+	QueryInterval   common.Duration `json:"query_interval"`
+	CacheSize       int64           `json:"cache_size"`
 	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
-	IgnoredCheckers []string        `json:"ignored_checkers,omitempty" yaml:"ignored_checkers,omitempty"`
+	IgnoredCheckers []string        `json:"ignored_checkers,omitempty"`
 }
 
 func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {

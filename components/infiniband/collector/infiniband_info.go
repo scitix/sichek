@@ -1487,12 +1487,6 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 
 		perIBHWInfo.VPD = i.GetVPD(IBDev)
 		i.IBHardWareInfo[IBDev] = perIBHWInfo
-		// skip mezzanine card for counters
-		// as: Fail to read the ib counter from path: /sys/class/infiniband/mezz_0/ports/1/counters/VL15_dropped
-		if strings.Contains(IBDev, "mezz") {
-			continue
-		}
-
 		i.IBCounters[IBDev] = i.GetIBCounters(IBDev)
 	}
 

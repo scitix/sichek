@@ -57,7 +57,7 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 
 		valPeer, okPeer := metrics.IbgdaEnable["PeerMappingOverride"]
 		valReg, hasReg := metrics.IbgdaEnable["RegistryDwords"]
-
+		
 		conditionPeer := (okPeer && valPeer == "1") || (hasReg && strings.Contains(valReg, "PeerMappingOverride=1"))
 
 		if conditionOps && conditionPeer {
@@ -65,6 +65,7 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 		}
 	}
 	m.NvidiaIBGDAStatusGauge.SetMetric("ibgda_status", []string{"enabled"}, ibgdaVal)
+
 
 	p2pGlobalStatus := 1.0
 	if metrics.DeviceCount > 1 && metrics.P2PStatusMatrix != nil {

@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDaemonCmd creates and returns a subcommand instance for running in daemon mode, configuring the basic attributes of the command.
+// NewDaemonCmd creates and returns a subcommand instance for running in daemon mode, configuring the basic attributes of the command.  
 func NewDaemonCmd() *cobra.Command {
 	daemonCmd := &cobra.Command{
 		Use:     "daemon",

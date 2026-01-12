@@ -72,10 +72,7 @@ func NewNvidiaCmd() *cobra.Command {
 			} else {
 				logrus.WithField("component", "nvidia").Info("ignore checkers", ignoredCheckersStr)
 			}
-			var ignoredCheckers []string
-			if len(ignoredCheckersStr) > 0 {
-				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
-			}
+			ignoredCheckers := strings.Split(ignoredCheckersStr, ",")
 			component, err := nvidia.NewComponent("", specFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("component", "nvidia").Error(err)
@@ -91,7 +88,7 @@ func NewNvidiaCmd() *cobra.Command {
 
 	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the nvidia specification")
 	NvidaCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
-	NvidaCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
+	NvidaCmd.Flags().StringP("ignored-checkers", "i", "app-clocks", "Ignored checkers")
 
 	return NvidaCmd
 }

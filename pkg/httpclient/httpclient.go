@@ -231,3 +231,4 @@ func CheckFileExists(fileURL string) (bool, error) {
 
 	return resp.StatusCode == 200, nil
 }
+

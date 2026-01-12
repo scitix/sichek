@@ -150,10 +150,6 @@ func NewNcclPerftestCmd() *cobra.Command {
 			}
 			var res *common.Result
 			result := 0
-			if beginBuffer == "8" && endBuffer == "8" {
-				expectedBandwidthGbps = 0
-				fmt.Println("8-byte message size detected, skipping bandwidth check (connectivity test only)")
-			}
 			fmt.Printf("Running NCCL performance test with %d GPUs, begin buffer: %s, end buffer: %s, disable NVLinks: %t, expected bandwidth: %.2f Gbps\n", numGpus, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
 			if scale {
 				for g := 2; g <= numGpus; g++ {

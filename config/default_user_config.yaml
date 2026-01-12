@@ -5,8 +5,7 @@ nvidia:
   query_interval: 10s
   cache_size: 5
   enable_metrics: true
-  ignored_checkers:
-    - "app-clocks"
+  ignored_checkers: []
 
 infiniband:
   query_interval: 10s
