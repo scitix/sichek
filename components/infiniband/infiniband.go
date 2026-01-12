@@ -363,8 +363,8 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			printInterval = len(ofedVersionPrint) + 2
 		}
 		fmt.Printf("%-*s\n", printInterval, ibControllersPrint)
-		fmt.Printf("ibInfo.IBPFDevs: %v", ibInfo.IBPFDevs)
-		fmt.Printf("ibInfo.IBPCIDevs: %v", ibInfo.IBPCIDevs)
+		fmt.Printf("ibInfo.IBPFDevs: %v\n", ibInfo.IBPFDevs)
+		fmt.Printf("ibInfo.IBPCIDevs: %v\n", ibInfo.IBPCIDevs)
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "")          //, PerformancePrint)
 		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "")   //, "Throughput: TBD")
 		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "") //, "Latency: TBD")

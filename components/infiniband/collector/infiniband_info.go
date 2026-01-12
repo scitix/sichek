@@ -1230,6 +1230,19 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 
 			content := strings.TrimSpace(string(contentBytes))
 			if strings.Contains(content, "MT4119") {
+				// Remove corresponding PCI entries from IBPCIDevs
+				bdfs := i.GetBDF(IBDev)
+				for _, bdf := range bdfs {
+					if bdf != "" {
+						// Remove entries that start with this BDF
+						for key := range i.IBPCIDevs {
+							if strings.HasPrefix(key, bdf+":") {
+								delete(i.IBPCIDevs, key)
+								logrus.WithField("component", "infiniband").Infof("Removed PCI entry %s for skipped IBDev %s", key, IBDev)
+							}
+						}
+					}
+				}
 				continue
 			}
 			pciNum += 2
@@ -1388,6 +1401,20 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 
 			content := strings.TrimSpace(string(contentBytes))
 			if strings.Contains(content, "MT4119") {
+				// Remove corresponding PCI entries from IBPCIDevs
+				bdfs := i.GetBDF(IBDev)
+				logrus.WithField("component", "infiniband").Infof("Ignoring IBDev: %s, BDFs: %v", IBDev, bdfs)
+				for _, bdf := range bdfs {
+					if bdf != "" {
+						// Remove entries that start with this BDF
+						for key := range i.IBPCIDevs {
+							if strings.HasPrefix(strings.ToLower(key), strings.ToLower(bdf)+":") {
+								// delete(i.IBPCIDevs, key)
+								logrus.WithField("component", "infiniband").Infof("Removed PCI entry %s for skipped IBDev %s", key, IBDev)
+							}
+						}
+					}
+				}
 				continue
 			}
 			pciNum += 2
