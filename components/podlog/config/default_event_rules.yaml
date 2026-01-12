@@ -22,3 +22,17 @@ podlog:
       regexp: "NCCL WARN NET/IB: Got completion from peer"
       level: "error"
       suggestion: "Check the Job pod log for net IB error, stop and restart the job"
+    DiskQuotaExceeded:
+      name: "DiskQuotaExceeded"
+      log_file: ""
+      description: "OSError: [Errno 122] Disk quota exceeded"
+      regexp: "Disk quota exceeded"
+      level: "error"
+      suggestion: "Check the Job pod log for disk quota exceeded error, stop and restart the job"
+    ValueError:
+      name: "ValueError:"
+      log_file: ""
+      description: "Python ValueError"
+      regexp: "ValueError:"
+      level: "error"
+      suggestion: "Check the Job pod log for ValueError error, stop and restart the job"

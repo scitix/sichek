@@ -82,18 +82,30 @@ func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }
 
-func InitPrometheus(cfgFile string) {
-	// Initialize the metrics config
-	cfg := &MetricsUserConfig{}
-	err := common.LoadUserConfig(cfgFile, cfg)
-	if err != nil || cfg.Metrics == nil {
-		logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed or cfg is nil: %v", err)
+func InitPrometheus(cfgFile string, metricsPort int) {
+	var port int
+
+	// Priority: command line argument > config file
+	if metricsPort > 0 {
+		port = metricsPort
+		logrus.WithField("component", "metrics").Infof("Using metrics port from command line: %d", port)
+	} else {
+		cfg := &MetricsUserConfig{}
+		err := common.LoadUserConfig(cfgFile, cfg)
+		if err != nil || cfg.Metrics == nil {
+			logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed or cfg is nil: %v", err)
+			port = 19091
+			logrus.WithField("component", "metrics").Warnf("Failed to load config, using default port %d", port)
+		} else {
+			port = cfg.Metrics.Port
+		}
 	}
+
 	// start Prometheus HTTP
 	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(":"+strconv.Itoa(cfg.Metrics.Port), nil); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(port), nil); err != nil {
 		logrus.WithField("component", "metrics").Errorf("failed to start Prometheus metrics server: %v", err)
 		return
 	}
-	logrus.WithField("component", "metrics").Infof("Prometheus metrics server started on port %d", cfg.Metrics.Port)
+	logrus.WithField("component", "metrics").Infof("Prometheus metrics server started on port %d", port)
 }

@@ -45,6 +45,7 @@ podlog:
     - "roce-operator-system"
     - "scitix-system"
     - "stream-mirror"
+    - "volcano-system"
 
 dmesg:
   query_interval: 10s
