@@ -47,6 +47,7 @@ podlog:
     - "scitix-system"
     - "stream-mirror"
     - "volcano-system"
+    - "default"
 
 dmesg:
   query_interval: 10s
