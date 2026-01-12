@@ -59,7 +59,7 @@ memory:
 	if _, err := configFile.Write([]byte(configData)); err != nil {
 		t.Fatalf("Failed to write to temp config file: %v", err)
 	}
-	
+
 	specFile, err := os.CreateTemp("", "spec_*.yaml")
 	if err != nil {
 		t.Fatalf("Failed to create temp spec file: %v", err)
@@ -86,7 +86,7 @@ cpu:
 
 	if _, err := specFile.Write([]byte(specData)); err != nil {
 		t.Fatalf("Failed to write to temp spec file: %v", err)
-	}	
+	}
 	component, err := cpu.NewComponent(configFile.Name(), specFile.Name())
 	if err != nil {
 		t.Fatalf("failed to create component: %v", err)
