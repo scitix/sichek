@@ -18,11 +18,11 @@ package dmesg
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	filter "github.com/scitix/sichek/components/common/eventfilter"
 	"github.com/scitix/sichek/components/dmesg/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -38,7 +38,9 @@ type component struct {
 	cfg      *config.DmesgUserConfig
 	cfgMutex sync.Mutex
 
-	filter *filter.CommandFilter
+	kmsgReader *KmsgReader
+	eventCache *EventCache
+	kmsgOnce   sync.Once
 
 	cacheMtx          sync.RWMutex
 	cacheInfoBuffer   []common.Info
@@ -85,8 +87,8 @@ func newComponent(cfgFile string, specFile string, skipPercent int64) (comp comm
 		logrus.WithField("component", "dmesg").Errorf("failed to NewComponent: %v", err)
 		return nil, err
 	}
-	if len(eventRules.EventCheckers) == 0 {
-		return nil, fmt.Errorf("no Dmesg Collector indicate in yaml config")
+	if len(eventRules) == 0 {
+		return nil, fmt.Errorf("no Dmesg event rules indicate in yaml config")
 	}
 	// if skipPercent is -1, use the value from the config file
 	if skipPercent == -1 {
@@ -96,10 +98,17 @@ func newComponent(cfgFile string, specFile string, skipPercent int64) (comp comm
 			skipPercent = 100
 		}
 	}
-	commandFilter, err := filter.NewCommandFilter(eventRules.DmesgCmd, eventRules.EventCheckers, skipPercent)
+
+	f, err := os.Open("/dev/kmsg")
 	if err != nil {
-		logrus.WithField("component", "dmesg").WithError(err).Error("failed to create Dmesg CommandFilter")
+		return nil, fmt.Errorf("failed to open /dev/kmsg: %v", err)
 	}
+	kmsgReader, err := NewKmsgReader(f, skipPercent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kmsg reader: %v", err)
+	}
+
+	eventCache := NewEventCache(eventRules)
 
 	component := &component{
 		ctx:           ctx,
@@ -107,7 +116,8 @@ func newComponent(cfgFile string, specFile string, skipPercent int64) (comp comm
 		componentName: consts.ComponentNameDmesg,
 		cfg:           dmsgCfg,
 
-		filter: commandFilter,
+		kmsgReader: kmsgReader,
+		eventCache: eventCache,
 
 		cacheResultBuffer: make([]*common.Result, dmsgCfg.Dmesg.CacheSize),
 		cacheInfoBuffer:   make([]common.Info, dmsgCfg.Dmesg.CacheSize),
@@ -123,8 +133,9 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
-	result := c.filter.Check()
+	result := c.eventCache.Drain()
 	result.Item = consts.ComponentNameDmesg
+	result.Time = time.Now()
 
 	c.cacheMtx.Lock()
 	c.cacheResultBuffer[c.currIndex%c.cacheSize] = result
@@ -177,6 +188,12 @@ func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, 
 }
 
 func (c *component) Start() <-chan *common.Result {
+	c.kmsgOnce.Do(func() {
+		logrus.WithField("component", "dmesg").Info("start /dev/kmsg reader")
+		c.kmsgReader.Start(func(line string) {
+			c.eventCache.MatchLine(line)
+		})
+	})
 	return c.service.Start()
 }
 
