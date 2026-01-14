@@ -143,49 +143,25 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	return i, nil
 }
 
+// countHCAPCINum counts the number of HCA PCI devices
+// Note: When RDMA bonding (mlx5 bonding) is enabled, the IB core registers a single logical IB device.
+// Therefore, only one PCI function contains the infiniband/ directory,
+// while the other functions do not expose independent IB devices.
+// ref. [RoCE LAG]: https://docs.nvidia.com/networking/display/nvidia-mlnx-ofed-documentation-v24-10-1-1-4-0-105-lts.105%20LTS.pdf
 func countHCAPCINum(ibPFDevs map[string]string) int {
-	pciNum := 0
-	// // ibPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
-	for ibDev := range ibPFDevs {
-		_, isBond := GetIBdev2NetDev(ibDev)
-		if isBond {
-			pciNum += 2
-		} else {
-			pciNum += 1
-		}
-	}
+	return len(ibPFDevs)
+	// pciNum := 0
+	// for ibDev := range ibPFDevs {
+	// 	_, isBond := GetIBdev2NetDev(ibDev)
+	// 	if isBond {
+	// 		pciNum += 2
+	// 	} else {
+	// 		pciNum += 1
+	// 	}
+	// }
 
-	return pciNum
+	// return pciNum
 }
-
-// TODO: Why should it be ignored??? Make it configurable
-// var ignoredHCATypes = []string{
-// 	"MT4117", // CX4
-// 	"MT4119",
-// }
-
-// func ignoreByHCATYPE(ibDev string) bool {
-// 	hcaTypePath := path.Join(IBSYSPathPre, ibDev, "hca_type")
-
-// 	content, err := os.ReadFile(hcaTypePath)
-// 	if err != nil {
-// 		logrus.WithField("component", "infiniband").
-// 			Warnf("ignoring IBDev %s: failed to read hca_type (%v)", ibDev, err)
-// 		return true
-// 	}
-
-// 	hcaType := strings.TrimSpace(string(content))
-
-// 	for _, t := range ignoredHCATypes {
-// 		if strings.Contains(hcaType, t) {
-// 			logrus.WithField("component", "infiniband").
-// 				Infof("ignoring IBDev %s due to HCA type: %s", ibDev, hcaType)
-// 			return true
-// 		}
-// 	}
-
-// 	return false
-// }
 
 func ignoreVirtualFunction(ibDev string) bool {
 	vfPath := path.Join(IBSYSPathPre, ibDev, "device", "physfn")
