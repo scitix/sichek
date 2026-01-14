@@ -45,7 +45,7 @@ type InfinibandInfo struct {
 	mu         sync.RWMutex
 }
 
-func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
+func NewIBCollector(ctx context.Context, targetDeviceIDs []string) (*InfinibandInfo, error) {
 	i := &InfinibandInfo{
 		IBHardWareInfo: make(map[string]IBHardWareInfo),
 		IBSoftWareInfo: IBSoftWareInfo{},
@@ -57,7 +57,7 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i.IBNicRole = i.GetNICRole()
 	var err error
 	// Get PCIe device list at collector initialization
-	i.IBPCIDevs, err = GetRDMACapablePCIeDevices()
+	i.IBPCIDevs, err = GetRDMACapablePCIeDevices(targetDeviceIDs)
 	i.IBCapablePCINum = len(i.IBPCIDevs)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)

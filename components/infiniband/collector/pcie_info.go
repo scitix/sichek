@@ -41,10 +41,7 @@ var (
 		"0x15b3", // Mellanox Technologies
 	}
 
-	targetDeviceIDs = []string{
-		"0x1015", // [ConnectX-4]
-		"0x1019",
-		"0x1017", // [ConnectX-5]
+	DefaultTargetDeviceIDs = []string{
 		"0x101b", // MT28908 Family [ConnectX-6]
 		"0x101d", // MT28908 Family [ConnectX-6]
 		"0x1021", // CMT2910 Family [ConnectX-7]
@@ -58,7 +55,7 @@ var (
 )
 
 // FindIBPCIDevices finds RDMA-capable PCI devices by checking infiniband sysfs, and ignore virtual functions
-func GetRDMACapablePCIeDevices() (map[string]string, error) {
+func GetRDMACapablePCIeDevices(targetDeviceIDs []string) (map[string]string, error) {
 	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
 	}
@@ -105,6 +102,10 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 		if _, err := os.Stat(infinibandPath); os.IsNotExist(err) {
 			logrus.WithField("component", "pci-scanner").Warnf("Skipping device %s: no infiniband directory found (Maybe a management Ethernet card or IBLost)", pciAddr)
 			// Check if device ID is in the target list
+			if len(targetDeviceIDs) == 0 {
+				// Default values if not configured
+				targetDeviceIDs = DefaultTargetDeviceIDs
+			}
 			if slices.Contains(targetDeviceIDs, deviceID) {
 				foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
 			} else {
