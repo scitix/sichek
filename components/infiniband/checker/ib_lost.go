@@ -18,7 +18,6 @@ package checker
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
@@ -55,11 +54,11 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	infinibandInfo.RLock()
 	if infinibandInfo.IBCapablePCINum != infinibandInfo.HCAPCINum || (infinibandInfo.HCAPCINum%2 != 0 && infinibandInfo.HCAPCINum != 1) {
 		result.Status = consts.StatusAbnormal
-		result.Detail = "IBCapablePCIDevs: "
+		result.Detail = fmt.Sprintf("IBLost: IBCapablePCINum != HCAPCINum: %d != %d", infinibandInfo.IBCapablePCINum, infinibandInfo.HCAPCINum)
+		result.Detail += "\nIBCapablePCIDevs: "
 		for pciDev := range infinibandInfo.IBPCIDevs {
 			result.Detail += pciDev + ","
 		}
-		result.Detail += "\nHCAPCINum: " + strconv.Itoa(infinibandInfo.HCAPCINum)
 		result.Detail += "\nIBPFDevs: "
 		for ibDev := range infinibandInfo.IBPFDevs {
 			result.Detail += ibDev + ","

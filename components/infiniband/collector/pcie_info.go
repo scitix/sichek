@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/caarlos0/log"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -54,72 +53,6 @@ var (
 		"0x02b2",
 	}
 )
-
-// FindIBPCIDevices finds IB PCI devices
-func FindIBPCIDevices() (map[string]string, error) {
-	log := logrus.WithField("component", "pci-scanner")
-
-	if len(targetDeviceIDs) == 0 {
-		log.Info("Target device ID list is empty, no devices can be matched.")
-		return make(map[string]string), nil
-	}
-
-	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
-	}
-
-	entries, err := os.ReadDir(PCIPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read pci devices directory %s: %w", PCIPath, err)
-	}
-
-	log.Debugf("Scanning PCI devices in %s for vendor ID %s and device IDs %v", PCIPath, targetVendorID, targetDeviceIDs)
-
-	foundDevices := make(map[string]string)
-
-	for _, entry := range entries {
-		pciAddr := entry.Name()
-		deviceDir := filepath.Join(PCIPath, pciAddr)
-
-		// Check if the device has IB/RoCE functionality by checking for infiniband directory
-		infinibandPath := filepath.Join(deviceDir, "infiniband")
-		if _, err := os.Stat(infinibandPath); os.IsNotExist(err) {
-			// This is a management Ethernet card without IB/RoCE functionality, skip it
-			log.Warnf("Skipping device %s: no infiniband directory found (management Ethernet card)", pciAddr)
-			continue
-		}
-
-		// Read and compare vendor ID
-		vendorBytes, err := os.ReadFile(filepath.Join(deviceDir, "vendor"))
-		if err != nil {
-			log.Warnf("Could not read vendor file for %s, skipping. Error: %v", pciAddr, err)
-			continue
-		}
-		currentVendorID := strings.TrimSpace(string(vendorBytes))
-
-		// If vendor ID doesn't match, skip this device directly
-		if !slices.Contains(targetVendorID, currentVendorID) {
-			continue
-		}
-
-		// Vendor ID matches, then read device ID
-		deviceBytes, err := os.ReadFile(filepath.Join(deviceDir, "device"))
-		if err != nil {
-			log.Warnf("Could not read device file for %s, skipping. Error: %v", pciAddr, err)
-			continue
-		}
-		currentDeviceID := strings.TrimSpace(string(deviceBytes))
-
-		// Check if device ID is in the target list
-		if slices.Contains(targetDeviceIDs, currentDeviceID) {
-			log.Debugf("Found matching device: %s with vendor=%s, device=%s ", pciAddr, currentVendorID, currentDeviceID)
-			foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, currentDeviceID)
-		}
-	}
-
-	log.Debugf("Finished PCI scan. Found %d matching devices.", len(foundDevices))
-	return foundDevices, nil
-}
 
 // FindIBPCIDevices finds RDMA-capable PCI devices by checking infiniband sysfs
 func GetRDMACapablePCIeDevices() (map[string]string, error) {
@@ -161,18 +94,18 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 		infinibandPath := filepath.Join(deviceDir, "infiniband")
 		if _, err := os.Stat(infinibandPath); os.IsNotExist(err) {
 			logrus.WithField("component", "pci-scanner").Warnf("Skipping device %s: no infiniband directory found (Maybe a management Ethernet card or IBLost)", pciAddr)
-			continue
+			// Check if device ID is in the target list
+			if slices.Contains(targetDeviceIDs, deviceID) {
+				foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
+			} else {
+				continue
+			}
 		}
-
-		log.Debugf(
-			"Found RDMA PCI device: %s (vendor=%s device=%s)",
-			pciAddr, currentVendorID, deviceID,
-		)
 
 		foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
 	}
 
-	log.Infof("Finished PCI scan. Found %d RDMA-capable devices.", len(foundDevices))
+	logrus.WithField("component", "infiniband").Infof("Finished PCI scan. Found %d RDMA-capable devices.", len(foundDevices))
 	return foundDevices, nil
 }
 
