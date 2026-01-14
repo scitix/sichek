@@ -234,6 +234,9 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		if strings.Contains(devName, "bond") {
 			continue // Skip bonding devices
 		}
+		if strings.Contains(devName, "mezz") {
+			continue // Skip mezzanine card
+		}
 		boardIDPath := filepath.Join(baseDir, devName, "board_id")
 		content, err := os.ReadFile(boardIDPath)
 		if err != nil {
