@@ -378,8 +378,8 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			fmt.Printf("\t%s\n", event)
 		}
 	}
+	logrus.Infof("ibInfo.IBCapablePCINum: %d, ibInfo.HCAPCINum: %d", ibInfo.IBCapablePCINum, ibInfo.HCAPCINum)
 	logrus.Infof("ibInfo.IBPCIDevs: %v", ibInfo.IBPCIDevs)
-	logrus.Infof("ibInfo.HCAPCINum: %d", ibInfo.HCAPCINum)
 	logrus.Infof("ibInfo.IBPFDevs: %v", ibInfo.IBPFDevs)
 	return checkAllPassed
 }
