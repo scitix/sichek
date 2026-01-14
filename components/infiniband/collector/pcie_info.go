@@ -101,16 +101,18 @@ func GetRDMACapablePCIeDevices(targetDeviceIDs []string) (map[string]string, err
 		infinibandPath := filepath.Join(deviceDir, "infiniband")
 		if _, err := os.Stat(infinibandPath); os.IsNotExist(err) {
 			logrus.WithField("component", "pci-scanner").Warnf("Skipping device %s: no infiniband directory found (Maybe a management Ethernet card or IBLost)", pciAddr)
-			// Check if device ID is in the target list
-			if len(targetDeviceIDs) == 0 {
-				// Default values if not configured
-				targetDeviceIDs = DefaultTargetDeviceIDs
-			}
-			if slices.Contains(targetDeviceIDs, deviceID) {
-				foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
-			} else {
-				continue
-			}
+			// // Check if device ID is in the target list
+			// if len(targetDeviceIDs) == 0 {
+			// 	// Default values if not configured
+			// 	targetDeviceIDs = DefaultTargetDeviceIDs
+			// }
+			// if slices.Contains(targetDeviceIDs, deviceID) {
+			// 	foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
+			// } else {
+			// 	continue
+			// }
+			// TODO: Fix device loss detection failure when devices are already missing at startup.
+			continue
 		}
 
 		foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
