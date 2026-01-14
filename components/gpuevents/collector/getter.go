@@ -138,6 +138,7 @@ func (c *GpuIndicatorSnapshot) getInfobyLatestInfo(ctx context.Context) *DeviceI
 		} else {
 			IndicatorValues["gpuidle"] = 0
 		}
+		IndicatorValues["gpustate"] = int64(deviceInfo.States.GpuPstate)
 	}
 	// Update the last update time
 	devIndicatorValues.LastUpdate = info.Time
