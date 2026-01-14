@@ -43,6 +43,7 @@ var (
 
 	targetDeviceIDs = []string{
 		"0x1015", // [ConnectX-4]
+		"0x1019",
 		"0x1017", // [ConnectX-5]
 		"0x101b", // MT28908 Family [ConnectX-6]
 		"0x101d", // MT28908 Family [ConnectX-6]
@@ -56,7 +57,7 @@ var (
 	}
 )
 
-// FindIBPCIDevices finds RDMA-capable PCI devices by checking infiniband sysfs
+// FindIBPCIDevices finds RDMA-capable PCI devices by checking infiniband sysfs, and ignore virtual functions
 func GetRDMACapablePCIeDevices() (map[string]string, error) {
 	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
@@ -72,7 +73,14 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 	for _, entry := range entries {
 		pciAddr := entry.Name()
 		deviceDir := filepath.Join(PCIPath, pciAddr)
-
+		isVirtualFunction, err := IsVirtualFunctionByBDF(pciAddr)
+		if isVirtualFunction {
+			continue
+		}
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("sysfs %s/%s/physfn is abnormal, the node may be unhealthy. Error: %v", PCIPath, pciAddr, err)
+			continue
+		}
 		// Read vendor ID (optional, but strongly recommended to keep)
 		vendorBytes, err := os.ReadFile(filepath.Join(deviceDir, "vendor"))
 		if err != nil {
@@ -109,6 +117,19 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 
 	logrus.WithField("component", "infiniband").Infof("Finished PCI scan. Found %d RDMA-capable devices.", len(foundDevices))
 	return foundDevices, nil
+}
+
+func IsVirtualFunctionByBDF(bdf string) (bool, error) {
+	p := filepath.Join(PCIPath, bdf, "physfn")
+
+	_, err := os.Lstat(p)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 type PCIETreeInfo struct {
