@@ -55,12 +55,12 @@ type IBHardWareInfo struct {
 	PCIETreeSpeedMin string `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
 	PCIETreeWidthMin string `json:"pcie_tree_width" yaml:"pcie_tree_width"`
 	PCIEMRR          string `json:"pcie_mrr" yaml:"pcie_mrr"`
-	Slot             string `json:"slot" yaml:"slot"`
-	NumaNode         string `json:"numa_node" yaml:"numa_node"`
-	CPULists         string `json:"cpu_lists" yaml:"cpu_lists"`
-	FWVer            string `json:"fw_ver" yaml:"fw_ver"`
-	VPD              string `json:"vpd" yaml:"vpd"`
-	OFEDVer          string `json:"ofed_ver" yaml:"ofed_ver"` // compatible with IB Spec Requirement
+	// Slot             string `json:"slot" yaml:"slot"`
+	NumaNode string `json:"numa_node" yaml:"numa_node"`
+	CPULists string `json:"cpu_lists" yaml:"cpu_lists"`
+	FWVer    string `json:"fw_ver" yaml:"fw_ver"`
+	VPD      string `json:"vpd" yaml:"vpd"`
+	OFEDVer  string `json:"ofed_ver" yaml:"ofed_ver"` // compatible with IB Spec Requirement
 }
 
 // Collect collects all hardware information for a given IB device and fills the struct
@@ -86,7 +86,7 @@ func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, ibNicRole s
 
 	// Network device information
 	hw.NetOperstate = hw.GetNetOperstate(IBDev)
-	hw.NetDev = GetIBdev2NetDev(IBDev)
+	hw.NetDev, _ = GetIBdev2NetDev(IBDev)
 
 	// Gateway information
 	hw.PFGW = GetIBGateway().GetPFGW(IBDev)
@@ -297,7 +297,7 @@ func (i *IBHardWareInfo) GetVFNum(IBDev string) string {
 		return "0"
 	}
 
-	netDev := GetIBdev2NetDev(IBDev)
+	netDev, _ := GetIBdev2NetDev(IBDev)
 	cmd := exec.Command("ip", "link", "show", "dev", netDev)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

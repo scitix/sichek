@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -85,4 +86,37 @@ func (sw *IBSoftWareInfo) GetKernelModule() []string {
 	}
 
 	return installedModule
+}
+
+func IsModuleLoaded(moduleName string) bool {
+	file, err := os.Open("/proc/modules")
+	if err != nil {
+		fmt.Printf("Unable to open the /proc/modules file: %v\n", err)
+		return false
+	}
+
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Printf("Error closing file: %v\n", closeErr)
+		}
+	}()
+
+	return checkModuleInFile(moduleName, file)
+}
+
+func checkModuleInFile(moduleName string, file *os.File) bool {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == moduleName {
+			return true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("An error occurred while reading the file: %v\n", err)
+	}
+
+	return false
 }

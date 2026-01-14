@@ -49,39 +49,6 @@ var (
 	}
 )
 
-func IsModuleLoaded(moduleName string) bool {
-	file, err := os.Open("/proc/modules")
-	if err != nil {
-		fmt.Printf("Unable to open the /proc/modules file: %v\n", err)
-		return false
-	}
-
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			fmt.Printf("Error closing file: %v\n", closeErr)
-		}
-	}()
-
-	return checkModuleInFile(moduleName, file)
-}
-
-func checkModuleInFile(moduleName string, file *os.File) bool {
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-		if len(fields) > 0 && fields[0] == moduleName {
-			return true
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Printf("An error occurred while reading the file: %v\n", err)
-	}
-
-	return false
-}
-
 func ListDir(dir string) ([]string, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -190,20 +157,20 @@ func getBondInterface(slaveInterface string) (string, bool) {
 // GetIBdev2NetDev returns final network interfaces for an IB device.
 // - PF only (VF should already be filtered outside)
 // - Bond-aware
-func GetIBdev2NetDev(ibDev string) string {
+func GetIBdev2NetDev(ibDev string) (string, bool) {
 	netPath := filepath.Join("/sys/class/infiniband", ibDev, "device/net")
 	physDevs, err := os.ReadDir(netPath)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("failed to GetIBdev2NetDev for %s: %v", ibDev, err)
-		return ""
+		return "", false
 	}
 	if len(physDevs) == 0 {
 		logrus.WithField("component", "infiniband").Errorf("no network interface found for IB device %s", ibDev)
-		return ""
+		return "", false
 	}
 	physicalIface := physDevs[0].Name()
 	if bond, ok := getBondInterface(physicalIface); ok {
-		return bond
+		return bond, true
 	}
-	return physicalIface
+	return physicalIface, false
 }

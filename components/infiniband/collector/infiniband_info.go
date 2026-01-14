@@ -32,31 +32,33 @@ import (
 )
 
 type InfinibandInfo struct {
-	HCAPCINum      int                       `json:"hca_pci_num" yaml:"hca_pci_num"`
-	IBPFDevs       map[string]string         `json:"ib_dev" yaml:"ib_dev"`
-	IBPCIDevs      map[string]string         `json:"hca_pci_dev" yaml:"hca_pci_dev"`
-	IBHardWareInfo map[string]IBHardWareInfo `json:"ib_hardware_info" yaml:"ib_hardware_info"`
-	IBSoftWareInfo IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
-	PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
-	IBCounters     map[string]IBCounters     `json:"ib_counters" yaml:"ib_counters"`
-	IBNicRole      string                    `json:"ib_nic_role" yaml:"ib_nic_role"`
-	Time           time.Time                 `json:"time" yaml:"time"`
-	mu             sync.RWMutex
+	HCAPCINum       int                       `json:"hca_pci_num" yaml:"hca_pci_num"`
+	IBCapablePCINum int                       `json:"ib_capable_pci_num" yaml:"ib_capable_pci_num"`
+	IBPFDevs        map[string]string         `json:"ib_dev" yaml:"ib_dev"`
+	IBPCIDevs       map[string]string         `json:"hca_pci_dev" yaml:"hca_pci_dev"`
+	IBHardWareInfo  map[string]IBHardWareInfo `json:"ib_hardware_info" yaml:"ib_hardware_info"`
+	IBSoftWareInfo  IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
+	// PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
+	IBCounters map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
+	IBNicRole  string                `json:"ib_nic_role" yaml:"ib_nic_role"`
+	Time       time.Time             `json:"time" yaml:"time"`
+	mu         sync.RWMutex
 }
 
 func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	i := &InfinibandInfo{
 		IBHardWareInfo: make(map[string]IBHardWareInfo),
 		IBSoftWareInfo: IBSoftWareInfo{},
-		PCIETreeInfo:   make(map[string]PCIETreeInfo),
-		IBPFDevs:       make(map[string]string),
-		IBCounters:     make(map[string]IBCounters),
-		mu:             sync.RWMutex{},
+		// PCIETreeInfo:   make(map[string]PCIETreeInfo),
+		IBPFDevs:   make(map[string]string),
+		IBCounters: make(map[string]IBCounters),
+		mu:         sync.RWMutex{},
 	}
 	i.IBNicRole = i.GetNICRole()
 	var err error
 	// Get PCIe device list at collector initialization
 	i.IBPCIDevs, err = GetRDMACapablePCIeDevices()
+	i.IBCapablePCINum = len(i.IBPCIDevs)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)
 	}
@@ -95,6 +97,7 @@ func (i *InfinibandInfo) Unlock() {
 func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	i.IBPFDevs = i.GetIBPFdevs()
 	i.HCAPCINum = countHCAPCINum(i.IBPFDevs)
+	i.IBSoftWareInfo.Collect(ctx)
 
 	// // IBPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
 	for IBDev := range i.IBPFDevs {
@@ -140,58 +143,49 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 	return i, nil
 }
 
-func isIBBondDev(ibDev string) bool {
-	return strings.HasPrefix(ibDev, "mlx5_bond_")
-}
-
-func hcaPCINumForIBDev(ibDev string) int {
-	if isIBBondDev(ibDev) {
-		// if ignoreByHCATYPE(ibDev) {
-		// 	return 0
-		// }
-		return 2
-	}
-	return 1
-}
-
 func countHCAPCINum(ibPFDevs map[string]string) int {
 	pciNum := 0
 	// // ibPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
 	for ibDev := range ibPFDevs {
-		pciNum += hcaPCINumForIBDev(ibDev)
+		_, isBond := GetIBdev2NetDev(ibDev)
+		if isBond {
+			pciNum += 2
+		} else {
+			pciNum += 1
+		}
 	}
 
 	return pciNum
 }
 
 // TODO: Why should it be ignored??? Make it configurable
-var ignoredHCATypes = []string{
-	"MT4117", // CX4
-	"MT4119",
-}
+// var ignoredHCATypes = []string{
+// 	"MT4117", // CX4
+// 	"MT4119",
+// }
 
-func ignoreByHCATYPE(ibDev string) bool {
-	hcaTypePath := path.Join(IBSYSPathPre, ibDev, "hca_type")
+// func ignoreByHCATYPE(ibDev string) bool {
+// 	hcaTypePath := path.Join(IBSYSPathPre, ibDev, "hca_type")
 
-	content, err := os.ReadFile(hcaTypePath)
-	if err != nil {
-		logrus.WithField("component", "infiniband").
-			Warnf("ignoring IBDev %s: failed to read hca_type (%v)", ibDev, err)
-		return true
-	}
+// 	content, err := os.ReadFile(hcaTypePath)
+// 	if err != nil {
+// 		logrus.WithField("component", "infiniband").
+// 			Warnf("ignoring IBDev %s: failed to read hca_type (%v)", ibDev, err)
+// 		return true
+// 	}
 
-	hcaType := strings.TrimSpace(string(content))
+// 	hcaType := strings.TrimSpace(string(content))
 
-	for _, t := range ignoredHCATypes {
-		if strings.Contains(hcaType, t) {
-			logrus.WithField("component", "infiniband").
-				Infof("ignoring IBDev %s due to HCA type: %s", ibDev, hcaType)
-			return true
-		}
-	}
+// 	for _, t := range ignoredHCATypes {
+// 		if strings.Contains(hcaType, t) {
+// 			logrus.WithField("component", "infiniband").
+// 				Infof("ignoring IBDev %s due to HCA type: %s", ibDev, hcaType)
+// 			return true
+// 		}
+// 	}
 
-	return false
-}
+// 	return false
+// }
 
 func ignoreVirtualFunction(ibDev string) bool {
 	vfPath := path.Join(IBSYSPathPre, ibDev, "device", "physfn")
@@ -207,14 +201,14 @@ func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDevs {
 
-		// ignore cx4 interface: why???
-		shouldIgnore := ignoreByHCATYPE(IBDev)
-		if shouldIgnore {
-			continue
-		}
+		// // ignore cx4 interface: why???
+		// shouldIgnore := ignoreByHCATYPE(IBDev)
+		// if shouldIgnore {
+		// 	continue
+		// }
 
 		// ignore virtual functions
-		shouldIgnore = ignoreVirtualFunction(IBDev)
+		shouldIgnore := ignoreVirtualFunction(IBDev)
 		if shouldIgnore {
 			continue
 		}
@@ -224,7 +218,7 @@ func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
 	return PFDevs
 }
 
-// GetIBPFdevs Get IB PF devices igoring cx4 and virtual functions and bond devices
+// GetIBPFdevs Get IB PF devices igoring virtual functions and bond devices
 func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 	allIBDevs, err := GetFileCnt(IBSYSPathPre)
 	if err != nil {
@@ -235,11 +229,10 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 
 	IBPFDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
-		// TODO: why ignore bonded IB devices?
 		// if isIBBondDev(IBDev) {
 		// 	continue
 		// }
-		ibNetDev := GetIBdev2NetDev(IBDev)
+		ibNetDev, _ := GetIBdev2NetDev(IBDev)
 		IBPFDevs[IBDev] = ibNetDev
 	}
 	logrus.WithField("component", "infiniband").Debugf("get the IB and net map: %v", IBPFDevs)

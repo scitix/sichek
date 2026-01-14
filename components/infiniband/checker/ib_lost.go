@@ -53,15 +53,15 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result.Status = consts.StatusNormal
 
 	infinibandInfo.RLock()
-	if len(infinibandInfo.IBPCIDevs) != infinibandInfo.HCAPCINum {
+	if len(infinibandInfo.IBPCIDevs) != infinibandInfo.HCAPCINum || (infinibandInfo.HCAPCINum%2 != 0 && infinibandInfo.HCAPCINum != 1) {
 		result.Status = consts.StatusAbnormal
 		result.Detail = "IBCapablePCIDevs: "
-		for pciDev, _ := range infinibandInfo.IBPCIDevs {
+		for pciDev := range infinibandInfo.IBPCIDevs {
 			result.Detail += pciDev + ","
 		}
 		result.Detail += "\nHCAPCINum: " + strconv.Itoa(infinibandInfo.HCAPCINum)
 		result.Detail += "\nIBPFDevs: "
-		for ibDev, _ := range infinibandInfo.IBPFDevs {
+		for ibDev := range infinibandInfo.IBPFDevs {
 			result.Detail += ibDev + ","
 		}
 	}

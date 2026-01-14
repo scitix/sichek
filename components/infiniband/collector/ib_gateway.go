@@ -65,7 +65,7 @@ func (gw *IBGateway) GetPFGW(IBDev string) string {
 		return ""
 
 	case "Ethernet":
-		ifaceName := GetIBdev2NetDev(IBDev)
+		ifaceName, _ := GetIBdev2NetDev(IBDev)
 		_, hasIPv6, err := gw.CheckIPVersionViaSysfs(ifaceName)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Errorf("Failed to check IP version for interface %s: %v", ifaceName, err)
