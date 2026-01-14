@@ -94,7 +94,9 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIEMRR)
 			faiedHcasCurr = append(faiedHcasCurr, hwInfo.PCIEMRR)
 			// auto fix if the curr not match the spec
-			infinibandInfo.ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)
+			if err := collector.ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5); err != nil {
+				logrus.WithField("component", "infiniband").Errorf("Failed to modify PCIe Max Read Request for %s: %v", hwInfo.PCIEBDF, err)
+			}
 		}
 	}
 	infinibandInfo.RUnlock()

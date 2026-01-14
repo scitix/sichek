@@ -180,29 +180,19 @@ func getActiveIBPFDevices() ([]collector.IBHardWareInfo, []collector.IBHardWareI
 	ibDevs := info.GetIBPFdevs()
 	var activeDevices []collector.IBHardWareInfo
 	var deactiveDevices []collector.IBHardWareInfo
+
 	for mlxDev := range ibDevs {
 		var hwInfo collector.IBHardWareInfo
 		hwInfo.IBDev = mlxDev
-		phyStats := info.GetPhyStat(mlxDev)
-		if len(phyStats) > 0 {
-			hwInfo.PhyState = phyStats[0]
-		} else {
-			hwInfo.PhyState = "UNKNOWN"
-		}
+		hwInfo.PhyState = hwInfo.GetPhyStat(mlxDev)
+		hwInfo.PortState = hwInfo.GetIBStat(mlxDev)
 
-		portStates := info.GetIBStat(mlxDev)
-		if len(portStates) > 0 {
-			hwInfo.PortState = portStates[0]
-		} else {
-			hwInfo.PortState = "UNKNOWN"
-		}
-
-		numaNodes := info.GetNumaNode(mlxDev)
+		numaNodes := collector.GetNumaNode(mlxDev)
 		if len(numaNodes) > 0 {
 			hwInfo.NumaNode = numaNodes[0]
 		}
 
-		cpuLists := info.GetCPUList(mlxDev)
+		cpuLists := collector.GetCPUList(mlxDev)
 		if len(cpuLists) > 0 {
 			hwInfo.CPULists = cpuLists[0]
 		}
