@@ -102,6 +102,7 @@ func (c *SmClkStuckLowChecker) Check(ctx context.Context, data any) (*common.Che
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status
 	result.Detail = raw
+	result.Suggestion = fmt.Sprintf("check GPUs whose smclk is lower than %d more than %s \n", SmClkLowThreshold, c.spec.DurationThreshold)
 	return result, nil
 }
 
