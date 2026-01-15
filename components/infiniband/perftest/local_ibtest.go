@@ -238,6 +238,10 @@ func CheckNodeIBPerfHealth(
 	usedDeviceInfos := make([]collector.IBHardWareInfo, 0)
 	var usedDeviceStrings []string
 	for _, dev := range activeDeviceInfos {
+		if strings.Contains(dev.IBDev, "mezz") {
+			fmt.Printf("Skip mezzanine card %s\n", dev.IBDev)
+			continue
+		}
 		if ibDevice == "" {
 			usedDeviceInfos = append(usedDeviceInfos, dev)
 			usedDeviceStrings = append(usedDeviceStrings, dev.IBDev)
