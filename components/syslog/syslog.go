@@ -146,12 +146,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if c.initError != nil {
 		logrus.WithField("component", "syslog").Errorf("report initError: %v", c.initError)
 		checkerResult := &common.CheckerResult{
-			Name:        "SyslogInitError",
+			Name:        "InitError",
 			Description: "Syslog component initialization failed",
 			Status:      consts.StatusAbnormal,
 			Level:       consts.LevelCritical,
-			Detail:      c.initError.Error(),
-			ErrorName:   "SyslogInitError",
+			Curr:        c.initError.Error(),
+			ErrorName:   "InitError",
 			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
 		}
 		result := &common.Result{

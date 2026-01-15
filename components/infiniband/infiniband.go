@@ -166,12 +166,12 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if c.initError != nil {
 		logrus.WithField("component", "infiniband").Errorf("report initError: %v", c.initError)
 		checkerResult := &common.CheckerResult{
-			Name:        "IbInitError",
+			Name:        "InitError",
 			Description: "Infiniband component initialization failed",
 			Status:      consts.StatusAbnormal,
 			Level:       consts.LevelCritical,
-			Detail:      c.initError.Error(),
-			ErrorName:   "IbInitError",
+			Curr:        c.initError.Error(),
+			ErrorName:   "InitError",
 			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
 		}
 		result := &common.Result{
