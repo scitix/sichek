@@ -63,7 +63,7 @@ spec:
             - "-c"
             - |-
               {{- if ne .Values.defaultSpec "default" }}
-              mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+              cp /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml || true
               {{- end }}
               {{ .Values.batchjob.cmd }}
           resources:
