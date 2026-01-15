@@ -164,23 +164,7 @@ func (c *component) Name() string {
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if c.initError != nil {
-		logrus.WithField("component", "infiniband").Errorf("report initError: %v", c.initError)
-		checkerResult := &common.CheckerResult{
-			Name:        "InitError",
-			Description: "Infiniband component initialization failed",
-			Status:      consts.StatusAbnormal,
-			Level:       consts.LevelCritical,
-			Curr:        c.initError.Error(),
-			ErrorName:   "InitError",
-			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
-		}
-		result := &common.Result{
-			Item:     consts.ComponentNameInfiniband,
-			Status:   consts.StatusAbnormal,
-			Checkers: []*common.CheckerResult{checkerResult},
-			Time:     time.Now(),
-		}
-		return result, nil
+		return c.reportInitErrorResult(), nil
 	}
 
 	info, err := c.collector.Collect(ctx)
@@ -201,10 +185,15 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	result := common.Check(ctx, c.componentName, InfinibandInfo, c.checkers)
-	// infoJson, err := InfinibandInfo.JSON()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to convert infiniband info to JSON: %w", err)
-	// }
+	// WARNING:
+	// When there is no intersection between `ibSpec.IBPFDevs` and `devBoardIDMap` discovered,
+	// the trimming operation in spec.gomay result in an empty `ibSpec.IBPFDevs`.
+	// This is considered an abnormal state and should trigger an alert,
+	// as it likely indicates a serious inconsistency in device discovery or spec synchronization.
+	if len(c.spec.IBPFDevs) == 0 {
+		result.Status = consts.StatusAbnormal
+		result.Checkers = append(result.Checkers, c.buildSpecEmptyErrorResult())
+	}
 
 	// result.RawData = infoJson
 	c.cacheMtx.Lock()
@@ -293,6 +282,39 @@ func (c *component) GetTimeout() time.Duration {
 	c.cfgMutex.RLock()
 	defer c.cfgMutex.RUnlock()
 	return c.cfg.GetQueryInterval().Duration
+}
+
+func (c *component) reportInitErrorResult() *common.Result {
+	logrus.WithField("component", "infiniband").Errorf("report initError: %v", c.initError)
+	checkerResult := &common.CheckerResult{
+		Name:        "InitError",
+		Description: "Infiniband component initialization failed",
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		Curr:        c.initError.Error(),
+		ErrorName:   "InitError",
+		Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+	}
+	result := &common.Result{
+		Item:     consts.ComponentNameInfiniband,
+		Status:   consts.StatusAbnormal,
+		Checkers: []*common.CheckerResult{checkerResult},
+		Time:     time.Now(),
+	}
+	return result
+}
+
+func (c *component) buildSpecEmptyErrorResult() *common.CheckerResult {
+	logrus.WithField("component", "infiniband").Errorf("report specEmptyError")
+	checkerResult := &common.CheckerResult{
+		Name:        "SpecEmptyError",
+		Description: "No IB devices specified in spec",
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		ErrorName:   "SpecEmptyError",
+		Suggestion:  "Please check the spec and ensure all dependencies are properly configured",
+	}
+	return checkerResult
 }
 
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
