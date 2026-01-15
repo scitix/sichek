@@ -25,6 +25,8 @@ spec:
                 - |
                   sleep infinity
               env:
+                - name: SICHEK_SPEC_URL
+                  value: https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/specs
                 - name: NODE_NAME
                   valueFrom:
                     fieldRef:
@@ -79,6 +81,8 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               env:
+                - name: SICHEK_SPEC_URL
+                  value: https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/specs
                 - name: NODE_NAME
                   valueFrom:
                     fieldRef:

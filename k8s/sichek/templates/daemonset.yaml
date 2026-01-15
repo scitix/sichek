@@ -90,19 +90,27 @@ spec:
               export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/host-nvidia
               sichek daemon run -s /var/sichek/config/{{ .Values.defaultSpec }}
           env:
+          - name: SICHEK_SPEC_URL
+            value: https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/specs
           - name: NODE_NAME
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
           volumeMounts:
-            {{- toYaml . | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- with .Values.volumes }}
+          {{- with .Values.extraVolumeMountsForDeploy }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
       volumes:
-        {{- toYaml . | nindent 8 }}
+      {{- with .Values.volumes }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.extraVolumesForDeploy }}
+      {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

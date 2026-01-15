@@ -87,6 +87,8 @@ volumes:
 - name: host-var-lib-kubelet
   hostPath:
     path: /var/lib/kubelet
+
+extraVolumesForDeploy:
 - name: host-run-nvidia-fabricmanager
   hostPath:
     path: /run/nvidia-fabricmanager
@@ -124,6 +126,8 @@ volumeMounts:
 - name: host-var-lib-kubelet
   mountPath: /var/lib/kubelet
   readOnly: true
+
+extraVolumeMountsForDeploy:
 - name: host-run-nvidia-fabricmanager
   mountPath: /run/nvidia-fabricmanager
   readOnly: true
