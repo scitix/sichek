@@ -57,6 +57,8 @@ type component struct {
 
 	service *common.CommonService
 	metrics *metrics.IBMetrics
+
+	initError error // Track initialization errors with detailed information
 }
 
 func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (common.Component, error) {
@@ -74,30 +76,49 @@ func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 
 func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
-	// load user config
+	component := &component{
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameInfiniband,
+	}
+
+	// load user config first (needed for service creation even if spec fails)
 	cfg := &config.InfinibandUserConfig{}
 	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Infiniband == nil {
 		logrus.WithField("component", "infiniband").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
-		return nil, fmt.Errorf("get user confgig failed: %w", err)
+		component.initError = fmt.Errorf("get user confgig failed: %w", err)
+		// Even if config loading fails, try to create service with a default config to report init error
+		defaultCfg := &config.InfinibandUserConfig{
+			Infiniband: &config.InfinibandConfig{
+				QueryInterval: common.Duration{Duration: 10 * time.Second},
+				CacheSize:     5,
+			},
+		}
+		component.cfg = defaultCfg
+		component.service = common.NewCommonService(ctx, defaultCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
 	if len(ignoredCheckers) > 0 {
 		cfg.Infiniband.IgnoredCheckers = ignoredCheckers
 	}
+	component.cfg = cfg
+
+	component.cacheBuffer = make([]*common.Result, cfg.Infiniband.CacheSize)
+	component.cacheInfo = make([]common.Info, cfg.Infiniband.CacheSize)
+	component.currIndex = 0
+	component.cacheSize = cfg.Infiniband.CacheSize
 
 	// load spec file
 	ibSpec, err := config.LoadSpec(specFile)
 	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("NewComponent load spec config failed: %v", err)
-		return nil, fmt.Errorf("load spec file failed: %w", err)
+		logrus.WithField("component", "infiniband").Errorf("load spec config failed: %v", err)
+		component.initError = fmt.Errorf("spec loading failed: %v", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
+	component.spec = ibSpec
 
-	// log spec in json format
 	specJSON, jsonErr := json.MarshalIndent(ibSpec, "", "  ")
 	if jsonErr != nil {
 		logrus.WithField("component", "infiniband").Errorf("Failed to marshal spec to JSON: %v", jsonErr)
@@ -106,9 +127,8 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}
 
 	// initialize metrics if enabled
-	var infinibandMetrics *metrics.IBMetrics
 	if cfg.Infiniband.EnableMetrics {
-		infinibandMetrics = metrics.NewInfinibandMetrics()
+		component.metrics = metrics.NewInfinibandMetrics()
 	}
 
 	// create collector
@@ -116,30 +136,22 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	collector, err := collector.NewIBCollector(ctx, targetDeviceIDs)
 	if err != nil {
 		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
-		return nil, fmt.Errorf("failed to create infiniband collector: %w", err)
+		component.initError = fmt.Errorf("failed to create infiniband collector: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
+	component.collector = collector
 
 	// create checkers
 	checkers, err := checker.NewCheckers(cfg, ibSpec, collector)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
-		return nil, fmt.Errorf("failed to create infiniband checkers: %w", err)
+		component.initError = fmt.Errorf("failed to create infiniband checkers: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
+	component.checkers = checkers
 
-	component := &component{
-		ctx:           ctx,
-		cancel:        cancel,
-		spec:          ibSpec,
-		componentName: consts.ComponentNameInfiniband,
-		checkers:      checkers,
-		cfg:           cfg,
-		collector:     collector,
-		cacheBuffer:   make([]*common.Result, cfg.Infiniband.CacheSize),
-		cacheInfo:     make([]common.Info, cfg.Infiniband.CacheSize),
-		currIndex:     0,
-		cacheSize:     cfg.Infiniband.CacheSize,
-		metrics:       infinibandMetrics,
-	}
 	// create common service
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 
@@ -151,6 +163,26 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
+	if c.initError != nil {
+		logrus.WithField("component", "infiniband").Errorf("report initError: %v", c.initError)
+		checkerResult := &common.CheckerResult{
+			Name:        "IbInitError",
+			Description: "Infiniband component initialization failed",
+			Status:      consts.StatusAbnormal,
+			Level:       consts.LevelCritical,
+			Detail:      c.initError.Error(),
+			ErrorName:   "IbInitError",
+			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+		}
+		result := &common.Result{
+			Item:     consts.ComponentNameInfiniband,
+			Status:   consts.StatusAbnormal,
+			Checkers: []*common.CheckerResult{checkerResult},
+			Time:     time.Now(),
+		}
+		return result, nil
+	}
+
 	info, err := c.collector.Collect(ctx)
 	ibInfo, _ := json.MarshalIndent(info, "", "  ")
 	logrus.WithField("component", "Infiniband").Debugf("Collecting Infiniband info: %v", string(ibInfo))

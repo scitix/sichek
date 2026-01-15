@@ -243,6 +243,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		}
 
 		// Check each board ID and fill in missing specs from hcaSpecs
+		var missingBoardIDs []string
 		for _, boardID := range ibDevs {
 			spec, exists := ibSpec.HCAs[boardID]
 			if !exists || spec == nil {
@@ -254,6 +255,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				} else {
 					logrus.WithField("component", "infiniband").
 						Warnf("spec for board ID %s not found in HCA configs", boardID)
+					missingBoardIDs = append(missingBoardIDs, boardID)
 				}
 			} else if spec.Hardware.BoardID != boardID {
 				// If board ID doesn't match, try to get from hcaSpecs
@@ -266,12 +268,19 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				} else {
 					logrus.WithField("component", "infiniband").
 						Warnf("spec for board ID %s not found in HCA configs", boardID)
+					missingBoardIDs = append(missingBoardIDs, boardID)
 				}
 			} else {
 				logrus.WithField("component", "infiniband").
 					Infof("spec for board ID %s matches the hardware board ID %s", boardID, spec.Hardware.BoardID)
 			}
 		}
+
+		// Return error if any board IDs are missing specs
+		if len(missingBoardIDs) > 0 {
+			return ibSpec, fmt.Errorf("spec not found for board IDs: %v, please check the HCA configuration", missingBoardIDs)
+		}
+
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)

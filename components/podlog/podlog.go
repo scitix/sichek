@@ -53,6 +53,8 @@ type component struct {
 	cacheSize         int64
 
 	service *common.CommonService
+
+	initError error // Track initialization errors with detailed information
 }
 
 var (
@@ -75,22 +77,36 @@ func NewComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPer
 
 func newComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPercent int64) (comp common.Component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
+	component := &component{
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNamePodlog,
+		cfgMutex:      sync.Mutex{},
+	}
 
 	cfg := &config.PodlogUserConfig{}
 	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Podlog == nil {
 		logrus.WithField("component", "podlog").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
-		return nil, fmt.Errorf("NewNcclComponent get user config failed")
+		component.initError = fmt.Errorf("get user config failed: %w", err)
+		defaultCfg := &config.PodlogUserConfig{
+			Podlog: &config.PodLogConfig{
+				QueryInterval: common.Duration{Duration: 10 * time.Second},
+				CacheSize:     5,
+			},
+		}
+		component.cfg = defaultCfg
+		component.service = common.NewCommonService(ctx, defaultCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
+	component.cfg = cfg
+
 	eventRules, err := config.LoadDefaultEventRules()
 	if err != nil {
 		logrus.WithField("component", "podlog").Errorf("failed to NewComponent: %v", err)
-		return nil, err
+		component.initError = fmt.Errorf("failed to load event rules: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
 
 	// if skipPercent is -1, use the value from the config file
@@ -103,22 +119,15 @@ func newComponent(cfgFile string, specFile string, onlyRunningPods bool, skipPer
 	}
 
 	podResourceMapper := k8s.NewPodResourceMapper()
-	component := &component{
-		ctx:           ctx,
-		cancel:        cancel,
-		componentName: consts.ComponentNamePodlog,
-		cfg:           cfg,
-		eventRule:     eventRules,
+	component.eventRule = eventRules
+	component.podResourceMapper = podResourceMapper
+	component.onlyRunningPods = onlyRunningPods
+	component.skipPercent = skipPercent
+	component.cacheResultBuffer = make([]*common.Result, cfg.Podlog.CacheSize)
+	component.cacheInfoBuffer = make([]common.Info, cfg.Podlog.CacheSize)
+	component.currIndex = 0
+	component.cacheSize = cfg.Podlog.CacheSize
 
-		podResourceMapper: podResourceMapper,
-		onlyRunningPods:   onlyRunningPods,
-		skipPercent:       skipPercent,
-
-		cacheResultBuffer: make([]*common.Result, cfg.Podlog.CacheSize),
-		cacheInfoBuffer:   make([]common.Info, cfg.Podlog.CacheSize),
-		currIndex:         0,
-		cacheSize:         cfg.Podlog.CacheSize,
-	}
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	return component, nil
 }
@@ -128,6 +137,26 @@ func (c *component) Name() string {
 }
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
+	if c.initError != nil {
+		logrus.WithField("component", "podlog").Errorf("report initError: %v", c.initError)
+		checkerResult := &common.CheckerResult{
+			Name:        "PodlogInitError",
+			Description: "Podlog component initialization failed",
+			Status:      consts.StatusAbnormal,
+			Level:       consts.LevelCritical,
+			Detail:      c.initError.Error(),
+			ErrorName:   "PodlogInitError",
+			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+		}
+		result := &common.Result{
+			Item:     consts.ComponentNamePodlog,
+			Status:   consts.StatusAbnormal,
+			Checkers: []*common.CheckerResult{checkerResult},
+			Time:     time.Now(),
+		}
+		return result, nil
+	}
+
 	var allFiles []string
 	var err error
 	if c.onlyRunningPods {
