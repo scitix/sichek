@@ -16,6 +16,7 @@ defaultSpec: default # Define the default spec for sichek
 os: "ubuntu" # Define the os for sichek run, options: ubuntu, centos
 schedulerName: "si-scheduler" # Define the scheduler name
 roceSharedMode: none # specified RDMA shared mode, options: vf, macvlan, none
+sichekSpecUrl: https://oss-ap-southeast.scitix.ai/hisys-sichek/specs
 
 daemon:
   gpuLabel: "" # Define the gpu node label to deploy sichek daemon; leave it empty if not specified
