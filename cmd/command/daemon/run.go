@@ -77,7 +77,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				cfgFile, err = specgen.EnsureSpecFile(cfgFile)
+				cfgFile, err = specgen.EnsureCfgFile(cfgFile)
 				if err != nil {
 					logrus.WithField("daemon", "run").Errorf("using default cfgFile: %v", err)
 				} else {
