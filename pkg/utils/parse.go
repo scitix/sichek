@@ -18,6 +18,7 @@ package utils
 import (
 	"encoding/json"
 	"os"
+	"regexp"
 	"strconv"
 
 	"sigs.k8s.io/yaml"
@@ -58,4 +59,17 @@ func ParseBoolToFloat(b bool) float64 {
 		return 1.0
 	}
 	return 0.0
+}
+
+func ExtractClusterName() string {
+	nodeName := os.Getenv("NODE_NAME")
+	if nodeName == "" {
+		return "default"
+	}
+	re := regexp.MustCompile(`^([a-zA-Z]+)-?\d*`)
+	matches := re.FindStringSubmatch(nodeName)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return "default"
 }

@@ -17,9 +17,7 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -143,19 +141,6 @@ func (s *InfinibandSpecs) tryLoadFromDevConfig() error {
 	return err
 }
 
-func extractClusterName() string {
-	nodeName := os.Getenv("NODE_NAME")
-	if nodeName == "" {
-		return "default"
-	}
-	re := regexp.MustCompile(`^([a-zA-Z]+)-?\d*`)
-	matches := re.FindStringSubmatch(nodeName)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-	return "default"
-}
-
 // FilterSpec retrieves the InfiniBand specification for the current cluster.
 // If no specific cluster specification is found, it falls back to the default specification from SICHEK_SPEC_URL.
 // If no default specification is found, it returns an error.
@@ -165,7 +150,7 @@ func extractClusterName() string {
 func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 	var ibSpec *InfinibandSpec
 	if specs != nil && specs.Specs != nil {
-		clusterName := extractClusterName()
+		clusterName := utils.ExtractClusterName()
 		if spec, ok := specs.Specs[clusterName]; ok {
 			logrus.WithField("infiniband", "spec").
 				Warnf("Using specific InfiniBand specification for cluster %s", clusterName)

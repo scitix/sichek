@@ -28,6 +28,7 @@ import (
 
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/httpclient"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -96,39 +97,40 @@ func promptFloat(msg string, def ...float64) float64 {
 
 // EnsureSpecFile ensures a spec file is available locally.
 // Priority:
-//  1. Empty specName -> return empty, caller uses default
+//  1. Empty specName -> use cluster name to get spec file name
 //  2. URL           -> download to default spec dir
 //  3. Existing path -> use directly
 //  4. Filename      -> check default dir, otherwise download from SICHEK_SPEC_URL
 func EnsureSpecFile(specName string) (string, error) {
-	// Case 1:if specName is empty, return empty to caller to use default spec file
+	// if specName is empty, use cluster name to get spec file name
 	if specName == "" {
-		return "", nil
+		clusterName = utils.ExtractClusterName()
+		specName = fmt.Sprintf("%s_spec.yaml", clusterName)
 	}
 
 	targetDir := consts.DefaultProductionCfgPath
 
-	// Case 2: URL
+	// Case 1: URL
 	if isURL(specName) {
 		return downloadSpec(specName, targetDir)
 	}
 
-	// Case 3: Existing local path (absolute or relative)
+	// Case 2: Existing local path (absolute or relative)
 	if fileExists(specName) {
-		logrus.WithField("component", "specgen").Infof("spec file found at path: %s", specName)
+		logrus.WithField("component", "specgen").Warnf("using existing spec file at path: %s", specName)
 		return specName, nil
 	}
 
-	// Case 4: Treat as filename under default directory
+	// Case 3: Treat as filename under default directory
 	fileName := filepath.Base(specName)
 	specPath := filepath.Join(targetDir, fileName)
 
 	if fileExists(specPath) {
-		logrus.WithField("component", "specgen").Infof("spec file found in default dir: %s", specPath)
+		logrus.WithField("component", "specgen").Warnf("using existing spec file in default dir: %s", specPath)
 		return specPath, nil
 	}
 
-	// Case 5: Download from SICHEK_SPEC_URL
+	// Case 4: Download from SICHEK_SPEC_URL
 	specURL := httpclient.GetSichekSpecURL()
 	if specURL == "" {
 		return "", fmt.Errorf("spec file %q not found locally and SICHEK_SPEC_URL is not set", specName)
@@ -178,6 +180,6 @@ func downloadSpecToPath(url, specPath string) (string, error) {
 	if err := os.Rename(tmpPath, specPath); err != nil {
 		return "", fmt.Errorf("failed to move spec file into place: %w", err)
 	}
-
+	logrus.WithField("component", "specgen").Warnf("using spec file %s, downloaded from %s", specPath, url)
 	return specPath, nil
 }
