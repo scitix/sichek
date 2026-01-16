@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
@@ -52,9 +53,21 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result.Status = consts.StatusNormal
 
 	infinibandInfo.RLock()
-	if infinibandInfo.IBCapablePCINum != infinibandInfo.HCAPCINum || !isValidHCAPCINum(infinibandInfo.HCAPCINum) {
+	specHCANum := c.spec.HCANum
+	for mlx5Dev := range infinibandInfo.IBPFDevs {
+		// skip mezzanine card in check
+		if strings.Contains(mlx5Dev, "mezz") {
+			specHCANum--
+		}
+	}
+	if infinibandInfo.HCAPCINum != infinibandInfo.IBCapablePCINum {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("IBLost: IBCapablePCINum != HCAPCINum: %d != %d", infinibandInfo.IBCapablePCINum, infinibandInfo.HCAPCINum)
+		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum)
+	} else if infinibandInfo.HCAPCINum != specHCANum {
+		result.Status = consts.StatusAbnormal
+		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != specHCANum(%d != %d)", infinibandInfo.HCAPCINum, specHCANum)
+	}
+	if result.Status == consts.StatusAbnormal {
 		result.Detail += "\nIBCapablePCIDevs: "
 		for pciDev := range infinibandInfo.IBPCIDevs {
 			result.Detail += pciDev + ","
@@ -66,13 +79,4 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	}
 	infinibandInfo.RUnlock()
 	return &result, nil
-}
-
-func isValidHCAPCINum(n int) bool {
-	switch n {
-	case 1, 2, 4, 8, 12:
-		return true
-	default:
-		return false
-	}
 }
