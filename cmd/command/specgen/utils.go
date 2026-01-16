@@ -28,6 +28,7 @@ import (
 
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/httpclient"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -94,44 +95,91 @@ func promptFloat(msg string, def ...float64) float64 {
 	return val
 }
 
-// EnsureSpecFile ensures a spec file exists locally, or downloading from remote SICHEK_SPEC_URL if needed
+// EnsureSpecFile ensures a spec file is available locally.
+// Priority:
+//  1. Empty specName -> use cluster name to get spec file name
+//  2. URL           -> download to default spec dir
+//  3. Existing path -> use directly
+//  4. Filename      -> check default dir, otherwise download from SICHEK_SPEC_URL
 func EnsureSpecFile(specName string) (string, error) {
-	// if specName is empty, return empty to caller to use default spec file
+	// if specName is empty, use cluster name to get spec file name
 	if specName == "" {
-		return "", nil
+		clusterName := utils.ExtractClusterName()
+		specName = fmt.Sprintf("%s_spec.yaml", clusterName)
 	}
 
 	targetDir := consts.DefaultProductionCfgPath
-	specPath := specName
-	if !strings.Contains(specName, "/") {
-		specPath = filepath.Join(targetDir, specName)
+
+	// Case 1: URL
+	if isURL(specName) {
+		return downloadSpec(specName, targetDir)
 	}
-	// Check if spec file already exists in target path
-	if _, err := os.Stat(specPath); err == nil {
-		logrus.WithField("component", "specgen").Infof("spec file found in target path: %s", specPath)
+
+	// Case 2: Existing local path (absolute or relative)
+	if fileExists(specName) {
+		logrus.WithField("component", "specgen").Warnf("using existing spec file at path: %s", specName)
+		return specName, nil
+	}
+
+	// Case 3: Treat as filename under default directory
+	fileName := filepath.Base(specName)
+	specPath := filepath.Join(targetDir, fileName)
+
+	if fileExists(specPath) {
+		logrus.WithField("component", "specgen").Warnf("using existing spec file in default dir: %s", specPath)
 		return specPath, nil
 	}
 
-	// Download from remote URL: specName maybe is a URL or a file name
-	fileURL := specName
-	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
-		specURL := httpclient.GetSichekSpecURL()
-		if specURL == "" {
-			return "", fmt.Errorf("SICHEK_SPEC_URL environment variable is not set, cannot download spec from remote URL")
-		}
-		fileURL = fmt.Sprintf("%s/%s", specURL, specName)
-	} else {
-		parsedURL, err := url.Parse(fileURL)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse URL: %v", err)
-		}
-		specName = path.Base(parsedURL.Path)
-		specPath = filepath.Join(targetDir, specName)
+	// Case 4: Download from SICHEK_SPEC_URL
+	specURL := httpclient.GetSichekSpecURL()
+	if specURL == "" {
+		return "", fmt.Errorf("spec file %q not found locally and SICHEK_SPEC_URL is not set", specName)
 	}
-	logrus.WithField("component", "specgen").Infof("downloading spec file %s from OSS to %s", fileURL, specPath)
-	err := httpclient.Download(fileURL, specPath)
+
+	fileURL := fmt.Sprintf("%s/%s", strings.TrimRight(specURL, "/"), fileName)
+	return downloadSpecToPath(fileURL, specPath)
+}
+
+func isURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+func downloadSpec(URL, targetDir string) (string, error) {
+	parsed, err := url.Parse(URL)
 	if err != nil {
-		return "", fmt.Errorf("failed to download spec file %s from OSS: %v", fileURL, err)
+		return "", fmt.Errorf("invalid spec URL %q: %w", URL, err)
 	}
+
+	fileName := path.Base(parsed.Path)
+	specPath := filepath.Join(targetDir, fileName)
+
+	return downloadSpecToPath(URL, specPath)
+}
+
+func downloadSpecToPath(url, specPath string) (string, error) {
+	if err := os.MkdirAll(filepath.Dir(specPath), 0755); err != nil {
+		return "", fmt.Errorf("failed to create spec dir: %w", err)
+	}
+
+	tmpPath := specPath + ".tmp"
+
+	logrus.WithFields(logrus.Fields{
+		"component": "specgen",
+		"url":       url,
+		"path":      specPath,
+	}).Info("downloading spec file")
+
+	if err := httpclient.Download(url, tmpPath); err != nil {
+		return "", fmt.Errorf("failed to download spec from %s: %w", url, err)
+	}
+
+	if err := os.Rename(tmpPath, specPath); err != nil {
+		return "", fmt.Errorf("failed to move spec file into place: %w", err)
+	}
+	logrus.WithField("component", "specgen").Warnf("using spec file %s, downloaded from %s", specPath, url)
 	return specPath, nil
 }

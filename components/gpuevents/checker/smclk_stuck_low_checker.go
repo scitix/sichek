@@ -75,7 +75,6 @@ func (c *SmClkStuckLowChecker) Check(ctx context.Context, data any) (*common.Che
 		}
 	}
 	status := consts.StatusNormal
-	var suggest string
 	var gpuAbNum = 0
 	devices := make([]string, 0)
 	result := &common.CheckerResult{
@@ -95,7 +94,6 @@ func (c *SmClkStuckLowChecker) Check(ctx context.Context, data any) (*common.Che
 		if num == int64(len(c.spec.Indicators)) {
 			gpuAbNum++
 			status = consts.StatusAbnormal
-			suggest = fmt.Sprintf("%scheck gpu device=%s whose smclk is lower than %d more than %s \n", suggest, uuid, SmClkLowThreshold, c.spec.DurationThreshold)
 			devices = append(devices, uuid)
 		}
 	}
@@ -104,7 +102,7 @@ func (c *SmClkStuckLowChecker) Check(ctx context.Context, data any) (*common.Che
 	result.Curr = strconv.Itoa(gpuAbNum)
 	result.Status = status
 	result.Detail = raw
-	result.Suggestion = suggest
+	result.Suggestion = fmt.Sprintf("check GPUs whose smclk is lower than %d more than %s \n", SmClkLowThreshold, c.spec.DurationThreshold)
 	return result, nil
 }
 
