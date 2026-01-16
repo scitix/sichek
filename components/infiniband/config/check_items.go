@@ -40,6 +40,7 @@ const (
 	CheckPCIEWidth     = "check_pcie_width"
 	CheckPCIETreeSpeed = "check_pcie_tree_speed"
 	CheckPCIETreeWidth = "check_pcie_tree_width"
+	CheckIBLost        = "check_ib_lost"
 )
 
 var InfinibandCheckItems = map[string]common.CheckerResult{
@@ -170,5 +171,13 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Detail:      "RoCE vf is enabled on all devices",
 		ErrorName:   "RoCENotEnabled",
 		Suggestion:  "Enable RoCE in the device configuration",
+	},
+	CheckIBLost: {
+		Name:        CheckIBLost,
+		Description: "Check if IB device is lost",
+		Level:       consts.LevelCritical,
+		Detail:      "IBCapablePCIDevs and HCAPCINum are consistent",
+		ErrorName:   "IBDeviceLost",
+		Suggestion:  "Check IB device status",
 	},
 }

@@ -215,7 +215,6 @@ func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
 
 	return result, nil
 }
-
 func GetIBPFBoardIDs() (map[string]string, []string, error) {
 	baseDir := "/sys/class/infiniband"
 	devices, err := os.ReadDir(baseDir)
@@ -231,8 +230,11 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
 		}
-		if strings.Contains(devName, "bond") {
-			continue // Skip bonding devices
+		// if strings.Contains(devName, "bond") {
+		// 	continue // Skip bonding devices
+		// }
+		if strings.Contains(devName, "mezz") {
+			continue // Skip mezzanine card
 		}
 		boardIDPath := filepath.Join(baseDir, devName, "board_id")
 		content, err := os.ReadFile(boardIDPath)

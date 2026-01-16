@@ -29,6 +29,7 @@ type InfinibandConfig struct {
 	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
 	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
 	IgnoredCheckers []string        `json:"ignored_checkers" yaml:"ignored_checkers"`
+	TargetDeviceIDs []string        `json:"target_device_ids" yaml:"target_device_ids"`
 }
 
 func (c *InfinibandUserConfig) GetQueryInterval() common.Duration {

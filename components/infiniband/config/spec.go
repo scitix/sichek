@@ -17,9 +17,7 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -143,19 +141,6 @@ func (s *InfinibandSpecs) tryLoadFromDevConfig() error {
 	return err
 }
 
-func extractClusterName() string {
-	nodeName := os.Getenv("NODE_NAME")
-	if nodeName == "" {
-		return "default"
-	}
-	re := regexp.MustCompile(`^([a-zA-Z]+)-?\d*`)
-	matches := re.FindStringSubmatch(nodeName)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-	return "default"
-}
-
 // FilterSpec retrieves the InfiniBand specification for the current cluster.
 // If no specific cluster specification is found, it falls back to the default specification from SICHEK_SPEC_URL.
 // If no default specification is found, it returns an error.
@@ -165,8 +150,10 @@ func extractClusterName() string {
 func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 	var ibSpec *InfinibandSpec
 	if specs != nil && specs.Specs != nil {
-		clusterName := extractClusterName()
+		clusterName := utils.ExtractClusterName()
 		if spec, ok := specs.Specs[clusterName]; ok {
+			logrus.WithField("infiniband", "spec").
+				Warnf("Using specific InfiniBand specification for cluster %s", clusterName)
 			ibSpec = spec
 		} else {
 			// If no specific cluster specification is found, fall back to the default specification
@@ -187,6 +174,8 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				err := httpclient.LoadSpecFromURL(url, remoteIbSpec)
 				if err == nil && remoteIbSpec.Specs != nil {
 					if spec, ok := remoteIbSpec.Specs[clusterName]; ok {
+						logrus.WithField("infiniband", "spec").
+							Warnf("Using specific InfiniBand specification for cluster %s from remote URL", clusterName)
 						ibSpec = spec
 					} else {
 						if _, ok := specs.Specs["default"]; !ok {
@@ -243,6 +232,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		}
 
 		// Check each board ID and fill in missing specs from hcaSpecs
+		var missingBoardIDs []string
 		for _, boardID := range ibDevs {
 			spec, exists := ibSpec.HCAs[boardID]
 			if !exists || spec == nil {
@@ -254,6 +244,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				} else {
 					logrus.WithField("component", "infiniband").
 						Warnf("spec for board ID %s not found in HCA configs", boardID)
+					missingBoardIDs = append(missingBoardIDs, boardID)
 				}
 			} else if spec.Hardware.BoardID != boardID {
 				// If board ID doesn't match, try to get from hcaSpecs
@@ -266,12 +257,19 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				} else {
 					logrus.WithField("component", "infiniband").
 						Warnf("spec for board ID %s not found in HCA configs", boardID)
+					missingBoardIDs = append(missingBoardIDs, boardID)
 				}
 			} else {
 				logrus.WithField("component", "infiniband").
 					Infof("spec for board ID %s matches the hardware board ID %s", boardID, spec.Hardware.BoardID)
 			}
 		}
+
+		// Return error if any board IDs are missing specs
+		if len(missingBoardIDs) > 0 {
+			return ibSpec, fmt.Errorf("spec not found for board IDs: %v, please check the HCA configuration", missingBoardIDs)
+		}
+
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)

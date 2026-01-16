@@ -49,6 +49,8 @@ type component struct {
 	healthCheckMtx sync.Mutex
 
 	service *common.CommonService
+
+	initError error // Track initialization errors with detailed information
 }
 
 var (
@@ -71,23 +73,38 @@ func NewComponent(cfgFile string, specFile string, skipPercent int64) (common.Co
 
 func newSyslogComponent(cfgFile string, eventRulesFile string, skipPercent int64) (comp *component, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
+	component := &component{
+		componentName:  consts.ComponentNameSyslog,
+		ctx:            ctx,
+		cancel:         cancel,
+		cfgMutex:       sync.RWMutex{},
+		healthCheckMtx: sync.Mutex{},
+	}
 
 	cfg := &config.SyslogUserConfig{}
 	err = common.LoadUserConfig(cfgFile, cfg)
 	if err != nil || cfg.Syslog == nil {
 		logrus.WithField("component", "syslog").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
-		return nil, fmt.Errorf("NewSyslogComponent get user config failed")
+		component.initError = fmt.Errorf("get user config failed: %w", err)
+		// Even if config loading fails, try to create service with a default config to report init error
+		defaultCfg := &config.SyslogUserConfig{
+			Syslog: &config.SyslogConfig{
+				QueryInterval: common.Duration{Duration: 10 * time.Second},
+				CacheSize:     5,
+			},
+		}
+		component.cfg = defaultCfg
+		component.service = common.NewCommonService(ctx, defaultCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
+	component.cfg = cfg
 
 	eventRules, err := config.LoadEventRules(eventRulesFile)
 	if err != nil {
 		logrus.WithField("component", "syslog").Errorf("failed to NewComponent: %v", err)
-		return nil, err
+		component.initError = fmt.Errorf("failed to load event rules: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
 
 	// if skipPercent is -1, use the value from the config file
@@ -101,22 +118,17 @@ func newSyslogComponent(cfgFile string, eventRulesFile string, skipPercent int64
 	filterPointer, err := filter.NewEventFilter(consts.ComponentNameSyslog, eventRules, skipPercent)
 	if err != nil {
 		logrus.WithField("component", "syslog").Errorf("failed to create Syslog EventFilter: %v", err)
-		return nil, err
+		component.initError = fmt.Errorf("failed to create event filter: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
 	}
 
-	component := &component{
-		componentName: consts.ComponentNameSyslog,
-		ctx:           ctx,
-		cancel:        cancel,
-		cfg:           cfg,
-		cfgMutex:      sync.RWMutex{},
-		filter:        filterPointer,
-		cacheMtx:      sync.RWMutex{},
-		cacheBuffer:   make([]*common.Result, cfg.Syslog.CacheSize),
-		cacheInfo:     make([]common.Info, cfg.Syslog.CacheSize),
-		currIndex:     0,
-		cacheSize:     cfg.Syslog.CacheSize,
-	}
+	component.filter = filterPointer
+	component.cacheMtx = sync.RWMutex{}
+	component.cacheBuffer = make([]*common.Result, cfg.Syslog.CacheSize)
+	component.cacheInfo = make([]common.Info, cfg.Syslog.CacheSize)
+	component.currIndex = 0
+	component.cacheSize = cfg.Syslog.CacheSize
 
 	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 
@@ -130,6 +142,26 @@ func (c *component) Name() string {
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.healthCheckMtx.Lock()
 	defer c.healthCheckMtx.Unlock()
+
+	if c.initError != nil {
+		logrus.WithField("component", "syslog").Errorf("report initError: %v", c.initError)
+		checkerResult := &common.CheckerResult{
+			Name:        "InitError",
+			Description: "Syslog component initialization failed",
+			Status:      consts.StatusAbnormal,
+			Level:       consts.LevelCritical,
+			Curr:        c.initError.Error(),
+			ErrorName:   "InitError",
+			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+		}
+		result := &common.Result{
+			Item:     consts.ComponentNameSyslog,
+			Status:   consts.StatusAbnormal,
+			Checkers: []*common.CheckerResult{checkerResult},
+			Time:     time.Now(),
+		}
+		return result, nil
+	}
 
 	timer := common.NewTimer(fmt.Sprintf("%s-HealthCheck-Cost", c.componentName))
 
@@ -181,6 +213,7 @@ func (c *component) Start() <-chan *common.Result {
 }
 
 func (c *component) Stop() error {
+	// service is guaranteed to be set during initialization, so no nil check needed
 	return c.service.Stop()
 }
 
@@ -200,6 +233,11 @@ func (c *component) Status() bool {
 }
 
 func (c *component) GetTimeout() time.Duration {
+	c.cfgMutex.RLock()
+	defer c.cfgMutex.RUnlock()
+	if c.cfg == nil {
+		return 10 * time.Second
+	}
 	return c.cfg.GetQueryInterval().Duration
 }
 

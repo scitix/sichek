@@ -50,6 +50,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+          - name: SICHEK_SPEC_URL
+            value: {{ .Values.sichekSpecUrl }}
           - name: NODE_NAME
             valueFrom:
               fieldRef:
@@ -62,8 +64,8 @@ spec:
           args:
             - "-c"
             - |-
-              {{- if ne .Values.defaultSpec "default" }}
-              mv /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+              {{- if ne .Values.defaultSpec "default_spec.yaml" }}
+              cp /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml || true
               {{- end }}
               {{ .Values.batchjob.cmd }}
           resources:

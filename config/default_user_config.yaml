@@ -14,6 +14,19 @@ infiniband:
   enable_metrics: true
   ignored_checkers:
     - "net_operstate"
+  target_device_ids:
+    - "0x1015"  # [ConnectX-4]
+    - "0x1019"  # [ConnectX-5x]
+    - "0x1017"  # [ConnectX-5]
+    - "0x101b"  # MT28908 Family [ConnectX-6]
+    - "0x101d"  # MT28908 Family [ConnectX-6]
+    - "0x1021"  # CMT2910 Family [ConnectX-7]
+    - "0x1023"  # CX8 Family [ConnectX-8]
+    - "0xa2dc"  # BlueField-3 E-series SuperNIC
+    - "0x09a2"  # CMT2910 Family [ConnectX-7] HHHL
+    - "0x2330"  # HPE/Enhance 400G
+    - "0x4128"
+    - "0x02b2"
 
 gpfs:
   query_interval: 10s
