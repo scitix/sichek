@@ -70,7 +70,7 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 func isValidHCAPCINum(n int) bool {
 	switch n {
-	case 1, 2, 4, 8:
+	case 1, 2, 4, 8, 12:
 		return true
 	default:
 		return false
