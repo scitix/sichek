@@ -104,7 +104,7 @@ func promptFloat(msg string, def ...float64) float64 {
 func EnsureSpecFile(specName string) (string, error) {
 	// if specName is empty, use cluster name to get spec file name
 	if specName == "" {
-		clusterName = utils.ExtractClusterName()
+		clusterName := utils.ExtractClusterName()
 		specName = fmt.Sprintf("%s_spec.yaml", clusterName)
 	}
 
