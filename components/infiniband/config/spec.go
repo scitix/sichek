@@ -167,6 +167,8 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 	if specs != nil && specs.Specs != nil {
 		clusterName := extractClusterName()
 		if spec, ok := specs.Specs[clusterName]; ok {
+			logrus.WithField("infiniband", "spec").
+				Warnf("Using specific InfiniBand specification for cluster %s", clusterName)
 			ibSpec = spec
 		} else {
 			// If no specific cluster specification is found, fall back to the default specification
@@ -187,6 +189,8 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 				err := httpclient.LoadSpecFromURL(url, remoteIbSpec)
 				if err == nil && remoteIbSpec.Specs != nil {
 					if spec, ok := remoteIbSpec.Specs[clusterName]; ok {
+						logrus.WithField("infiniband", "spec").
+							Warnf("Using specific InfiniBand specification for cluster %s from remote URL", clusterName)
 						ibSpec = spec
 					} else {
 						if _, ok := specs.Specs["default"]; !ok {
