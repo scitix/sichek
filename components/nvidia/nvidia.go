@@ -306,53 +306,64 @@ func (c *component) Name() string {
 	return c.componentName
 }
 
+// checkInitError checks for initialization errors and returns an error result if found.
+func (c *component) checkInitError() (*common.Result, bool) {
+	if c.initError == nil {
+		return nil, false
+	}
+
+	logrus.WithField("component", "nvidia").Errorf("report initError: %v", c.initError)
+	checkerResult := &common.CheckerResult{
+		Name:        "InitError",
+		Description: "Nvidia component initialization failed",
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		Curr:        c.initError.Error(),
+		ErrorName:   "InitError",
+		Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+	}
+	result := &common.Result{
+		Item:     consts.ComponentNameNvidia,
+		Status:   consts.StatusAbnormal,
+		Checkers: []*common.CheckerResult{checkerResult},
+		Time:     time.Now(),
+	}
+	return result, true
+}
+
+func (c *component) reportInitNVMLError(err error) *common.Result {
+	checkerResult := &common.CheckerResult{
+		Name:        "NVMLInitFailed",
+		Description: fmt.Sprintf("failed to reinitialize NVML: %v", err),
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		Detail:      "",
+		ErrorName:   "NVMLInitFailed",
+		Suggestion:  fmt.Sprintf("Please check the %s status", c.componentName),
+	}
+	result := &common.Result{
+		Item:     consts.ComponentNameNvidia,
+		Status:   consts.StatusAbnormal,
+		Checkers: []*common.CheckerResult{checkerResult},
+		Time:     time.Now(),
+	}
+	return result
+}
+
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.healthCheckMtx.Lock()
 	defer c.healthCheckMtx.Unlock()
 
 	// Check for initialization errors
-	if c.initError != nil {
-		logrus.WithField("component", "nvidia").Errorf("report initError: %v", c.initError)
-		checkerResult := &common.CheckerResult{
-			Name:        "InitError",
-			Description: "Nvidia component initialization failed",
-			Status:      consts.StatusAbnormal,
-			Level:       consts.LevelCritical,
-			Curr:        c.initError.Error(),
-			ErrorName:   "InitError",
-			Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
-		}
-		result := &common.Result{
-			Item:     consts.ComponentNameNvidia,
-			Status:   consts.StatusAbnormal,
-			Checkers: []*common.CheckerResult{checkerResult},
-			Time:     time.Now(),
-		}
+	if result, hasError := c.checkInitError(); hasError {
 		return result, nil
 	}
 
 	// Try to reinitialize NVML if instance is nil (from previous failed check)
 	if c.nvmlInst == nil {
 		err := ReNewNvml(c)
-		if c.nvmlInst == nil {
-			logrus.WithField("component", "nvidia").Errorf("failed to reinitialize NVML: %v", err)
-			checkerResult := &common.CheckerResult{
-				Name:        "NVMLInitFailed",
-				Description: fmt.Sprintf("failed to reinitialize NVML: %v", err),
-				Status:      consts.StatusAbnormal,
-				Level:       consts.LevelCritical,
-				Detail:      "",
-				ErrorName:   "NVMLInitFailed",
-				Suggestion:  fmt.Sprintf("Please check the %s status", c.componentName),
-			}
-			result := &common.Result{
-				Item:     consts.ComponentNameNvidia,
-				Status:   consts.StatusAbnormal,
-				Checkers: []*common.CheckerResult{checkerResult},
-				Time:     time.Now(),
-			}
-			c.initError = fmt.Errorf("failed to reinitialize NVML: %w", err)
-			return result, nil
+		if err != nil {
+			return c.reportInitNVMLError(err), nil
 		}
 		logrus.WithField("component", "nvidia").Infof("reinitialized NVML successfully")
 	}
@@ -374,22 +385,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 			}
 			logrus.WithField("component", "nvidia").Errorf("NVML instance is invalid, marking for reinitialization on next check: %v", err)
 
-			checkerResult := &common.CheckerResult{
-				Name:        "NVMLInvalid",
-				Description: fmt.Sprintf("NVML instance is invalid: %v", err),
-				Status:      consts.StatusAbnormal,
-				Level:       consts.LevelCritical,
-				Detail:      "",
-				ErrorName:   "NVMLInvalid",
-				Suggestion:  fmt.Sprintf("NVML will be reinitialized on next health check. Please check the %s status", c.componentName),
-			}
-			result := &common.Result{
-				Item:     consts.ComponentNameNvidia,
-				Status:   consts.StatusAbnormal,
-				Checkers: []*common.CheckerResult{checkerResult},
-				Time:     time.Now(),
-			}
-			return result, fmt.Errorf("NVML instance is invalid: %w", err)
+			return c.reportInitNVMLError(err), nil
 		}
 
 		// Other errors during collection, return error result
