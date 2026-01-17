@@ -32,23 +32,6 @@ const (
 	gatewayCacheTTL = 5 * time.Minute
 )
 
-var (
-	IBVendorIDs = []string{
-		"0x15b3", // Mellanox Technologies
-	}
-	IBDeviceIDs = []string{
-		"0x101b", // MT28908 Family [ConnectX-6]
-		"0x101d", // MT28908 Family [ConnectX-6]
-		"0x1021", // CMT2910 Family [ConnectX-7]
-		"0x1023", // CX8 Family [ConnectX-8]
-		"0xa2dc", // BlueField-3 E-series SuperNIC
-		"0x09a2", // CMT2910 Family [ConnectX-7] HHHL
-		"0x2330", // HPE/Enhance 400G
-		"0x4128",
-		"0x02b2",
-	}
-)
-
 func ListDir(dir string) ([]string, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {

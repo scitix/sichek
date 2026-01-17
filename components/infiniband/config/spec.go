@@ -34,6 +34,8 @@ type InfinibandSpecs struct {
 }
 
 type InfinibandSpec struct {
+	// as IBPFDevs may be trimmed on conditions, the HCANum will store the original number of HCA devices in spec
+	HCANum         int                           `json:"hca_num,omitempty" yaml:"hca_num,omitempty"`
 	IBPFDevs       map[string]string             `json:"ib_devs" yaml:"ib_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps" yaml:"sw_deps"`
 	PCIeACS        string                        `json:"pcie_acs" yaml:"pcie_acs"`
@@ -204,6 +206,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 		specKeys := make([]string, 0, len(ibSpec.IBPFDevs))
+		ibSpec.HCANum = len(ibSpec.IBPFDevs)
 		for k := range ibSpec.IBPFDevs {
 			specKeys = append(specKeys, k)
 		}

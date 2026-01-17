@@ -95,6 +95,14 @@ func promptFloat(msg string, def ...float64) float64 {
 	return val
 }
 
+func EnsureCfgFile(configName string) (string, error) {
+	// if specName is empty, return default config file name
+	if configName == "" {
+		return filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName), nil
+	}
+	return EnsureSpecFile(configName)
+}
+
 // EnsureSpecFile ensures a spec file is available locally.
 // Priority:
 //  1. Empty specName -> use cluster name to get spec file name
