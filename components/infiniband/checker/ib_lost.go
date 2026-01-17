@@ -63,7 +63,7 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	if infinibandInfo.HCAPCINum != infinibandInfo.IBCapablePCINum {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum)
-	} else if infinibandInfo.HCAPCINum != specHCANum {
+	} else if infinibandInfo.HCAPCINum != specHCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != specHCANum(%d != %d)", infinibandInfo.HCAPCINum, specHCANum)
 	}
