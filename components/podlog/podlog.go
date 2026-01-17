@@ -281,8 +281,8 @@ func (c *component) walkPodLogFiles(dir string, filterFunc func(absPath string, 
 func (c *component) GetRunningPodFilePaths(dir string) ([]string, error) {
 	deviceToPodMap, err := c.podResourceMapper.GetDeviceToPodMap()
 	if err != nil {
-		logrus.WithField("component", "podlog").WithError(err).Error("failed to GetDeviceToPodMap")
-		return nil, err
+		logrus.WithField("component", "podlog").WithError(err).Warn("failed to GetDeviceToPodMap (non-K8s environment?), continuing without pod mapping")
+		deviceToPodMap = nil
 	}
 	runningPodSet := make(map[string]struct{})
 	for _, podInfo := range deviceToPodMap {
