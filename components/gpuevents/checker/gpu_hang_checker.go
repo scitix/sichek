@@ -94,7 +94,8 @@ func (c *GpuHangChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	if len(abnormalIndicatorNum) > 0 {
 		deviceToPodMap, err = c.podResourceMapper.GetDeviceToPodMap()
 		if err != nil {
-			return nil, err
+			logrus.WithField("component", "gpu_hang_checker").Warnf("failed to GetDeviceToPodMap (non-K8s environment?): %v, continuing without pod mapping", err)
+			deviceToPodMap = nil
 		}
 	}
 	result := &common.CheckerResult{
