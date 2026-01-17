@@ -177,7 +177,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Description: "Check if IB device is lost",
 		Level:       consts.LevelCritical,
 		Detail:      "IBCapablePCIDevs and HCAPCINum are consistent",
-		ErrorName:   "IBDeviceLost",
+		ErrorName:   "IBLost",
 		Suggestion:  "Check IB device status",
 	},
 }

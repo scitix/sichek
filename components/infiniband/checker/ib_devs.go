@@ -18,7 +18,6 @@ package checker
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -63,7 +62,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	var mismatchPairs []string
 	infinibandInfo.RLock()
-	for expectedMlx5 := range c.spec.IBPFDevs {
+	for expectedMlx5, expectedIb := range c.spec.IBPFDevs {
 		// skip mezzanine card in check
 		if strings.Contains(expectedMlx5, "mezz") {
 			logrus.WithField("component", "infiniband").Debugf("skip mezzanine card %s in check", expectedMlx5)
@@ -74,32 +73,6 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
 			logrus.WithField("component", "infiniband").Debugf("mismatch pair %s in check", expectedMlx5)
 			continue
-		}
-
-		var expectedIb string
-		parts := strings.Split(expectedMlx5, "_")
-
-		if len(parts) > 1 {
-			numberStr := parts[len(parts)-1]
-			switch infinibandInfo.IBHardWareInfo[expectedMlx5].LinkLayer {
-			case "Ethernet":
-				// Just for js cluster which uses eth1X for roce device naming
-				name, err := os.Hostname()
-				if err != nil {
-					logrus.WithField("component", "infiniband").Errorf("fail to get hostname: %v", err)
-					os.Exit(1)
-				}
-				if strings.HasPrefix(name, "js") {
-					expectedIb = "eth1" + numberStr
-					break
-				}
-				expectedIb = "eth" + numberStr
-			case "InfiniBand":
-				expectedIb = "ib" + numberStr
-			}
-
-		} else {
-			logrus.WithField("component", "infiniband").Warnf("fail to extract number from '%s'.", expectedMlx5)
 		}
 
 		if actualIb != expectedIb {

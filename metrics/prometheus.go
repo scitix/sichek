@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -93,7 +94,7 @@ func InitPrometheus(cfgFile string, metricsPort int) {
 		cfg := &MetricsUserConfig{}
 		err := common.LoadUserConfig(cfgFile, cfg)
 		if err != nil || cfg.Metrics == nil {
-			logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config failed or cfg is nil: %v", err)
+			logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config from file %s failed or cfg is nil: %v", cfgFile, err)
 			port = 19091
 			logrus.WithField("component", "metrics").Warnf("Failed to load config, using default port %d", port)
 		} else {
@@ -106,6 +107,6 @@ func InitPrometheus(cfgFile string, metricsPort int) {
 	logrus.WithField("component", "metrics").Infof("Starting Prometheus metrics server on port %d", port)
 	if err := http.ListenAndServe(":"+strconv.Itoa(port), nil); err != nil {
 		logrus.WithField("component", "metrics").Errorf("failed to start Prometheus metrics server: %v", err)
-		return
+		os.Exit(1)
 	}
 }

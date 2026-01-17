@@ -26,7 +26,6 @@ import (
 	"github.com/scitix/sichek/components/gpuevents/collector"
 	"github.com/scitix/sichek/components/gpuevents/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/sirupsen/logrus"
 )
 
 type SmClkStuckLowChecker struct {
@@ -118,11 +117,6 @@ func (c *SmClkStuckLowChecker) OnData(IndicatorSnapshot *collector.DeviceIndicat
 		IndicatorStates := c.indicatorStates[gpuId].Indicators
 
 		for indicatorName := range c.spec.Indicators {
-			if indicatorName != "smclk" && indicatorName != "gpuidle" {
-				logrus.WithField("checker", "gpuevents").Warnf("Unexpected indicator %s for smclk stuck low checker", indicatorName)
-				continue
-			}
-
 			if _, ok := IndicatorStates[indicatorName]; !ok {
 				// Initialize the state of indicator if it doesn't exist
 				IndicatorStates[indicatorName] = &IndicatorState{

@@ -132,8 +132,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}
 
 	// create collector
-	targetDeviceIDs := cfg.Infiniband.TargetDeviceIDs
-	collector, err := collector.NewIBCollector(ctx, targetDeviceIDs)
+	collector, err := collector.NewIBCollector(ctx)
 	if err != nil {
 		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
 		component.initError = fmt.Errorf("failed to create infiniband collector: %w", err)
