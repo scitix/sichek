@@ -46,7 +46,8 @@ type notifier struct {
 func NewNotifier(annoKey string) (Notifier, error) {
 	k8sClient, err := k8s.NewClient()
 	if err != nil {
-		return nil, err
+		logrus.Warnf("failed to create K8s client (non-K8s environment?): %v, continuing without K8s annotation support", err)
+		k8sClient = nil
 	}
 	if len(annoKey) == 0 {
 		annoKey = consts.DefaultAnnoKey
@@ -70,6 +71,10 @@ func (n *notifier) SendAlert(ctx context.Context, data interface{}) (*http.Respo
 }
 
 func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) error {
+	if n.k8sClient == nil {
+		logrus.Debug("K8s client not available, skipping node annotation update")
+		return nil
+	}
 	n.AnnotationMutex.Lock()
 	defer n.AnnotationMutex.Unlock()
 	node, err := n.k8sClient.GetCurrNode(ctx)
@@ -100,6 +105,10 @@ func (n *notifier) SetNodeAnnotation(ctx context.Context, data *common.Result) e
 }
 
 func (n *notifier) AppendNodeAnnotation(ctx context.Context, data *common.Result) error {
+	if n.k8sClient == nil {
+		logrus.Debug("K8s client not available, skipping node annotation update")
+		return nil
+	}
 	n.AnnotationMutex.Lock()
 	defer n.AnnotationMutex.Unlock()
 	node, err := n.k8sClient.GetCurrNode(ctx)

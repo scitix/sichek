@@ -57,7 +57,9 @@ func CreateDefaultEnvFile() error {
 		}
 	}(f)
 
-	_, err = f.WriteString(`# sichek environment variables are set here FLAGS="--enable-components=gpfs"`)
+	_, err = f.WriteString(`# sichek environment variables are set here
+FLAGS=""
+`)
 	return err
 }
 

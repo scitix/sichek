@@ -7,8 +7,8 @@ After=network-pre.target NetworkManager.service systemd-resolved.service
 [Service]
 Slice=runtime.slice
 
-EnvironmentFile=/etc/default/sichek
-ExecStart=/usr/sbin/sichek d run $FLAGS
+EnvironmentFile=-/etc/default/sichek
+ExecStart=/usr/local/bin/sichek d run $FLAGS
 
 StandardOutput=append:/var/log/sichek.log
 StandardError=append:/var/log/sichek.log

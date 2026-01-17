@@ -60,8 +60,8 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 	}()
 	notifier, err := NewNotifier(annoKey)
 	if err != nil {
-		logrus.WithField("daemon", "new").Errorf("create notifier failed: %v", err)
-		return nil, err
+		logrus.WithField("daemon", "new").Warnf("create notifier failed (non-K8s environment?): %v, continuing without K8s annotation support", err)
+		notifier = nil
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -120,10 +120,12 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			var err error
 			if result != nil {
 				result.Node = d.node
-				if len(result.Checkers) > 0 && strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") && result.Status == consts.StatusAbnormal {
-					err = d.notifier.AppendNodeAnnotation(d.ctx, result)
-				} else {
-					err = d.notifier.SetNodeAnnotation(d.ctx, result)
+				if d.notifier != nil {
+					if len(result.Checkers) > 0 && strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") && result.Status == consts.StatusAbnormal {
+						err = d.notifier.AppendNodeAnnotation(d.ctx, result)
+					} else {
+						err = d.notifier.SetNodeAnnotation(d.ctx, result)
+					}
 				}
 				d.metrics.ExportMetrics(result)
 			}

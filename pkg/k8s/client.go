@@ -56,20 +56,20 @@ func NewClient() (*K8sClient, error) {
 		if hasServiceHost && hasPort {
 			cfg, err = rest.InClusterConfig()
 			if err != nil {
-				logrus.Fatalf("build in-cluster kubeconfig failed: %v", err)
+				logrus.Warnf("build in-cluster kubeconfig failed (non-K8s environment?): %v", err)
 				return
 			}
 		} else {
 			cfg, err = clientcmd.BuildConfigFromFlags("", consts.KubeConfigPath)
 			if err != nil {
-				logrus.Fatalf("get kubeconfig faield, build in-cluster config: %v", err)
+				logrus.Warnf("get kubeconfig failed (non-K8s environment?): %v", err)
 				return
 			}
 		}
 
 		cli, err := kubernetes.NewForConfig(cfg)
 		if err != nil {
-			logrus.Fatalf("NewForConfig faield, err: %v", err)
+			logrus.Warnf("NewForConfig failed (non-K8s environment?): %v", err)
 			return
 		}
 		k8sClient = &K8sClient{
