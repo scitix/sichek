@@ -63,13 +63,21 @@ func ParseBoolToFloat(b bool) float64 {
 
 func ExtractClusterName() string {
 	nodeName := os.Getenv("NODE_NAME")
+	// Fallback to hostname if NODE_NAME is not set
 	if nodeName == "" {
-		return "default"
+		hostname, err := os.Hostname()
+		if err == nil && hostname != "" {
+			nodeName = hostname
+		} else {
+			return "default"
+		}
 	}
+
 	re := regexp.MustCompile(`^([a-zA-Z]+)-?\d*`)
 	matches := re.FindStringSubmatch(nodeName)
 	if len(matches) > 1 {
 		return matches[1]
 	}
+
 	return "default"
 }
