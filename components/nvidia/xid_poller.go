@@ -85,7 +85,7 @@ func (x *XidEventPoller) Start() error {
 		// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlEvents.html#group__nvmlEvents
 		// e, err := x.XidEventSet.Wait(uint32(x.Cfg.UpdateInterval.Microseconds()))
 		event, ret := x.XidEventSet.Wait(200)
-
+		logrus.WithField("component", "nvidia").Infof("XidEventSet.Wait returned: %v, %v", event.EventData, ret)
 		if ret == nvml.ERROR_NOT_SUPPORTED {
 			logrus.WithField("component", "nvidia").Warningf("XidEvent not supported -- Skipping: %v", nvml.ErrorString(ret))
 			continue
@@ -114,37 +114,60 @@ func (x *XidEventPoller) registerDevices() error {
 		return retErr
 	}
 
+	// Only register XID critical error events
+	xidEventType := uint64(nvml.EventTypeXidCriticalError)
+	registeredCount := 0
+
 	for i := 0; i < numDevices; i++ {
 		device, ret := x.NvmlInst.DeviceGetHandleByIndex(i)
 		if ret != nvml.SUCCESS {
-			retErr := fmt.Errorf("failed to get XidEventPoller GPU device %d: %v", i, nvml.ErrorString(ret))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
+			logrus.WithField("component", "nvidia").Warningf("failed to get XidEventPoller GPU device %d: %v, skipping", i, nvml.ErrorString(ret))
+			continue
 		}
 
+		// Check if device supports XID events
 		supportedEvents, ret := device.GetSupportedEventTypes()
 		if ret == nvml.ERROR_NOT_SUPPORTED {
-			x.ErrorSupported = false
-			retErr := fmt.Errorf("GPU device %d does not support Xid events: %v", i, nvml.ErrorString(ret))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
+			logrus.WithField("component", "nvidia").Warningf("GPU device %d does not support events: %v, skipping", i, nvml.ErrorString(ret))
+			continue
 		} else if ret != nvml.SUCCESS {
-			retErr := fmt.Errorf("failed to get supported event types for XidEventPoller GPU device %d: %v", i, nvml.ErrorString(ret))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
+			logrus.WithField("component", "nvidia").Warningf("failed to get supported event types for GPU device %d: %v, skipping", i, nvml.ErrorString(ret))
+			continue
 		}
 
-		ret = device.RegisterEvents(supportedEvents, x.XidEventSet)
-		if ret != nvml.SUCCESS {
-			retErr := fmt.Errorf("failed to register events to GPU device %d: %v", i, nvml.ErrorString(ret))
-			logrus.WithField("component", "nvidia").Warningf("%v", retErr)
-			return retErr
+		// Check if XID events are supported
+		if supportedEvents&xidEventType == 0 {
+			logrus.WithField("component", "nvidia").Warningf("GPU device %d does not support XID critical error events (supported: 0x%x), skipping", i, supportedEvents)
+			continue
 		}
+
+		// Register only XID critical error events
+		ret = device.RegisterEvents(xidEventType, x.XidEventSet)
+		if ret != nvml.SUCCESS {
+			logrus.WithField("component", "nvidia").Warningf("failed to register XID events to GPU device %d: %v, skipping", i, nvml.ErrorString(ret))
+			continue
+		}
+
+		registeredCount++
+		logrus.WithField("component", "nvidia").Infof("Successfully registered XID events for GPU device %d", i)
 	}
+
+	if registeredCount == 0 {
+		x.ErrorSupported = false
+		return fmt.Errorf("no GPU devices support XID events or failed to register XID events")
+	}
+
+	logrus.WithField("component", "nvidia").Infof("Successfully registered XID events for %d GPU device(s)", registeredCount)
 	return nil
 }
 
 func (x *XidEventPoller) handleEvent(e nvml.EventData) {
+	// Verify this is an XID critical error event
+	if e.EventType != nvml.EventTypeXidCriticalError {
+		logrus.WithField("component", "nvidia").Debugf("received non-XID event (type: 0x%x), skipping", e.EventType)
+		return
+	}
+
 	xid := e.EventData
 	if !config.IsCriticalXidEvent(xid) {
 		if xid != 0 {
