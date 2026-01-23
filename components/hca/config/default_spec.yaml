@@ -48,7 +48,7 @@ hca:
       fw_ver: ">=28.35.2000"
       vpd: "Nvidia ConnectX-7 NDR200/HDR QSFP112 2-port PCIe Gen5 x16 InfiniBand Adapter"
       net_port: 1
-      port_speed: "200 Gb/sec (4X HDR)"
+      port_speed: "200 Gb/sec (2X NDR)"
       phy_state: "LinkUp"
       port_state: "ACTIVE"
       net_opstate: "down"
