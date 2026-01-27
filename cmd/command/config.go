@@ -78,18 +78,16 @@ func newConfigInitCmd() *cobra.Command {
 			reader := bufio.NewReader(os.Stdin)
 
 			cfg := map[string]string{
-				"image_repo":               ask(reader, v, "image_repo", "sichek image repository", "ghcr.io/scitix/sichek"),
-				"image_tag":                ask(reader, v, "image_tag", "sichek image tag", "latest"),
-				"pytorchjob_image_repo":    ask(reader, v, "pytorchjob_image_repo", "pytorchjob image repository", ""),
-				"pytorchjob_image_tag":     ask(reader, v, "pytorchjob_image_tag", "pytorchjob image tag", ""),
-				"multinode_modeltest_cmd":  ask(reader, v, "multinode_modeltest_cmd", "multinode modeltest cmd", ""),
-				"singlenode_modeltest_cmd": ask(reader, v, "singlenode_modeltest_cmd", "singlenode modeltest cmd", ""),
-				"scheduler":                ask(reader, v, "scheduler", "k8s scheduler", ""),
-				"roce_shared_mode":         ask(reader, v, "roce_shared_mode", "roce shared mode", "none"),
-				"default_spec":             ask(reader, v, "default_spec", "default spec", ""),
-				"swanlab_api_key":          ask(reader, v, "swanlab_api_key", "swanlab api key", ""),
-				"swanlab_workspace":        ask(reader, v, "swanlab_workspace", "swanlab workspace", ""),
-				"swanlab_proj_name":        ask(reader, v, "swanlab_proj_name", "swanlab project", ""),
+				"image_repo":            ask(reader, v, "image_repo", "sichek image repository", "ghcr.io/scitix/sichek"),
+				"image_tag":             ask(reader, v, "image_tag", "sichek image tag", "latest"),
+				"pytorchjob_image_repo": ask(reader, v, "pytorchjob_image_repo", "pytorchjob image repository", ""),
+				"pytorchjob_image_tag":  ask(reader, v, "pytorchjob_image_tag", "pytorchjob image tag", ""),
+				"scheduler":             ask(reader, v, "scheduler", "k8s scheduler", ""),
+				"roce_shared_mode":      ask(reader, v, "roce_shared_mode", "roce shared mode", "none"),
+				"default_spec":          ask(reader, v, "default_spec", "default spec", ""),
+				"swanlab_api_key":       ask(reader, v, "swanlab_api_key", "swanlab api key", ""),
+				"swanlab_workspace":     ask(reader, v, "swanlab_workspace", "swanlab workspace", ""),
+				"swanlab_proj_name":     ask(reader, v, "swanlab_proj_name", "swanlab project", ""),
 			}
 
 			// Validate default_spec before saving config
