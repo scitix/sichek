@@ -108,7 +108,6 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 		IBCapablePCINum: i.IBCapablePCINum,
 	}
 
-	// Collect fresh data
 	newInfo.IBPFDevs = i.GetIBPFdevs()
 	newInfo.HCAPCINum = countHCAPCINum(newInfo.IBPFDevs)
 	newInfo.IBSoftWareInfo.Collect(ctx)
