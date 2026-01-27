@@ -95,12 +95,25 @@ func (i *InfinibandInfo) Unlock() {
 }
 
 func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
-	i.IBPFDevs = i.GetIBPFdevs()
-	i.HCAPCINum = countHCAPCINum(i.IBPFDevs)
-	i.IBSoftWareInfo.Collect(ctx)
+	// Create a new InfinibandInfo object to avoid retaining historical data
+	newInfo := &InfinibandInfo{
+		IBHardWareInfo: make(map[string]IBHardWareInfo),
+		IBSoftWareInfo: IBSoftWareInfo{},
+		IBPFDevs:       make(map[string]string),
+		IBCounters:     make(map[string]IBCounters),
+		mu:             sync.RWMutex{},
+		// Copy initialization-time values from the original object
+		IBNicRole:       i.IBNicRole,
+		IBPCIDevs:       i.IBPCIDevs,
+		IBCapablePCINum: i.IBCapablePCINum,
+	}
+
+	newInfo.IBPFDevs = i.GetIBPFdevs()
+	newInfo.HCAPCINum = countHCAPCINum(newInfo.IBPFDevs)
+	newInfo.IBSoftWareInfo.Collect(ctx)
 
 	// // IBPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
-	for IBDev := range i.IBPFDevs {
+	for IBDev := range newInfo.IBPFDevs {
 		// skip mezzanine card
 		if strings.Contains(IBDev, "mezz") {
 			continue
@@ -131,16 +144,16 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 		}
 
 		var hwInfo IBHardWareInfo
-		hwInfo.Collect(ctx, IBDev, i.IBNicRole)
-		i.IBHardWareInfo[IBDev] = hwInfo
+		hwInfo.Collect(ctx, IBDev, newInfo.IBNicRole)
+		newInfo.IBHardWareInfo[IBDev] = hwInfo
 
 		var counters IBCounters = make(map[string]uint64)
 		counters.Collect(IBDev)
-		i.IBCounters[IBDev] = counters
+		newInfo.IBCounters[IBDev] = counters
 	}
 
-	i.Time = time.Now()
-	return i, nil
+	newInfo.Time = time.Now()
+	return newInfo, nil
 }
 
 // countHCAPCINum counts the number of HCA PCI devices
