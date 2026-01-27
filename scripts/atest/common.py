@@ -143,8 +143,23 @@ def load_user_config(config_path: Optional[str] = None) -> Dict[str, str]:
     return config
 
 def set_swanlab_env(config: Dict[str, str]):
+    # Helper to check if a value is valid (not None, empty, or string "None")
+    def is_valid_value(value):
+        if value is None:
+            return False
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "" or value.lower() == "none":
+                return False
+        return True
+    
+    # Handle swanlab_api_key: set if valid, clear if explicitly set to None/empty
     if "swanlab_api_key" in config:
-        os.environ["SWANLAB_API_KEY"] = config["swanlab_api_key"]
+        if is_valid_value(config["swanlab_api_key"]):
+            os.environ["SWANLAB_API_KEY"] = config["swanlab_api_key"]
+        else:
+            os.environ.pop("SWANLAB_API_KEY", None)
+    
     if "swanlab_workspace" in config:
         os.environ["SWANLAB_WORKSPACE"] = config["swanlab_workspace"]
     if "swanlab_proj_name" in config:
