@@ -1,5 +1,5 @@
 ARG CUDA_VERSION=12.8.1
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu20.04 AS build
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04 AS build
 
 ARG GO_VERSION=1.23.3
 ARG GORELEASER_VERSION=v2.13.1
@@ -32,7 +32,7 @@ RUN if [ -n "$BUILD_TIME" ]; then \
       goreleaser release --snapshot --clean ; \
     fi
 
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu20.04
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai

@@ -71,6 +71,7 @@ func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expect
 		// which should be handled by the spec configuration instead.
 		// Get device count and adjust ExpectedDeviceCount if needed
 		numDevices, err2 := (*collector.nvmlInst).DeviceGetCount()
+		logrus.WithField("component", "NVIDIA-Collector").Infof("detected %s device count: %d", expectedDeviceName, numDevices)
 		if !errors.Is(err2, nvml.SUCCESS) {
 			if invalidErr := utils.IsNvmlInvalidError(err2); invalidErr != nil {
 				return nil, invalidErr

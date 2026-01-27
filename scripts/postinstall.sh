@@ -43,5 +43,46 @@ echo "SICHEK_SPEC_URL is set to ${SICHEK_SPEC_URL}"
 source /etc/profile
 echo "Please run 'source /etc/profile' or log out and log back in to use sichek scripts and SICHEK_SPEC_URL"
 
+# Create AT wrapper scripts
+# Usage: create_at_wrapper <wrapper_name> <python_script> [extra_args...]
+create_at_wrapper() {
+    local name="$1"
+    local script="$2"
+    shift 2
+    local path="${SICHEK_SCRIPTS_PATH}/${name}"
+
+    if [ ! -f "$script" ]; then
+        echo "Warning: AT script not found: $script"
+        return
+    fi
+
+    # Build escaped arguments string
+    local escaped_args=""
+    for arg in "$@"; do
+        # Escape each argument properly for safe inclusion in the script
+        escaped_args="${escaped_args} $(printf %q "$arg")"
+    done
+
+    # Create the wrapper script with properly escaped arguments
+    cat > "$path" << WRAP_EOF
+#!/usr/bin/env bash
+exec python3 "$script"${escaped_args} "\$@"
+WRAP_EOF
+
+    chmod +x "$path"
+    chown root:root "$path"
+}
+
+# Ensure atest scripts are executable
+chmod +x "${SICHEK_SCRIPTS_PATH}/atest/"*.py 2>/dev/null || true
+
+create_at_wrapper "sichek-k8s-nccltest-singlenode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_single_node.py"
+create_at_wrapper "sichek-k8s-nccltest-multinode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_multi_node.py"
+create_at_wrapper "sichek-k8s-llama2-13b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_single_node.py" --job-name sichek-llama2-13b
+create_at_wrapper "sichek-k8s-llama2-70b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py" --job-name sichek-llama2-70b
+create_at_wrapper "sichek-k8s-olmo3-7b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_single_node.py" --job-name sichek-olmo3-7b --cmd "bash /workspace/ai4s-job-system/mcore_trainer/demos/OLMo3/OLMo-3-1025-7B-pretrain-1.sh"
+create_at_wrapper "sichek-k8s-olmo3-7b-multinode" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py" --job-name sichek-olmo3-7b --cmd "bash /workspace/ai4s-job-system/mcore_trainer/demos/OLMo3/OLMo-3-1025-7B-pretrain-1.sh"
+create_at_wrapper "sichek-k8s-qwen-a3b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py" --job-name sichek-qwen-a3b --cmd "MAX_STEPS=128 NCCL_DEBUG=WARN bash /workspace/ai4s-job-system/mcore_trainer/demos/deepseek/sft_deepseekv3.1_base.sh"
+
 # Run check_sicl.sh
 bash /var/sichek/scripts/check_sicl.sh || echo "Failed to run SICL installer"
