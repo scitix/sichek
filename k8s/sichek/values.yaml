@@ -41,6 +41,7 @@ pytorchjob:
   name: "model-test"
   numWorkers: 2
   nodeAffinityHosts: []
+  hostDir: "" # Host directory path to mount in pytorchjob pods (e.g., /data)
 
 serviceAccount:
   create: true

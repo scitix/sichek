@@ -120,9 +120,9 @@ def main():
     image_tag = pick_value(args.image_tag, config, "image_tag", "latest")
     
     if not args.cmd:
-        cmd = "/usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8"
+        cmd = "NCCL_DEBUG=INFO /usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8"
     else:
-        cmd = "/usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8 " + args.cmd
+        cmd = args.cmd
     
     hostnames = parse_hostnames(
         args.hostfile if args.hostfile != "None" else None,

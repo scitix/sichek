@@ -112,6 +112,10 @@ spec:
             - name: nccl-topo
               mountPath: /var/run/nvidia-topologyd
             {{- end }}
+            {{- if .Values.pytorchjob.hostDir }}
+            - name: host-dir
+              mountPath: {{ .Values.pytorchjob.hostDir }}
+            {{- end }}
           {{- if and (ne .Values.roceSharedMode "macvlan") .Values.schedulerName }}
           schedulerName: {{ .Values.schedulerName }}
           {{- end }}
@@ -128,6 +132,12 @@ spec:
           - name: nccl-topo
             hostPath:
               path: /var/run/sys-topology
+          {{- end }}
+          {{- if .Values.pytorchjob.hostDir }}
+          - name: host-dir
+            hostPath:
+              path: {{ .Values.pytorchjob.hostDir }}
+              type: DirectoryOrCreate
           {{- end }}
           tolerations:
           - key: node.kubernetes.io/unschedulable
