@@ -1,0 +1,225 @@
+#!/bin/bash
+
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+USAGE="Usage: $0 [OPTIONS]
+Options:
+  --job-name NAME            Job name (default: diag)
+  --namespace NAMESPACE      Kubernetes namespace (default: default)
+  --cmd CMD                  Command to run (default: sleep 10 && sichek all -e -I podlog,gpuevents,nccltest)
+  --image-repo REPO          Container image repository
+  --image-tag TAG            Container image tag (default: latest)
+  --default-spec SPEC        Default spec file (default: hercules_spec.yaml)
+  --timeout SECONDS          Timeout in seconds (default: 600)
+  --cpu                      Use CPU instead of GPU (default: false, uses GPU)
+  --hostfile FILE            File containing hostnames, one per line
+  --host HOSTS               Comma-separated hostnames
+  -h, --help                 Show this help message
+
+Configuration:
+  Values can be set in ~/.sichek/config.yaml:
+    namespace: default
+    image_repo: registry-us-east.scitix.ai/hisys/sichek
+    image_tag: latest
+    default_spec: hercules_spec.yaml
+
+Note: Number of workers will be automatically derived from hostfile or host parameter.
+"
+
+# Initialize variables
+JOB_NAME=""
+NAMESPACE=""
+CMD=""
+IMAGE_REPO=""
+IMAGE_TAG=""
+DEFAULT_SPEC="default_spec.yaml"
+TIMEOUT_TO_COMPLETE=""
+CPU_FLAG=""
+HOSTFILE="None"
+HOST="None"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --job-name)
+      JOB_NAME="$2"
+      shift 2
+      ;;
+    --namespace)
+      NAMESPACE="$2"
+      shift 2
+      ;;
+    --cmd)
+      CMD="$2"
+      shift 2
+      ;;
+    --image-repo)
+      IMAGE_REPO="$2"
+      shift 2
+      ;;
+    --image-tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
+    --default-spec)
+      DEFAULT_SPEC="$2"
+      shift 2
+      ;;
+    --timeout)
+      TIMEOUT_TO_COMPLETE="$2"
+      shift 2
+      ;;
+    --cpu)
+      CPU_FLAG="true"
+      shift
+      ;;
+    --hostfile)
+      HOSTFILE="$2"
+      shift 2
+      ;;
+    --host)
+      HOST="$2"
+      shift 2
+      ;;
+    -h|--help)
+      echo "$USAGE"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "$USAGE"
+      exit 1
+      ;;
+  esac
+done
+
+# Load user config
+load_user_config
+
+# Pick values with priority: CLI > config > default
+JOB_NAME=$(pick_value "$JOB_NAME" "job_name" "diag")
+NAMESPACE=$(pick_value "$NAMESPACE" "namespace" "default")
+IMAGE_REPO=$(pick_value "$IMAGE_REPO" "image_repo" "registry-us-east.scitix.ai/hisys/sichek")
+IMAGE_TAG=$(pick_value "$IMAGE_TAG" "image_tag" "latest")
+DEFAULT_SPEC=$(pick_value "$DEFAULT_SPEC" "default_spec" "hercules_spec.yaml")
+TIMEOUT_TO_COMPLETE=$(pick_value "$TIMEOUT_TO_COMPLETE" "timeout" "600")
+CMD=$(pick_value "$CMD" "diag_cmd" "sleep 10 && sichek all -e -I podlog,gpuevents,nccltest")
+
+# Determine GPU/CPU setting
+if [ "$CPU_FLAG" = "true" ]; then
+  GPU="false"
+else
+  GPU="true"
+fi
+
+# Parse hostnames from hostfile/host
+parse_hostnames "$HOSTFILE" "$HOST"
+
+# Derive worker count from parsed hostnames
+NUM_WORKERS=${#HOSTNAMES[@]}
+if [ $NUM_WORKERS -eq 0 ]; then
+  echo_warn "No hostnames provided, exiting..."
+  exit 1
+fi
+
+# Append default spec to command
+CMD="$CMD -s $DEFAULT_SPEC"
+ESCAPED_CMD=${CMD//,/\\,}
+
+echo "========================================================================="
+echo_info "Starting Batchjob '$JOB_NAME' in namespace '$NAMESPACE' to run diagnostics..."
+if [ ${#HOSTNAMES[@]} -gt 0 ]; then
+  echo_info "Target hostnames: ${HOSTNAMES[*]}"
+  echo_info "Number of workers: $NUM_WORKERS (auto-derived from hostnames)"
+fi
+echo_info "GPU: $GPU"
+echo_info "Command: $CMD"
+echo_info "Timeout: $TIMEOUT_TO_COMPLETE seconds"
+echo "========================================================================="
+
+# Build helm command with nodeAffinityHosts
+host_csv=$(IFS=,; echo "${HOSTNAMES[*]}")
+
+# Build helm command as array to avoid eval issues
+HELM_ARGS=(
+  "upgrade" "--install" "$JOB_NAME" "/var/sichek/k8s/sichek"
+  "--atomic"
+  "--timeout" "${TIMEOUT_TO_COMPLETE}s"
+  "--set" "namespace=$NAMESPACE"
+  "--set" "mode=diag"
+  "--set" "batchjob.gpu=$GPU"
+  "--set" "batchjob.name=$JOB_NAME"
+  "--set" "batchjob.cmd=$ESCAPED_CMD"
+  "--set" "defaultSpec=$DEFAULT_SPEC"
+  "--set" "image.repository=$IMAGE_REPO"
+  "--set" "image.tag=$IMAGE_TAG"
+  "--set" "batchjob.completions=$NUM_WORKERS"
+  "--set" "batchjob.parallelism=$NUM_WORKERS"
+  "--set" "batchjob.nodeAffinityHosts={$host_csv}"
+)
+
+HELM_FAILED=0
+echo_info "Running helm command: helm ${HELM_ARGS[*]}"
+if helm "${HELM_ARGS[@]}"; then
+  HELM_FAILED=0
+else
+  HELM_FAILED=1
+fi
+
+DIAGJOB_NAME="sichek-${JOB_NAME}-${NUM_WORKERS}"
+cleanup() {
+  echo_info "Cleaning up: $JOB_NAME"
+  echo_back "helm uninstall $JOB_NAME || true"
+  echo_back "kubectl delete job $DIAGJOB_NAME -n $NAMESPACE --ignore-not-found || true"
+  exit 0
+}
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
+
+echo "========================================================================="
+echo_info "Waiting for Job $DIAGJOB_NAME to complete..."
+echo "========================================================================="
+while true; do
+  if ! kubectl get pod -n "$NAMESPACE" | grep "$DIAGJOB_NAME" | grep -qEiv "Completed|Error"; then
+    break
+  fi
+
+  echo_info "Not all pods complete... waiting again."
+  sleep 5
+done
+
+echo "========================================================================="
+echo_info "Fetching failed pod list (excluding Completed)...."
+echo "========================================================================="
+
+PODS=$(kubectl get pods -n "$NAMESPACE" \
+  -l job-name="$DIAGJOB_NAME" \
+  --field-selector=status.phase!=Succeeded \
+  -o custom-columns=NAME:.metadata.name --no-headers)
+
+if [ "$HELM_FAILED" -eq 0 ] && [ -z "$PODS" ]; then
+  echo "========================================================================="
+  kubectl get pods -n "$NAMESPACE" -l job-name="$DIAGJOB_NAME" -o custom-columns=NAME:.metadata.name --no-headers
+  echo "✅ sichek [$CMD] PASSED."
+  echo "=========================================================================="
+  exit 0
+fi
+
+for pod in $PODS; do
+  NODE=$(kubectl get pod "$pod" -n "$NAMESPACE" -o jsonpath='{.spec.nodeName}')
+  echo -e "\n❌ $NODE Failed (Logs from pod $pod)"
+  kubectl logs -n "$NAMESPACE" "$pod" |tail -n 50 || echo "  [!] Failed to fetch logs from $pod"
+done
+
+echo "========================================================================="
+echo "❌ sichek [$CMD] FAILED, FAILED number of pods: $(echo "$PODS" | wc -l)"
+echo "   FAILED number: $(echo "$PODS" | wc -l)"
+echo "========================================================================="
+
+echo "========================================================================="
+echo_info "Stop Job '$DIAGJOB_NAME' in namespace '$NAMESPACE' by helm ..."
+echo "========================================================================="
