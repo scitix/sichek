@@ -76,6 +76,20 @@ WRAP_EOF
 # Ensure atest scripts are executable
 chmod +x "${SICHEK_SCRIPTS_PATH}/atest/"*.py 2>/dev/null || true
 
+# Create sichek-config wrapper
+CONFIG_WRAPPER_PATH="${SICHEK_SCRIPTS_PATH}/sichek-config"
+if [ -f "${SICHEK_SCRIPTS_PATH}/atest/config.py" ]; then
+    cat > "$CONFIG_WRAPPER_PATH" << 'CONFIG_EOF'
+#!/usr/bin/env bash
+exec python3 /var/sichek/scripts/atest/config.py "$@"
+CONFIG_EOF
+    chmod +x "$CONFIG_WRAPPER_PATH"
+    chown root:root "$CONFIG_WRAPPER_PATH"
+    echo "Created sichek-config wrapper"
+else
+    echo "Warning: config.py not found, skipping sichek-config wrapper"
+fi
+
 create_at_wrapper "sichek-k8s-nccltest-singlenode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_single_node.py"
 create_at_wrapper "sichek-k8s-nccltest-multinode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_multi_node.py"
 create_at_wrapper "sichek-k8s-llama2-13b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_single_node.py" --job-name sichek-llama2-13b

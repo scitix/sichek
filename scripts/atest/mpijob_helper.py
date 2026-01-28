@@ -32,6 +32,7 @@ from common import (
     load_user_config,
     pick_value,
     start_kubectl_log_stream,
+    wait_for_pods_ready,
 )
 
 
@@ -137,32 +138,18 @@ class MPIJobRunner:
     def wait_for_pods_ready(self):
         """Wait for all worker pods to be ready"""
         cfg = self.config
-        echo_info("Waiting for all worker pods to be ready...")
-        time.sleep(5)
-        
-        max_attempts = cfg.timeout // 5
-        
-        for attempt in range(max_attempts):
-            wait_cmd = (
-                f"kubectl wait --for=condition=Ready "
-                f"pod -l training.kubeflow.org/job-name={cfg.job_name} "
-                f"-n {cfg.namespace} --timeout=5s"
-            )
-            rc, _, _ = run_cmd(wait_cmd)
-            
-            if rc == 0:
-                # Check if any pods are still terminating
-                check_cmd = f"kubectl get pod -n {cfg.namespace} | grep {cfg.job_name} | grep Terminating"
-                rc2, _, _ = run_cmd(check_cmd)
-                if rc2 != 0:  # No terminating pods found
-                    echo_info("All worker pods are ready.")
-                    return
-            
-            if attempt < max_attempts - 1:
-                echo_info("Some pods are not ready yet... waiting.")
-                time.sleep(5)
-        
-        echo_warn(f"Timeout waiting for pods after {cfg.timeout} seconds")
+        label_selector = (
+            f"training.kubeflow.org/job-name={cfg.job_name},"
+            f"training.kubeflow.org/replica-type=worker"
+        )
+        wait_for_pods_ready(
+            namespace=cfg.namespace,
+            label_selector=label_selector,
+            timeout=cfg.timeout,
+            pod_name_filter=cfg.job_name,
+            initial_delay=5,
+            check_interval=5,
+        )
     
     def get_worker_pods(self) -> List[PodInfo]:
         """Get list of worker pods with their details"""
@@ -173,7 +160,7 @@ class MPIJobRunner:
             f"-l training.kubeflow.org/job-name={cfg.job_name},training.kubeflow.org/replica-type=worker "
             f"-o jsonpath='{{.items[*].metadata.name}}'"
         )
-        rc, out, _ = run_cmd(pod_cmd)
+        rc, out, _ = run_cmd(pod_cmd, quiet=True)
         
         if rc != 0 or not out.strip():
             echo_warn(f"No worker pods found for job '{cfg.job_name}'")
@@ -186,8 +173,8 @@ class MPIJobRunner:
             host_ip_cmd = f"kubectl get pod -n {cfg.namespace} {pod_name} -o jsonpath='{{.status.hostIP}}'"
             host_name_cmd = f"kubectl get pod -n {cfg.namespace} {pod_name} -o jsonpath='{{.spec.nodeName}}'"
             
-            _, host_ip_out, _ = run_cmd(host_ip_cmd)
-            _, host_name_out, _ = run_cmd(host_name_cmd)
+            _, host_ip_out, _ = run_cmd(host_ip_cmd, quiet=True)
+            _, host_name_out, _ = run_cmd(host_name_cmd, quiet=True)
             
             pods.append(PodInfo(
                 name=pod_name,

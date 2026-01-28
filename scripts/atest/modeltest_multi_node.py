@@ -32,6 +32,7 @@ from common import (
     load_user_config,
     pick_value,
     start_kubectl_log_stream,
+    wait_for_pods_ready,
 )
 
 
@@ -188,21 +189,30 @@ def main():
             return
         
         # Now wait for all worker pods to be ready
-        echo_info("Waiting for all worker pods to be ready...")
-        wait_cmd = (
-            f"kubectl wait --for=condition=Ready pod "
-            f"-l training.kubeflow.org/replica-type=worker,training.kubeflow.org/job-name={args.job_name} "
-            f"-n {args.namespace} --timeout=300s"
+        wait_for_pods_ready(
+            namespace=args.namespace,
+            label_selector=(
+                f"training.kubeflow.org/replica-type=worker,"
+                f"training.kubeflow.org/job-name={args.job_name}"
+            ),
+            timeout=args.timeout,
+            pod_name_filter=args.job_name,
+            initial_delay=5,
+            check_interval=5,
         )
-        run_cmd_check(wait_cmd)
-
-        echo_info("Waiting for master pod to be ready...")
-        wait_master_cmd = (
-            f"kubectl wait --for=condition=Ready pod "
-            f"-l training.kubeflow.org/replica-type=master,training.kubeflow.org/job-name={args.job_name} "
-            f"-n {args.namespace} --timeout=300s"
+        
+        # Wait for master pod to be ready
+        wait_for_pods_ready(
+            namespace=args.namespace,
+            label_selector=(
+                f"training.kubeflow.org/replica-type=master,"
+                f"training.kubeflow.org/job-name={args.job_name}"
+            ),
+            timeout=300,
+            pod_name_filter=args.job_name,
+            initial_delay=0,
+            check_interval=5,
         )
-        run_cmd_check(wait_master_cmd)
 
         # Find last worker pod
         pod_cmd = (
@@ -210,7 +220,7 @@ def main():
             f"training.kubeflow.org/job-name={args.job_name} "
             f"-o jsonpath='{{.items[*].metadata.name}}'"
         )
-        rc, out, _ = run_cmd(pod_cmd)
+        rc, out, _ = run_cmd(pod_cmd, quiet=True)
         if rc != 0 or not out.strip():
             echo_warn(f"No worker pods found for job '{args.job_name}'")
             return
@@ -224,7 +234,7 @@ def main():
             f"training.kubeflow.org/job-name={args.job_name} "
             f"-o jsonpath='{{.items[*].metadata.name}}'"
         )
-        rc, out, _ = run_cmd(master_pod_cmd)
+        rc, out, _ = run_cmd(master_pod_cmd, quiet=True)
         if rc != 0 or not out.strip():
             echo_warn(f"No master pod found for job '{args.job_name}'")
             return

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/scitix/sichek/cmd/command/specgen"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
@@ -59,7 +59,7 @@ func NewNvidiaCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("component", "nvidia").Error(err)
 			} else {
-				specFile, err = specgen.EnsureSpecFile(specFile)
+				specFile, err = spec.EnsureSpecFile(specFile)
 				if err != nil {
 					logrus.WithField("daemon", "nvidia").Errorf("using default specFile: %v", err)
 				} else {

@@ -19,7 +19,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/scitix/sichek/cmd/command/specgen"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/consts"
 
@@ -51,7 +51,7 @@ func NewInfinibandCmd() *cobra.Command {
 				}()
 			}
 
-			specFile, err := specgen.EnsureSpecFile(specFile)
+			specFile, err := spec.EnsureSpecFile(specFile)
 			if err != nil {
 				logrus.WithField("daemon", "infiniband").Errorf("using default specFile: %v", err)
 			} else {

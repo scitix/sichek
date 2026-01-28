@@ -22,7 +22,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scitix/sichek/cmd/command/specgen"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/dmesg"
@@ -65,7 +65,7 @@ func NewAllCmd() *cobra.Command {
 			if !verbos {
 				logrus.SetLevel(logrus.ErrorLevel)
 			}
-			specFile, err := specgen.EnsureSpecFile(specFile)
+			specFile, err := spec.EnsureSpecFile(specFile)
 			if err != nil {
 				logrus.WithField("daemon", "all").Errorf("using default specFile: %v", err)
 			} else {

@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from statistics import mean, pstdev
 from typing import Dict, List, Optional, Tuple
 
@@ -214,6 +215,127 @@ def summarize(values: List[float]) -> Tuple[Optional[float], Optional[float], Op
     mx = max(values)
     std = pstdev(values) if len(values) > 1 else 0.0
     return avg, mn, mx, std
+
+
+def wait_for_pods_ready(
+    namespace: str,
+    label_selector: str,
+    timeout: int = 600,
+    pod_name_filter: Optional[str] = None,
+    initial_delay: int = 5,
+    check_interval: int = 5,
+    pod_type: str = "pod",
+) -> Tuple[List[str], List[str], bool]:
+    time.sleep(initial_delay)
+    
+    # First, get all pod names matching the label selector
+    pod_cmd = (
+        f"kubectl get {pod_type} -n {namespace} "
+        f"-l {label_selector} "
+        f"-o jsonpath='{{.items[*].metadata.name}}'"
+    )
+    rc, out, _ = run_cmd(pod_cmd, quiet=True)
+    
+    if rc != 0 or not out.strip():
+        echo_warn("No pods found yet, waiting for pods to be created...")
+        # Wait for pods to be created first
+        max_wait = 600  # 10 minutes
+        waited = 0
+        while waited < max_wait:
+            rc, out, _ = run_cmd(pod_cmd, quiet=True)
+            if rc == 0 and out.strip():
+                break
+            time.sleep(check_interval)
+            waited += check_interval
+            if waited % 30 == 0:
+                echo_info("Still waiting for pods to be created...")
+    
+    if rc != 0 or not out.strip():
+        echo_warn("No pods found after waiting, proceeding anyway...")
+        return [], [], False
+    
+    pod_names = out.strip().split()
+    echo_info(f"Found {len(pod_names)} {pod_type}(s), checking readiness...")
+    
+    # Poll pod status directly
+    max_attempts = timeout // check_interval
+    ready_pods = []
+    not_ready_pods = []
+    
+    for attempt in range(max_attempts):
+        ready_pods = []
+        not_ready_pods = []
+        
+        # Check status of each pod
+        for pod_name in pod_names:
+            # Get pod status: check if Ready condition is True
+            status_cmd = (
+                f"kubectl get {pod_type} {pod_name} -n {namespace} "
+                f"-o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
+            )
+            rc, status_out, _ = run_cmd(status_cmd, quiet=True)
+            
+            if rc == 0 and status_out.strip() == "True":
+                # Also check if pod phase is Running
+                phase_cmd = (
+                    f"kubectl get {pod_type} {pod_name} -n {namespace} "
+                    f"-o jsonpath='{{.status.phase}}'"
+                )
+                rc2, phase_out, _ = run_cmd(phase_cmd, quiet=True)
+                if rc2 == 0 and phase_out.strip() == "Running":
+                    if pod_name not in ready_pods:
+                        ready_pods.append(pod_name)
+                else:
+                    if pod_name not in not_ready_pods:
+                        not_ready_pods.append(pod_name)
+            else:
+                if pod_name not in not_ready_pods:
+                    not_ready_pods.append(pod_name)
+        
+        # Check for terminating pods if filter is provided
+        has_terminating = False
+        if pod_name_filter:
+            check_cmd = (
+                f"kubectl get {pod_type} -n {namespace} | "
+                f"grep {pod_name_filter} | grep Terminating"
+            )
+            rc2, _, _ = run_cmd(check_cmd, quiet=True)
+            has_terminating = (rc2 == 0)
+        
+        if len(ready_pods) == len(pod_names) and not has_terminating:
+            echo_info(f"All {len(ready_pods)} {pod_type}(s) are ready.")
+            return ready_pods, not_ready_pods, has_terminating
+        
+        if attempt < max_attempts - 1:
+            if len(ready_pods) > 0:
+                echo_info(
+                    f"{len(ready_pods)}/{len(pod_names)} {pod_type}(s) ready, "
+                    f"waiting for remaining {len(not_ready_pods)} {pod_type}(s)..."
+                )
+            else:
+                echo_info(f"Waiting for {pod_type}(s) to be ready...")
+            time.sleep(check_interval)
+    
+    # Final status report
+    if len(ready_pods) == len(pod_names) and not has_terminating:
+        echo_info(f"All {len(ready_pods)} {pod_type}(s) are ready.")
+    elif len(ready_pods) > 0:
+        echo_warn(
+            f"Only {len(ready_pods)}/{len(pod_names)} {pod_type}(s) are ready after {timeout} seconds."
+        )
+        if not_ready_pods:
+            echo_warn(
+                f"{pod_type.capitalize()}(s) not ready: {', '.join(not_ready_pods[:5])}" +
+                (f" and {len(not_ready_pods) - 5} more" if len(not_ready_pods) > 5 else "")
+            )
+        if has_terminating:
+            echo_warn(f"Some {pod_type}(s) are still Terminating.")
+    else:
+        echo_warn(
+            f"None of the {len(pod_names)} {pod_type}(s) are ready after {timeout} seconds."
+        )
+    
+    return ready_pods, not_ready_pods, has_terminating
 
 
 def start_kubectl_log_stream(namespace: str, pod_name: str, prefix: str) -> Tuple[Optional[subprocess.Popen], Optional[threading.Thread]]:

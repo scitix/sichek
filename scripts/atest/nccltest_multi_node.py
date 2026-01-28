@@ -33,6 +33,7 @@ from common import (
     load_user_config,
     pick_value,
     start_kubectl_log_stream,
+    wait_for_pods_ready,
 )
 
 
@@ -133,54 +134,27 @@ def main():
         )
         run_cmd_check(helm_cmd)
 
-        echo_info("Waiting for all pods to be ready...")
-        time.sleep(5)
-        
-        max_attempts = args.timeout // 5
-        attempt = 0
-        
-        while attempt < max_attempts:
-            wait_cmd = (
-                f"kubectl wait --for=condition=Ready pod "
-                f"-l training.kubeflow.org/job-name={args.job_name} "
-                f"-n {args.namespace} --timeout={args.timeout}s"
-            )
-            rc, _, _ = run_cmd(wait_cmd, quiet=True)
-            
-            # Check if any pods are still Terminating
-            check_cmd = (
-                f"kubectl get pod -n {args.namespace} | "
-                f"grep {args.job_name} | grep Terminating"
-            )
-            rc2, _, _ = run_cmd(check_cmd, quiet=True)
-            
-            if rc == 0 and rc2 != 0:  # Wait succeeded and no terminating pods
-                echo_info("All pods are ready and no pods are terminating.")
-                break
-            
-            if rc2 == 0:  # Found terminating pods
-                echo_info("Some pods are still Terminating... waiting again.")
-            elif rc != 0:  # Wait failed (pods might not be created yet)
-                echo_info("Waiting for pods to be created and ready...")
-            else:
-                echo_info("Waiting for pods to be ready...")
-            
-            time.sleep(5)
-            attempt += 1
-        
-        if attempt >= max_attempts:
-            echo_warn(f"Timeout waiting for pods after {args.timeout} seconds")
+        wait_for_pods_ready(
+            namespace=args.namespace,
+            label_selector=f"training.kubeflow.org/job-name={args.job_name}",
+            timeout=args.timeout,
+            pod_name_filter=args.job_name,
+            initial_delay=5,
+            check_interval=5,
+        )
 
         # Find launcher pod
         rc, out, _ = run_cmd(
             f"kubectl get mpijob {args.job_name} -n {args.namespace} "
-            f"-o jsonpath='{{.status.launcherStatus.podName}}'"
+            f"-o jsonpath='{{.status.launcherStatus.podName}}'",
+            quiet=True
         )
         launcher_pod = out.strip() if rc == 0 else ""
         if not launcher_pod:
             rc, out, _ = run_cmd(
                 f"kubectl get pods -n {args.namespace} -o name | "
-                f"grep '{args.job_name}-launcher' | head -n1 | sed 's|pods/||'"
+                f"grep '{args.job_name}-launcher' | head -n1 | sed 's|pods/||'",
+                quiet=True
             )
             launcher_pod = out.strip()
         if not launcher_pod:
@@ -193,7 +167,8 @@ def main():
         rc, worker_info, _ = run_cmd(
             f"kubectl get pods -n {args.namespace} "
             f"-l training.kubeflow.org/replica-type=worker,training.kubeflow.org/job-name={args.job_name} "
-            f"-o jsonpath='{{range .items[*]}}{{.metadata.name}} on {{.spec.nodeName}}{{\"\\n\"}}{{end}}'"
+            f"-o jsonpath='{{range .items[*]}}{{.metadata.name}} on {{.spec.nodeName}}{{\"\\n\"}}{{end}}'",
+            quiet=True
         )
         if worker_info.strip():
             echo_info("Test machines (Worker Pods and their nodes):")
@@ -228,7 +203,8 @@ def main():
             waited = 0
             while True:
                 rc, status, _ = run_cmd(
-                    f"kubectl -n {args.namespace} get {launcher_pod} -o jsonpath='{{.status.phase}}'"
+                    f"kubectl -n {args.namespace} get {launcher_pod} -o jsonpath='{{.status.phase}}'",
+                    quiet=True
                 )
                 if status.strip() == "Running":
                     break
