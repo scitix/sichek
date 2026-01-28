@@ -50,7 +50,7 @@ def main():
     parser.add_argument("--host", default="None")
     parser.add_argument("--max-steps", type=int, default=128)
     parser.add_argument("--mbs", type=int, default=None, help="micro batch size")
-    parser.add_argument("--olmo-core-dir", default=None, help="olmo core directory")
+    parser.add_argument("--host-dir", default=None, help="host directory to mount in pytorchjob pods")
 
     args = parser.parse_args()
 
@@ -89,8 +89,8 @@ def main():
     cmd = f"GBS={gbs} MAX_STEPS={args.max_steps} {args.cmd}"
     if args.mbs is not None:
         cmd = f"MBS={args.mbs} {cmd}"
-    if args.olmo_core_dir is not None:
-        cmd = f"OLMO_CORE_DIR={args.olmo_core_dir} {cmd}"
+    if args.host_dir is not None:
+        cmd = f"OLMO_CORE_DIR={args.host_dir} {cmd}"
     if os.getenv("SWANLAB_API_KEY") is not None:
         cmd = (
             f"export SWANLAB_API_KEY={os.getenv('SWANLAB_API_KEY')} && "
