@@ -58,12 +58,12 @@ def main():
 
     repo = pick_value(args.image_repo, config, "pytorchjob_image_repo", "")
     if not repo:
-        repo = pick_value(None, config, "image_repo", "registry-us-east.scitix.ai/hpc/ngc_pytorch")
+        repo = pick_value(None, config, "image_repo", "none")
     args.image_repo = repo
 
     tag = pick_value(args.image_tag, config, "pytorchjob_image_tag", "")
     if not tag:
-        tag = pick_value(None, config, "image_tag", "24.06-sicl-0723")
+        tag = pick_value(None, config, "image_tag", "none")
     args.image_tag = tag
 
     args.scheduler_name = pick_value(args.scheduler_name, config, "scheduler", "si-scheduler")
@@ -164,6 +164,8 @@ def main():
             f"--set pytorchjob.cmd={shlex.quote(cmd)} "
             f"--set 'pytorchjob.nodeAffinityHosts={{{host_csv}}}'"
         )
+        if args.olmo_core_dir is not None:
+            helm_cmd += f" --set pytorchjob.hostDir={shlex.quote(args.olmo_core_dir)}"
         run_cmd_check(helm_cmd)
 
         echo_info("Waiting for worker pods to be created...")
