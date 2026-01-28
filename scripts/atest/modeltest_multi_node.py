@@ -40,7 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description="Llama2 70B benchmark (multi node) with SwanLab")
     parser.add_argument("--job-name", default=None)
     parser.add_argument("--namespace", default="default")
-    parser.add_argument("--cmd", default="", help="command to run in each pod: bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh by default")
+    parser.add_argument("--cmd", default="", help="command to run in each pod: PP=1 MBS=4 bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh by default")
     parser.add_argument("--image-repo", default=None)
     parser.add_argument("--image-tag", default=None)
     parser.add_argument("--timeout", type=int, default=600)
@@ -81,7 +81,7 @@ def main():
     else:
         args.job_name = f"{args.job_name}-n{num_workers}-{date_str}"
     default_cmd = (
-        "bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh"
+        "PP=1 MBS=4 bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh"
     )
     gbs = 128 * num_workers
     if not args.cmd:
@@ -97,6 +97,11 @@ def main():
             f"export SWANLAB_WORKSPACE={os.getenv('SWANLAB_WORKSPACE')} && "
             f"export SWANLAB_PROJ_NAME={os.getenv('SWANLAB_PROJ_NAME')} && "
             f"export SWANLAB_EXP_NAME={args.job_name} && "
+            f"{cmd}"
+        )
+    else:
+        cmd = (
+            f"export SWANLAB_MODE=disabled && "
             f"{cmd}"
         )
     
