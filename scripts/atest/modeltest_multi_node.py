@@ -164,8 +164,8 @@ def main():
             f"--set pytorchjob.cmd={shlex.quote(cmd)} "
             f"--set 'pytorchjob.nodeAffinityHosts={{{host_csv}}}'"
         )
-        if args.olmo_core_dir is not None:
-            helm_cmd += f" --set pytorchjob.hostDir={shlex.quote(args.olmo_core_dir)}"
+        if args.host_dir is not None:
+            helm_cmd += f" --set pytorchjob.hostDir={shlex.quote(args.host_dir)}"
         run_cmd_check(helm_cmd)
 
         echo_info("Waiting for worker pods to be created...")
