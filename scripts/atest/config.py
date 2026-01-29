@@ -214,10 +214,18 @@ def config_set():
             print(f"  Updated keys in this session: {', '.join(updated_keys)}")
         
         try:
-            choice = input("\nEnter number to select key (or 0 to finish): ").strip()
+            choice = input("\nEnter number to select key (Enter or 0 to finish): ").strip()
             
             if not choice:
-                continue
+                # Enter pressed, exit
+                if updated_keys:
+                    if save_config(config):
+                        print(f"\nSuccessfully saved {len(updated_keys)} key(s): {', '.join(updated_keys)}")
+                    else:
+                        print("\nFailed to save config")
+                else:
+                    print("\nNo changes made.")
+                break
             
             idx = int(choice)
             
@@ -255,17 +263,6 @@ def config_set():
                 updated_keys.append(selected_key)
             
             print(f"Updated {selected_key} = {new_val}")
-            
-            # Ask if user wants to continue
-            continue_choice = input("\nContinue setting other keys? [Y/n]: ").strip().lower()
-            if continue_choice in ('n', 'no'):
-                # Save and exit
-                if updated_keys:
-                    if save_config(config):
-                        print(f"\nSuccessfully saved {len(updated_keys)} key(s): {', '.join(updated_keys)}")
-                    else:
-                        print("\nFailed to save config")
-                break
             
         except ValueError:
             print("Invalid input. Please enter a number.")

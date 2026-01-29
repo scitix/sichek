@@ -96,6 +96,10 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               env:
+                {{- if ne .Values.mpijob.requestGpu true }}
+                - name: NVIDIA_VISIBLE_DEVICES
+                  value: all
+                {{- end }}
                 - name: SICHEK_SPEC_URL
                   value: {{ .Values.sichekSpecUrl }}
                 - name: NODE_NAME
