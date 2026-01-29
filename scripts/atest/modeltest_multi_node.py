@@ -56,15 +56,9 @@ def main():
 
     config = load_user_config()
 
-    repo = pick_value(args.image_repo, config, "pytorchjob_image_repo", "")
-    if not repo:
-        repo = pick_value(None, config, "image_repo", "none")
-    args.image_repo = repo
+    args.image_repo = pick_value(args.image_repo, config, "pytorchjob_image_repo", "registry-us-east.scitix.ai/hisys/mcore")
 
-    tag = pick_value(args.image_tag, config, "pytorchjob_image_tag", "")
-    if not tag:
-        tag = pick_value(None, config, "image_tag", "none")
-    args.image_tag = tag
+    args.image_tag = pick_value(args.image_tag, config, "pytorchjob_image_tag", "v2.1-cudnn9.14-te2.8-cuda_arch_10.0_at")
 
     args.scheduler_name = pick_value(args.scheduler_name, config, "scheduler", "si-scheduler")
     args.roce_shared_mode = pick_value(args.roce_shared_mode, config, "roce_shared_mode", "none")

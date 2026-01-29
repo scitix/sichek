@@ -111,7 +111,7 @@ def main():
     parser.add_argument("--image-tag", default=None, help="Container image tag")
     parser.add_argument("--max-steps", type=int, default=128)
     parser.add_argument("--mbs", type=int, default=None, help="micro batch size")
-    parser.add_argument("--olmo-core-dir", default=None, help="olmo core directory")
+    parser.add_argument("--host-dir", default=None, help="host directory to mount in pytorchjob pods")
 
     args = parser.parse_args()
     
@@ -125,16 +125,11 @@ def main():
     cmd = f"MAX_STEPS={args.max_steps} {args.cmd}"
     if args.mbs is not None:
         cmd = f"MBS={args.mbs} {cmd}"
-    if args.olmo_core_dir is not None:
-        cmd = f"OLMO_CORE_DIR={args.olmo_core_dir} {cmd}"
+    if args.host_dir is not None:
+        cmd = f"OLMO_CORE_DIR={args.host_dir} {cmd}"
     
-    image_repo = pick_value(args.image_repo, config, "pytorchjob_image_repo", "")
-    if not image_repo:
-        image_repo = pick_value(None, config, "image_repo", "registry-us-east.scitix.ai/hpc/ngc_pytorch")
-    
-    image_tag = pick_value(args.image_tag, config, "pytorchjob_image_tag", "")
-    if not image_tag:
-        image_tag = pick_value(None, config, "image_tag", "24.06-sicl-0723")
+    image_repo = pick_value(args.image_repo, config, "pytorchjob_image_repo", "registry-us-east.scitix.ai/hisys/mcore")
+    image_tag = pick_value(args.image_tag, config, "pytorchjob_image_tag", "v2.1-cudnn9.14-te2.8-cuda_arch_10.0_at")
     
     hostnames = parse_hostnames(
         args.hostfile if args.hostfile != "None" else None,
