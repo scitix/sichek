@@ -90,8 +90,10 @@ else
     echo "Warning: config.py not found, skipping sichek-config wrapper"
 fi
 
-create_at_wrapper "sichek-k8s-nccltest-singlenode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_single_node.py"
-create_at_wrapper "sichek-k8s-nccltest-multinode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_multi_node.py"
+create_at_wrapper "sichek-k8s-nccltest-singlenode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_single_node.py" --request-gpu
+create_at_wrapper "sichek-k8s-nccltest-multinode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_multi_node.py" --request-gpu
+create_at_wrapper "sichek-k8s-nccltest-diag-singlenode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_single_node.py" --cmd "NCCL_DEBUG=INFO /usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8 -b 8 -e 8"
+create_at_wrapper "sichek-k8s-nccltest-diag-multinode" "${SICHEK_SCRIPTS_PATH}/atest/nccltest_multi_node.py" --cmd "allreduce -b 8 -e 8"
 create_at_wrapper "sichek-k8s-llama2-13b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_single_node.py" --job-name sichek-llama2-13b
 create_at_wrapper "sichek-k8s-llama2-70b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py" --job-name sichek-llama2-70b
 create_at_wrapper "sichek-k8s-olmo3-7b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_single_node.py" --job-name sichek-olmo3-7b --cmd "bash /workspace/ai4s-job-system/mcore_trainer/demos/OLMo3/OLMo-3-1025-7B-pretrain-1.sh"

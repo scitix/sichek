@@ -28,9 +28,6 @@ from common import (
     echo_warn,
     run_cmd,
     run_cmd_check,
-    parse_hostnames,
-    load_user_config,
-    pick_value,
     start_kubectl_log_stream,
     wait_for_pods_ready,
 )
@@ -68,6 +65,7 @@ class MPIJobConfig:
     roce_shared_mode: str
     timeout: int
     max_parallel_jobs: int = 200
+    request_gpu: bool = True
     cmd: str = ""
 
 class MPIJobRunner:
@@ -131,7 +129,8 @@ class MPIJobRunner:
             f"--set image.tag={shlex.quote(cfg.image_tag)} "
             f"--set mpijob.name={shlex.quote(cfg.job_name)} "
             f"--set mpijob.numWorkers={len(cfg.hostnames)} "
-            f"--set 'mpijob.nodeAffinityHosts={{{host_csv}}}'"
+            f"--set 'mpijob.nodeAffinityHosts={{{host_csv}}}' "
+            f"--set 'mpijob.requestGpu={cfg.request_gpu}'"
         )
         run_cmd_check(helm_cmd)
     

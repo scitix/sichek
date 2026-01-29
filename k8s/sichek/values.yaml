@@ -34,6 +34,7 @@ batchjob:
 mpijob:
   name: "nccl-test"
   numWorkers: 2
+  requestGpu: true
   slotsPerWorker: 8
   nodeAffinityHosts: []
 

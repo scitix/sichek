@@ -112,6 +112,7 @@ def main():
     )
     parser.add_argument("--image-repo", default=None, help="Container image repository")
     parser.add_argument("--image-tag", default=None, help="Container image tag")
+    parser.add_argument("--request-gpu", action="store_true", help="Request GPU resources for each worker pod")
     args = parser.parse_args()
     
     config = load_user_config()
@@ -145,6 +146,7 @@ def main():
         timeout=args.timeout,
         max_parallel_jobs=args.max_parallel_jobs,
         cmd=cmd,
+        request_gpu=args.request_gpu,
     )
     
     runner = MPIJobRunner(mpijob_config)

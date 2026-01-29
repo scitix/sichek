@@ -113,7 +113,9 @@ spec:
                 {{- end }}
               resources:
                 limits:
+                  {{- if eq .Values.mpijob.requestGpu true }}
                   nvidia.com/gpu: "8"
+                  {{- end }}
                   {{- if eq .Values.roceSharedMode "macvlan" }}
                   {{- range $i := until 8 }}
                   nvidia.com/rdma{{ $i }}: "1"
@@ -124,7 +126,9 @@ spec:
                   rdma/hca_shared_devices_all: "1"
                   {{- end }}
                 requests:
+                  {{- if eq .Values.mpijob.requestGpu true }}
                   nvidia.com/gpu: "8"
+                  {{- end }}
                   {{- if eq .Values.roceSharedMode "macvlan" }}
                   {{- range $i := until 8 }}
                   nvidia.com/rdma{{ $i }}: "1"

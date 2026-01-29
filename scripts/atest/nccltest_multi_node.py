@@ -51,6 +51,7 @@ def main():
     parser.add_argument("--roce-shared-mode", default=None)
     parser.add_argument("--hostfile", default="None")
     parser.add_argument("--host", default="None")
+    parser.add_argument("--request-gpu", action="store_true", help="Request GPU resources for each worker pod")
     args = parser.parse_args()
 
     config = load_user_config()
@@ -119,6 +120,7 @@ def main():
         echo_info(f"Timeout: {args.timeout} seconds")
 
         host_csv = ",".join(hostnames)
+        gpu_flag = "true" if args.request_gpu else "false"
         helm_cmd = (
             f"helm upgrade --install {shlex.quote(args.job_name)} {shlex.quote(str(helm_dir))} "
             f"--atomic "
@@ -130,7 +132,8 @@ def main():
             f"--set image.tag={shlex.quote(args.image_tag)} "
             f"--set mpijob.name={shlex.quote(args.job_name)} "
             f"--set mpijob.numWorkers={num_workers} "
-            f"--set 'mpijob.nodeAffinityHosts={{{host_csv}}}'"
+            f"--set 'mpijob.nodeAffinityHosts={{{host_csv}}}' "
+            f"--set 'mpijob.requestGpu={gpu_flag}'"
         )
         run_cmd_check(helm_cmd)
 
