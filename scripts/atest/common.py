@@ -154,17 +154,17 @@ def set_swanlab_env(config: Dict[str, str]):
                 return False
         return True
     
-    # Handle swanlab_api_key: set if valid, clear if explicitly set to None/empty
-    if "swanlab_api_key" in config:
-        if is_valid_value(config["swanlab_api_key"]):
-            os.environ["SWANLAB_API_KEY"] = config["swanlab_api_key"]
-        else:
-            os.environ.pop("SWANLAB_API_KEY", None)
-    
-    if "swanlab_workspace" in config:
-        os.environ["SWANLAB_WORKSPACE"] = config["swanlab_workspace"]
-    if "swanlab_proj_name" in config:
-        os.environ["SWANLAB_PROJ_NAME"] = config["swanlab_proj_name"]
+    # Set env from config when valid; clear when key present but value empty (pop with None is safe if key missing)
+    for env_key, config_key in [
+        ("SWANLAB_API_KEY", "swanlab_api_key"),
+        ("SWANLAB_WORKSPACE", "swanlab_workspace"),
+        ("SWANLAB_PROJ_NAME", "swanlab_proj_name"),
+    ]:
+        val = config.get(config_key)
+        if is_valid_value(val):
+            os.environ[env_key] = val if isinstance(val, str) else str(val)
+        elif config_key in config:
+            os.environ.pop(env_key, None)
 
 def pick_value(cli_value: Optional[str], config: Dict[str, str], key: str, default: str) -> str:
     if cli_value not in (None, ""):
