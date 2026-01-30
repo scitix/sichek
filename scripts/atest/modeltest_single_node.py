@@ -20,7 +20,6 @@ except ImportError:
     import swanlab
 
 from common import (
-    echo_info,
     echo_warn,
     parse_megatron_tflops_values,
     parse_hostnames,

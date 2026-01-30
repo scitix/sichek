@@ -6,7 +6,7 @@ Sichek Configuration Management Tool
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 try:
     import yaml
@@ -99,10 +99,7 @@ def validate_spec_exists(spec_name: str) -> bool:
     print("Spec validation failed!")
     print(f"Spec file '{spec_name}' not found in:")
     print(f"   - Production path: {default_production_path}")
-    if spec_url:
-        print(f"   - SICHEK_SPEC_URL: {spec_url}")
-    else:
-        print("   - SICHEK_SPEC_URL: (SICHEK_SPEC_URL environment variable not set)")
+    print("    - SICHEK_SPEC_URL: (SICHEK_SPEC_URL environment variable not set)")
     print()
     print("Please ensure the spec file exists or set SICHEK_SPEC_URL")
     print()

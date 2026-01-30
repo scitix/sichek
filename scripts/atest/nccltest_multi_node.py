@@ -12,7 +12,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 
 try:
     import swanlab
@@ -181,8 +181,6 @@ def main():
         # NCCL test commands
         default_labels = ["all_reduce", "all_gather", "reduce_scatter", "all2all"]
         default_cmds = ["allreduce", "allgather", "reducescatter", "alltoall"]
-        test_labels = default_labels
-        test_cmds = default_cmds
 
         if args.cmd:
             if re.search(r"(allreduce|allgather|reducescatter|alltoall)", args.cmd):
