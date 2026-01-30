@@ -48,6 +48,7 @@ import (
 // - eventonly: Print events output only (default: false)
 func NewAllCmd() *cobra.Command {
 	var (
+		cfgFile          string
 		specFile         string
 		enableComponents string
 		ignoreComponents string
@@ -65,6 +66,12 @@ func NewAllCmd() *cobra.Command {
 			if !verbos {
 				logrus.SetLevel(logrus.ErrorLevel)
 			}
+			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
+			if err != nil {
+				logrus.WithField("daemon", "all").Errorf("using default cfgFile: %v", err)
+			} else if cfgFile != "" {
+				logrus.WithField("daemon", "all").Info("load cfgFile: " + resolvedCfgFile)
+			}
 			specFile, err := spec.EnsureSpecFile(specFile)
 			if err != nil {
 				logrus.WithField("daemon", "all").Errorf("using default specFile: %v", err)
@@ -78,7 +85,7 @@ func NewAllCmd() *cobra.Command {
 				ignoredCheckersList = strings.Split(ignoredCheckers, ",")
 			}
 
-			componentsToCheck := DetermineComponentsToCheck(enableComponents, ignoreComponents, "", "all")
+			componentsToCheck := DetermineComponentsToCheck(enableComponents, ignoreComponents, resolvedCfgFile, "all")
 			checkResults := make([]*CheckResults, len(componentsToCheck))
 			var wg sync.WaitGroup
 			for idx, componentName := range componentsToCheck {
@@ -91,7 +98,7 @@ func NewAllCmd() *cobra.Command {
 				wg.Add(1)
 				go func(idx int, componentName string) {
 					defer wg.Done()
-					component, err := NewComponent(componentName, "", specFile, ignoredCheckersList)
+					component, err := NewComponent(componentName, resolvedCfgFile, specFile, ignoredCheckersList)
 					if err != nil {
 						logrus.WithField("component", componentName).Errorf("failed to create component: %v", err)
 						return
@@ -136,6 +143,7 @@ func NewAllCmd() *cobra.Command {
 
 	allCmd.Flags().BoolVarP(&verbos, "verbos", "v", false, "Enable verbose output")
 	allCmd.Flags().BoolVarP(&eventonly, "eventonly", "e", false, "Print events output only")
+	allCmd.Flags().StringVarP(&cfgFile, "cfg", "c", "", "Path to the user config file")
 	allCmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringVarP(&enableComponents, "enable-components", "E", "", "Enabled components, joined by ','")
 	allCmd.Flags().StringVarP(&ignoreComponents, "ignore-components", "I", "podlog,gpuevents,syslog", "Ignored components")

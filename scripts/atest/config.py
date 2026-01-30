@@ -25,6 +25,7 @@ CONFIG_KEYS = [
     "pytorchjob_host_dir",
     "roce_shared_mode",
     "default_spec",
+    "gpu_type",
     "swanlab_api_key",
     "swanlab_workspace",
     "swanlab_proj_name",
@@ -147,6 +148,10 @@ def config_create():
     new_config["default_spec"] = ask(
         "default spec",
         config.get("default_spec", "default_spec.yaml")
+    )
+    new_config["gpu_type"] = ask(
+        "GPU type[B200, H200, other]",
+        config.get("gpu_type", "B200")
     )
     new_config["swanlab_api_key"] = ask(
         "swanlab api key",

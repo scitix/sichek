@@ -50,7 +50,11 @@ def main():
     parser.add_argument("--host", default="None")
     parser.add_argument("--max-steps", type=int, default=128)
     parser.add_argument("--mbs", type=int, default=None, help="micro batch size")
+    parser.add_argument("--tp", type=int, default=None, help="Tensor Parallelism size")
+    parser.add_argument("--pp", type=int, default=None, help="Pipeline Parallelism size")
+    parser.add_argument("--ep", type=int, default=None, help="Expert Parallelism size")
     parser.add_argument("--host-dir", default=None, help="host directory to mount in pytorchjob pods")
+    parser.add_argument("--gpu-type", default=None, help="GPU type")
 
     args = parser.parse_args()
 
@@ -62,6 +66,7 @@ def main():
 
     args.scheduler_name = pick_value(args.scheduler_name, config, "scheduler", "si-scheduler")
     args.roce_shared_mode = pick_value(args.roce_shared_mode, config, "roce_shared_mode", "none")
+    args.gpu_type = pick_value(args.gpu_type, config, "gpu_type", "h100")
 
     hostnames = parse_hostnames(args.hostfile, args.host)
     if not hostnames:
@@ -74,15 +79,31 @@ def main():
         args.job_name = f"sichek-modeltest-multi-n{num_workers}-{date_str}"
     else:
         args.job_name = f"{args.job_name}-n{num_workers}-{date_str}"
-    default_cmd = (
-        "PP=1 MBS=4 bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh"
-    )
+    if args.gpu_type.lower() == "b200":
+        default_cmd = (
+            "PP=1 MBS=4 bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh"
+        )
+    elif args.gpu_type.lower() == "h200":
+        default_cmd = (
+            "PP=2 bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh"
+        )
+    else:
+        default_cmd = (
+            "bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh"
+        )
+
     gbs = 128 * num_workers
     if not args.cmd:
         args.cmd = default_cmd
     cmd = f"GBS={gbs} MAX_STEPS={args.max_steps} {args.cmd}"
     if args.mbs is not None:
         cmd = f"MBS={args.mbs} {cmd}"
+    if args.tp is not None:
+        cmd = f"TP={args.tp} {cmd}"
+    if args.pp is not None:
+        cmd = f"PP={args.pp} {cmd}"
+    if args.ep is not None:
+        cmd = f"EP={args.ep} {cmd}"
     if args.host_dir is not None:
         cmd = f"OLMO_CORE_DIR={args.host_dir} {cmd}"
     if os.getenv("SWANLAB_API_KEY") is not None:
@@ -138,6 +159,9 @@ def main():
                 "scheduler": args.scheduler_name,
                 "roce_mode": args.roce_shared_mode,
                 "hosts": hostnames,
+                "tp": args.tp,
+                "pp": args.pp,
+                "ep": args.ep,
             },
         )
 
@@ -322,4 +346,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
