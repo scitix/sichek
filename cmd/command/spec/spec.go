@@ -84,18 +84,15 @@ func EnsureSpecFile(specName string) (string, error) {
 	return downloadSpecToPath(fileURL, specPath)
 }
 
-// isURL checks if a string is a URL (http:// or https://)
 func isURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
-// fileExists checks if a file exists at the given path
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-// downloadSpec downloads a spec file from URL to the target directory
 func downloadSpec(URL, targetDir string) (string, error) {
 	parsed, err := url.Parse(URL)
 	if err != nil {
@@ -108,7 +105,6 @@ func downloadSpec(URL, targetDir string) (string, error) {
 	return downloadSpecToPath(URL, specPath)
 }
 
-// downloadSpecToPath downloads a spec file from URL to the specified path
 func downloadSpecToPath(url, specPath string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(specPath), 0755); err != nil {
 		return "", fmt.Errorf("failed to create spec dir: %w", err)
