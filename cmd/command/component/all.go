@@ -68,15 +68,15 @@ func NewAllCmd() *cobra.Command {
 			}
 			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
-				logrus.WithField("daemon", "all").Errorf("using default cfgFile: %v", err)
+				logrus.WithField("daemon", "all").Errorf("failed to load cfgFile: %v", err)
 			} else if cfgFile != "" {
 				logrus.WithField("daemon", "all").Info("load cfgFile: " + resolvedCfgFile)
 			}
-			specFile, err := spec.EnsureSpecFile(specFile)
+			resolvedSpecFile, err := spec.EnsureSpecFile(specFile)
 			if err != nil {
-				logrus.WithField("daemon", "all").Errorf("using default specFile: %v", err)
+				logrus.WithField("daemon", "all").Errorf("failed to load specFile: %v", err)
 			} else {
-				logrus.WithField("daemon", "all").Info("load specFile: " + specFile)
+				logrus.WithField("daemon", "all").Info("load specFile: " + resolvedSpecFile)
 			}
 
 			logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckers)
@@ -98,7 +98,7 @@ func NewAllCmd() *cobra.Command {
 				wg.Add(1)
 				go func(idx int, componentName string) {
 					defer wg.Done()
-					component, err := NewComponent(componentName, resolvedCfgFile, specFile, ignoredCheckersList)
+					component, err := NewComponent(componentName, resolvedCfgFile, resolvedSpecFile, ignoredCheckersList)
 					if err != nil {
 						logrus.WithField("component", componentName).Errorf("failed to create component: %v", err)
 						return
@@ -129,7 +129,7 @@ func NewAllCmd() *cobra.Command {
 				}
 				// check pcie topology
 				if slices.Contains(componentsToCheck, "pcie_topo") {
-					res, err := topotest.CheckGPUTopology(specFile)
+					res, err := topotest.CheckGPUTopology(resolvedSpecFile)
 					if err != nil {
 						logrus.WithField("component", "pcie_topo").Errorf("check pcie_topo err: %v", err)
 						return

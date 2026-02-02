@@ -33,19 +33,20 @@ import (
 // If configName is empty, returns the default config file path.
 // Otherwise, delegates to EnsureSpecFile.
 func EnsureCfgFile(configName string) (string, error) {
-	if configName == "" {
-		return filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName), nil
-	}
-	return EnsureSpecFile(configName)
+	return ensureSpecFile(configName, consts.DefaultUserCfgName)
 }
 
-// EnsureSpecFile ensures a spec file is available locally.
+func EnsureSpecFile(specName string) (string, error) {
+	return ensureSpecFile(specName, consts.DefaultSpecCfgName)
+}
+
+// ensureSpecFile ensures a spec file is available locally.
 // It follows this priority order:
 //  1. Empty specName -> use cluster name to get spec file name
 //  2. URL           -> download to default spec dir
 //  3. Existing path -> use directly
 //  4. Filename      -> check default dir, otherwise download from SICHEK_SPEC_URL
-func EnsureSpecFile(specName string) (string, error) {
+func ensureSpecFile(specName string, defaultFileName string) (string, error) {
 	// If specName is empty, use cluster name to get spec file name
 	if specName == "" {
 		clusterName := utils.ExtractClusterName()
@@ -56,7 +57,12 @@ func EnsureSpecFile(specName string) (string, error) {
 
 	// Case 1: URL - download to default spec dir
 	if isURL(specName) {
-		return downloadSpec(specName, targetDir)
+		path, err := downloadSpec(specName, targetDir)
+		if err != nil {
+			logrus.WithField("component", "specgen").Warnf("download from URL failed: %v, falling back to default_spec.yaml", err)
+			return fallbackToDefaultSpec(defaultFileName)
+		}
+		return path, nil
 	}
 
 	// Case 2: Existing local path (absolute or relative) - use directly
@@ -77,11 +83,26 @@ func EnsureSpecFile(specName string) (string, error) {
 	// Case 4: Download from SICHEK_SPEC_URL
 	specURL := httpclient.GetSichekSpecURL()
 	if specURL == "" {
-		return "", fmt.Errorf("spec file %q not found locally and SICHEK_SPEC_URL is not set", specName)
+		logrus.WithField("component", "specgen").Warnf("SICHEK_SPEC_URL is not set, falling back to default_spec.yaml")
+		return fallbackToDefaultSpec(defaultFileName)
 	}
 
 	fileURL := fmt.Sprintf("%s/%s", strings.TrimRight(specURL, "/"), fileName)
-	return downloadSpecToPath(fileURL, specPath)
+	path, err := downloadSpecToPath(fileURL, specPath)
+	if err != nil {
+		logrus.WithField("component", "specgen").Warnf("download from URL %s failed: %v, falling back to default_spec.yaml", fileURL, err)
+		return fallbackToDefaultSpec(defaultFileName)
+	}
+	return path, nil
+}
+
+func fallbackToDefaultSpec(defaultFileName string) (string, error) {
+	defaultSpecPath := filepath.Join(consts.DefaultProductionCfgPath, defaultFileName)
+	if fileExists(defaultSpecPath) {
+		logrus.WithField("component", "specgen").Warnf("using fallback default file: %s", defaultSpecPath)
+		return defaultSpecPath, nil
+	}
+	return "", fmt.Errorf("default %s file does not exist", defaultFileName)
 }
 
 func isURL(s string) bool {

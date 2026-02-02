@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
 func TestGetHCASpec(t *testing.T) {
@@ -85,8 +86,7 @@ infiniband:
 		t.Fatalf("Failed to write to temp spec file: %v", err)
 	}
 	ibSpecs := &InfinibandSpecs{}
-	err = ibSpecs.tryLoadFromFile(specFile.Name())
-	if err != nil {
+	if err := utils.LoadFromYaml(specFile.Name(), ibSpecs); err != nil {
 		t.Fatalf("Failed to get spec: %v", err)
 	}
 	// Convert the config struct to a pretty-printed JSON string and print it
@@ -221,4 +221,121 @@ func TestGetClusterInfinibandSpec(t *testing.T) {
 		t.Fatalf("Failed to marshal config to JSON: %v", err)
 	}
 	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
+}
+
+// TestLoadSpecExtractHCASpecsFromSSYaml verifies that loading a spec YAML correctly
+// extracts hca_specs from the infiniband section into InfinibandSpec.HCAs.
+func TestLoadSpecExtractHCASpecsFromSSYaml(t *testing.T) {
+	specData := `
+nvidia: {}
+infiniband:
+  taihua:
+    ib_devs:
+      mlx5_0: ib0
+      mlx5_1: ib1
+    sw_deps:
+      kernel_module: ["rdma_ucm", "mlx5_core"]
+      ofed_ver: ">=MLNX_OFED_LINUX-24.10-2.1.8.0"
+    pcie_acs: "disable"
+    hca_specs:
+      MT_0000000838:
+        hardware:
+          hca_type: "MT4129"
+          board_id: "MT_0000000838"
+          fw_ver: ">=28.39.2048"
+          vpd: "NVIDIA ConnectX-7 HHHL Adapter card"
+          net_port: 1
+          port_speed: "400 Gb/sec (4X NDR)"
+          phy_state: "LinkUp"
+          port_state: "ACTIVE"
+          net_operstate: "down"
+          link_layer: "InfiniBand"
+          pcie_width: "16"
+          pcie_speed: "32.0 GT/s PCIe"
+          pcie_tree_width: "16"
+          pcie_tree_speed: "32"
+          pcie_acs: "disable"
+          pcie_mrr: "4096"
+        perf:
+          one_way_bw: 360
+          avg_latency_us: 10
+      MT_0000000834:
+        hardware:
+          hca_type: "0"
+          board_id: "MT_0000000834"
+          fw_ver: ">=28.39.1002"
+          net_port: 1
+          port_speed: "200 Gb/sec (2X NDR)"
+          pcie_width: "16"
+          pcie_speed: "32.0 GT/s PCIe"
+          pcie_tree_width: "16"
+          pcie_tree_speed: "32"
+          pcie_acs: "disable"
+          pcie_mrr: "4096"
+        perf: {}
+      MT_2420110034:
+        hardware:
+          board_id: "MT_2420110034"
+          fw_ver: ">=28.39.2048"
+          port_speed: "200 Gb/sec (2X NDR)"
+          pcie_width: "16"
+          pcie_mrr: "4096"
+        perf: {}
+`
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer os.Remove(specFile.Name())
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write temp spec file: %v", err)
+	}
+	if err := specFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp spec file: %v", err)
+	}
+
+	s := &InfinibandSpecs{}
+	if err := utils.LoadFromYaml(specFile.Name(), s); err != nil {
+		t.Fatalf("LoadFromYaml: %v", err)
+	}
+	if s.Specs == nil {
+		t.Fatal("loaded spec has no infiniband section")
+	}
+
+	spec, ok := s.Specs["taihua"]
+	if !ok {
+		t.Fatal("expected spec key \"taihua\"")
+	}
+	if spec.HCAs == nil {
+		t.Fatal("spec[taihua].HCAs is nil")
+	}
+	wantBoardIDs := []string{"MT_0000000838", "MT_0000000834", "MT_2420110034"}
+	for _, id := range wantBoardIDs {
+		if _, ok := spec.HCAs[id]; !ok {
+			t.Errorf("spec[taihua].HCAs missing board ID %s", id)
+		}
+	}
+	if len(spec.HCAs) != 3 {
+		t.Errorf("spec[taihua].HCAs: want 3 entries, got %d", len(spec.HCAs))
+	}
+
+	hca := spec.HCAs["MT_0000000838"]
+	if hca == nil {
+		t.Fatal("spec[taihua].HCAs[MT_0000000838] is nil")
+	}
+	if hca.Hardware.BoardID != "MT_0000000838" {
+		t.Errorf("Hardware.BoardID: want MT_0000000838, got %s", hca.Hardware.BoardID)
+	}
+	if hca.Hardware.FWVer != ">=28.39.2048" {
+		t.Errorf("Hardware.FWVer: want >=28.39.2048, got %s", hca.Hardware.FWVer)
+	}
+	if hca.Hardware.HCAType != "MT4129" {
+		t.Errorf("Hardware.HCAType: want MT4129, got %s", hca.Hardware.HCAType)
+	}
+	if hca.Perf.OneWayBW != 360 {
+		t.Errorf("Perf.OneWayBW: want 360, got %v", hca.Perf.OneWayBW)
+	}
+	if hca.Perf.AvgLatency != 10 {
+		t.Errorf("Perf.AvgLatency: want 10, got %v", hca.Perf.AvgLatency)
+	}
 }

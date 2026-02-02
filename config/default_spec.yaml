@@ -39,7 +39,7 @@ nvidia:
     perf:
       nccl-all-reduce-bw: 470 # GB/s
 infiniband:
-  default:
+  ib_base: &ib_base
     ib_devs:
       mlx5_0: ib0
       mlx5_1: ib1
@@ -67,6 +67,8 @@ infiniband:
       MT_0000000838: {}
       DEL0000000036: {}
       MT_0000000223: {}
+  default:
+    <<: *ib_base
 pcie_topo:
   "0x233510de":
     numa_config:
