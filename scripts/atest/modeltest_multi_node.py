@@ -12,13 +12,18 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+swanlab = None
 try:
     import swanlab
 except ImportError:
     print("swanlab not installed, installing...")
     import subprocess
-    subprocess.check_call(["pip", "install", "-q", "swanlab"])
-    import swanlab
+    try:
+        subprocess.check_call(["pip", "install", "-q", "swanlab"])
+        import swanlab
+    except Exception:
+        print("swanlab not installed online, skipping...")
+        pass
 
 from common import (
     echo_info,
@@ -144,7 +149,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     swan_run = None
-    if swanlab and os.getenv("SWANLAB_API_KEY"):
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
         swan_run = swanlab.init(
             experiment_name=args.job_name,
             description=f"Llama2 70B benchmark ({num_workers} workers)",

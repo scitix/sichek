@@ -9,13 +9,18 @@ import os
 import sys
 from typing import Dict, List, Optional
 
+swanlab = None
 try:
     import swanlab
 except ImportError:
     print("swanlab not installed, installing...")
     import subprocess
-    subprocess.check_call(["pip", "install", "-q", "swanlab"])
-    import swanlab
+    try:
+        subprocess.check_call(["pip", "install", "-q", "swanlab"])
+        import swanlab
+    except Exception:
+        print("swanlab not installed online, skipping...")
+        pass
 
 from common import (
     echo_info,
@@ -152,7 +157,7 @@ def main():
     runner = MPIJobRunner(mpijob_config)
     
     swan_run = None
-    if os.getenv("SWANLAB_API_KEY") and swanlab:
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
         swan_run = swanlab.init(
             experiment_name=mpijob_config.job_name,
             description=f"NCCL benchmark ({len(mpijob_config.hostnames)} workers)",
