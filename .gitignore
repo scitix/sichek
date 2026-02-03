@@ -8,3 +8,5 @@ vendor/
 goreleaser*
 sicl
 sichek
+*__pycache__
+*.pyc

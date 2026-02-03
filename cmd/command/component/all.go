@@ -22,7 +22,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scitix/sichek/cmd/command/specgen"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/dmesg"
@@ -48,6 +48,7 @@ import (
 // - eventonly: Print events output only (default: false)
 func NewAllCmd() *cobra.Command {
 	var (
+		cfgFile          string
 		specFile         string
 		enableComponents string
 		ignoreComponents string
@@ -65,11 +66,17 @@ func NewAllCmd() *cobra.Command {
 			if !verbos {
 				logrus.SetLevel(logrus.ErrorLevel)
 			}
-			specFile, err := specgen.EnsureSpecFile(specFile)
+			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
-				logrus.WithField("daemon", "all").Errorf("using default specFile: %v", err)
+				logrus.WithField("daemon", "all").Errorf("failed to load cfgFile: %v", err)
 			} else {
-				logrus.WithField("daemon", "all").Info("load specFile: " + specFile)
+				logrus.WithField("daemon", "all").Info("load cfgFile: " + resolvedCfgFile)
+			}
+			resolvedSpecFile, err := spec.EnsureSpecFile(specFile)
+			if err != nil {
+				logrus.WithField("daemon", "all").Errorf("failed to load specFile: %v", err)
+			} else {
+				logrus.WithField("daemon", "all").Info("load specFile: " + resolvedSpecFile)
 			}
 
 			logrus.WithField("component", "all").Infof("ignored-checkers = %v", ignoredCheckers)
@@ -78,7 +85,7 @@ func NewAllCmd() *cobra.Command {
 				ignoredCheckersList = strings.Split(ignoredCheckers, ",")
 			}
 
-			componentsToCheck := DetermineComponentsToCheck(enableComponents, ignoreComponents, "", "all")
+			componentsToCheck := DetermineComponentsToCheck(enableComponents, ignoreComponents, resolvedCfgFile, "all")
 			checkResults := make([]*CheckResults, len(componentsToCheck))
 			var wg sync.WaitGroup
 			for idx, componentName := range componentsToCheck {
@@ -91,7 +98,7 @@ func NewAllCmd() *cobra.Command {
 				wg.Add(1)
 				go func(idx int, componentName string) {
 					defer wg.Done()
-					component, err := NewComponent(componentName, "", specFile, ignoredCheckersList)
+					component, err := NewComponent(componentName, resolvedCfgFile, resolvedSpecFile, ignoredCheckersList)
 					if err != nil {
 						logrus.WithField("component", componentName).Errorf("failed to create component: %v", err)
 						return
@@ -122,7 +129,7 @@ func NewAllCmd() *cobra.Command {
 				}
 				// check pcie topology
 				if slices.Contains(componentsToCheck, "pcie_topo") {
-					res, err := topotest.CheckGPUTopology(specFile)
+					res, err := topotest.CheckGPUTopology(resolvedSpecFile)
 					if err != nil {
 						logrus.WithField("component", "pcie_topo").Errorf("check pcie_topo err: %v", err)
 						return
@@ -136,6 +143,7 @@ func NewAllCmd() *cobra.Command {
 
 	allCmd.Flags().BoolVarP(&verbos, "verbos", "v", false, "Enable verbose output")
 	allCmd.Flags().BoolVarP(&eventonly, "eventonly", "e", false, "Print events output only")
+	allCmd.Flags().StringVarP(&cfgFile, "cfg", "c", "", "Path to the user config file")
 	allCmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to the sichek specification file")
 	allCmd.Flags().StringVarP(&enableComponents, "enable-components", "E", "", "Enabled components, joined by ','")
 	allCmd.Flags().StringVarP(&ignoreComponents, "ignore-components", "I", "podlog,gpuevents,syslog", "Ignored components")

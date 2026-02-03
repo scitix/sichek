@@ -231,10 +231,14 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		nvidiaCfg.Nvidia.IgnoredCheckers = ignoredCheckers
 	}
 	component.cfg = nvidiaCfg
-	component.cacheBuffer = make([]*common.Result, nvidiaCfg.Nvidia.CacheSize)
-	component.cacheInfo = make([]common.Info, nvidiaCfg.Nvidia.CacheSize)
+	cacheSize := nvidiaCfg.Nvidia.CacheSize
+	if cacheSize <= 0 {
+		cacheSize = 5
+	}
+	component.cacheBuffer = make([]*common.Result, cacheSize)
+	component.cacheInfo = make([]common.Info, cacheSize)
 	component.currIndex = 0
-	component.cacheSize = nvidiaCfg.Nvidia.CacheSize
+	component.cacheSize = cacheSize
 
 	nvmlInst, err := NewNvml(ctx)
 	if err != nil {

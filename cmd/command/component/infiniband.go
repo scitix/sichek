@@ -19,7 +19,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/scitix/sichek/cmd/command/specgen"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/consts"
 
@@ -29,6 +29,7 @@ import (
 
 func NewInfinibandCmd() *cobra.Command {
 	var (
+		cfgFile         string
 		specFile        string
 		verbose         bool
 		ignoredCheckers string
@@ -51,11 +52,17 @@ func NewInfinibandCmd() *cobra.Command {
 				}()
 			}
 
-			specFile, err := specgen.EnsureSpecFile(specFile)
+			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
-				logrus.WithField("daemon", "infiniband").Errorf("using default specFile: %v", err)
+				logrus.WithField("daemon", "infiniband").Errorf("failed to load cfgFile: %v", err)
 			} else {
-				logrus.WithField("daemon", "infiniband").Info("load specFile: " + specFile)
+				logrus.WithField("daemon", "infiniband").Info("load cfgFile: " + resolvedCfgFile)
+			}
+			resolvedSpecFile, err := spec.EnsureSpecFile(specFile)
+			if err != nil {
+				logrus.WithField("daemon", "infiniband").Errorf("failed to load specFile: %v", err)
+			} else {
+				logrus.WithField("daemon", "infiniband").Info("load specFile: " + resolvedSpecFile)
 			}
 			logrus.WithField("component", "infiniband").Info("ignore checkers: ", ignoredCheckers)
 			var ignoredCheckersList []string
@@ -63,7 +70,7 @@ func NewInfinibandCmd() *cobra.Command {
 				ignoredCheckersList = strings.Split(ignoredCheckers, ",")
 			}
 
-			component, err := infiniband.NewInfinibandComponent("", specFile, ignoredCheckersList)
+			component, err := infiniband.NewInfinibandComponent(resolvedCfgFile, resolvedSpecFile, ignoredCheckersList)
 			if err != nil {
 				logrus.WithField("component", "infiniband").Error(err)
 				return
@@ -77,7 +84,8 @@ func NewInfinibandCmd() *cobra.Command {
 		},
 	}
 
-	infinibandCmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to the Infiniband Spec")
+	infinibandCmd.Flags().StringVarP(&cfgFile, "cfg", "c", "", "Path to the user config file")
+	infinibandCmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to the Infiniband specification file")
 	infinibandCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	infinibandCmd.Flags().StringVarP(&ignoredCheckers, "ignored-checkers", "i", "", "Ignored checkers")
 

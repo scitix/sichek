@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
@@ -131,15 +132,16 @@ func NewNcclPerftestCmd() *cobra.Command {
 				expectedBandwidthGbps = 0
 				fmt.Println("8-byte message size detected, skipping bandwidth check (connectivity test only)")
 			} else if expectedBandwidthGbps == 0 {
-				nvidiaSpecCfg, err := config.LoadSpec("/var/sichek/config/default_spec.yaml")
+				specFile, err := spec.EnsureSpecFile("")
 				if err != nil {
-					logrus.WithField("perftest", "nccl").Errorf("failed to load default spec: %v", err)
+					logrus.WithField("perftest", "nccl").Debugf("spec file not resolved: %v, using 0 expected bandwidth", err)
 				} else {
-					if nvidiaSpecCfg.Perf.NcclAllReduceBw > 0 {
+					nvidiaSpecCfg, err := config.LoadSpec(specFile)
+					if err != nil {
+						logrus.WithField("perftest", "nccl").Debugf("failed to load spec: %v, using 0 expected bandwidth", err)
+					} else if nvidiaSpecCfg.Perf.NcclAllReduceBw > 0 {
 						expectedBandwidthGbps = nvidiaSpecCfg.Perf.NcclAllReduceBw
 						fmt.Printf("Using default expected bandwidth: %.2f Gbps\n", expectedBandwidthGbps)
-					} else {
-						fmt.Println("No expected bandwidth specified, using 0 Gbps")
 					}
 				}
 			}

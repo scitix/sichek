@@ -2,7 +2,7 @@
 apiVersion: kubeflow.org/v1
 kind: PyTorchJob
 metadata:
-  name: {{ .Values.name }}-{{ .Values.pytorchjob.name }}-{{ .Values.pytorchjob.numWorkers }}
+  name: {{ .Values.pytorchjob.name }}
   namespace: {{ .Values.namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
@@ -37,6 +37,19 @@ spec:
           nodeSelector:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.pytorchjob.nodeAffinityHosts }}
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          {{- range .Values.pytorchjob.nodeAffinityHosts }}
+                          - {{ . }}
+                          {{- end }}
+          {{- end }}
           containers:
           - name: pytorch
             image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -44,7 +57,6 @@ spec:
             command: [ "/usr/bin/env", "bash", "-c" ]
             args:
             - |-
-              export NODE_RANK=$RANK && unset RANK
               {{ .Values.pytorchjob.cmd }}
             env:
             - name: SICHEK_SPEC_URL
@@ -100,6 +112,10 @@ spec:
             - name: nccl-topo
               mountPath: /var/run/nvidia-topologyd
             {{- end }}
+            {{- if .Values.pytorchjob.hostDir }}
+            - name: host-dir
+              mountPath: {{ .Values.pytorchjob.hostDir }}
+            {{- end }}
           {{- if and (ne .Values.roceSharedMode "macvlan") .Values.schedulerName }}
           schedulerName: {{ .Values.schedulerName }}
           {{- end }}
@@ -116,6 +132,12 @@ spec:
           - name: nccl-topo
             hostPath:
               path: /var/run/sys-topology
+          {{- end }}
+          {{- if .Values.pytorchjob.hostDir }}
+          - name: host-dir
+            hostPath:
+              path: {{ .Values.pytorchjob.hostDir }}
+              type: DirectoryOrCreate
           {{- end }}
           tolerations:
           - key: node.kubernetes.io/unschedulable

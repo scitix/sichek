@@ -73,7 +73,7 @@ func ExtractClusterName() string {
 		}
 	}
 
-	re := regexp.MustCompile(`^([a-zA-Z]+)-?\d*`)
+	re := regexp.MustCompile(`^([a-zA-Z]+\d*)`)
 	matches := re.FindStringSubmatch(nodeName)
 	if len(matches) > 1 {
 		return matches[1]

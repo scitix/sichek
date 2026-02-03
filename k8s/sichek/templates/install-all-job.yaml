@@ -28,6 +28,18 @@ spec:
         operator: Exists
         effect: NoSchedule
       affinity:
+        {{- if .Values.batchjob.nodeAffinityHosts }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      {{- range .Values.batchjob.nodeAffinityHosts }}
+                      - {{ . }}
+                      {{- end }}
+        {{- end }}
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -72,8 +84,7 @@ spec:
               {{- if ne .Values.defaultSpec "default" }}
               # Check if spec file exists locally, if not download from OSS
               if chroot /host test -f /var/sichek/config/{{ .Values.defaultSpec }}; then
-                echo "Spec file exists locally, moving to default_spec.yaml"
-                chroot /host cp /var/sichek/config/{{ .Values.defaultSpec }} /var/sichek/config/default_spec.yaml
+                echo "Spec file exists locally"
               else
                 echo "Spec file not found locally, downloading from OSS"
                 chroot /host curl -o /var/sichek/config/default_spec.yaml "https://oss-ap-southeast.scitix.ai/hisys-sichek/specs/{{ .Values.defaultSpec }}"

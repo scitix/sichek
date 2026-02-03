@@ -39,7 +39,7 @@ nvidia:
     perf:
       nccl-all-reduce-bw: 470 # GB/s
 infiniband:
-  default:
+  ib_base: &ib_base
     ib_devs:
       mlx5_0: ib0
       mlx5_1: ib1
@@ -63,10 +63,12 @@ infiniband:
         - "mlxfw"
       ofed_ver: ">=MLNX_OFED_LINUX-24.10-2.1.8.0"
     pcie_acs: "disable"
-    hca_specs:
-      MT_0000000838: {}
-      DEL0000000036: {}
-      MT_0000000223: {}
+  default:
+    <<: *ib_base
+hca:
+  MT_0000000838: {}
+  DEL0000000036: {}
+  MT_0000000223: {}
 pcie_topo:
   "0x233510de":
     numa_config:

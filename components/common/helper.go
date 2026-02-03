@@ -36,8 +36,16 @@ func RunHealthCheckWithTimeout(ctx context.Context, timeout time.Duration, compo
 	resultChan := make(chan *Result) // Channel for result
 	errorChan := make(chan error)    // Channel for error
 
-	// Run the function in a goroutine
+	// Run the function in a goroutine; recover from panic so the process does not crash
+	// and a panic result can be returned and exported as an anomaly metric.
+	// Note: CGO segfault (e.g. in NVML) cannot be recovered and will still kill the process.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.WithField("component", componentName).Errorf("HealthCheck panic recovered: %v", r)
+				resultChan <- createPanicResult(componentName, r)
+			}
+		}()
 		res, err := fn(ctx)
 		if err != nil {
 			errorChan <- err // Send error to the error channel
@@ -77,6 +85,29 @@ func createTimeoutResult(componentName string, timeout time.Duration) (*Result, 
 	}
 
 	return timeoutResult, nil
+}
+
+// createPanicResult returns a result for HealthCheck panic/segfault-like failure so that
+// the program does not crash and the anomaly can be exported as a metric (e.g. nvidia_nvidiaHealthCheckPanic).
+func createPanicResult(componentName string, panicValue interface{}) *Result {
+	panicName := fmt.Sprintf("%sHealthCheckPanic", componentName)
+	desc := fmt.Sprintf("component %s HealthCheck panicked: %v", componentName, panicValue)
+	panicCheckerResult := &CheckerResult{
+		Name:        panicName,
+		Description: desc,
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		Detail:      fmt.Sprint(panicValue),
+		ErrorName:   panicName,
+		Suggestion:  fmt.Sprintf("Please check the %s status (e.g. GPU/NVML stability)", componentName),
+	}
+	return &Result{
+		Item:     componentName,
+		Status:   consts.StatusAbnormal,
+		Level:    panicCheckerResult.Level,
+		Checkers: []*CheckerResult{panicCheckerResult},
+		Time:     time.Now(),
+	}
 }
 
 // handleResult processes the result of the health check

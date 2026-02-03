@@ -29,15 +29,20 @@ batchjob:
   parallelism: 1 # Define the number of parallel pods for the batch Job
   completions: 1 # Define the number of completions for the batch Job
   cmd: "sichek all -e -I podlog,gpuevents,nccltest"
+  nodeAffinityHosts: []
 
 mpijob:
   name: "nccl-test"
   numWorkers: 2
+  requestGpu: true
   slotsPerWorker: 8
+  nodeAffinityHosts: []
 
 pytorchjob:
   name: "model-test"
   numWorkers: 2
+  nodeAffinityHosts: []
+  hostDir: "" # Host directory path to mount in pytorchjob pods (e.g., /data)
 
 serviceAccount:
   create: true

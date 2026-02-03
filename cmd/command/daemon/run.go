@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/cmd/command/component"
-	"github.com/scitix/sichek/cmd/command/specgen"
+	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -77,7 +77,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				cfgFile, err = specgen.EnsureCfgFile(cfgFile)
+				cfgFile, err = spec.EnsureCfgFile(cfgFile)
 				if err != nil {
 					logrus.WithField("daemon", "run").Errorf("using default cfgFile: %v", err)
 				} else {
@@ -89,7 +89,7 @@ func NewDaemonRunCmd() *cobra.Command {
 			if err != nil {
 				logrus.WithField("daemon", "run").Error(err)
 			} else {
-				specFile, err = specgen.EnsureSpecFile(specFile)
+				specFile, err = spec.EnsureSpecFile(specFile)
 				if err != nil {
 					logrus.WithField("daemon", "run").Errorf("using default specFile: %v", err)
 				} else {

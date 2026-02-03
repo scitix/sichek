@@ -21,11 +21,9 @@ echo_warn() {
     printf "[${color_yellow}WARN${color_reset}] ${_cmdLog}\n"
 }
 
-# Temporary label related variables
-TEMP_LABEL_KEY="sichek-temp-test"
-TEMP_LABEL_VALUE="$(date +%s)-$$"  # Use timestamp and process ID to ensure uniqueness
-declare -a LABELED_NODES=()  # Store labeled nodes
+# Global arrays
 declare -a HOSTNAMES=()      # Global array to store parsed hostnames
+declare -A CONFIG=()         # Global associative array to store config values
 # Function: Parse hostname list
 parse_hostnames() {
   local hostfile="$1"
@@ -61,56 +59,61 @@ parse_hostnames() {
   HOSTNAMES=("${hostnames[@]}")
 }
 
-# Function: Set temporary labels on nodes
-label_nodes() {
-  local hostnames=("$@")
 
-  if [ ${#hostnames[@]} -eq 0 ]; then
+# Function: Load user config from ~/.sichek/config.yaml
+# Returns config as associative array (bash 4+)
+# CONFIG must be declared globally before calling this function
+load_user_config() {
+  local config_path="${1:-$HOME/.sichek/config.yaml}"
+
+  # Clear existing config
+  CONFIG=()
+
+  if [ ! -f "$config_path" ]; then
     return 0
   fi
 
-  echo_info "Setting temporary labels on nodes..."
-  for hostname in "${hostnames[@]}"; do
-    #echo_info "  Labeling node: $hostname"
-      if kubectl label node "$hostname" "$TEMP_LABEL_KEY=$TEMP_LABEL_VALUE" --overwrite > /dev/null 2>&1; then
-      LABELED_NODES+=("$hostname")
-      #echo_info "    ✓ Successfully labeled $hostname"
-    else
-      echo_warn "    ✗ Failed to label $hostname"
+  while IFS= read -r line; do
+    line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    # Skip empty lines and comments
+    if [[ -z "$line" || "$line" =~ ^# ]]; then
+      continue
     fi
-  done
-
-  # Update NODE_SELECTOR to use temporary label
-  NODE_SELECTOR="$TEMP_LABEL_KEY=$TEMP_LABEL_VALUE"
-  echo_info "Updated nodeSelector to: $NODE_SELECTOR"
+    # Parse key: value
+    if [[ "$line" =~ ^([^:]+):(.+)$ ]]; then
+      local key=$(echo "${BASH_REMATCH[1]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+      local value=$(echo "${BASH_REMATCH[2]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+      # Remove surrounding quotes if present
+      if [[ "$value" =~ ^[\'\"](.+)[\'\"]$ ]]; then
+        value="${BASH_REMATCH[1]}"
+      fi
+      if [[ -n "$key" ]]; then
+        CONFIG["$key"]="$value"
+      fi
+    fi
+  done < "$config_path"
 }
 
-# Function: Clean up temporary labels
-cleanup_labels() {
-  if [ ${#LABELED_NODES[@]} -gt 0 ]; then
-    echo_info "Cleaning up temporary labels..."
-    for hostname in "${LABELED_NODES[@]}"; do
-      #echo_info "  Removing label from node: $hostname"
-      kubectl label node "$hostname" "$TEMP_LABEL_KEY-" > /dev/null 2>&1 || echo_warn "    Failed to remove label from $hostname"
-    done
+# Function: Pick value with priority: cli_value > config > default
+# Usage: pick_value cli_value config_key default_value
+pick_value() {
+  local cli_value="$1"
+  local config_key="$2"
+  local default_value="$3"
+
+  # If CLI value is provided and not empty, use it
+  if [[ -n "$cli_value" && "$cli_value" != "None" ]]; then
+    echo "$cli_value"
+    return 0
   fi
-}
 
-# Function: Process hostfile and host parameters, set temporary labels
-setup_host_labels() {
-  local hostfile="$1"
-  local host="$2"
-  local node_selector="$3"
-
-  # Parse hostname list into global array
-  parse_hostnames "$hostfile" "$host"
-
-  # If hostfile or host parameter is provided, set temporary labels
-  if [ ${#HOSTNAMES[@]} -gt 0 ]; then
-    echo_info "Found ${#HOSTNAMES[@]} hostname(s) to test: ${HOSTNAMES[*]}"
-    label_nodes "${HOSTNAMES[@]}"
-  else
-    echo_info "No specific hostnames provided, exiting..."
-    exit 1
+  # Check config (skip if config value is empty string)
+  local config_val="${CONFIG[$config_key]:-}"
+  if [[ -n "$config_val" ]]; then
+    echo "$config_val"
+    return 0
   fi
+
+  # Use default
+  echo "$default_value"
 }
