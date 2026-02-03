@@ -53,19 +53,19 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result.Status = consts.StatusNormal
 
 	infinibandInfo.RLock()
-	specHCANum := c.spec.HCANum
+	nodeEffectiveHCANum := infinibandInfo.HCAPCINum
 	for mlx5Dev := range infinibandInfo.IBPFDevs {
 		// skip mezzanine card in check
 		if strings.Contains(mlx5Dev, "mezz") {
-			specHCANum--
+			nodeEffectiveHCANum--
 		}
 	}
 	if infinibandInfo.HCAPCINum != infinibandInfo.IBCapablePCINum {
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum)
-	} else if infinibandInfo.HCAPCINum != specHCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
+	} else if nodeEffectiveHCANum != c.spec.HCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != specHCANum(%d != %d)", infinibandInfo.HCAPCINum, specHCANum)
+		result.Detail = fmt.Sprintf("IBLost: effective HCANum != spec effective HCANum(%d != %d)", nodeEffectiveHCANum, c.spec.HCANum)
 	}
 	if result.Status == consts.StatusAbnormal {
 		result.Detail += "\nIBCapablePCIDevs: "

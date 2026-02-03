@@ -2,13 +2,14 @@
 
 set -e
 
-SICL_VERSION=${1:-"sicl-25.11-1.cuda128.ubuntu2004.run"}
+SICL_PKG_VERSION=v0.2.1
+SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
 SICL_INSTALL_PATH="/usr/local/sihpc"
-SICL_INSTALLER_URL1="https://oss-ap-southeast.scitix.ai/scitix-release/${SICL_VERSION}"
+SICL_INSTALLER_URL1=https://github.com/scitix/nccl-tests/releases/download/${SICL_PKG_VERSION}/${SICL_PKG_NAME}
 SICL_INSTALLER_LOCAL="/tmp/sicl.run"
-SICL_PACKAGED_PATH="/var/sichek/sicl/${SICL_VERSION}"
+SICL_PACKAGED_PATH="/var/sichek/sicl/${SICL_PKG_NAME}"
 
-echo "[sichek postinstall] Checking for SICL ${SICL_VERSION}..."
+echo "[sichek postinstall] Checking for SICL ${SICL_PKG_NAME}..."
 
 if [ -d "$SICL_INSTALL_PATH" ]; then
     echo "[sichek postinstall] SICL already installed at $SICL_INSTALL_PATH."
@@ -47,8 +48,8 @@ echo "[check_sicl] Cleaning up installer..."
 rm -f "$SICL_INSTALLER_LOCAL"
 
 if [ $? -ne 0 ]; then
-    echo "[sichek postinstall] SICL ${SICL_VERSION} installation failed."
+    echo "[sichek postinstall] SICL ${SICL_PKG_NAME} installation failed."
     exit 1
 fi
 
-echo "[sichek postinstall] SICL ${SICL_VERSION} installed successfully."
+echo "[sichek postinstall] SICL ${SICL_PKG_NAME} installed successfully."

@@ -13,17 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
-package specgen
+package spec
 
 import (
-	"bufio"
 	"fmt"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/consts"
@@ -32,98 +29,46 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func promptString(msg string, def ...string) string {
-	reader := bufio.NewReader(os.Stdin)
-	if len(def) > 0 && def[0] != "" {
-		fmt.Printf("%s [%s]: ", msg, def[0])
-	} else {
-		fmt.Printf("%s: ", msg)
-	}
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(input)
-	if input == "" && len(def) > 0 {
-		return def[0]
-	}
-	return input
-}
-
-func promptInt(msg string, def ...int) int {
-	var valStr string
-	if len(def) > 0 {
-		valStr = promptString(msg, fmt.Sprintf("%d", def[0]))
-	} else {
-		valStr = promptString(msg)
-	}
-	if valStr == "" && len(def) > 0 {
-		return def[0]
-	}
-	val, _ := strconv.Atoi(valStr)
-	return val
-}
-
-func promptBool(msg string, def ...bool) bool {
-	var valStr string
-	if len(def) > 0 {
-		valStr = promptString(msg, fmt.Sprintf("%t", def[0]))
-	} else {
-		valStr = promptString(msg)
-	}
-	if valStr == "y" || valStr == "Y" || valStr == "yes" || valStr == "Yes" || valStr == "YES" {
-		return true
-	}
-	if valStr == "n" || valStr == "N" || valStr == "no" || valStr == "No" || valStr == "NO" {
-		return false
-	}
-	if valStr == "" && len(def) > 0 {
-		return def[0]
-	}
-	val, _ := strconv.ParseBool(valStr)
-	return val
-}
-
-func promptFloat(msg string, def ...float64) float64 {
-	var valStr string
-	if len(def) > 0 {
-		valStr = promptString(msg, fmt.Sprintf("%g", def[0]))
-	} else {
-		valStr = promptString(msg)
-	}
-	if valStr == "" && len(def) > 0 {
-		return def[0]
-	}
-	val, _ := strconv.ParseFloat(valStr, 64)
-	return val
-}
-
+// EnsureCfgFile ensures a config file is available locally.
+// If configName is empty, returns the default config file path.
+// Otherwise, delegates to EnsureSpecFile.
 func EnsureCfgFile(configName string) (string, error) {
-	// if specName is empty, return default config file name
-	if configName == "" {
-		return filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName), nil
-	}
-	return EnsureSpecFile(configName)
+	return ensureSpecFile(configName, consts.DefaultUserCfgName)
 }
 
-// EnsureSpecFile ensures a spec file is available locally.
-// Priority:
-//  1. Empty specName -> use cluster name to get spec file name
-//  2. URL           -> download to default spec dir
-//  3. Existing path -> use directly
-//  4. Filename      -> check default dir, otherwise download from SICHEK_SPEC_URL
 func EnsureSpecFile(specName string) (string, error) {
-	// if specName is empty, use cluster name to get spec file name
+	return ensureSpecFile(specName, consts.DefaultSpecCfgName)
+}
+
+// ensureSpecFile ensures a spec/config file is available locally.
+// defaultFileName is e.g. default_spec.yaml or default_user_config.yaml;
+// when specName is empty, the cluster-specific filename is clusterName + "_" + suffix from defaultFileName (e.g. xxx_spec.yaml or xxx_user_config.yaml).
+// It follows this priority order:
+//  1. Empty specName -> use cluster name + suffix from defaultFileName (e.g. xxx_user_config.yaml or xxx_spec.yaml)
+//  2. URL           -> download to default dir
+//  3. Existing path -> use directly
+//  4. Filename      -> check default dir, otherwise download from SICHEK_SPEC_URL; if not found, fall back to defaultFileName
+func ensureSpecFile(specName string, defaultFileName string) (string, error) {
+	// If specName is empty, use cluster name + suffix from default (e.g. default_user_config.yaml -> taihua_user_config.yaml)
 	if specName == "" {
 		clusterName := utils.ExtractClusterName()
-		specName = fmt.Sprintf("%s_spec.yaml", clusterName)
+		suffix := strings.TrimPrefix(defaultFileName, "default_")
+		specName = fmt.Sprintf("%s_%s", clusterName, suffix)
 	}
 
 	targetDir := consts.DefaultProductionCfgPath
 
-	// Case 1: URL
+	// Case 1: URL - download to default spec dir
 	if isURL(specName) {
-		return downloadSpec(specName, targetDir)
+		path, err := downloadSpec(specName, targetDir)
+		if err != nil {
+			logrus.WithField("component", "specgen").Warnf("download from URL failed: %v, falling back to %s", err, defaultFileName)
+			return fallbackToDefaultSpec(defaultFileName)
+		}
+		return path, nil
 	}
 
-	// Case 2: Existing local path (absolute or relative)
+	// Case 2: Existing local path (absolute or relative) - use directly
 	if fileExists(specName) {
 		logrus.WithField("component", "specgen").Warnf("using existing spec file at path: %s", specName)
 		return specName, nil
@@ -141,11 +86,26 @@ func EnsureSpecFile(specName string) (string, error) {
 	// Case 4: Download from SICHEK_SPEC_URL
 	specURL := httpclient.GetSichekSpecURL()
 	if specURL == "" {
-		return "", fmt.Errorf("spec file %q not found locally and SICHEK_SPEC_URL is not set", specName)
+		logrus.WithField("component", "specgen").Warnf("SICHEK_SPEC_URL is not set, falling back to %s", defaultFileName)
+		return fallbackToDefaultSpec(defaultFileName)
 	}
 
 	fileURL := fmt.Sprintf("%s/%s", strings.TrimRight(specURL, "/"), fileName)
-	return downloadSpecToPath(fileURL, specPath)
+	path, err := downloadSpecToPath(fileURL, specPath)
+	if err != nil {
+		logrus.WithField("component", "specgen").Warnf("download from URL %s failed: %v, falling back to %s", fileURL, err, defaultFileName)
+		return fallbackToDefaultSpec(defaultFileName)
+	}
+	return path, nil
+}
+
+func fallbackToDefaultSpec(defaultFileName string) (string, error) {
+	defaultSpecPath := filepath.Join(consts.DefaultProductionCfgPath, defaultFileName)
+	if fileExists(defaultSpecPath) {
+		logrus.WithField("component", "specgen").Warnf("using fallback default file: %s", defaultSpecPath)
+		return defaultSpecPath, nil
+	}
+	return "", fmt.Errorf("default %s file does not exist", defaultFileName)
 }
 
 func isURL(s string) bool {
@@ -156,6 +116,7 @@ func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
+
 func downloadSpec(URL, targetDir string) (string, error) {
 	parsed, err := url.Parse(URL)
 	if err != nil {
@@ -188,6 +149,7 @@ func downloadSpecToPath(url, specPath string) (string, error) {
 	if err := os.Rename(tmpPath, specPath); err != nil {
 		return "", fmt.Errorf("failed to move spec file into place: %w", err)
 	}
+
 	logrus.WithField("component", "specgen").Warnf("using spec file %s, downloaded from %s", specPath, url)
 	return specPath, nil
 }

@@ -14,7 +14,7 @@ spec:
   completionMode: Indexed
   parallelism: {{ .Values.batchjob.parallelism }}
   completions: {{ .Values.batchjob.parallelism }}
-  backoffLimit: 2
+  backoffLimit: 0
   template:
     metadata:
       labels:

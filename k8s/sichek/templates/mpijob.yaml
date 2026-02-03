@@ -2,7 +2,7 @@
 apiVersion: kubeflow.org/v1
 kind: MPIJob
 metadata:
-  name: {{ .Values.name }}-{{ .Values.mpijob.name }}-{{ .Values.mpijob.numWorkers }}
+  name: {{ .Values.mpijob.name }}
   namespace: {{ .Values.namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
@@ -16,6 +16,9 @@ spec:
       replicas: 1
       template:
         spec:
+          {{- if and (ne .Values.roceSharedMode "macvlan") .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
           containers:
             - name: launcher
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -67,6 +70,18 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           affinity:
+            {{- if .Values.mpijob.nodeAffinityHosts }}
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          {{- range .Values.mpijob.nodeAffinityHosts }}
+                          - {{ . }}
+                          {{- end }}
+            {{- end }}
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
                 - labelSelector:
@@ -81,6 +96,10 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               env:
+                {{- if ne .Values.mpijob.requestGpu true }}
+                - name: NVIDIA_VISIBLE_DEVICES
+                  value: all
+                {{- end }}
                 - name: SICHEK_SPEC_URL
                   value: {{ .Values.sichekSpecUrl }}
                 - name: NODE_NAME
@@ -98,7 +117,9 @@ spec:
                 {{- end }}
               resources:
                 limits:
+                  {{- if eq .Values.mpijob.requestGpu true }}
                   nvidia.com/gpu: "8"
+                  {{- end }}
                   {{- if eq .Values.roceSharedMode "macvlan" }}
                   {{- range $i := until 8 }}
                   nvidia.com/rdma{{ $i }}: "1"
@@ -109,7 +130,9 @@ spec:
                   rdma/hca_shared_devices_all: "1"
                   {{- end }}
                 requests:
+                  {{- if eq .Values.mpijob.requestGpu true }}
                   nvidia.com/gpu: "8"
+                  {{- end }}
                   {{- if eq .Values.roceSharedMode "macvlan" }}
                   {{- range $i := until 8 }}
                   nvidia.com/rdma{{ $i }}: "1"

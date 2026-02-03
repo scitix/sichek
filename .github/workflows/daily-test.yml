@@ -52,7 +52,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INCLUDE_SICL: "true"
-          SICL_VERSION: "sicl-25.11-1.cuda128.ubuntu2004.run"
+          SICL_PKG_VERSION: v0.2.1
+          SICL_PKG_NAME: sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
 
       - name: List goreleaser artifacts with sicl
         run: |

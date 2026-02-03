@@ -104,10 +104,14 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}
 	component.cfg = cfg
 
-	component.cacheBuffer = make([]*common.Result, cfg.Infiniband.CacheSize)
-	component.cacheInfo = make([]common.Info, cfg.Infiniband.CacheSize)
+	cacheSize := cfg.Infiniband.CacheSize
+	if cacheSize <= 0 {
+		cacheSize = 5
+	}
+	component.cacheBuffer = make([]*common.Result, cacheSize)
+	component.cacheInfo = make([]common.Info, cacheSize)
 	component.currIndex = 0
-	component.cacheSize = cfg.Infiniband.CacheSize
+	component.cacheSize = cacheSize
 
 	// load spec file
 	ibSpec, err := config.LoadSpec(specFile)

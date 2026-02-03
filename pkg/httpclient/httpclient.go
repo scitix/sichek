@@ -40,14 +40,14 @@ func HasSichekSpecURL() bool {
 // getDefaultClient returns a default HTTP client
 func getDefaultClient() *http.Client {
 	return &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 }
 
 // getConnectivityClient returns a client for connectivity checks
 func getConnectivityClient() *http.Client {
 	return &http.Client{
-		Timeout: 30 * time.Second, // Short timeout for connectivity check
+		Timeout: 5 * time.Second, // Short timeout for connectivity check
 	}
 }
 

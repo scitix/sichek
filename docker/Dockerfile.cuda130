@@ -1,4 +1,4 @@
-ARG CUDA_VERSION=12.9.1
+ARG CUDA_VERSION=13.0.2
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04 AS build
 
 ARG GO_VERSION=1.23.3
@@ -56,7 +56,7 @@ WORKDIR /opt/sichek
 COPY --from=build /go/src/sichek/dist ./dist
 
 ARG SICL_PKG_VERSION=v0.2.1
-ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
+ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda13.1-ompi4.1.8-ubuntu22.04-20260128.run
 
 RUN curl -fsSL -o ./dist/${SICL_PKG_NAME} \
     https://github.com/scitix/nccl-tests/releases/download/${SICL_PKG_VERSION}/${SICL_PKG_NAME} && \

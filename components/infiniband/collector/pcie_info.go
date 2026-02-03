@@ -75,7 +75,7 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 		currentVendorID := strings.TrimSpace(string(vendorBytes))
 
 		if !slices.Contains(targetVendorID, currentVendorID) {
-			logrus.WithField("component", "pci-scanner").Debugf("Skipping device %s: vendor %s not in target list", pciAddr, currentVendorID)
+			// logrus.WithField("component", "pci-scanner").Debugf("Skipping device %s: vendor %s not in target list", pciAddr, currentVendorID)
 			continue
 		}
 

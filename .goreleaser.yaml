@@ -14,8 +14,8 @@ before:
     - mkdir -p ./sicl
     - bash -c 'if [ "$INCLUDE_SICL" = "true" ]; then
         echo "Downloading SICL...";
-        curl -fsSL -o ./sicl/${SICL_VERSION} https://oss-ap-southeast.scitix.ai/scitix-release/${SICL_VERSION};
-        chmod +x ./sicl/${SICL_VERSION};
+        curl -fsSL -o ./sicl/${SICL_PKG_NAME} https://github.com/scitix/nccl-tests/releases/download/${SICL_PKG_VERSION}/${SICL_PKG_NAME};
+        chmod +x ./sicl/${SICL_PKG_NAME};
         echo "SICL downloaded successfully";
       else
         echo "Skipping SICL download (INCLUDE_SICL=$INCLUDE_SICL)";
@@ -105,8 +105,8 @@ nfpms:
         dst: /var/sichek/config/pcie/
       - src: ./config/*.yaml
         dst: /var/sichek/config/
-      - src: ./scripts/*
-        dst: /var/sichek/scripts/
+      - src: ./scripts
+        dst: /var/sichek/scripts
       - src: ./k8s/sichek/*
         dst: /var/sichek/k8s/sichek
       - src: ./sicl/*
