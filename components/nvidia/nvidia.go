@@ -233,7 +233,7 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 	component.cfg = nvidiaCfg
 	cacheSize := nvidiaCfg.Nvidia.CacheSize
 	if cacheSize <= 0 {
-		cacheSize = 1
+		cacheSize = 5
 	}
 	component.cacheBuffer = make([]*common.Result, cacheSize)
 	component.cacheInfo = make([]common.Info, cacheSize)

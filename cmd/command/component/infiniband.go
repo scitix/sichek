@@ -55,7 +55,7 @@ func NewInfinibandCmd() *cobra.Command {
 			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
 				logrus.WithField("daemon", "infiniband").Errorf("failed to load cfgFile: %v", err)
-			} else if cfgFile != "" {
+			} else {
 				logrus.WithField("daemon", "infiniband").Info("load cfgFile: " + resolvedCfgFile)
 			}
 			resolvedSpecFile, err := spec.EnsureSpecFile(specFile)

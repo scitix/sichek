@@ -59,7 +59,7 @@ func NewNvidiaCmd() *cobra.Command {
 			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
 				logrus.WithField("daemon", "nvidia").Errorf("failed to load cfgFile: %v", err)
-			} else if cfgFile != "" {
+			} else {
 				logrus.WithField("daemon", "nvidia").Info("load cfgFile: " + resolvedCfgFile)
 			}
 			specFile, _ := cmd.Flags().GetString("spec")

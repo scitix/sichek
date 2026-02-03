@@ -69,7 +69,7 @@ func NewAllCmd() *cobra.Command {
 			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
 				logrus.WithField("daemon", "all").Errorf("failed to load cfgFile: %v", err)
-			} else if cfgFile != "" {
+			} else {
 				logrus.WithField("daemon", "all").Info("load cfgFile: " + resolvedCfgFile)
 			}
 			resolvedSpecFile, err := spec.EnsureSpecFile(specFile)
