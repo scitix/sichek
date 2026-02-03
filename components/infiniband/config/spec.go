@@ -34,7 +34,7 @@ type InfinibandSpec struct {
 	IBPFDevs       map[string]string             `json:"ib_devs" yaml:"ib_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps" yaml:"sw_deps"`
 	PCIeACS        string                        `json:"pcie_acs" yaml:"pcie_acs"`
-	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs,omitempty" yaml:"hca_specs,omitempty"`
+	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs,omitempty" yaml:"-"`
 }
 
 // LoadSpec loads infiniband spec from the given file path.
@@ -102,42 +102,19 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 
-		// Initialize ibSpec.HCAs if it's nil
-		if ibSpec.HCAs == nil {
-			ibSpec.HCAs = make(map[string]*hcaConfig.HCASpec)
-		}
+		ibSpec.HCAs = make(map[string]*hcaConfig.HCASpec)
 
 		// Check each board ID and fill in missing specs from hcaSpecs
 		var missingBoardIDs []string
 		for _, boardID := range ibDevs {
-			spec, exists := ibSpec.HCAs[boardID]
-			if !exists || spec == nil {
-				// If not found in ibSpec.HCAs, get it from hcaSpecs
-				if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
-					ibSpec.HCAs[boardID] = hcaSpec
-					logrus.WithField("component", "infiniband").
-						Infof("loaded HCA spec for board ID %s from HCA configs", boardID)
-				} else {
-					logrus.WithField("component", "infiniband").
-						Warnf("spec for board ID %s not found in HCA configs", boardID)
-					missingBoardIDs = append(missingBoardIDs, boardID)
-				}
-			} else if spec.Hardware.BoardID != boardID {
-				// If board ID doesn't match, try to get from hcaSpecs
+			if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
+				ibSpec.HCAs[boardID] = hcaSpec
 				logrus.WithField("component", "infiniband").
-					Warnf("spec for board ID %s does not match the hardware board ID %s, trying to load from HCA configs", boardID, spec.Hardware.BoardID)
-				if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
-					ibSpec.HCAs[boardID] = hcaSpec
-					logrus.WithField("component", "infiniband").
-						Infof("replaced HCA spec for board ID %s from HCA configs", boardID)
-				} else {
-					logrus.WithField("component", "infiniband").
-						Warnf("spec for board ID %s not found in HCA configs", boardID)
-					missingBoardIDs = append(missingBoardIDs, boardID)
-				}
+					Infof("loaded HCA spec for hardware board ID %s", boardID)
 			} else {
 				logrus.WithField("component", "infiniband").
-					Infof("spec for board ID %s matches the hardware board ID %s", boardID, spec.Hardware.BoardID)
+					Warnf("spec for board ID %s not found", boardID)
+				missingBoardIDs = append(missingBoardIDs, boardID)
 			}
 		}
 
@@ -151,17 +128,15 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)
 }
 
-// TrimMapByList removes keys from the map `b` that are not present in the slice `a`.
+// TrimMapByList removes keys from the map `b` that are not present in the map `a`.
+// Returns true if any key was removed from b.
 func TrimMapByList(a map[string]string, b map[string]string) bool {
-	if len(a) >= len(b) {
-		return false
-	}
 	changed := false
 	for key := range b {
 		if _, ok := a[key]; !ok {
 			delete(b, key)
+			changed = true
 		}
-		changed = true
 	}
 	return changed
 }

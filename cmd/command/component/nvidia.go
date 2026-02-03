@@ -55,16 +55,19 @@ func NewNvidiaCmd() *cobra.Command {
 					cancel()
 				}()
 			}
-			specFile, err := cmd.Flags().GetString("spec")
+			cfgFile, _ := cmd.Flags().GetString("cfg")
+			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
 			if err != nil {
-				logrus.WithField("component", "nvidia").Error(err)
+				logrus.WithField("daemon", "nvidia").Errorf("failed to load cfgFile: %v", err)
+			} else if cfgFile != "" {
+				logrus.WithField("daemon", "nvidia").Info("load cfgFile: " + resolvedCfgFile)
+			}
+			specFile, _ := cmd.Flags().GetString("spec")
+			resolvedSpecFile, err := spec.EnsureSpecFile(specFile)
+			if err != nil {
+				logrus.WithField("daemon", "nvidia").Errorf("failed to load specFile: %v", err)
 			} else {
-				specFile, err = spec.EnsureSpecFile(specFile)
-				if err != nil {
-					logrus.WithField("daemon", "nvidia").Errorf("using default specFile: %v", err)
-				} else {
-					logrus.WithField("daemon", "nvidia").Info("load specFile: " + specFile)
-				}
+				logrus.WithField("daemon", "nvidia").Info("load specFile: " + resolvedSpecFile)
 			}
 			ignoredCheckersStr, err := cmd.Flags().GetString("ignored-checkers")
 			if err != nil {
@@ -76,7 +79,7 @@ func NewNvidiaCmd() *cobra.Command {
 			if len(ignoredCheckersStr) > 0 {
 				ignoredCheckers = strings.Split(ignoredCheckersStr, ",")
 			}
-			component, err := nvidia.NewComponent("", specFile, ignoredCheckers)
+			component, err := nvidia.NewComponent(resolvedCfgFile, resolvedSpecFile, ignoredCheckers)
 			if err != nil {
 				logrus.WithField("component", "nvidia").Error(err)
 				return
@@ -89,7 +92,8 @@ func NewNvidiaCmd() *cobra.Command {
 		},
 	}
 
-	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the nvidia specification")
+	NvidaCmd.Flags().StringP("cfg", "c", "", "Path to the user config file")
+	NvidaCmd.Flags().StringP("spec", "s", "", "Path to the nvidia specification file")
 	NvidaCmd.Flags().BoolP("verbos", "v", false, "Enable verbose output")
 	NvidaCmd.Flags().StringP("ignored-checkers", "i", "", "Ignored checkers")
 

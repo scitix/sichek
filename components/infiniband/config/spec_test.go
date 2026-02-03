@@ -17,7 +17,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 
@@ -25,100 +24,55 @@ import (
 	"github.com/scitix/sichek/pkg/utils"
 )
 
-func TestGetHCASpec(t *testing.T) {
-	// Create temporary spec file
+// TestInfinibandSpecNoHcaFromYaml verifies that infiniband section no longer contains hca_specs;
+// HCAs are not unmarshaled from YAML (filled by FilterSpec from top-level "hca" only).
+func TestInfinibandSpecNoHcaFromYaml(t *testing.T) {
 	specFile, err := os.CreateTemp("", "spec_*.yaml")
 	if err != nil {
 		t.Fatalf("Failed to create temp spec file: %v", err)
 	}
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			t.Errorf("Failed to close temp spec file: %v", err)
-		}
-	}(specFile.Name())
-	// Write sample data to the temporary files
+	defer os.Remove(specFile.Name())
 	specData := `
-nvidia:
-  "0x233010de":
-    name: NVIDIA H100 80GB HBM3
-    gpu_nums: 8
-    gpu_memory: 80
+nvidia: {}
 infiniband:
   cluster_name:
     ib_devs:
       mlx5_0: ibs18
       mlx5_1: ibs20
     sw_deps:
-      kernel_module:
-        - "rdma_ucm"
-        - "rdma_cm"
-        - "ib_ipoib"
-        - "mlx5_core"
-        - "mlx5_ib"
-        - "ib_uverbs"
-        - "ib_umad"
-        - "ib_cm"
-        - "ib_core"
-        - "mlxfw"
+      kernel_module: ["rdma_ucm", "mlx5_core"]
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
-    hca_specs:
-      MT_0000001119:
-        hardware:
-          hca_type: "MT4129"
-          board_id: "MT_0000001119"
-          fw_ver: "28.42.1000"
-          vpd: "HPE InfiniBand NDR200/Ethernet 200Gb 1-port OSFP PCIe5 x16 MCX75310AAS-HEAT Adapter"
-          net_port: 1
-          port_speed: "200 Gb/sec (2X NDR)"
-          phy_state: "LinkUp"
-          port_state: "ACTIVE"
-          net_operstate: "down"
-          link_layer: "InfiniBand"
-          pcie_width: "16"
-          pcie_speed: "16.0 GT/s PCIe"
-          pcie_tree_width: "32"
-          pcie_tree_speed: "16"
-          pcie_acs: "disable"
-          pcie_mrr: "4096"
+    pcie_acs: "disable"
+hca:
+  MT_0000001119:
+    hardware:
+      hca_type: "MT4129"
+      board_id: "MT_0000001119"
+      fw_ver: "28.42.1000"
+      pcie_width: "16"
+      pcie_speed: "16.0 GT/s PCIe"
+      pcie_tree_width: "32"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf: {}
 `
 	if _, err := specFile.Write([]byte(specData)); err != nil {
 		t.Fatalf("Failed to write to temp spec file: %v", err)
 	}
 	ibSpecs := &InfinibandSpecs{}
 	if err := utils.LoadFromYaml(specFile.Name(), ibSpecs); err != nil {
-		t.Fatalf("Failed to get spec: %v", err)
+		t.Fatalf("LoadFromYaml: %v", err)
 	}
-	// Convert the config struct to a pretty-printed JSON string and print it
-	jsonData, err := json.MarshalIndent(ibSpecs, "", "  ")
-	if err != nil {
-		t.Fatalf("Failed to marshal config to JSON: %v", err)
-	}
-
-	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
-
-	// Validate the returned spec
 	if len(ibSpecs.Specs) != 1 {
-		t.Fatalf("Expected spec at least have 1 entry, got %d", len(ibSpecs.Specs))
+		t.Fatalf("Expected spec to have 1 entry, got %d", len(ibSpecs.Specs))
 	}
 	if _, ok := ibSpecs.Specs["cluster_name"]; !ok {
-		t.Fatalf("Expected spec to have key 'cluster_name', it doesn't exist")
+		t.Fatalf("Expected spec key 'cluster_name'")
 	}
-	if _, ok := ibSpecs.Specs["cluster_name"].HCAs["MT_0000001119"]; !ok {
-		t.Fatalf("Expected spec to have key 'MT_0000001119', it doesn't exist")
-	}
-	hcaSpec := ibSpecs.Specs["cluster_name"].HCAs["MT_0000001119"]
-	if hcaSpec.Hardware.BoardID != "MT_0000001119" {
-		t.Fatalf("Expected BoardID 'MT_0000001119', got '%s'", hcaSpec.Hardware.BoardID)
-	}
-	if hcaSpec.Hardware.FWVer != "28.42.1000" {
-		t.Fatalf("Expected FwVer '28.42.1000', got '%s'", hcaSpec.Hardware.FWVer)
-	}
-	if hcaSpec.Hardware.PCIEWidth != "16" {
-		t.Fatalf("Expected PcieWidth '16', got '%s'", hcaSpec.Hardware.PCIEWidth)
-	}
-	if hcaSpec.Hardware.PCIESpeed != "16.0 GT/s PCIe" {
-		t.Fatalf("Expected PcieSpeed '16.0 GT/s PCIe', got '%s'", hcaSpec.Hardware.PCIESpeed)
+	// HCAs are not read from YAML (infiniband has no hca_specs); must be nil after unmarshal
+	if ibSpecs.Specs["cluster_name"].HCAs != nil {
+		t.Fatalf("Expected HCAs to be nil when loaded from YAML (infiniband does not contain hca_specs)")
 	}
 }
 
@@ -160,8 +114,9 @@ infiniband:
         - "ib_core"
         - "mlxfw"
       ofed_ver: "MLNX_OFED_LINUX-23.10-1.1.9.0"
-    hca_specs: 
-      MT_0000000970: {}
+    pcie_acs: "disable"
+hca:
+  MT_0000000970: {}
 `
 	if _, err := specFile.Write([]byte(specData)); err != nil {
 		t.Fatalf("Failed to write to temp spec file: %v", err)
@@ -212,7 +167,31 @@ infiniband:
 }
 
 func TestGetClusterInfinibandSpec(t *testing.T) {
-	clusterSpec, err := LoadSpec("")
+	// LoadSpec requires a non-empty file path; use a temp spec file with infiniband + top-level hca
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer os.Remove(specFile.Name())
+	specData := `
+nvidia: {}
+infiniband:
+  default:
+    ib_devs:
+      mlx5_0: ib0
+    sw_deps:
+      kernel_module: ["mlx5_core"]
+      ofed_ver: ">=24.10"
+    pcie_acs: "disable"
+hca:
+  MT_0000000838: {}
+`
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write temp spec file: %v", err)
+	}
+	specFile.Close()
+
+	clusterSpec, err := LoadSpec(specFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to get spec: %v", err)
 	}
@@ -220,16 +199,16 @@ func TestGetClusterInfinibandSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal config to JSON: %v", err)
 	}
-	fmt.Printf("spec JSON:\n%s\n", string(jsonData))
+	t.Logf("spec JSON:\n%s", string(jsonData))
 }
 
-// TestLoadSpecExtractHCASpecsFromSSYaml verifies that loading a spec YAML correctly
-// extracts hca_specs from the infiniband section into InfinibandSpec.HCAs.
-func TestLoadSpecExtractHCASpecsFromSSYaml(t *testing.T) {
+// TestLoadSpecFillsHCAsFromTopLevelHca verifies that LoadSpec (FilterSpec) fills InfinibandSpec.HCAs
+// from the top-level "hca" section for each board ID on the host.
+func TestLoadSpecFillsHCAsFromTopLevelHca(t *testing.T) {
 	specData := `
 nvidia: {}
 infiniband:
-  taihua:
+  taihua: &ib_taihua
     ib_devs:
       mlx5_0: ib0
       mlx5_1: ib1
@@ -237,50 +216,52 @@ infiniband:
       kernel_module: ["rdma_ucm", "mlx5_core"]
       ofed_ver: ">=MLNX_OFED_LINUX-24.10-2.1.8.0"
     pcie_acs: "disable"
-    hca_specs:
-      MT_0000000838:
-        hardware:
-          hca_type: "MT4129"
-          board_id: "MT_0000000838"
-          fw_ver: ">=28.39.2048"
-          vpd: "NVIDIA ConnectX-7 HHHL Adapter card"
-          net_port: 1
-          port_speed: "400 Gb/sec (4X NDR)"
-          phy_state: "LinkUp"
-          port_state: "ACTIVE"
-          net_operstate: "down"
-          link_layer: "InfiniBand"
-          pcie_width: "16"
-          pcie_speed: "32.0 GT/s PCIe"
-          pcie_tree_width: "16"
-          pcie_tree_speed: "32"
-          pcie_acs: "disable"
-          pcie_mrr: "4096"
-        perf:
-          one_way_bw: 360
-          avg_latency_us: 10
-      MT_0000000834:
-        hardware:
-          hca_type: "0"
-          board_id: "MT_0000000834"
-          fw_ver: ">=28.39.1002"
-          net_port: 1
-          port_speed: "200 Gb/sec (2X NDR)"
-          pcie_width: "16"
-          pcie_speed: "32.0 GT/s PCIe"
-          pcie_tree_width: "16"
-          pcie_tree_speed: "32"
-          pcie_acs: "disable"
-          pcie_mrr: "4096"
-        perf: {}
-      MT_2420110034:
-        hardware:
-          board_id: "MT_2420110034"
-          fw_ver: ">=28.39.2048"
-          port_speed: "200 Gb/sec (2X NDR)"
-          pcie_width: "16"
-          pcie_mrr: "4096"
-        perf: {}
+  default:
+    <<: *ib_taihua
+hca:
+  MT_0000000838:
+    hardware:
+      hca_type: "MT4129"
+      board_id: "MT_0000000838"
+      fw_ver: ">=28.39.2048"
+      vpd: "NVIDIA ConnectX-7 HHHL Adapter card"
+      net_port: 1
+      port_speed: "400 Gb/sec (4X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "32.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "32"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 360
+      avg_latency_us: 10
+  MT_0000000834:
+    hardware:
+      hca_type: "0"
+      board_id: "MT_0000000834"
+      fw_ver: ">=28.39.1002"
+      net_port: 1
+      port_speed: "200 Gb/sec (2X NDR)"
+      pcie_width: "16"
+      pcie_speed: "32.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "32"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf: {}
+  MT_2420110034:
+    hardware:
+      board_id: "MT_2420110034"
+      fw_ver: ">=28.39.2048"
+      port_speed: "200 Gb/sec (2X NDR)"
+      pcie_width: "16"
+      pcie_mrr: "4096"
+    perf: {}
 `
 	specFile, err := os.CreateTemp("", "spec_*.yaml")
 	if err != nil {
@@ -294,48 +275,33 @@ infiniband:
 		t.Fatalf("Failed to close temp spec file: %v", err)
 	}
 
-	s := &InfinibandSpecs{}
-	if err := utils.LoadFromYaml(specFile.Name(), s); err != nil {
-		t.Fatalf("LoadFromYaml: %v", err)
+	spec, err := LoadSpec(specFile.Name())
+	if err != nil {
+		t.Fatalf("LoadSpec: %v", err)
 	}
-	if s.Specs == nil {
-		t.Fatal("loaded spec has no infiniband section")
-	}
-
-	spec, ok := s.Specs["taihua"]
-	if !ok {
-		t.Fatal("expected spec key \"taihua\"")
-	}
+	// HCAs are filled from top-level hca for board IDs on the host; may be empty if no IB devices
 	if spec.HCAs == nil {
-		t.Fatal("spec[taihua].HCAs is nil")
+		t.Fatal("spec.HCAs should be initialized (possibly empty)")
 	}
-	wantBoardIDs := []string{"MT_0000000838", "MT_0000000834", "MT_2420110034"}
-	for _, id := range wantBoardIDs {
-		if _, ok := spec.HCAs[id]; !ok {
-			t.Errorf("spec[taihua].HCAs missing board ID %s", id)
+	// If host has IB devices, spot-check one that we defined in top-level hca
+	for boardID, hca := range spec.HCAs {
+		if hca == nil {
+			continue
 		}
-	}
-	if len(spec.HCAs) != 3 {
-		t.Errorf("spec[taihua].HCAs: want 3 entries, got %d", len(spec.HCAs))
-	}
-
-	hca := spec.HCAs["MT_0000000838"]
-	if hca == nil {
-		t.Fatal("spec[taihua].HCAs[MT_0000000838] is nil")
-	}
-	if hca.Hardware.BoardID != "MT_0000000838" {
-		t.Errorf("Hardware.BoardID: want MT_0000000838, got %s", hca.Hardware.BoardID)
-	}
-	if hca.Hardware.FWVer != ">=28.39.2048" {
-		t.Errorf("Hardware.FWVer: want >=28.39.2048, got %s", hca.Hardware.FWVer)
-	}
-	if hca.Hardware.HCAType != "MT4129" {
-		t.Errorf("Hardware.HCAType: want MT4129, got %s", hca.Hardware.HCAType)
-	}
-	if hca.Perf.OneWayBW != 360 {
-		t.Errorf("Perf.OneWayBW: want 360, got %v", hca.Perf.OneWayBW)
-	}
-	if hca.Perf.AvgLatency != 10 {
-		t.Errorf("Perf.AvgLatency: want 10, got %v", hca.Perf.AvgLatency)
+		if hca.Hardware.BoardID != boardID {
+			t.Errorf("HCAs[%s].Hardware.BoardID: want %s, got %s", boardID, boardID, hca.Hardware.BoardID)
+		}
+		if boardID == "MT_0000000838" {
+			if hca.Hardware.FWVer != ">=28.39.2048" {
+				t.Errorf("HCAs[MT_0000000838].Hardware.FWVer: want >=28.39.2048, got %s", hca.Hardware.FWVer)
+			}
+			if hca.Hardware.HCAType != "MT4129" {
+				t.Errorf("HCAs[MT_0000000838].Hardware.HCAType: want MT4129, got %s", hca.Hardware.HCAType)
+			}
+			if hca.Perf.OneWayBW != 360 {
+				t.Errorf("HCAs[MT_0000000838].Perf.OneWayBW: want 360, got %v", hca.Perf.OneWayBW)
+			}
+		}
+		break
 	}
 }
