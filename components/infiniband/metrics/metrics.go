@@ -3,6 +3,7 @@ package metrics
 import (
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/scitix/sichek/components/infiniband/collector"
 	common "github.com/scitix/sichek/metrics"
@@ -20,6 +21,10 @@ type IBMetrics struct {
 	IBHardWareInfoStrGauge *common.GaugeVecMetricExporter
 	IBCounterGauge         *common.GaugeVecMetricExporter
 	IBSoftWareInfoGauge    *common.GaugeVecMetricExporter
+	// previous label sets: used by deleting series that disappeared
+	prevIBDevs       map[string]struct{}
+	prevCounterPairs map[string]map[string]struct{} // ibDev -> set of counter names
+	prevMu           sync.Mutex
 }
 
 func NewInfinibandMetrics() *IBMetrics {
@@ -30,10 +35,50 @@ func NewInfinibandMetrics() *IBMetrics {
 		IBHardWareInfoStrGauge: common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "metric_name"}),
 		IBCounterGauge:         common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "counter_name"}),
 		IBSoftWareInfoGauge:    common.NewGaugeVecMetricExporter(MetricPrefix, []string{"metric_name"}),
+		prevIBDevs:             make(map[string]struct{}),
+		prevCounterPairs:       make(map[string]map[string]struct{}),
 	}
 }
 
 func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
+	infinibandInfo.RLock()
+	curIBDevs := make(map[string]struct{}, len(infinibandInfo.IBHardWareInfo))
+	for ibDev := range infinibandInfo.IBHardWareInfo {
+		curIBDevs[ibDev] = struct{}{}
+	}
+	curCounterPairs := make(map[string]map[string]struct{})
+	for ibDev, counters := range infinibandInfo.IBCounters {
+		if curCounterPairs[ibDev] == nil {
+			curCounterPairs[ibDev] = make(map[string]struct{})
+		}
+		for c := range counters {
+			curCounterPairs[ibDev][c] = struct{}{}
+		}
+	}
+	infinibandInfo.RUnlock()
+
+	m.prevMu.Lock()
+	// Delete only disappeared device series
+	for prevDev := range m.prevIBDevs {
+		if _, stillPresent := curIBDevs[prevDev]; stillPresent {
+			continue
+		}
+		m.IBHardWareInfoGauge.DeleteLabelValues("phy_state", []string{prevDev})
+		m.IBHardWareInfoGauge.DeleteLabelValues("port_state", []string{prevDev})
+		m.IBHardWareInfoGauge.DeleteLabelValues("port_speed_state", []string{prevDev})
+	}
+	for prevDev, prevCounters := range m.prevCounterPairs {
+		if _, stillPresent := curIBDevs[prevDev]; stillPresent {
+			continue
+		}
+		for prevCounter := range prevCounters {
+			m.IBCounterGauge.DeleteLabelValues("counter", []string{prevDev, prevCounter})
+		}
+	}
+	m.prevIBDevs = curIBDevs
+	m.prevCounterPairs = curCounterPairs
+	m.prevMu.Unlock()
+
 	// ib_hardware_info
 	infinibandInfo.RLock()
 	m.IBNumGauge.SetMetric("hca_num", nil, float64(infinibandInfo.HCAPCINum))
@@ -60,7 +105,6 @@ func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
 			m.IBCounterGauge.SetMetric("counter", []string{IBDev, counterName}, float64(counterValue))
 		}
 	}
-
 }
 
 func extractFirstNumber(s string) float64 {
