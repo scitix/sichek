@@ -33,6 +33,33 @@ func TestGaugeVecMetricExporter_SetMetric(t *testing.T) {
 	}
 }
 
+func TestGaugeVecMetricExporter_DeleteLabelValues(t *testing.T) {
+	exporter := NewGaugeVecMetricExporter("test", []string{"label1"})
+
+	got := exporter.DeleteLabelValues("no_such_metric", []string{"v1"})
+	if got {
+		t.Errorf("DeleteLabelValues(non-existent metric): want false, got true")
+	}
+
+	exporter.SetMetric("my_metric", []string{"val1"}, 1.0)
+	got = exporter.DeleteLabelValues("my_metric", []string{"val1"})
+	if !got {
+		t.Errorf("DeleteLabelValues(existing): want true, got false")
+	}
+
+	got = exporter.DeleteLabelValues("my_metric", []string{"val1"})
+	if got {
+		t.Errorf("DeleteLabelValues(already deleted): want false, got true")
+	}
+
+	exporter.SetMetric("other", []string{"a"}, 2.0)
+	got = exporter.DeleteLabelValues("other", []string{"b"})
+	if got {
+		t.Errorf("DeleteLabelValues(wrong label vals): want false, got true")
+	}
+	exporter.DeleteLabelValues("other", []string{"a"})
+}
+
 func TestGaugeVecMetricExporter_ExportStruct(t *testing.T) {
 	type TestStruct struct {
 		Field1 int     `json:"field1"`
