@@ -15,7 +15,7 @@ swanlab = None
 try:
     import swanlab
 except ImportError:
-    pass
+    echo_warn("SwanLab is not installed; DeepEP metrics will not be logged to SwanLab.")
 
 from common import (
     echo_warn,
