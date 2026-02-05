@@ -45,9 +45,19 @@ func NewDaemonStartCmd() *cobra.Command {
 				logrus.WithField("daemon", "start").Errorf("sichek binary not found at %s", systemd.DefaultBinPath)
 				return
 			}
-			if err := systemd.CreateDefaultEnvFile(); err != nil {
-				logrus.WithField("daemon", "start").Error("failed to create systemd env file")
-				return
+			metricsSocket, _ := cmd.Flags().GetString("metrics-socket")
+			if metricsSocket != "" {
+				flags := "--metrics-socket " + metricsSocket
+				if err := systemd.WriteEnvFile(flags); err != nil {
+					logrus.WithField("daemon", "start").Errorf("failed to write systemd env file: %v", err)
+					return
+				}
+				logrus.WithField("daemon", "start").Infof("using metrics socket: %s", metricsSocket)
+			} else {
+				if err := systemd.CreateDefaultEnvFile(); err != nil {
+					logrus.WithField("daemon", "start").Error("failed to create systemd env file")
+					return
+				}
 			}
 			systemdFileData := systemd.SichekService
 			if err := os.WriteFile(systemd.DefaultUnitFile, []byte(systemdFileData), 0644); err != nil {
@@ -72,5 +82,6 @@ func NewDaemonStartCmd() *cobra.Command {
 			logrus.WithField("daemon", "start").Info("start sichek service succeed")
 		},
 	}
+	daemonStartCmd.Flags().String("metrics-socket", "", "Prometheus metrics Unix socket path (if set, daemon will listen on socket instead of TCP)")
 	return daemonStartCmd
 }

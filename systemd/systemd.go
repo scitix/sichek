@@ -20,6 +20,8 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -61,6 +63,19 @@ func CreateDefaultEnvFile() error {
 FLAGS=""
 `)
 	return err
+}
+
+// WriteEnvFile writes /etc/default/sichek with the given FLAGS.
+func WriteEnvFile(flags string) error {
+	if err := os.MkdirAll(filepath.Dir(DefaultEnvFile), 0755); err != nil {
+		return err
+	}
+	content := "# sichek environment variables are set here\nFLAGS=" + strconv.Quote(flags) + "\n"
+	tmpFile := DefaultEnvFile + ".tmp"
+	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmpFile, DefaultEnvFile)
 }
 
 func LogrotateInit() error {
