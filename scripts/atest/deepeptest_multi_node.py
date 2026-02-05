@@ -209,8 +209,9 @@ def main() -> None:
             try:
                 log_proc.terminate()
                 log_proc.wait(timeout=5)
-            except Exception:
-                pass
+            except Exception as e:
+                # Best-effort cleanup: ignore failures but log for visibility
+                echo_info(f"Warning: failed to terminate log process cleanly: {e}")
 
     def signal_handler(sig: int, frame: Any) -> None:
         echo_info("Interrupted, cleaning up...")
