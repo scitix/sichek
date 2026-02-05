@@ -22,7 +22,8 @@ swanlab = None
 try:
     import swanlab
 except ImportError:
-    pass
+    # Swanlab is optional; continue without experiment tracking if it's not installed.
+    print("Warning: 'swanlab' package not found; proceeding without Swanlab integration.", file=sys.stderr)
 
 from common import (
     echo_info,
