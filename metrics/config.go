@@ -20,5 +20,6 @@ type MetricsUserConfig struct {
 }
 
 type MetricsConfig struct {
-	Port int `json:"port" yaml:"port"`
+	Port   int    `json:"port" yaml:"port"`
+	Socket string `json:"socket" yaml:"socket"`
 }

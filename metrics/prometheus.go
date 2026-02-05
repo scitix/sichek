@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"net"
 	"net/http"
 	"os"
 	"reflect"
@@ -83,27 +84,52 @@ func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }
 
-func InitPrometheus(cfgFile string, metricsPort int) {
+func InitPrometheus(cfgFile string, metricsPort int, metricsSocket string) {
+	// Priority: CLI metrics-socket > CLI metrics-port > config socket > config port > default port
 	var port int
+	var socket string
 
-	// Priority: command line argument > config file
-	if metricsPort > 0 {
-		port = metricsPort
-		logrus.WithField("component", "metrics").Infof("Using metrics port from command line: %d", port)
+	cfg := &MetricsUserConfig{}
+	if err := common.LoadUserConfig(cfgFile, cfg); err != nil || cfg.Metrics == nil {
+		port = 19091
+		logrus.WithField("component", "metrics").Debugf("InitPrometheus load user config failed or cfg is nil: %v", err)
 	} else {
-		cfg := &MetricsUserConfig{}
-		err := common.LoadUserConfig(cfgFile, cfg)
-		if err != nil || cfg.Metrics == nil {
-			logrus.WithField("component", "metrics").Errorf("InitPrometheus load user config from file %s failed or cfg is nil: %v", cfgFile, err)
-			port = 19091
-			logrus.WithField("component", "metrics").Warnf("Failed to load config, using default port %d", port)
-		} else {
-			port = cfg.Metrics.Port
-		}
+		port = cfg.Metrics.Port
+		socket = cfg.Metrics.Socket
+	}
+	if metricsSocket != "" {
+		socket = metricsSocket
+		logrus.WithField("component", "metrics").Infof("Using metrics socket from command line: %s", socket)
+	} else if metricsPort > 0 {
+		port = metricsPort
+		socket = ""
+		logrus.WithField("component", "metrics").Infof("Using metrics port from command line: %d", port)
 	}
 
-	// start Prometheus HTTP
+	if socket == "" && port <= 0 {
+		port = 19091
+		logrus.WithField("component", "metrics").Warnf("Invalid or missing port, using default port %d", port)
+	}
+
 	http.Handle("/metrics", promhttp.Handler())
+
+	if socket != "" {
+		if _, err := os.Stat(socket); err == nil {
+			os.Remove(socket)
+		}
+		listener, err := net.Listen("unix", socket)
+		if err != nil {
+			logrus.WithField("component", "metrics").Errorf("failed to listen on metrics socket %s: %v", socket, err)
+			os.Exit(1)
+		}
+		logrus.WithField("component", "metrics").Infof("Starting Prometheus metrics server on socket %s", socket)
+		if err := http.Serve(listener, nil); err != nil {
+			logrus.WithField("component", "metrics").Errorf("failed to serve Prometheus metrics on socket: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	logrus.WithField("component", "metrics").Infof("Starting Prometheus metrics server on port %d", port)
 	if err := http.ListenAndServe(":"+strconv.Itoa(port), nil); err != nil {
 		logrus.WithField("component", "metrics").Errorf("failed to start Prometheus metrics server: %v", err)

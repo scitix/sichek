@@ -122,6 +122,10 @@ func NewDaemonRunCmd() *cobra.Command {
 			} else if metricsPort > 0 {
 				logrus.WithField("daemon", "run").Infof("using metrics port from command line: %d", metricsPort)
 			}
+			metricsSocket, _ := cmd.Flags().GetString("metrics-socket")
+			if metricsSocket != "" {
+				logrus.WithField("daemon", "run").Infof("using metrics socket from command line: %s", metricsSocket)
+			}
 
 			start := time.Now()
 			signals := make(chan os.Signal, 2048)
@@ -151,7 +155,7 @@ func NewDaemonRunCmd() *cobra.Command {
 				}
 				components[componentName] = component
 			}
-			daemonService, err := service.NewService(components, annoKey, cfgFile, metricsPort)
+			daemonService, err := service.NewService(components, annoKey, cfgFile, metricsPort, metricsSocket)
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("create daemon service failed: %v", err)
 				return
@@ -176,7 +180,8 @@ func NewDaemonRunCmd() *cobra.Command {
 	daemonRunCmd.Flags().StringP("enable-components", "E", "", "Enabled components, joined by `,`")
 	daemonRunCmd.Flags().StringP("ignore-components", "I", "", "Ignored components")
 	daemonRunCmd.Flags().StringP("annotation-key", "A", "", "k8s node annotation key")
-	daemonRunCmd.Flags().IntP("metrics-port", "p", 0, "Prometheus metrics server port(0 means use config file)")
+	daemonRunCmd.Flags().IntP("metrics-port", "p", 0, "Prometheus metrics server TCP port (0 means use config file)")
+	daemonRunCmd.Flags().String("metrics-socket", "", "Prometheus metrics Unix socket path (if set, listen on socket instead of TCP)")
 	daemonRunCmd.Flags().StringP("log-file", "f", "/tmp/sichek.log", "Path to log file (enables file logging with rotation)")
 	daemonRunCmd.Flags().StringP("log-level", "l", "warn", "Log level (trace, debug, info, warn, error, fatal, panic)")
 	daemonRunCmd.Flags().Int("log-max-size", 10, "Maximum size in megabytes of the log file before rotation")
