@@ -121,6 +121,21 @@ func (e *GaugeVecMetricExporter) ResetMetric(name string) {
 	}
 }
 
+// DeleteLabelValues removes a single label combination from the GaugeVec for the given metric name.
+// labelVals must match the label keys (without "node"); node is appended internally.
+// Returns false if the metric does not exist.
+func (e *GaugeVecMetricExporter) DeleteLabelValues(name string, labelVals []string) bool {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	fullName := sanitizeMetricName(e.prefix + "_" + name)
+	gaugeVec, exists := e.MetricsMap[fullName]
+	if !exists {
+		return false
+	}
+	labelVals = append(append([]string{}, labelVals...), e.nodeName)
+	return gaugeVec.DeleteLabelValues(labelVals...)
+}
+
 // StructToMetricsMap This recursively flattens the struct into a map where each field is represented by a string path and its corresponding value.
 func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[string]*StructMetrics) {
 	// Dereference pointers

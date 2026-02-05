@@ -66,6 +66,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewAllCmd())
 	rootCmd.AddCommand(NewVersionCmd())
 	rootCmd.AddCommand(NewDaemonCmd())
+	rootCmd.AddCommand(NewExporterCmd())
 	rootCmd.AddCommand(component.NewPcieTopoCmd())
 	rootCmd.AddCommand(component.NewIBLinkCheckCmd())
 	rootCmd.AddCommand(component.NewRoCEGidsCheckCmd())

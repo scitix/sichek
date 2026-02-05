@@ -45,6 +45,7 @@ type K8sClient struct {
 func NewClient() (*K8sClient, error) {
 	var err error
 	var cfg *rest.Config
+	var kubeconfigPath string
 	k8sClientOnce.Do(func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -60,7 +61,11 @@ func NewClient() (*K8sClient, error) {
 				return
 			}
 		} else {
-			cfg, err = clientcmd.BuildConfigFromFlags("", consts.KubeConfigPath)
+			kubeconfigPath = os.Getenv("KUBECONFIG")
+			if kubeconfigPath == "" {
+				kubeconfigPath = consts.KubeConfigPath
+			}
+			cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 			if err != nil {
 				logrus.Warnf("get kubeconfig failed (non-K8s environment?): %v", err)
 				return
@@ -73,7 +78,7 @@ func NewClient() (*K8sClient, error) {
 			return
 		}
 		k8sClient = &K8sClient{
-			kubeconfig: consts.KubeConfigPath,
+			kubeconfig: kubeconfigPath,
 			client:     cli,
 		}
 	})
