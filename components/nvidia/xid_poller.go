@@ -83,21 +83,21 @@ func (x *XidEventPoller) Start() error {
 
 		// waits for the duration specified in x.Cfg.UpdateInterval (in seconds)
 		// ref. https://docs.nvidia.com/deploy/nvml-api/group__nvmlEvents.html#group__nvmlEvents
-		// e, err := x.XidEventSet.Wait(uint32(x.Cfg.UpdateInterval.Microseconds()))
-		event, ret := x.XidEventSet.Wait(200)
-		logrus.WithField("component", "nvidia").Infof("XidEventSet.Wait returned: %v, %v", event.EventData, ret)
-		if ret == nvml.ERROR_NOT_SUPPORTED {
-			logrus.WithField("component", "nvidia").Warningf("XidEvent not supported -- Skipping: %v", nvml.ErrorString(ret))
+		event, ret := x.XidEventSet.Wait(uint32(1000))
+		if ret == nvml.ERROR_TIMEOUT {
+			// no event within timeout — normal
+			logrus.WithField("component", "nvidia").Debugf("XidEventSet.Wait timeout (no event)")
 			continue
 		}
-		if ret == nvml.ERROR_TIMEOUT {
-			// no event within timeout
+		if ret == nvml.ERROR_NOT_SUPPORTED {
+			logrus.WithField("component", "nvidia").Warningf("XidEvent not supported -- Skipping: %v", nvml.ErrorString(ret))
 			continue
 		}
 		if ret != nvml.SUCCESS {
 			logrus.WithField("component", "nvidia").Warningf("XidEventSet.Wait failure -- Retrying: %v", nvml.ErrorString(ret))
 			continue
 		}
+		logrus.WithField("component", "nvidia").Infof("XidEventSet.Wait returned event: %v", event.EventData)
 
 		x.handleEvent(event)
 	}

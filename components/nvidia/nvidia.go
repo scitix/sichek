@@ -66,6 +66,10 @@ type component struct {
 	metrics *metrics.NvidiaMetrics
 
 	initError error // Track initialization errors with detailed information
+
+	// ReNewNvml rate limit: when called from HealthCheck timeout path, skip if last ReNewNvml was < 60s ago
+	renewBackoffMtx   sync.Mutex
+	lastReNewNvmlTime time.Time
 }
 
 var (
@@ -117,6 +121,17 @@ func NewNvml(ctx context.Context) (nvml.Interface, error) {
 // Note: The caller must hold c.healthCheckMtx lock before calling this function
 // to ensure thread-safe access to nvmlInst and xidPoller.
 func ReNewNvml(c *component) error {
+	const minReNewNvmlInterval = 60 * time.Second
+	// When nvmlInst exists (called from HealthCheck timeout path), rate-limit to avoid thrashing with DCGM
+	if c.nvmlInst != nil {
+		c.renewBackoffMtx.Lock()
+		last := c.lastReNewNvmlTime
+		c.renewBackoffMtx.Unlock()
+		if !last.IsZero() && time.Since(last) < minReNewNvmlInterval {
+			logrus.WithField("component", "nvidia").Debugf("ReNewNvml skipped (last run %v ago)", time.Since(last))
+			return nil
+		}
+	}
 
 	// Stop the XidEventPoller before shutting down NVML to prevent SIGSEGV
 	if c.xidPoller != nil {
@@ -144,31 +159,34 @@ func ReNewNvml(c *component) error {
 		if c.nvmlInstPtr != nil {
 			*c.nvmlInstPtr = nvmlInst
 		}
-		// Recreate the XidEventPoller with the new NVML instance
-		// Use RLock to check running status (nested lock: healthCheckMtx -> serviceMtx is safe)
+		// Recreate the XidEventPoller with the new NVML instance only when enabled
 		c.serviceMtx.RLock()
 		isRunning := c.running
 		c.serviceMtx.RUnlock()
-		if isRunning {
-			newXidPoller, err := NewXidEventPoller(c.ctx, c.cfg, nvmlInst, &c.nvmlMtx, c.resultChannel)
+		var newPoller *XidEventPoller
+		if isRunning && c.cfg != nil && c.cfg.Nvidia != nil && c.cfg.Nvidia.IsXidPollerEnabled() {
+			poller, err := NewXidEventPoller(c.ctx, c.cfg, nvmlInst, &c.nvmlMtx, c.resultChannel)
 			if err != nil {
 				logrus.WithField("component", "nvidia").Errorf("failed to recreate xid poller after NVML reinit: %v", err)
 			} else {
-				c.xidPoller = newXidPoller
-				// Restart the poller in a goroutine if the component is still running
+				newPoller = poller
 				go func() {
 					defer func() {
 						if err := recover(); err != nil {
 							fmt.Printf("[xidPoller] panic err is %s\n", err)
 						}
 					}()
-					err := c.xidPoller.Start()
+					err := poller.Start()
 					if err != nil {
 						logrus.WithField("component", "nvidia").Errorf("start xid poller failed after reinit: %v", err)
 					}
 				}()
 			}
 		}
+		c.xidPoller = newPoller
+		c.renewBackoffMtx.Lock()
+		c.lastReNewNvmlTime = time.Now()
+		c.renewBackoffMtx.Unlock()
 	}
 	return ret
 }
@@ -282,11 +300,16 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return component, nil
 	}
 
-	xidPoller, err := NewXidEventPoller(ctx, nvidiaCfg, nvmlInst, &component.nvmlMtx, component.resultChannel)
-	if err != nil {
-		logrus.WithField("component", "nvidia").Errorf("NewXidEventPoller failed: %v", err)
-		component.initError = fmt.Errorf("failed to create XID event poller: %w", err)
-		return component, nil
+	var xidPoller *XidEventPoller
+	if nvidiaCfg.Nvidia.IsXidPollerEnabled() {
+		xidPoller, err = NewXidEventPoller(ctx, nvidiaCfg, nvmlInst, &component.nvmlMtx, component.resultChannel)
+		if err != nil {
+			logrus.WithField("component", "nvidia").Errorf("NewXidEventPoller failed: %v", err)
+			component.initError = fmt.Errorf("failed to create XID event poller: %w", err)
+			return component, nil
+		}
+	} else {
+		logrus.WithField("component", "nvidia").Infof("XID event poller disabled)")
 	}
 
 	freqController := common.GetFreqController()
@@ -517,8 +540,7 @@ func (c *component) Start() <-chan *common.Result {
 				}
 				// Check if the error message contains "Timeout"
 				if result != nil && len(result.Checkers) > 0 && strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") {
-					// Handle the timeout error
-					// ReNewNvml requires healthCheckMtx lock to be held
+					// HealthCheck timed out: try ReNewNvml
 					c.healthCheckMtx.Lock()
 					err := ReNewNvml(c)
 					c.healthCheckMtx.Unlock()
