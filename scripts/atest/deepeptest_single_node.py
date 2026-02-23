@@ -22,6 +22,8 @@ from common import (
     parse_hostnames,
     load_user_config,
     pick_value,
+    apply_swanlab_mode,
+    is_swanlab_disabled,
 )
 
 from mpijob_helper import (
@@ -121,8 +123,8 @@ def main() -> None:
     parser.description = (
         "Runs DeepEP intranode test on each worker pod and prints the three Best results per node."
     )
-    parser.add_argument("--image-repo", default="registry-taihua.siflow.cn/hisys/mcore", help="Container image repository")
-    parser.add_argument("--image-tag", default="pytorch25.11-cuda13-cudnn9.17-te-main-v1", help="Container image tag")
+    parser.add_argument("--image-repo", default=None, help="Container image repository (or set pytorchjob_image_repo in config)")
+    parser.add_argument("--image-tag", default=None, help="Container image tag (or set pytorchjob_image_tag in config)")
     parser.add_argument(
         "--host-dir",
         default=None,
@@ -131,6 +133,7 @@ def main() -> None:
 
     args = parser.parse_args()
     config = load_user_config()
+    apply_swanlab_mode(args.swanlab_mode, config)
 
     default_cmd = (
         "python /tmp/DeepEP/tests/test_intranode.py "
@@ -169,12 +172,13 @@ def main() -> None:
         timeout=args.timeout,
         max_parallel_jobs=args.max_parallel_jobs,
         cmd=cmd,
+        request_gpu=not args.no_request_gpu,
     )
 
     runner = MPIJobRunner(mpijob_config)
 
     swan_run = None
-    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None and not is_swanlab_disabled():
         swan_run = swanlab.init(
             experiment_name=mpijob_config.job_name,
             description=f"DeepEP tuning ({len(mpijob_config.hostnames)} workers)",

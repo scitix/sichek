@@ -33,6 +33,8 @@ from common import (
     parse_hostnames,
     load_user_config,
     pick_value,
+    apply_swanlab_mode,
+    is_swanlab_disabled,
     start_kubectl_log_stream,
     wait_for_pods_ready,
 )
@@ -152,23 +154,26 @@ def main() -> None:
     parser.add_argument("--job-name", default=None)
     parser.add_argument("--namespace", default="default")
     parser.add_argument("--cmd", default="", help="Command to run (same as deepeptest_single_node)")
-    parser.add_argument("--image-repo", default="registry-taihua.siflow.cn/hisys/mcore", help="Container image repository")
-    parser.add_argument("--image-tag", default="pytorch25.11-cuda13-cudnn9.17-te-main-v1", help="Container image tag")
+    parser.add_argument("--image-repo", default=None, help="Container image repository (or set pytorchjob_image_repo in config)")
+    parser.add_argument("--image-tag", default=None, help="Container image tag (or set pytorchjob_image_tag in config)")
     parser.add_argument("--timeout", type=int, default=600)
     parser.add_argument("--scheduler-name", default=None)
     parser.add_argument("--roce-shared-mode", default=None)
     parser.add_argument("--hostfile", default="None")
     parser.add_argument("--host", default="None")
     parser.add_argument("--host-dir", default=None, help="Host directory to mount (e.g. /tmp/DeepEP)")
+    parser.add_argument("--swanlab-mode", type=str, default=None, choices=["cloud", "offline", "disabled", "local"],
+                        help="SwanLab mode: cloud (default), offline, disabled, local")
 
     args = parser.parse_args()
     config = load_user_config()
+    apply_swanlab_mode(args.swanlab_mode, config)
 
     args.image_repo = pick_value(
-        args.image_repo, config, "pytorchjob_image_repo", "registry-taihua.siflow.cn/hisys/mcore"
+        args.image_repo, config, "pytorchjob_image_repo", "registry-us-east.scitix.ai/hisys/mcore"
     )
     args.image_tag = pick_value(
-        args.image_tag, config, "pytorchjob_image_tag", "pytorch25.11-cuda13-cudnn9.17-te-main-v1"
+        args.image_tag, config, "pytorchjob_image_tag", "v2.1-cudnn9.14-te2.8-cuda_arch_10.0_at"
     )
     args.scheduler_name = pick_value(args.scheduler_name, config, "scheduler", "si-scheduler")
     args.roce_shared_mode = pick_value(args.roce_shared_mode, config, "roce_shared_mode", "none")
@@ -191,7 +196,7 @@ def main() -> None:
     num_experts = 8 * num_workers
     default_cmd = (
         "python /tmp/DeepEP/tests/test_internode.py "
-        f"--num-processes 8 --num-tokens 4096 --hidden 7168 --num-topk 8 --num-experts {num_experts}"
+        f"--num-processes 8 --num-tokens 4096 --hidden 7168 --num-topk 8 --num-experts 256"
     )
     cmd = args.cmd if args.cmd else default_cmd
     if args.host_dir is not None:
@@ -222,7 +227,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, signal_handler)
 
     swan_run = None
-    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None and not is_swanlab_disabled():
         swan_run = swanlab.init(
             experiment_name=args.job_name,
             description=f"DeepEP tuning multi-node ({num_workers} workers)",

@@ -5,6 +5,7 @@ Llama2 70B Benchmark Script (Multi Node) with SwanLab Integration
 
 import os
 import argparse
+import re
 import shlex
 import signal
 import sys
@@ -35,6 +36,8 @@ from common import (
     summarize,
     load_user_config,
     pick_value,
+    apply_swanlab_mode,
+    is_swanlab_disabled,
     start_kubectl_log_stream,
     wait_for_pods_ready,
 )
@@ -47,7 +50,7 @@ def main():
     parser.add_argument("--cmd", default="", help="command to run in each pod: PP=1 MBS=4 bash /workspace/ai4s-job-system/mcore_trainer/demos/llama/train_llama2_70b_bf16.sh by default")
     parser.add_argument("--image-repo", default=None)
     parser.add_argument("--image-tag", default=None)
-    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--timeout", type=int, default=3600)
     parser.add_argument("--scheduler-name", default=None)
     parser.add_argument("--roce-shared-mode", default=None)
     parser.add_argument("--hostfile", default="None")
@@ -59,10 +62,13 @@ def main():
     parser.add_argument("--ep", type=int, default=None, help="Expert Parallelism size")
     parser.add_argument("--host-dir", default=None, help="host directory to mount in pytorchjob pods")
     parser.add_argument("--gpu-type", default=None, help="GPU type")
+    parser.add_argument("--swanlab-mode", type=str, default=None, choices=["cloud", "offline", "disabled", "local"],
+                        help="SwanLab mode: cloud (default), offline, disabled, local")
 
     args = parser.parse_args()
 
     config = load_user_config()
+    apply_swanlab_mode(args.swanlab_mode, config)
 
     args.image_repo = pick_value(args.image_repo, config, "pytorchjob_image_repo", "registry-us-east.scitix.ai/hisys/mcore")
 
@@ -110,7 +116,9 @@ def main():
         cmd = f"EP={args.ep} {cmd}"
     if args.host_dir is not None:
         cmd = f"OLMO_CORE_DIR={args.host_dir} {cmd}"
-    if os.getenv("SWANLAB_API_KEY") is not None:
+    if is_swanlab_disabled():
+        cmd = f"export SWANLAB_MODE=disabled && {cmd}"
+    elif os.getenv("SWANLAB_API_KEY") is not None:
         cmd = (
             f"export SWANLAB_API_KEY={os.getenv('SWANLAB_API_KEY')} && "
             f"export SWANLAB_WORKSPACE={os.getenv('SWANLAB_WORKSPACE')} && "
@@ -119,10 +127,7 @@ def main():
             f"{cmd}"
         )
     else:
-        cmd = (
-            f"export SWANLAB_MODE=disabled && "
-            f"{cmd}"
-        )
+        cmd = f"export SWANLAB_MODE=disabled && {cmd}"
     
     scripts_dir = Path(__file__).parent.resolve()
     helm_dir = scripts_dir.parent.parent / "k8s" / "sichek"
@@ -149,7 +154,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     swan_run = None
-    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None and not is_swanlab_disabled():
         swan_run = swanlab.init(
             experiment_name=args.job_name,
             description=f"Llama2 70B benchmark ({num_workers} workers)",
@@ -253,7 +258,12 @@ def main():
         if rc != 0 or not out.strip():
             echo_warn(f"No worker pods found for job '{args.job_name}'")
             return
-        pods = sorted(out.strip().split())
+        # Sort by worker index (e.g. worker-9 < worker-10 < worker-99 < worker-100)
+        def _worker_index(name):
+            m = re.search(r"worker-(\d+)$", name)
+            return int(m.group(1)) if m else -1
+
+        pods = sorted(out.strip().split(), key=_worker_index)
         last_pod = pods[-1]
         echo_info(f"Last worker pod name: {last_pod}")
 

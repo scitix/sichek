@@ -67,3 +67,14 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/sichek:latest
           labels: |
                 org.opencontainers.image.source=https://github.com/${{ github.repository }}
+      - name: Build and push Docker image (ubuntu20.04, cuda12.8)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./
+          file: docker/Dockerfile.cuda128
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/sichek:${{ github.ref_name }}-ubuntu2004-cuda12.8
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
