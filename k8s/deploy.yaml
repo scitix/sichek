@@ -22,13 +22,7 @@ spec:
     spec:
       hostPID: true
       hostNetwork: true
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: scitix.ai/gpu-type
-                    operator: Exists
+
       tolerations:
       - operator: Exists
 
@@ -54,7 +48,7 @@ spec:
       ###########################################################
       containers:
       - name: sichek
-        image: registry-ap-southeast.scitix.ai/hisys/sichek:v0.7.6
+        image: "{{ .registry }}/hisys/sichek:{{ .version }}"
         imagePullPolicy: Always
 
         securityContext:
@@ -66,7 +60,11 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
         - name: SICHEK_SPEC_URL
-            value: {{ .sichek_spec_url }}
+          value: {{ .sichek_spec_url }}
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
 
         volumeMounts:
         - name: sichek-host
@@ -79,8 +77,7 @@ spec:
               - /bin/bash
               - -c
               - |
-                nsenter -t 1 -m -p -n -u -i -- \
-                  rm -rf /var/sichek/run/pods/${POD_UID}
+                rm -rf /host/var/sichek/run/pods/${POD_UID}
 
         command: ["/bin/bash", "-c"]
         args:
@@ -109,9 +106,14 @@ spec:
             memory: 1Gi
 
       - name: sichek-exporter
-        image: registry-ap-southeast.scitix.ai/hisys/sichek:v0.7.6
+        image: "{{ .registry }}/hisys/sichek:{{ .version }}"
         securityContext:
           privileged: true
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         volumeMounts:
         - name: sichek-host
           mountPath: /host/var/sichek
@@ -123,10 +125,27 @@ spec:
         - |
           set -euo pipefail
 
+          echo "[sichek] restart dcgm-exportor"
+          HOST="nsenter -t 1 -m -p -n -u -i --"
+          $HOST kubectl --kubeconfig=/var/sichek/run/current/kubeconfig delete pod -nmonitoring -lapp.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName=${NODE_NAME}
+          $HOST kubectl --kubeconfig=/var/sichek/run/current/kubeconfig get pod -nmonitoring -lapp.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName=${NODE_NAME}
+
           RUNTIME=/host/var/sichek/run/current
+          timeout=10
+          elapsed=0
+          while [ ! -S "${RUNTIME}/metrics.sock" ]; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "[sichek] ERROR: ${RUNTIME}/metrics.sock not ready after ${timeout}s"
+              exit 1
+            fi
+            sleep 1
+            elapsed=$((elapsed + 1))
+          done
+
+          echo "[sichek] ${RUNTIME}/metrics.sock is ready, starting exporter..."
           sichek exporter \
             --metrics-socket ${RUNTIME}/metrics.sock \
-            --listen :{{ .metrics_port }}
+            --listen :19092
 
         resources:
           requests:
@@ -141,7 +160,7 @@ spec:
       ############################################################
       initContainers:
       - name: sichek-init
-        image: registry-ap-southeast.scitix.ai/hisys/sichek:v0.7.6
+        image: "{{ .registry }}/hisys/sichek:{{ .version }}"
         imagePullPolicy: Always
 
         securityContext:
@@ -235,6 +254,10 @@ spec:
               echo "[sichek] install via dpkg"
               cp "$SICHEK_DEB" "${RUNTIME_BASE}/"
               $HOST dpkg -P sichek || echo "Failed to remove existing sichek"
+              ###dpkg: warning: while removing sichek, directory '/var/sichek/scripts' not empty so not removed
+              ###dpkg: warning: while removing sichek, directory '/var/sichek/config' not empty so not removed
+              rm -rf /host/var/sichek/scripts
+              rm -rf /host/var/sichek/config
               $HOST dpkg -i "${HOST_RUNTIME_BASE}/$(basename "$SICHEK_DEB")"
               rm "${RUNTIME_BASE}/$(basename "$SICHEK_DEB")"
             else
@@ -313,6 +336,27 @@ spec:
           chmod 644 "${TMP_ENV}"
           mv "${TMP_ENV}" "${RUNTIME_BASE}/env"
 
+          ###########################################################################
+          # 3. delete pod dir in /var/sichek/run/pods except current and canary link
+          ###########################################################################
+          PODS_DIR="$RUNTIME_BASE/pods"
+          CURRENT_TARGET=$(readlink -f "$RUNTIME_BASE/current")
+          CANARY_TARGET=$(readlink -f "$RUNTIME_BASE/canary")
+          echo "Current points to: $CURRENT_TARGET"
+          echo "Canary points to: $CANARY_TARGET"
+
+          for d in "$PODS_DIR"/*; do
+            [ -d "$d" ] || continue
+
+            # skip current/canary dir
+            if [[ "$d" == "$CURRENT_TARGET" || "$d" == "$CANARY_TARGET" ]]; then
+              echo "Skipping $d"
+              continue
+            fi
+            echo "Deleting $d"
+            rm -rf "$d"
+          done
+
       dnsPolicy: ClusterFirstWithHostNet
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
@@ -331,7 +375,7 @@ metadata:
 rules:
   - apiGroups: ["kubeflow.org", ""]
     resources: ["nodes", "pods", "pytorchjobs"]
-    verbs: ["get", "list", "patch", "update", "watch"]
+    verbs: ["get", "list", "patch", "update", "watch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -339,10 +383,32 @@ metadata:
   name: cluster-role-binding-sichek
   namespace: monitoring
 roleRef:
-  apiGroup: rbac.authorization.k8s.io  # Remove the /v1
+  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-role-sichek
 subjects:
   - kind: ServiceAccount
     name: sa-sichek
     namespace: monitoring
+---
+# Source: sichek/templates/prometheus.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: sichek-exporter
+  namespace: monitoring
+  labels:
+    app: sichek
+spec:
+  podMetricsEndpoints:
+    - interval: 15s  # Scrape interval
+      path: /metrics  # Metrics path
+      port: metrics
+      scrapeTimeout: 10s
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app: sichek
