@@ -5,6 +5,29 @@ set -euo pipefail
 MIN_FREE_GPU=8
 MIN_FREE_IB=32
 
+# Convert Kubernetes quantity string to integer for arithmetic (e.g. 1k -> 1000, 2 -> 2)
+to_int_quantity() {
+  local v="${1:-0}"
+  v="${v//[[:space:]]/}"
+  if [[ "$v" =~ ^[0-9]+$ ]]; then
+    echo "$v"
+  elif [[ "$v" =~ ^([0-9]+)k$ ]]; then
+    echo $((${BASH_REMATCH[1]} * 1000))
+  elif [[ "$v" =~ ^([0-9]+)Ki$ ]]; then
+    echo $((${BASH_REMATCH[1]} * 1024))
+  elif [[ "$v" =~ ^([0-9]+)M$ ]]; then
+    echo $((${BASH_REMATCH[1]} * 1000000))
+  elif [[ "$v" =~ ^([0-9]+)Mi$ ]]; then
+    echo $((${BASH_REMATCH[1]} * 1048576))
+  elif [[ "$v" =~ ^([0-9]+)G$ ]]; then
+    echo $((${BASH_REMATCH[1]} * 1000000000))
+  elif [[ "$v" =~ ^([0-9]+)Gi$ ]]; then
+    echo $((${BASH_REMATCH[1]} * 1073741824))
+  else
+    echo "0"
+  fi
+}
+
 # Parse parameters
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -51,7 +74,9 @@ for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.status.alloc
   # GPU allocated
   gpu_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
     -o json | jq "[.items[].spec.containers[].resources.requests[\"$GPU_RES\"] | (tonumber? // 0)] | add // 0")
-  gpu_free=$((gpu_allocatable - gpu_allocated))
+  gpu_allocatable_int=$(to_int_quantity "$gpu_allocatable")
+  gpu_allocated_int=$(to_int_quantity "$gpu_allocated")
+  gpu_free=$((gpu_allocatable_int - gpu_allocated_int))
 
   # IB capacity & allocatable
   ib_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.capacity[$res] // 0')
@@ -59,7 +84,9 @@ for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.status.alloc
   # IB allocated
   ib_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
     -o json | jq "[.items[].spec.containers[].resources.requests[\"$IB_RES\"] | (tonumber? // 0)] | add // 0")
-  ib_free=$((ib_allocatable - ib_allocated))
+  ib_allocatable_int=$(to_int_quantity "$ib_allocatable")
+  ib_allocated_int=$(to_int_quantity "$ib_allocated")
+  ib_free=$((ib_allocatable_int - ib_allocated_int))
 
   # Condition: remaining resources < specified value
   if [[ "$gpu_free" -lt "$MIN_FREE_GPU" || "$ib_free" -lt "$MIN_FREE_IB" ]]; then

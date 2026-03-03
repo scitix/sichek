@@ -170,10 +170,10 @@ def main() -> None:
     apply_swanlab_mode(args.swanlab_mode, config)
 
     args.image_repo = pick_value(
-        args.image_repo, config, "pytorchjob_image_repo", "registry-us-east.scitix.ai/hisys/mcore"
+        args.image_repo, config, "pytorchjob_image_repo", ""
     )
     args.image_tag = pick_value(
-        args.image_tag, config, "pytorchjob_image_tag", "v2.1-cudnn9.14-te2.8-cuda_arch_10.0_at"
+        args.image_tag, config, "pytorchjob_image_tag", ""
     )
     args.scheduler_name = pick_value(args.scheduler_name, config, "scheduler", "si-scheduler")
     args.roce_shared_mode = pick_value(args.roce_shared_mode, config, "roce_shared_mode", "none")

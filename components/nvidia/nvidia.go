@@ -282,10 +282,13 @@ func newNvidia(cfgFile string, specFile string, ignoredCheckers []string) (comp 
 		return component, nil
 	}
 
+	// Use a timeout for collector init so nvidia-smi (SoftwareInfo.Get) cannot hang forever
+	collectorCtx, collectorCancel := context.WithTimeout(ctx, consts.CmdTimeout)
+	defer collectorCancel()
 	// Pass the shared pointer to collector
 	// Note: NVML calls in collector are protected by locks in nvidia.go where collector methods are called
 	component.nvmlMtx.Lock()
-	collectorPointer, err := collector.NewNvidiaCollector(ctx, component.nvmlInstPtr, nvidiaSpecCfg.GpuNums, nvidiaSpecCfg.Name)
+	collectorPointer, err := collector.NewNvidiaCollector(collectorCtx, component.nvmlInstPtr, nvidiaSpecCfg.GpuNums, nvidiaSpecCfg.Name)
 	component.nvmlMtx.Unlock()
 	if err != nil {
 		logrus.WithField("component", "nvidia").Errorf("NewNvidiaCollector failed: %v", err)
