@@ -128,7 +128,7 @@ class MPIJobRunner:
             f"--set mpijob.name={shlex.quote(cfg.job_name)} "
             f"--set mpijob.numWorkers={len(cfg.hostnames)} "
             f"--set 'mpijob.nodeAffinityHosts={{{host_csv}}}' "
-            f"--set 'mpijob.requestGpu={cfg.request_gpu}'"
+            f"--set 'mpijob.requestGpu={"true" if cfg.request_gpu else "false"}'"
         )
         run_cmd_check(helm_cmd)
     
@@ -322,13 +322,15 @@ def create_mpijob_arg_parser(description: str):
     parser.add_argument("--namespace", default="default", help="Kubernetes namespace")
     parser.add_argument("--cmd", default="", help="Command to run in each pod")
     # Note: --image-repo and --image-tag should be added by each script as they differ
-    parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds")
+    parser.add_argument("--timeout", type=int, default=3600, help="Timeout in seconds")
     parser.add_argument("--scheduler-name", default=None, help="Kubernetes scheduler name")
     parser.add_argument("--roce-shared-mode", default=None, help="RoCE shared mode")
     parser.add_argument("--hostfile", default="None", help="File containing hostnames")
     parser.add_argument("--host", default="None", help="Comma-separated hostnames")
     parser.add_argument("--max-parallel-jobs", type=int, default=200, help="Max parallel jobs")
-    
+    parser.add_argument("--no-request-gpu", action="store_true", help="Do not request GPU resources (default: request GPU)")
+    parser.add_argument("--swanlab-mode", type=str, default=None, choices=["cloud", "offline", "disabled", "local"],
+                        help="SwanLab mode: cloud (default), offline, disabled, local")
     return parser
 
 

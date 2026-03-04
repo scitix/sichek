@@ -62,6 +62,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	var mismatchPairs []string
 	infinibandInfo.RLock()
+	// 1) Spec -> actual: missing or wrong mapping
 	for expectedMlx5, expectedIb := range c.spec.IBPFDevs {
 		// skip mezzanine card in check
 		if strings.Contains(expectedMlx5, "mezz") {
@@ -78,6 +79,16 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		if actualIb != expectedIb {
 			logrus.WithField("component", "infiniband").Debugf("mismatch pair %s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb)
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
+		}
+	}
+	// 2) Actual -> spec: extra devices not defined in spec (e.g. mlx5_7 in spec but actual shows mlx5_13_6209)
+	for actualMlx5 := range infinibandInfo.IBPFDevs {
+		if strings.Contains(actualMlx5, "mezz") {
+			continue
+		}
+		if _, inSpec := c.spec.IBPFDevs[actualMlx5]; !inSpec {
+			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (not in spec)", actualMlx5))
+			logrus.WithField("component", "infiniband").Debugf("mismatch: actual device %s not defined in spec", actualMlx5)
 		}
 	}
 	infinibandInfo.RUnlock()

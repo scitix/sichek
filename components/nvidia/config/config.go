@@ -27,7 +27,12 @@ type NvidiaConfig struct {
 	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
 	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
+	EnableXidPoller bool            `json:"enable_xid_poller" yaml:"enable_xid_poller"`
 	IgnoredCheckers []string        `json:"ignored_checkers,omitempty" yaml:"ignored_checkers,omitempty"`
+}
+
+func (c *NvidiaConfig) IsXidPollerEnabled() bool {
+	return c.EnableXidPoller
 }
 
 func (c *NvidiaUserConfig) GetCheckerSpec() map[string]common.CheckerSpec {

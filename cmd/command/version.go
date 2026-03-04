@@ -26,6 +26,9 @@ import (
 )
 
 var (
+	// Version is the full version string (e.g. v0.7.6.post1), set by ldflags at build time.
+	// When set, it is used for display instead of Major.Minor.Patch.
+	Version   = ""
 	Major     = ""
 	Minor     = ""
 	Patch     = ""
@@ -52,7 +55,9 @@ func NewVersionCmd() *cobra.Command {
 				now := time.Now()
 				BuildTime = now.Format("2006-01-02T15:04:05")
 			}
-			if Major == "" {
+			if Version != "" {
+				version = Version
+			} else if Major == "" {
 				version = "dev-" + GitCommit
 			} else {
 				version = "v" + Major + "." + Minor + "." + Patch

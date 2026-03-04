@@ -99,6 +99,9 @@ create_at_wrapper "sichek-k8s-llama2-70b" "${SICHEK_SCRIPTS_PATH}/atest/modeltes
 create_at_wrapper "sichek-k8s-olmo3-7b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_single_node.py" --job-name sichek-olmo3-7b --cmd "bash /workspace/ai4s-job-system/mcore_trainer/demos/OLMo3/OLMo-3-1025-7B-pretrain-1.sh"
 create_at_wrapper "sichek-k8s-olmo3-7b-multinode" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py" --job-name sichek-olmo3-7b --cmd "bash /workspace/ai4s-job-system/mcore_trainer/demos/OLMo3/OLMo-3-1025-7B-pretrain-1.sh"
 create_at_wrapper "sichek-k8s-qwen-a3b" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py" --job-name sichek-qwen-a3b --cmd "MAX_STEPS=128 NCCL_DEBUG=WARN bash /workspace/ai4s-job-system/mcore_trainer/demos/deepseek/sft_deepseekv3.1_base.sh"
+create_at_wrapper "sichek-k8s-modeltest-multinode" "${SICHEK_SCRIPTS_PATH}/atest/modeltest_multi_node.py"
+create_at_wrapper "sichek-k8s-deepeptest-singlenode" "${SICHEK_SCRIPTS_PATH}/atest/deepeptest_single_node.py"
+create_at_wrapper "sichek-k8s-deepeptest-multinode" "${SICHEK_SCRIPTS_PATH}/atest/deepeptest_multi_node.py"
 
 # Run check_sicl.sh
 bash /var/sichek/scripts/check_sicl.sh || echo "Failed to run SICL installer"

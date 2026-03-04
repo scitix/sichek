@@ -159,12 +159,25 @@ def set_swanlab_env(config: Dict[str, str]):
         ("SWANLAB_API_KEY", "swanlab_api_key"),
         ("SWANLAB_WORKSPACE", "swanlab_workspace"),
         ("SWANLAB_PROJ_NAME", "swanlab_proj_name"),
+        ("SWANLAB_MODE", "swanlab_mode"),
     ]:
         val = config.get(config_key)
         if is_valid_value(val):
             os.environ[env_key] = val if isinstance(val, str) else str(val)
         elif config_key in config:
             os.environ.pop(env_key, None)
+
+def apply_swanlab_mode(cli_mode: Optional[str], config: Dict[str, str]):
+    """Resolve swanlab mode from CLI > config > env, and set SWANLAB_MODE env var."""
+    mode = pick_value(cli_mode, config, "swanlab_mode", "")
+    if mode:
+        os.environ["SWANLAB_MODE"] = mode
+
+
+def is_swanlab_disabled() -> bool:
+    """Return True if SWANLAB_MODE is set to 'disabled'."""
+    return os.getenv("SWANLAB_MODE", "").lower() == "disabled"
+
 
 def pick_value(cli_value: Optional[str], config: Dict[str, str], key: str, default: str) -> str:
     if cli_value not in (None, ""):
