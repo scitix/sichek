@@ -29,6 +29,7 @@ CONFIG_KEYS = [
     "swanlab_api_key",
     "swanlab_workspace",
     "swanlab_proj_name",
+    "swanlab_mode",
 ]
 
 CONFIG_DIR = Path.home() / ".sichek"
@@ -161,6 +162,10 @@ def config_create():
     new_config["swanlab_proj_name"] = ask(
         "swanlab project",
         config.get("swanlab_proj_name", "") or config.get("swanlab_proj_name", "")
+    )
+    new_config["swanlab_mode"] = ask(
+        "swanlab mode [cloud, offline, disabled, local]",
+        config.get("swanlab_mode", "cloud")
     )
     
     # Validate default_spec if provided

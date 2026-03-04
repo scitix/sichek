@@ -64,7 +64,7 @@ def parse_iblinkinfo(file_path: str):
                     "port": int(port),
                     "state": state.strip(),
                     "peer": {
-                        "lid": peer_lid if peer_lid else None,
+                        "lid": int(peer_lid) if peer_lid else None,
                         "port": int(peer_port) if peer_port else None,
                         "name": peer_name.strip(),
                         "type": peer_type,
@@ -263,6 +263,9 @@ def group_leaf_switches_by_hosts(switches: dict, verbose: bool = False):
     # Filter out empty groups (Leaf Switches not connected to hosts)
     groups = {k: v for k, v in groups.items() if k}  # Remove empty groups
 
+    # Sort by host_key (tuple of sorted hostnames) so group numbering is stable across runs
+    groups = dict(sorted(groups.items(), key=lambda x: x[0]))
+
     # Summary
     total_groups = len(groups)
     total_leafs = len(leaf_switches)
@@ -386,14 +389,17 @@ def check_leaf_to_spine_links_by_group(
     Check connection distribution from each leaf switch to spine by group:
     - Expected to connect to {expected_spine_count} different Spine Switches
     - Only count ports in LinkUp state
+    - Also collect and print the list of spine GUIDs connected to each group
     """
     issues = []
     total_groups = len(groups)
     passed_groups = 0
     rows = []
+    group_spines = {}  # group_id -> sorted list of spine GUIDs (connected to any leaf in group)
 
     for group_id, (hosts, sw_guids) in enumerate(groups.items(), 1):
         group_passed = True
+        group_spine_set = set()
         for sw_guid in sw_guids:
             sw = switches[sw_guid]
             spine_links = defaultdict(list)  # spine_name -> [port list]
@@ -403,14 +409,16 @@ def check_leaf_to_spine_links_by_group(
                     continue
                 peer = p.get("peer")
                 if peer and peer.get("type") == "switch":
-                    # Check if peer is a spine
-                    peer_sw = None
+                    # Match peer by LID (unique per switch), not by name (multiple spines can share same model name)
+                    peer_lid = peer.get("lid")
+                    peer_sw_id = None
                     for other_sw_id, other_sw in switches.items():
-                        if other_sw["name"] == peer["name"] and other_sw.get("type") == "spine_sw":
-                            peer_sw = other_sw
+                        if other_sw.get("type") == "spine_sw" and other_sw.get("lid") == peer_lid:
+                            peer_sw_id = other_sw_id
                             break
-                    if peer_sw:
-                        spine_links[peer["name"]].append(p["port"])
+                    if peer_sw_id:
+                        spine_links[peer_sw_id].append(p["port"])
+                        group_spine_set.add(peer_sw_id)
 
             actual_spine_count = len(spine_links)
             down_ports = [p["port"] for p in sw["ports"] if "LinkUp" not in p["state"]]
@@ -433,6 +441,7 @@ def check_leaf_to_spine_links_by_group(
                 str(down_ports),
             ])
 
+        group_spines[group_id] = sorted(group_spine_set)
         if group_passed:
             passed_groups += 1
 
@@ -450,6 +459,12 @@ def check_leaf_to_spine_links_by_group(
     # Print table rows
     for row in rows:
         print("| " + " | ".join(f"{row[i]:<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    # Print spine GUIDs per group (for leafsw_group etc.)
+    print("\nSpine switches connected to each leaf group (spine GUIDs):")
+    for group_id in sorted(group_spines.keys()):
+        spines = group_spines[group_id]
+        print(f"  Group {group_id} ({len(spines)} spines): " + ", ".join(spines))
 
     return issues
 

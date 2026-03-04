@@ -37,6 +37,8 @@ from common import (
     parse_nccltest_bandwidth,
     load_user_config,
     pick_value,
+    apply_swanlab_mode,
+    is_swanlab_disabled,
     start_kubectl_log_stream,
     wait_for_pods_ready,
 )
@@ -56,10 +58,13 @@ def main():
     parser.add_argument("--roce-shared-mode", default=None)
     parser.add_argument("--hostfile", default="None")
     parser.add_argument("--host", default="None")
-    parser.add_argument("--request-gpu", action="store_true", help="Request GPU resources for each worker pod")
+    parser.add_argument("--no-request-gpu", action="store_true", help="Do not request GPU resources (default: request GPU)")
+    parser.add_argument("--swanlab-mode", type=str, default=None, choices=["cloud", "offline", "disabled", "local"],
+                        help="SwanLab mode: cloud (default), offline, disabled, local")
     args = parser.parse_args()
 
     config = load_user_config()
+    apply_swanlab_mode(args.swanlab_mode, config)
     args.image_repo = pick_value(args.image_repo, config, "image_repo", "registry-us-east.scitix.ai/hisys/sichek")
     args.image_tag = pick_value(args.image_tag, config, "image_tag", "latest")
     args.scheduler_name = pick_value(args.scheduler_name, config, "scheduler", "si-scheduler")
@@ -101,7 +106,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     swan_run = None
-    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None and not is_swanlab_disabled():
         swan_run = swanlab.init(
             experiment_name=args.job_name,
             description=f"NCCL benchmark multi-node ({num_workers} workers)",
@@ -125,7 +130,7 @@ def main():
         echo_info(f"Timeout: {args.timeout} seconds")
 
         host_csv = ",".join(hostnames)
-        gpu_flag = "true" if args.request_gpu else "false"
+        gpu_flag = "false" if args.no_request_gpu else "true"
         helm_cmd = (
             f"helm upgrade --install {shlex.quote(args.job_name)} {shlex.quote(str(helm_dir))} "
             f"--atomic "
@@ -220,14 +225,23 @@ def main():
                 time.sleep(5)
                 waited += 5
 
-            run_cmd_line = (
-                "timeout {timeout} /usr/local/sihpc/bin/mpirun "
+            # For all+reduce tests on >64 nodes, use -b32g -e32g
+            nccl_extra = ""
+            if "all" in cmd and "reduce" in cmd and num_workers > 64:
+                nccl_extra = " -b32g -e32g"
+            mpirun_part = (
+                "/usr/local/sihpc/bin/mpirun "
                 "--allow-run-as-root --map-by ppr:8:node "
                 "--mca oob_tcp_if_include eth0 --mca pml ^ucx --mca btl self,tcp "
                 "--mca btl_tcp_if_include eth0 --mca routed direct --mca plm_rsh_no_tree_spawn 1 "
-                "-x UCX_TLS=tcp -x NCCL_MIN_NCHANNELS=32 -x NCCL_IB_QPS_PER_CONNECTION=8 "
-                "/usr/local/sihpc/libexec/nccl-tests/nccl_test -l{cmd}"
-            ).format(timeout=args.timeout, cmd=cmd)
+                "-x UCX_TLS=tcp -x NCCL_DEBUG=WARN -x NCCL_MIN_NCHANNELS=32 -x NCCL_IB_QPS_PER_CONNECTION=8 "
+                "/usr/local/sihpc/libexec/nccl-tests/nccl_test -l{cmd}{extra}"
+            ).format(cmd=cmd, extra=nccl_extra)
+            
+            if "-N 0" in cmd:
+                run_cmd_line = mpirun_part
+            else:
+                run_cmd_line = f"timeout {args.timeout} {mpirun_part}"
 
             echo_info(f"Running NCCL test: {label}")
             # Wrap command to tee output to container's main process stdout

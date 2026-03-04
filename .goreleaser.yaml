@@ -53,6 +53,7 @@ builds:
       - -mod=vendor
     ldflags:
       - "-s -w"
+      - "-X github.com/scitix/sichek/cmd/command.Version={{ .Tag }}"
       - "-X github.com/scitix/sichek/cmd/command.Major={{ .Major }}"
       - "-X github.com/scitix/sichek/cmd/command.Minor={{ .Minor }}"
       - "-X github.com/scitix/sichek/cmd/command.Patch={{ .Patch }}"

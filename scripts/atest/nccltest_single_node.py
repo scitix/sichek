@@ -29,6 +29,8 @@ from common import (
     parse_hostnames,
     load_user_config,
     pick_value,
+    apply_swanlab_mode,
+    is_swanlab_disabled,
 )
 
 from mpijob_helper import (
@@ -117,16 +119,16 @@ def main():
     )
     parser.add_argument("--image-repo", default=None, help="Container image repository")
     parser.add_argument("--image-tag", default=None, help="Container image tag")
-    parser.add_argument("--request-gpu", action="store_true", help="Request GPU resources for each worker pod")
     args = parser.parse_args()
     
     config = load_user_config()
+    apply_swanlab_mode(args.swanlab_mode, config)
     
     image_repo = pick_value(args.image_repo, config, "image_repo", "registry-us-east.scitix.ai/hisys/sichek")
     image_tag = pick_value(args.image_tag, config, "image_tag", "latest")
     
     if not args.cmd:
-        cmd = "NCCL_DEBUG=INFO /usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8"
+        cmd = "NCCL_DEBUG=WARN /usr/local/sihpc/libexec/nccl-tests/nccl_test -g 8"
     else:
         cmd = args.cmd
     
@@ -151,13 +153,13 @@ def main():
         timeout=args.timeout,
         max_parallel_jobs=args.max_parallel_jobs,
         cmd=cmd,
-        request_gpu=args.request_gpu,
+        request_gpu=not args.no_request_gpu,
     )
     
     runner = MPIJobRunner(mpijob_config)
     
     swan_run = None
-    if os.getenv("SWANLAB_API_KEY") and swanlab is not None:
+    if os.getenv("SWANLAB_API_KEY") and swanlab is not None and not is_swanlab_disabled():
         swan_run = swanlab.init(
             experiment_name=mpijob_config.job_name,
             description=f"NCCL benchmark ({len(mpijob_config.hostnames)} workers)",
