@@ -306,8 +306,18 @@ func runNcclTest(cfg Config, timeout int) ([]float64, error) {
 		<-stdoutDone
 		<-stderrDone
 		if err != nil {
+			stdoutStr := stdoutBuf.String()
 			stderrStr := stderrBuf.String()
-			// logrus.WithField("perftest", "nccl").Errorf("nccl test failed: %v, stdout: %s, stderr: %s", err, outputStr, stderrStr)
+			// nccl writes errors to stdout; check both streams for CUDA error keywords
+			combined := stdoutStr + stderrStr
+			if strings.Contains(combined, "unhandled cuda error") || strings.Contains(combined, "CUDA failure") {
+				fmt.Fprintf(os.Stderr, "\n[HINT] NCCL encountered a CUDA error. Likely causes:\n")
+				fmt.Fprintf(os.Stderr, "  - GPU memory is occupied by other processes (e.g., training or inference tasks).\n")
+				fmt.Fprintf(os.Stderr, "  - nccl_test requires significant GPU memory; existing usage can cause OOM or initialization failure.\n")
+				fmt.Fprintf(os.Stderr, "  Please check GPU usage with:\n\n")
+				fmt.Fprintf(os.Stderr, "    nvidia-smi\n\n")
+				fmt.Fprintf(os.Stderr, "  Try again after the GPU memory is released.\n\n")
+			}
 			return nil, fmt.Errorf("nccl test command failed: %v. stderr: %s", err, stderrStr)
 		}
 	case <-time.After(time.Duration(timeout) * time.Second):
