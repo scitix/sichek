@@ -308,7 +308,7 @@ func runNcclTest(cfg Config, timeout int) ([]float64, error) {
 		if err != nil {
 			stdoutStr := stdoutBuf.String()
 			stderrStr := stderrBuf.String()
-						// nccl writes errors to stdout; check both streams for CUDA error keywords
+			// nccl writes errors to stdout; check both streams for CUDA error keywords
 			combined := stdoutStr + stderrStr
 			if strings.Contains(combined, "unhandled cuda error") || strings.Contains(combined, "CUDA failure") {
 				fmt.Fprintf(os.Stderr, "\n[HINT] NCCL encountered a CUDA error. Likely causes:\n")
@@ -317,8 +317,6 @@ func runNcclTest(cfg Config, timeout int) ([]float64, error) {
 				fmt.Fprintf(os.Stderr, "  Please check GPU usage with:\n\n")
 				fmt.Fprintf(os.Stderr, "    nvidia-smi\n\n")
 				fmt.Fprintf(os.Stderr, "  Try again after the GPU memory is released.\n\n")
-			} else {
-				logrus.WithField("perftest", "nccl").Errorf("nccl test failed: %v, stdout: %s, stderr: %s", err, stdoutStr, stderrStr)
 			}
 			return nil, fmt.Errorf("nccl test command failed: %v. stderr: %s", err, stderrStr)
 		}
