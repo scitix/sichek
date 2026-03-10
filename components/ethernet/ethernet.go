@@ -27,6 +27,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/checker"
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
+	ethmetrics "github.com/scitix/sichek/components/ethernet/metrics"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 
@@ -42,6 +43,7 @@ type component struct {
 	collector     *collector.EthernetCollector
 	checkers      []common.Checker
 	filter        *filter.EventFilter
+	metrics       *ethmetrics.EthernetMetrics
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -139,6 +141,7 @@ func newEthernetComponent(cfgFile string, specFile string, ignoredCheckers []str
 		cacheBuffer:   make([]*common.Result, cacheSize),
 		cacheInfo:     make([]common.Info, cacheSize),
 		cacheSize:     cacheSize,
+		metrics:       ethmetrics.NewEthernetMetrics(),
 	}
 	service := common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 	component.service = service
@@ -158,6 +161,10 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 	logrus.WithField("component", "ethernet").Infof("collected ethernet info: %+v", ethInfo)
+
+	if c.cfg.Ethernet != nil && c.cfg.Ethernet.EnableMetrics {
+		c.metrics.ExportMetrics(ethInfo)
+	}
 
 	result := common.Check(ctx, c.componentName, ethInfo, c.checkers)
 	timer.Mark("ethernet-check")

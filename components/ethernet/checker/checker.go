@@ -106,7 +106,7 @@ func (c *L1Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelCritical
 				result.ErrorName = "LinkDown"
-				result.Detail += fmt.Sprintf("物理网卡 %s 链路未检测到 UP。执行命令：ethtool %s，预期：Link detected: yes，当前发现未连接或 unknown。\n", slaveName, slaveName)
+				result.Detail += fmt.Sprintf("Physical NIC %s link not UP. Command: ethtool %s, Expected: Link detected: yes, Actual: not connected or unknown.\n", slaveName, slaveName)
 			}
 
 			if len(info.SyslogErrors) > 0 {
@@ -115,7 +115,7 @@ func (c *L1Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 						result.Status = consts.StatusAbnormal
 						result.Level = consts.LevelCritical
 						result.ErrorName = "TxTimeout"
-						result.Detail += fmt.Sprintf("网卡 %s 在内核日志发现 tx timeout。执行命令：dmesg | grep -iE 'eth|mlx|link'。\n", slaveName)
+						result.Detail += fmt.Sprintf("NIC %s tx timeout found in kernel log. Command: dmesg | grep -iE 'eth|mlx|link'.\n", slaveName)
 						break
 					}
 				}
@@ -127,7 +127,7 @@ func (c *L1Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "SpeedMismatch"
-				result.Detail += fmt.Sprintf("网卡 %s 速率不匹配。预期: %sMb/s，当前发现: %sMb/s。\n", slaveName, expectedSpeed, speedStr)
+				result.Detail += fmt.Sprintf("NIC %s speed mismatch. Command: ethtool %s, Expected: %sMb/s, Actual: %sMb/s.\n", slaveName, slaveName, expectedSpeed, speedStr)
 			}
 
 			// Parse stats
@@ -139,7 +139,7 @@ func (c *L1Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "CRCErrorsGrowing"
-				result.Detail += fmt.Sprintf("网卡 %s RX (CRC) 错误持续增长。之前: %d，当前: %d。\n", slaveName, prev, currCRC)
+				result.Detail += fmt.Sprintf("NIC %s RX (CRC) errors increasing. Command: ip -s link show %s, Previous: %d, Current: %d.\n", slaveName, slaveName, prev, currCRC)
 			}
 			c.prevCRC[slaveName] = currCRC
 
@@ -149,7 +149,7 @@ func (c *L1Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "CarrierErrorsGrowing"
-				result.Detail += fmt.Sprintf("网卡 %s Carrier 错误持续增长。之前: %d，当前: %d。\n", slaveName, prev, currCarrierIPS)
+				result.Detail += fmt.Sprintf("NIC %s Carrier errors increasing. Command: ip -s link show %s, Previous: %d, Current: %d.\n", slaveName, slaveName, prev, currCarrierIPS)
 			}
 			c.prevCarrier[slaveName] = currCarrierIPS
 
@@ -159,14 +159,14 @@ func (c *L1Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "DropsGrowing"
-				result.Detail += fmt.Sprintf("网卡 %s Drops 持续增长。之前: %d，当前: %d。\n", slaveName, prev, currDrops)
+				result.Detail += fmt.Sprintf("NIC %s Drops increasing. Command: ip -s link show %s, Previous: %d, Current: %d.\n", slaveName, slaveName, prev, currDrops)
 			}
 			c.prevDrops[slaveName] = currDrops
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
-		result.Suggestion = "请检查物理链路、网线、驱动版本(ethtool -i)，或查看 dmesg 中确认具体错误；如果是速率不匹配，请检查对应配置。"
+		result.Suggestion = "Please check physical link, cable, driver version (ethtool -i), or check dmesg for specific errors; if speed mismatch, check corresponding configuration."
 	}
 
 	return result, nil
@@ -204,7 +204,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "BondingMissing"
-			result.Detail = fmt.Sprintf("Bond %s 在 /proc/net/bonding 中缺失。\n", bond)
+			result.Detail = fmt.Sprintf("Bond %s missing in /proc/net/bonding. Command: ls /proc/net/bonding/.\n", bond)
 			continue
 		}
 
@@ -218,7 +218,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "BondDown"
-			result.Detail += fmt.Sprintf("Bond 接口 %s 的总体状态不符合预期。命令：cat /proc/net/bonding/%s，预期：MII Status: %s，当前不匹配(可能为 down)。\n", bond, bond, expectedMII)
+			result.Detail += fmt.Sprintf("Overall status of bond interface %s mismatch. Command: cat /proc/net/bonding/%s, Expected: MII Status: %s, Actual: mismatch (possibly down).\n", bond, bond, expectedMII)
 		}
 
 		// check MTU
@@ -230,7 +230,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 					result.Level = consts.LevelWarning
 					result.ErrorName = "MTUMismatch"
 				}
-				result.Detail += fmt.Sprintf("Bond %s 的 MTU 不匹配。预期: %d，实际: %d。\n", bond, expectedMTU, bState.MTU)
+				result.Detail += fmt.Sprintf("Bond %s MTU mismatch. Command: ip link show %s, Expected: %d, Actual: %d.\n", bond, bond, expectedMTU, bState.MTU)
 			}
 		}
 
@@ -242,7 +242,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 					result.Level = consts.LevelWarning
 					result.ErrorName = "XmitHashPolicyMismatch"
 				}
-				result.Detail += fmt.Sprintf("Bond %s 的 xmit_hash_policy 不匹配。预期: %s，当前: %s。执行命令：cat /sys/class/net/%s/bonding/xmit_hash_policy。\n", bond, c.spec.XmitHashPolicy, bState.XmitHashPolicy, bond)
+				result.Detail += fmt.Sprintf("Bond %s xmit_hash_policy mismatch. Command: cat /sys/class/net/%s/bonding/xmit_hash_policy, Expected: %s, Actual: %s.\n", bond, bond, c.spec.XmitHashPolicy, bState.XmitHashPolicy)
 			}
 		}
 
@@ -254,7 +254,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Level = consts.LevelWarning
 				result.ErrorName = "SlaveCountMismatch"
 			}
-			result.Detail += fmt.Sprintf("Bond %s 的 slave 数量不足。预期至少: %d，实际: %d。\n", bond, expectedMinSlaves, slaveCount)
+			result.Detail += fmt.Sprintf("Bond %s insufficient slave count. Command: cat /proc/net/bonding/%s, Expected at least: %d, Actual: %d.\n", bond, bond, expectedMinSlaves, slaveCount)
 		}
 
 		// check miimon, updelay, downdelay (fetching downdelay and updelay via regex since they aren't fully standard across systems on sysfs)
@@ -277,7 +277,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "MiimonDisabled"
-			result.Detail += fmt.Sprintf("Bond %s 的 MII Polling Interval (miimon) 为 0，未开启底层链路检测，这会导致物理链路断开时发生持续丢包。执行命令：cat /proc/net/bonding/%s，请务必开启！\n", bond, bond)
+			result.Detail += fmt.Sprintf("Bond %s MII Polling Interval (miimon) is 0. Command: cat /proc/net/bonding/%s, please enable link detection (miimon) to avoid packet loss.\n", bond, bond)
 		} else {
 			if expectedMiimon > 0 && miimon != expectedMiimon {
 				if result.Status == consts.StatusNormal {
@@ -285,35 +285,35 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 					result.Level = consts.LevelWarning
 					result.ErrorName = "MiimonMismatch"
 				}
-				result.Detail += fmt.Sprintf("Bond %s 的 miimon 不匹配。预期: %d ms，实际: %d ms。执行命令：cat /sys/class/net/%s/bonding/miimon。\n", bond, expectedMiimon, miimon, bond)
+				result.Detail += fmt.Sprintf("Bond %s miimon mismatch. Command: cat /sys/class/net/%s/bonding/miimon, Expected: %d ms, Actual: %d ms.\n", bond, bond, expectedMiimon, miimon)
 			}
 
 			if downdelay < miimon {
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "DowndelayTooSmall"
-				result.Detail += fmt.Sprintf("Bond %s 的 downdelay (%d ms) 小于 miimon (%d ms)，配置不合理，可能导致不必要的震荡或丢包。执行命令：cat /proc/net/bonding/%s。\n", bond, downdelay, miimon, bond)
+				result.Detail += fmt.Sprintf("Bond %s downdelay (%d ms) less than miimon (%d ms). Command: cat /proc/net/bonding/%s, unreasonable config may cause flapping.\n", bond, downdelay, miimon, bond)
 			} else if expectedDownDelay > 0 && downdelay != expectedDownDelay {
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
 					result.ErrorName = "DowndelayMismatch"
 				}
-				result.Detail += fmt.Sprintf("Bond %s 的 downdelay 不匹配。预期: %d ms，实际: %d ms。执行命令：cat /sys/class/net/%s/bonding/downdelay。\n", bond, expectedDownDelay, downdelay, bond)
+				result.Detail += fmt.Sprintf("Bond %s downdelay mismatch. Command: cat /sys/class/net/%s/bonding/downdelay, Expected: %d ms, Actual: %d ms.\n", bond, bond, expectedDownDelay, downdelay)
 			}
 
 			if updelay == 0 {
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "UpdelayZero"
-				result.Detail += fmt.Sprintf("Bond %s 的 updelay 为 0，由于交换机端口转发协商需要时间，立即切回流量极易产生丢包黑洞，建议设置 updelay。执行命令：cat /proc/net/bonding/%s。\n", bond, bond)
+				result.Detail += fmt.Sprintf("Bond %s updelay is 0. Command: cat /proc/net/bonding/%s, updelay is recommended to avoid packet loss during switch port negotiation.\n", bond, bond)
 			} else if expectedUpDelay > 0 && updelay != expectedUpDelay {
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
 					result.ErrorName = "UpdelayMismatch"
 				}
-				result.Detail += fmt.Sprintf("Bond %s 的 updelay 不匹配。预期: %d ms，实际: %d ms。执行命令：cat /sys/class/net/%s/bonding/updelay。\n", bond, expectedUpDelay, updelay, bond)
+				result.Detail += fmt.Sprintf("Bond %s updelay mismatch. Command: cat /sys/class/net/%s/bonding/updelay, Expected: %d ms, Actual: %d ms.\n", bond, bond, expectedUpDelay, updelay)
 			}
 		}
 
@@ -325,7 +325,7 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "ActiveSlaveFlapping"
-				result.Detail += fmt.Sprintf("Bond %s 发生了主备端口切换。之前主端口: %s，当前主端口: %s，如果频繁切换请重点关注物理层稳定性。\n", bond, prev, currActive)
+				result.Detail += fmt.Sprintf("Bond %s active slave switched. Command: cat /proc/net/bonding/%s, Previous: %s, Current: %s. If frequent, please focus on physical layer stability.\n", bond, bond, prev, currActive)
 			}
 			c.prevActiveSlave[bond] = currActive
 		}
@@ -345,14 +345,14 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "LinkFailureGrowing"
-				result.Detail += fmt.Sprintf("Bond %s 的从属网卡 %s 发生了链路断开(Link Failure)。之前故障次数: %d，当前: %d。\n", bond, slaveName, prev, failCount)
+				result.Detail += fmt.Sprintf("Bond %s slave NIC %s link failure occurred. Command: cat /proc/net/bonding/%s, Previous count: %d, Current: %d.\n", bond, slaveName, bond, prev, failCount)
 			}
 			c.prevLinkFailures[trackKey] = failCount
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
-		result.Suggestion = "请使用 cat /proc/net/bonding/bond0 核对 MII 状态及 Link Failure Count；确认配置文件(如 /etc/netplan 或 sysconfig) 中 miimon>0，且 slave 绑卡数量符合预期。"
+		result.Suggestion = "Please use cat /proc/net/bonding/bond0 to verify MII status and Link Failure Count; ensure config (e.g., /etc/netplan) has miimon > 0."
 	}
 
 	return result, nil
@@ -386,7 +386,7 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "ActiveAggregatorMissing"
-			result.Detail += fmt.Sprintf("Bond %s 配置为 802.3ad 模式，但未找到有效的 Active Aggregator 协商信息，可能对端交换机未配置 LACP 或链路异常。\n", bond)
+			result.Detail += fmt.Sprintf("Bond %s configured as 802.3ad mode but no valid Active Aggregator found. Command: cat /proc/net/bonding/%s, peer switch might not have LACP configured or link is abnormal.\n", bond, bond)
 			continue
 		}
 
@@ -394,7 +394,7 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "PartnerMacInvalid"
-			result.Detail += fmt.Sprintf("Bond %s 的 Partner Mac Address 为全零。对端交换机未响应 LACP 报文，聚合失败。\n", bond)
+			result.Detail += fmt.Sprintf("Bond %s Partner Mac Address is all zeros. Command: cat /proc/net/bonding/%s, peer switch did not respond to LACP packets.\n", bond, bond)
 		}
 
 		for slaveName, sState := range info.Slaves[bond] {
@@ -406,21 +406,21 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelCritical
 				result.ErrorName = "AggregatorMismatch"
-				result.Detail += fmt.Sprintf("从属网卡 %s 的 Aggregator ID (%s) 与全局 Active Aggregator ID (%s) 不一致。该网卡虽然物理 UP，但在二层无法加入到数据转发聚合组中，请检查交换机端口配置或网线。\n", slaveName, slaveAggID, lacp.ActiveAggregatorID)
+				result.Detail += fmt.Sprintf("Slave NIC %s Aggregator ID (%s) mismatch with global Active Aggregator ID (%s). Command: cat /proc/net/bonding/%s, it cannot join the aggregation group.\n", slaveName, slaveAggID, lacp.ActiveAggregatorID, bond)
 			}
 
 			if portKey, ok := lacp.SlaveActorKeys[slaveName]; ok && portKey != lacp.ActorKey {
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "ActorKeyMismatch"
-				result.Detail += fmt.Sprintf("从属网卡 %s 的 port key (%s) 与全局 Actor Key (%s) 不一致。\n", slaveName, portKey, lacp.ActorKey)
+				result.Detail += fmt.Sprintf("Slave NIC %s port key (%s) mismatch with global Actor Key (%s). Command: cat /proc/net/bonding/%s.\n", slaveName, portKey, lacp.ActorKey, bond)
 			}
 
 			if operKey, ok := lacp.SlavePartnerKeys[slaveName]; ok && operKey != lacp.PartnerKey {
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "PartnerKeyMismatch"
-				result.Detail += fmt.Sprintf("从属网卡 %s 的 oper key (%s) 与全局 Partner Key (%s) 不一致，对端交换机 LACP key 协商异常。\n", slaveName, operKey, lacp.PartnerKey)
+				result.Detail += fmt.Sprintf("Slave NIC %s oper key (%s) mismatch with global Partner Key (%s). Command: cat /proc/net/bonding/%s, peer LACP negotiation abnormal.\n", slaveName, operKey, lacp.PartnerKey, bond)
 			}
 		}
 
@@ -431,13 +431,13 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 					result.Level = consts.LevelWarning
 					result.ErrorName = "LACPRateMismatch"
 				}
-				result.Detail += fmt.Sprintf("Bond %s LACP rate 不匹配。命令：cat /sys/class/net/%s/bonding/lacp_rate，预期：%s，当前：%s。\n", bond, bond, c.spec.LACPRate, bState.LACPRate)
+				result.Detail += fmt.Sprintf("Bond %s LACP rate mismatch. Command: cat /sys/class/net/%s/bonding/lacp_rate, Expected: %s, Actual: %s.\n", bond, bond, c.spec.LACPRate, bState.LACPRate)
 			}
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
-		result.Suggestion = "建议同步排查对端交换机 (Switch) 上的 LACP / Eth-Trunk 聚合配置是否开启和匹配。"
+		result.Suggestion = "Recommended to simultaneously troubleshoot LACP / Eth-Trunk aggregation config on peer switch."
 	}
 
 	return result, nil
@@ -464,15 +464,15 @@ func (c *L4Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelWarning
 		result.ErrorName = "ARPFailed"
-		result.Detail = "在 ARP 邻居表中发现 FAILED/INCOMPLETE 失败条目。这证明与某些邻居节点的二层 MAC 解析失败。"
-		result.Suggestion = "请核对本端及交换机的 VLAN ID 配置及二层放行，或使用 arping 测试连通性并在 bond 口 tcpdump 抓弃 ARP request/reply。"
+		result.Detail = "FAILED/INCOMPLETE entries found in ARP neighbor table. Command: ip neigh show, L2 MAC resolution failed for some neighbors."
+		result.Suggestion = "Verify local and switch VLAN ID config and L2 forwarding, or use arping to test connectivity and tcpdump for ARP."
 	}
 
 	if info.Routes.GatewayIP != "" && !info.Routes.GatewayReachable {
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelCritical
 		result.ErrorName = "GatewayUnreachable"
-		result.Detail += fmt.Sprintf("系统的网关 (%s) 不可达 (ping 失败，且不在 ARP 邻居表中)。\n", info.Routes.GatewayIP)
+		result.Detail += fmt.Sprintf("System gateway (%s) unreachable. Command: ping -c 3 %s && ip neigh show %s.\n", info.Routes.GatewayIP, info.Routes.GatewayIP, info.Routes.GatewayIP)
 	}
 
 	return result, nil
@@ -499,7 +499,7 @@ func (c *L5Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelWarning
 		result.ErrorName = "DirectRouteMismatch"
-		result.Detail += "系统的默认路由并非直接指向绑定的目标 bond 网卡，可能会导致预期业务流量不走 bond。\n"
+		result.Detail += "System default route does not point directly to target bond. Command: ip route show default, business traffic might not use bond.\n"
 	}
 
 	if info.RPFilter["all"] == "1" {
@@ -508,7 +508,7 @@ func (c *L5Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			result.Level = consts.LevelWarning
 			result.ErrorName = "RPFilterEnabled"
 		}
-		result.Detail += "系统启用了 rp_filter (all=1)，可能导致非对称路由丢包。命令：sysctl -n net.ipv4.conf.all.rp_filter，预期：0 或 2，当前：1。\n"
+		result.Detail += "System enabled rp_filter (all=1). Command: sysctl -n net.ipv4.conf.all.rp_filter, Expected: 0 or 2, Actual: 1.\n"
 	}
 
 	for bond, val := range info.RPFilter {
@@ -518,12 +518,12 @@ func (c *L5Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 				result.Level = consts.LevelWarning
 				result.ErrorName = "RPFilterEnabled"
 			}
-			result.Detail += fmt.Sprintf("Bond %s 启用了 rp_filter=1。预期：0 或 2。\n", bond)
+			result.Detail += fmt.Sprintf("Bond %s enabled rp_filter=1. Command: sysctl -n net.ipv4.conf.%s.rp_filter, Expected: 0 or 2, Actual: 1.\n", bond, bond)
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
-		result.Suggestion = "如果发生丢包情况，建议检查路由匹配、多网卡下的策略路由(ip rule)，以及将 rp_filter 配置为 0(关闭) 或 2(松散模式)。"
+		result.Suggestion = "If packet loss occurs, it is recommended to check route matching, policy routing (ip rule), and set rp_filter to 0 or 2."
 	}
 
 	return result, nil

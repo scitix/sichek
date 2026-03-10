@@ -201,6 +201,10 @@ func (c *EthernetCollector) Collect(ctx context.Context) (*EthernetInfo, error) 
 			outIPSL, _ := utils.ExecCommand(ctx, "ip", "-s", "link", "show", slave)
 			c.info.IPSLink[slave] = string(outIPSL)
 		}
+
+		// Also fetch stats for the bond interface itself
+		outIPSLBond, _ := utils.ExecCommand(ctx, "ip", "-s", "link", "show", bond)
+		c.info.IPSLink[bond] = string(outIPSLBond)
 	}
 
 	var grepParts []string
@@ -347,29 +351,11 @@ func (c *EthernetCollector) Collect(ctx context.Context) (*EthernetInfo, error) 
 
 			c.info.Slaves[bond][slave] = sState
 
-			// Traffic Stats (ip -s link show)
-			sStats := TrafficStats{}
-			outIPSL := c.info.IPSLink[slave]
-			lines := strings.Split(outIPSL, "\n")
-			for i, line := range lines {
-				if strings.Contains(line, "RX:") && i+1 < len(lines) {
-					fields := strings.Fields(lines[i+1])
-					if len(fields) >= 4 {
-						sStats.RXErrors, _ = strconv.ParseInt(fields[2], 10, 64)
-						sStats.Dropped, _ = strconv.ParseInt(fields[3], 10, 64)
-					}
-				}
-				if strings.Contains(line, "TX:") && i+1 < len(lines) {
-					fields := strings.Fields(lines[i+1])
-					if len(fields) >= 4 {
-						sStats.TXErrors, _ = strconv.ParseInt(fields[2], 10, 64)
-						sStats.Carrier, _ = strconv.ParseInt(fields[3], 10, 64)
-					}
-				}
-			}
-
-			c.info.Stats[slave] = sStats
+			c.info.Stats[slave] = c.parseTrafficStats(c.info.IPSLink[slave])
 		}
+
+		// Also parse stats for the bond
+		c.info.Stats[bond] = c.parseTrafficStats(c.info.IPSLink[bond])
 	}
 
 	outRPAll, _ := utils.ExecCommand(ctx, "sysctl", "-n", "net.ipv4.conf.all.rp_filter")
@@ -434,4 +420,26 @@ func (c *EthernetCollector) Collect(ctx context.Context) (*EthernetInfo, error) 
 	}
 
 	return c.info, nil
+}
+
+func (c *EthernetCollector) parseTrafficStats(outIPSL string) TrafficStats {
+	sStats := TrafficStats{}
+	lines := strings.Split(outIPSL, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, "RX:") && i+1 < len(lines) {
+			fields := strings.Fields(lines[i+1])
+			if len(fields) >= 4 {
+				sStats.RXErrors, _ = strconv.ParseInt(fields[2], 10, 64)
+				sStats.Dropped, _ = strconv.ParseInt(fields[3], 10, 64)
+			}
+		}
+		if strings.Contains(line, "TX:") && i+1 < len(lines) {
+			fields := strings.Fields(lines[i+1])
+			if len(fields) >= 4 {
+				sStats.TXErrors, _ = strconv.ParseInt(fields[2], 10, 64)
+				sStats.Carrier, _ = strconv.ParseInt(fields[3], 10, 64)
+			}
+		}
+	}
+	return sStats
 }

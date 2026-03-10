@@ -28,6 +28,7 @@ type EthernetConfig struct {
 	QueryInterval   common.Duration `json:"query_interval" yaml:"query_interval"`
 	CacheSize       int64           `json:"cache_size" yaml:"cache_size"`
 	IgnoredCheckers []string        `json:"ignored_checkers" yaml:"ignored_checkers"`
+	EnableMetrics   bool            `json:"enable_metrics" yaml:"enable_metrics"`
 }
 
 func (c *EthernetUserConfig) GetQueryInterval() common.Duration {
