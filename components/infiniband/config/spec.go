@@ -18,6 +18,7 @@ package config
 import (
 	"fmt"
 
+	"github.com/scitix/sichek/components/common"
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/pkg/utils"
@@ -37,15 +38,15 @@ type InfinibandSpec struct {
 	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs,omitempty" yaml:"-"`
 }
 
-// LoadSpec loads infiniband spec from the given file path.
+// LoadSpec loads infiniband spec from the given file path using the common YAML loader.
 // The file path is expected to be already resolved by the command layer (e.g. via spec.EnsureSpecFile).
 func LoadSpec(file string) (*InfinibandSpec, error) {
 	if file == "" {
 		return nil, fmt.Errorf("infiniband spec file path is empty")
 	}
 	s := &InfinibandSpecs{}
-	if err := utils.LoadFromYaml(file, s); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML file %s: %v", file, err)
+	if err := common.LoadSpec(file, s); err != nil {
+		return nil, fmt.Errorf("failed to load infiniband spec from %s: %w", file, err)
 	}
 	if s.Specs == nil {
 		return nil, fmt.Errorf("YAML file %s loaded but contains no infiniband section", file)
@@ -121,6 +122,13 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		// Return error if any board IDs are missing specs
 		if len(missingBoardIDs) > 0 {
 			return ibSpec, fmt.Errorf("spec not found for board IDs: %v, please check the HCA configuration", missingBoardIDs)
+		}
+
+		// Persist the applied baseline: overwrite file with this cluster's spec (surgically)
+		if file != "" {
+			if err := common.WriteSpec(file, "infiniband", "infiniband/spec", ibSpec); err != nil {
+				logrus.WithField("component", "infiniband").Warnf("failed to write applied baseline: %v", err)
+			}
 		}
 
 		return ibSpec, nil
