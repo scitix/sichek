@@ -97,10 +97,14 @@ func EnsureSpec(file string) (string, error) {
 	// Check whether the cluster-level file already has this device
 	var s NvidiaSpecs
 	if err := common.LoadSpec(file, &s); err == nil {
-		if _, ok := s.Specs[deviceID]; ok {
-			logrus.WithField("component", comp).Infof("spec for GPU %s already in %s", deviceID, file)
-			return file, nil
+		if s.Specs != nil {
+			if _, ok := s.Specs[deviceID]; ok {
+				logrus.WithField("component", comp).Infof("spec for GPU %s already in %s, skipping download", deviceID, file)
+				return file, nil
+			}
 		}
+	} else {
+		logrus.WithField("component", comp).Debugf("LoadSpec failed during EnsureSpec (may be new file): %v", err)
 	}
 
 	// Download {SICHEK_SPEC_URL}/nvidia/{deviceID}.yaml

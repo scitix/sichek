@@ -58,9 +58,10 @@ func EnsureSpec(file string) (string, error) {
 	}
 
 	if len(missing) == 0 {
-		logrus.WithField("component", comp).Infof("all board IDs present in %s", file)
+		logrus.WithField("component", comp).Infof("all local board IDs %v already present in %s, skipping download", boardIDs, file)
 		return file, nil
 	}
+	logrus.WithField("component", comp).Infof("board IDs %v are missing from %s, will try downloading", missing, file)
 
 	ossBase := os.Getenv("SICHEK_SPEC_URL")
 	if ossBase == "" {

@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,121 +39,111 @@ type BDFItem struct {
 	BDF        string `json:"bdf" yaml:"bdf"`
 }
 
-func LoadSpec(file string) (*PcieTopoSpec, error) {
-	s := &PcieTopoSpecs{}
-	// 1. Load spec from provided file
-	if file != "" {
-		err := s.tryLoadFromFile(file)
-		if err == nil && s.Specs != nil {
-			return FilterSpec(s)
-		} else {
-			logrus.WithField("component", "pcie").Warnf("%v", err)
-		}
-	}
-	// 2. try to Load default spec from production env if no file specified
-	// e.g., /var/sichek/config/default_spec.yaml
-	err := s.tryLoadFromDefault()
-	if err == nil && s.Specs != nil {
-		spec, err := FilterSpec(s)
-		if err == nil {
-			return spec, nil
-		}
-		logrus.WithField("component", "pcie").Warnf("failed to filter specs from default production top spec")
-	} else {
-		logrus.WithField("component", "pcie").Warnf("%v", err)
-	}
+// ─── EnsureSpec ──────────────────────────────────────────────────────────────
+// EnsureSpec ensures that `file` contains a PCIe topology spec entry for the local GPU.
+//
+// It detects the GPU device ID via NVML. If the entry is already present in
+// `file`, it returns immediately. Otherwise it downloads the per-device spec
+// from SICHEK_SPEC_URL and merges it into `file` (with backup and tracing).
+//
+// This should be called after spec.EnsureSpecFile so that `file` already
+// contains the cluster-level multi-spec map.
+func EnsureSpec(file string) (string, error) {
+	const comp = "pcie/spec"
 
-	// 3. try to load default spec from default config directory
-	// for production env, it checks the default config path (e.g., /var/sichek/config/xx-component).
-	// for development env, it checks the default config path based on runtime.Caller  (e.g., /repo/component/xx-component/config).
-	err = s.tryLoadFromDevConfig()
-	if err == nil && s.Specs != nil {
-		return FilterSpec(s)
-	} else {
-		if err != nil {
-			logrus.WithField("component", "pcie").Warnf("failed to load from default dev directory: %v", err)
-		} else {
-			logrus.WithField("component", "pcie").Warnf("default dev spec loaded but contains no pcie_topo section")
-		}
-	}
-	return nil, fmt.Errorf("failed to load pcie_topo spec from any source, please check the configuration")
-}
-
-func (s *PcieTopoSpecs) tryLoadFromFile(file string) error {
-	if file == "" {
-		return fmt.Errorf("file path is empty")
-	}
-	err := utils.LoadFromYaml(file, s)
+	localDeviceID, err := nvutils.GetDeviceID()
 	if err != nil {
-		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
+		return file, fmt.Errorf("EnsureSpec: cannot detect GPU device ID: %w", err)
 	}
-	if s.Specs == nil {
-		return fmt.Errorf("YAML file %s loaded but contains no pcie_topo section", file)
-	}
-	logrus.WithField("component", "pcie").Infof("loaded default spec")
-	return nil
-}
+	logrus.WithField("component", comp).Infof("local GPU device ID: %s", localDeviceID)
 
-func (s *PcieTopoSpecs) tryLoadFromDefault() error {
-	specs := &PcieTopoSpecs{}
-	err := common.LoadSpecFromProductionPath(specs)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-	if specs.Specs == nil {
-		return fmt.Errorf("default production top spec loaded but contains no pcie_topo section")
-	}
-	if s.Specs == nil {
-		s.Specs = make(map[string]*PcieTopoSpec)
-	}
-
-	for id, spec := range specs.Specs {
-		if _, ok := s.Specs[id]; !ok {
-			s.Specs[id] = spec
-		}
-	}
-	logrus.WithField("component", "pcie").Infof("loaded default production top spec")
-	return nil
-}
-
-func (s *PcieTopoSpecs) tryLoadFromDevConfig() error {
-	defaultDevCfgDirPath, files, err := common.GetDevDefaultConfigFiles(consts.ComponentNamePCIE)
-	if err == nil {
-		for _, file := range files {
-			if strings.HasSuffix(file.Name(), consts.DefaultSpecSuffix) {
-				specs := &PcieTopoSpecs{}
-				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
-				err := utils.LoadFromYaml(filePath, specs)
-				if err != nil || specs.Specs == nil {
-					// If the file is not found or does not contain pcie topo specs, log the error
-					// and continue to the next file.
-					logrus.WithField("component", "pcie").Warnf("failed to load pcie spec from YAML file %s: %v", filePath, err)
-					continue
-				}
-				if s.Specs == nil {
-					s.Specs = make(map[string]*PcieTopoSpec)
-				}
-				for hcaName, hcaSpec := range specs.Specs {
-					if _, ok := s.Specs[hcaName]; !ok {
-						s.Specs[hcaName] = hcaSpec
-					}
-				}
+	// Check whether the cluster-level file already has this device
+	var s PcieTopoSpecs
+	if err := common.LoadSpec(file, &s); err == nil {
+		if s.Specs != nil {
+			if _, ok := s.Specs[localDeviceID]; ok {
+				logrus.WithField("component", comp).Infof("spec for GPU %s already in %s, skipping download", localDeviceID, file)
+				return file, nil
 			}
 		}
+	} else {
+		logrus.WithField("component", comp).Debugf("LoadSpec failed during EnsureSpec: %v", err)
 	}
-	return err
+
+	// Download {SICHEK_SPEC_URL}/pcie/{deviceID}.yaml
+	ossBase := os.Getenv("SICHEK_SPEC_URL")
+	if ossBase == "" {
+		return file, fmt.Errorf("EnsureSpec: GPU %s not in pcie_topo spec and SICHEK_SPEC_URL not set", localDeviceID)
+	}
+
+	tmpDir := os.TempDir()
+	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("pcie_%s.yaml", localDeviceID))
+	perDevURL := fmt.Sprintf("%s/%s/%s.yaml",
+		strings.TrimRight(ossBase, "/"), consts.ComponentNamePCIE, localDeviceID)
+
+	logrus.WithField("component", comp).Infof("downloading per-device spec from %s", perDevURL)
+	if err := common.DownloadSpecFile(perDevURL, tmpFile, comp); err != nil {
+		return file, fmt.Errorf("EnsureSpec: download failed: %w", err)
+	}
+
+	// Load the per-device file and merge into cluster-level file
+	var perDevice PcieTopoSpecs
+	if err := common.LoadSpec(tmpFile, &perDevice); err != nil {
+		return file, fmt.Errorf("EnsureSpec: parse per-device spec: %w", err)
+	}
+
+	if err := common.MergeAndWriteSpec(
+		file,
+		"pcie_topo",
+		perDevice.Specs,
+		func(c *PcieTopoSpecs) map[string]*PcieTopoSpec { return c.Specs },
+		func(c *PcieTopoSpecs, m map[string]*PcieTopoSpec) { c.Specs = m },
+	); err != nil {
+		return file, fmt.Errorf("EnsureSpec: merge failed: %w", err)
+	}
+
+	logrus.WithField("component", comp).Infof("merged GPU %s pcie spec into %s", localDeviceID, file)
+	return file, nil
 }
 
-func FilterSpec(s *PcieTopoSpecs) (*PcieTopoSpec, error) {
-	if s == nil || s.Specs == nil {
-		return nil, fmt.Errorf("pcie topo spec is nil or empty")
+// ─── LoadSpec ────────────────────────────────────────────────────────────────
+
+// LoadSpec reads the PCIe topology multi-spec YAML at `file`, detects the
+// local GPU device ID, overwrites `file` with only that device's spec
+// (the applied baseline), and returns the spec.
+// It automatically calls EnsureSpec to guarantee the device entry is present
+// (potentially downloading it from OSS if missing).
+func LoadSpec(file string) (*PcieTopoSpec, error) {
+	if file == "" {
+		return nil, fmt.Errorf("pcie spec file path is empty")
 	}
+
+	// 1. Ensure the device entry is present (downloads & merges if missing)
+	if _, err := EnsureSpec(file); err != nil {
+		// Log but proceed; FilterSpec will provide the final definitive error if still missing
+		logrus.WithField("component", "pcie/spec").Warnf("EnsureSpec failed: %v", err)
+	}
+
+	return FilterSpec(file)
+}
+
+// ─── FilterSpec ──────────────────────────────────────────────────────────────
+
+// FilterSpec selects the PCIe topology spec for the local GPU device ID from
+// the multi-spec YAML at `file`, overwrites `file` with that single entry
+// (the applied baseline), and returns the spec.
+//
+// The overwrite uses atomic rename with a `.bak` backup and logrus tracing.
+// No network calls are made; if deviceID is absent call EnsureSpec first.
+func FilterSpec(file string) (*PcieTopoSpec, error) {
 	localDeviceID, err := nvutils.GetDeviceID()
 	if err != nil {
 		return nil, err
 	}
-	if spec, ok := s.Specs[localDeviceID]; ok {
-		return spec, nil
-	}
-	return nil, fmt.Errorf("no device spec found for deviceID: %s", localDeviceID)
+	return common.FilterSpec(file, "pcie_topo", localDeviceID,
+		func(c *PcieTopoSpecs, id string) (*PcieTopoSpec, bool) {
+			spec, ok := c.Specs[id]
+			return spec, ok
+		},
+	)
 }

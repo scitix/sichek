@@ -50,6 +50,10 @@ func LoadSpec[T any](file string, out *T) error {
 	if err := yaml.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("failed to unmarshal YAML from %s: %w", file, err)
 	}
+	logrus.WithFields(logrus.Fields{
+		"file": file,
+		"type": fmt.Sprintf("%T", out),
+	}).Debugf("LoadSpec: successfully loaded and unmarshaled file")
 	return nil
 }
 
@@ -162,6 +166,13 @@ func FilterSpec[T any, S any](
 	// Select entry
 	result, ok := filterFn(&container, hardwareID)
 	if !ok {
+		// Log what keys ARE present to help debug matching issues
+		logrus.WithFields(logrus.Fields{
+			"component": comp,
+			"hardwareID": hardwareID,
+			"file":       file,
+			"rootKey":    rootKey,
+		}).Errorf("FilterSpec: match failed. Check if hardwareID exists in the %s section.", rootKey)
 		return zero, fmt.Errorf("FilterSpec: no entry for hardwareID=%q in %s[%s]",
 			hardwareID, file, rootKey)
 	}
@@ -282,6 +293,7 @@ func surgicalUpdateYAML(file, rootKey string, sectionData interface{}, logComp s
 			allData[rootKey] = unwrapped
 		}
 	}
+	logrus.WithField("component", logComp).Debugf("surgicalUpdateYAML: patched %s key", rootKey)
 
 	// Double check: if allData[rootKey] is empty but sectionData is not, we might have lost data
 	if allData[rootKey] == nil && sectionData != nil {
@@ -298,6 +310,12 @@ func surgicalUpdateYAML(file, rootKey string, sectionData interface{}, logComp s
 	if err != nil {
 		return fmt.Errorf("marshal all: %w", err)
 	}
+
+	keys := make([]string, 0, len(allData))
+	for k := range allData {
+		keys = append(keys, k)
+	}
+	logrus.WithField("component", logComp).Debugf("surgicalUpdateYAML: writing %s with top-level keys: %v", file, keys)
 
 	tmp := file + ".tmp"
 	if err := os.WriteFile(tmp, finalData, 0644); err != nil {
