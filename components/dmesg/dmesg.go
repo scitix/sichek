@@ -166,20 +166,20 @@ func (c *component) CacheInfos() ([]common.Info, error) {
 func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	result := c.cacheResultBuffer[c.currIndex]
 	if c.currIndex == 0 {
-		result = c.cacheResultBuffer[c.cacheSize-1]
+		return c.cacheResultBuffer[c.cacheSize-1], nil
 	}
+	result := c.cacheResultBuffer[(c.currIndex-1)%c.cacheSize]
 	return result, nil
 }
 
 func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	info := c.cacheInfoBuffer[c.currIndex]
 	if c.currIndex == 0 {
-		info = c.cacheInfoBuffer[c.cacheSize-1]
+		return c.cacheInfoBuffer[c.cacheSize-1], nil
 	}
+	info := c.cacheInfoBuffer[(c.currIndex-1)%c.cacheSize]
 	return info, nil
 }
 

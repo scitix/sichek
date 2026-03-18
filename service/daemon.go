@@ -139,7 +139,18 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 
 			if d.snapshotMgr != nil {
 				info, err := d.components[componentName].LastInfo()
-				if err == nil {
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"daemon":    "run",
+						"component": componentName,
+					}).Errorf("LastInfo failed: %v", err)
+				} else {
+					if info == nil {
+						logrus.WithFields(logrus.Fields{
+							"daemon":    "run",
+							"component": componentName,
+						}).Warnf("LastInfo returned nil")
+					}
 					d.snapshotMgr.Update(componentName, info)
 				}
 			}

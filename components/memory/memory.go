@@ -174,9 +174,11 @@ func (c *component) CacheResults() ([]*common.Result, error) {
 func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	result := c.cacheBuffer[c.currIndex]
+	var result *common.Result
 	if c.currIndex == 0 {
 		result = c.cacheBuffer[c.cacheSize-1]
+	} else {
+		result = c.cacheBuffer[c.currIndex-1]
 	}
 	return result, nil
 }
@@ -190,9 +192,11 @@ func (c *component) CacheInfos() ([]common.Info, error) {
 func (c *component) LastInfo() (common.Info, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	info := c.cacheInfo[c.currIndex]
+	var info common.Info
 	if c.currIndex == 0 {
 		info = c.cacheInfo[c.cacheSize-1]
+	} else {
+		info = c.cacheInfo[c.currIndex-1]
 	}
 	return info, nil
 }
