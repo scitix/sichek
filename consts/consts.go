@@ -114,6 +114,7 @@ const (
 	DefaultEventRuleSuffix   = "_rules.yaml"
 	DefaultProductionPath    = "/var/sichek"
 	DefaultProductionCfgPath = "/var/sichek/config"
+	DefaultSnapshotPath      = "/var/sichek/data/snapshot.json"
 )
 
 const (

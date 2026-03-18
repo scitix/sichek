@@ -1,6 +1,10 @@
 metrics:
   port: 19091
 
+snapshot:
+  enable: true
+  path: "/var/sichek/data/snapshot.json"
+
 nvidia:
   query_interval: 10s
   cache_size: 5
