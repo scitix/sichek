@@ -11,12 +11,15 @@ import (
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 )
 
 // HCASpecs holds the specifications for HCA devices.
 // There are may be multiple HCA devices on one host, each identified by a unique board ID.
 type HCASpecs struct {
-	HcaSpec map[string]*HCASpec `json:"hca" yaml:"hca"`
+	HcaSpec map[string]*HCASpec `json:"hca_specs" yaml:"hca_specs"`
+	// Hca is for backward compatibility with OSS/legacy specs using "hca" tag
+	Hca map[string]*HCASpec `json:"hca" yaml:"hca"`
 }
 
 type HCASpec struct {
@@ -51,8 +54,9 @@ func EnsureSpec(file string) (string, error) {
 	_ = common.LoadSpec(file, &s) // may be empty on first run
 
 	var missing []string
+	m := s.getMap()
 	for _, bid := range boardIDs {
-		if s.HcaSpec == nil || s.HcaSpec[bid] == nil {
+		if m == nil || m[bid] == nil {
 			missing = append(missing, bid)
 		}
 	}
@@ -68,33 +72,73 @@ func EnsureSpec(file string) (string, error) {
 		return file, fmt.Errorf("EnsureSpec: board IDs %v not in spec and SICHEK_SPEC_URL not set", missing)
 	}
 
+	var downloaded HCASpecs
+	downloaded.HcaSpec = make(map[string]*HCASpec)
+
 	for _, bid := range missing {
 		perBoardURL := fmt.Sprintf("%s/%s/%s.yaml",
 			strings.TrimRight(ossBase, "/"), consts.ComponentNameHCA, bid)
-		tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("%s.yaml", bid))
+		// Use os.CreateTemp to get a real unique path if needed, but here we just need a name
+		f, err := os.CreateTemp("", fmt.Sprintf("hca_%s_*.yaml", bid))
+		if err != nil {
+			logrus.WithField("component", comp).Warnf("failed to create temp file for %s: %v", bid, err)
+			continue
+		}
+		tmpPath := f.Name()
+		f.Close()
 
 		logrus.WithField("component", comp).Infof("downloading board ID %s spec from %s", bid, perBoardURL)
-		if err := common.DownloadSpecFile(perBoardURL, tmpFile, comp); err != nil {
+		if err := common.DownloadSpecFile(perBoardURL, tmpPath, comp); err != nil {
 			logrus.WithField("component", comp).Warnf("download failed for %s: %v", bid, err)
+			os.Remove(tmpPath)
 			continue
 		}
 
 		var perBoard HCASpecs
-		if err := common.LoadSpec(tmpFile, &perBoard); err != nil {
+		if err := common.LoadSpec(tmpPath, &perBoard); err != nil {
 			logrus.WithField("component", comp).Warnf("parse failed for %s: %v", bid, err)
+			os.Remove(tmpPath)
 			continue
 		}
 
+		// Merge into both the cluster-level file AND our local collection
 		if err := common.MergeAndWriteSpec(
 			file,
 			"hca_specs",
-			perBoard.HcaSpec,
-			func(c *HCASpecs) map[string]*HCASpec { return c.HcaSpec },
+			perBoard.getMap(),
+			func(c *HCASpecs) map[string]*HCASpec { return c.getMap() },
 			func(c *HCASpecs, m map[string]*HCASpec) { c.HcaSpec = m },
 		); err != nil {
-			logrus.WithField("component", comp).Warnf("merge failed for %s: %v", bid, err)
+			logrus.WithField("component", comp).Warnf("merge into %s failed for %s: %v", file, bid, err)
 		}
+
+		for k, v := range perBoard.getMap() {
+			downloaded.HcaSpec[k] = v
+		}
+		os.Remove(tmpPath)
 	}
+
+	if len(downloaded.HcaSpec) > 0 {
+		// If only one was downloaded, we could return it, but user wants them merged into one file
+		f, err := os.CreateTemp("", "hca_combined_*.yaml")
+		if err != nil {
+			return file, fmt.Errorf("EnsureSpec: failed to create combined temp file: %w", err)
+		}
+		defer f.Close()
+
+		data, err := yaml.Marshal(downloaded)
+		if err != nil {
+			return file, fmt.Errorf("EnsureSpec: failed to marshal combined specs: %w", err)
+		}
+
+		if _, err := f.Write(data); err != nil {
+			return file, fmt.Errorf("EnsureSpec: failed to write combined specs: %w", err)
+		}
+
+		logrus.WithField("component", comp).Infof("combined %d downloaded specs into %s", len(downloaded.HcaSpec), f.Name())
+		return f.Name(), nil
+	}
+
 	return file, nil
 }
 
@@ -121,6 +165,7 @@ func LoadSpec(file string) (*HCASpecs, error) {
 			logrus.WithField("component", "hca").Warnf("failed to load spec from provided file %s: %v", file, err)
 		} else if len(s.HcaSpec) > 0 {
 			logrus.WithField("component", "hca").Infof("loaded HCA spec from provided file: %s", file)
+			return s, nil
 		}
 	}
 
@@ -132,6 +177,7 @@ func LoadSpec(file string) (*HCASpecs, error) {
 		logrus.WithField("component", "hca").Warnf("failed to load default production spec: %v", err)
 	} else if len(s.HcaSpec) > 0 {
 		logrus.WithField("component", "hca").Infof("merged default production HCA spec")
+		return s, nil
 	}
 
 	// 3. Try to load default spec from default config directory and merge
@@ -169,17 +215,28 @@ func (s *HCASpecs) tryLoadFromFile(file string) error {
 	if err := common.LoadSpec(file, tempSpecs); err != nil {
 		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
 	}
-	if tempSpecs.HcaSpec == nil {
+	if tempSpecs.getMap() == nil {
 		return fmt.Errorf("YAML file %s loaded but contains no hca section", file)
 	}
 	// Merge into the main spec (provided file has highest priority, so overwrite existing)
 	if s.HcaSpec == nil {
 		s.HcaSpec = make(map[string]*HCASpec)
 	}
-	for hcaName, spec := range tempSpecs.HcaSpec {
+	m := tempSpecs.getMap()
+	for hcaName, spec := range m {
 		s.HcaSpec[hcaName] = spec // Overwrite if exists (provided file has priority)
 	}
 	return nil
+}
+
+func (s *HCASpecs) getMap() map[string]*HCASpec {
+	if s == nil {
+		return nil
+	}
+	if len(s.HcaSpec) > 0 {
+		return s.HcaSpec
+	}
+	return s.Hca
 }
 
 func (s *HCASpecs) tryLoadFromDefault() error {
@@ -188,7 +245,7 @@ func (s *HCASpecs) tryLoadFromDefault() error {
 	if err != nil {
 		return err
 	}
-	if specs.HcaSpec == nil {
+	if specs.getMap() == nil {
 		return fmt.Errorf("default production top spec loaded but contains no hca section")
 	}
 	// Merge the loaded specs with the existing ones
@@ -196,7 +253,7 @@ func (s *HCASpecs) tryLoadFromDefault() error {
 		s.HcaSpec = make(map[string]*HCASpec)
 	}
 
-	for hcaName, spec := range specs.HcaSpec {
+	for hcaName, spec := range specs.getMap() {
 		if _, ok := s.HcaSpec[hcaName]; !ok {
 			s.HcaSpec[hcaName] = spec
 		}
@@ -213,7 +270,7 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 				specs := &HCASpecs{}
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)
-				if err != nil || specs.HcaSpec == nil {
+				if err != nil || specs.getMap() == nil {
 					// If the file is not found or does not contain HCA specs, log the error
 					// and continue to the next file.
 					logrus.WithField("component", "hca").Warnf("failed to load HCA spec from YAML file %s: %v", filePath, err)
@@ -222,7 +279,7 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 				if s.HcaSpec == nil {
 					s.HcaSpec = make(map[string]*HCASpec)
 				}
-				for hcaName, hcaSpec := range specs.HcaSpec {
+				for hcaName, hcaSpec := range specs.getMap() {
 					if _, ok := s.HcaSpec[hcaName]; !ok {
 						s.HcaSpec[hcaName] = hcaSpec
 					}
