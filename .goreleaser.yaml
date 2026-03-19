@@ -104,6 +104,8 @@ nfpms:
         dst: /var/sichek/config/hca/
       - src: ./components/pcie/config/*.yaml
         dst: /var/sichek/config/pcie/
+      - src: ./components/ethernet/config/*.yaml
+        dst: /var/sichek/config/ethernet/
       - src: ./config/*.yaml
         dst: /var/sichek/config/
       - src: ./scripts
