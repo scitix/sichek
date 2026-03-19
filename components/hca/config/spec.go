@@ -165,6 +165,7 @@ func LoadSpec(file string) (*HCASpecs, error) {
 			logrus.WithField("component", "hca").Warnf("failed to load spec from provided file %s: %v", file, err)
 		} else if len(s.HcaSpec) > 0 {
 			logrus.WithField("component", "hca").Infof("loaded HCA spec from provided file: %s", file)
+			return s, nil
 		}
 	}
 
