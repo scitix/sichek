@@ -64,5 +64,5 @@ syslog:
 nccltest:
   enable: true
 
-pcie_topo:
-  enable: true
+# pcie_topo:
+#   enable: true

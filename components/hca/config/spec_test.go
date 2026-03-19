@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/httpclient"
 )
@@ -178,5 +179,33 @@ func TestLoadSpec(t *testing.T) {
 		}
 	} else {
 		t.Skip("No valid board IDs found, skipping test")
+	}
+}
+func TestLoadProductionSpec(t *testing.T) {
+	// Try possible production paths
+	paths := []string{
+		"/var/sichek/config/default_spec.yaml",
+		"/root/pro/sichek/components/hca/config/default_spec.yaml",
+	}
+
+	found := false
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			found = true
+			t.Logf("Testing with production file: %s", p)
+			var s HCASpecs
+			if err := common.LoadSpec(p, &s); err != nil {
+				t.Fatalf("Failed to LoadSpec from %s: %v", p, err)
+			}
+			m := s.getMap()
+			if len(m) == 0 {
+				t.Fatalf("Loaded spec from %s but map is empty", p)
+			}
+			t.Logf("Successfully loaded %d board IDs from %s", len(m), p)
+		}
+	}
+
+	if !found {
+		t.Skip("Production spec files not found, skipping TestLoadProductionSpec")
 	}
 }
