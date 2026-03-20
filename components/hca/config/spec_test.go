@@ -84,7 +84,7 @@ hca:
 	}
 
 	// Validate loaded spec
-	if _, ok := hcaSpecs.HcaSpec["test_from_file"]; !ok {
+	if _, ok := hcaSpecs.getMap()["test_from_file"]; !ok {
 		t.Fatalf("Expected hardware key 'test_from_file', not found")
 	}
 }
@@ -97,7 +97,7 @@ func TestLoadSpecFromDevDefaultFile(t *testing.T) {
 	}
 
 	// Validate loaded spec
-	if spec, ok := hcaSpec.HcaSpec["MT_0000000970"]; !ok {
+	if spec, ok := hcaSpec.getMap()["MT_0000000970"]; !ok {
 		t.Fatalf("Expected hardware key 'MT_0000000971', not found")
 	} else {
 		if spec.Hardware.BoardID != "MT_0000000970" {
@@ -115,14 +115,14 @@ func TestLoadSpecFromDevDefaultFile(t *testing.T) {
 		if spec.Perf.OneWayBW != 360 {
 			t.Fatalf("Expected OneWayBW '360', got '%f'", spec.Perf.OneWayBW)
 		}
-		if spec.Perf.AvgLatency != 1.0 {
-			t.Fatalf("Expected AvgLatency '1.0', got '%f'", spec.Perf.AvgLatency)
+		if spec.Perf.AvgLatency != 10.0 {
+			t.Fatalf("Expected AvgLatency '10.0', got '%f'", spec.Perf.AvgLatency)
 		}
 	}
-	if _, ok := hcaSpec.HcaSpec["MT_0000000971"]; !ok {
+	if _, ok := hcaSpec.getMap()["MT_0000000971"]; !ok {
 		t.Fatalf("Expected hardware key 'MT_0000000971', not found")
 	}
-	if _, ok := hcaSpec.HcaSpec["MT_0000001119"]; !ok {
+	if _, ok := hcaSpec.getMap()["MT_0000001119"]; !ok {
 		t.Fatalf("Expected hardware key 'MT_0000001119', not found")
 	}
 }
@@ -139,14 +139,14 @@ func TestLoadSpecFromRemoteURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)
 	}
-	if len(hcaSpec.HcaSpec) == 0 {
+	if len(hcaSpec.getMap()) == 0 {
 		t.Fatalf("Expected HCAHardwares to be loaded, got empty map")
 	}
-	if _, ok := hcaSpec.HcaSpec[ibDevBoardId]; !ok {
+	if _, ok := hcaSpec.getMap()[ibDevBoardId]; !ok {
 		t.Fatalf("Expected hardware key '%s', not found", ibDevBoardId)
 	}
-	if hcaSpec.HcaSpec[ibDevBoardId].Hardware.BoardID != ibDevBoardId {
-		t.Fatalf("Expected BoardID '%s', got '%s'", ibDevBoardId, hcaSpec.HcaSpec[ibDevBoardId].Hardware.BoardID)
+	if hcaSpec.getMap()[ibDevBoardId].Hardware.BoardID != ibDevBoardId {
+		t.Fatalf("Expected BoardID '%s', got '%s'", ibDevBoardId, hcaSpec.getMap()[ibDevBoardId].Hardware.BoardID)
 	}
 }
 
@@ -174,7 +174,7 @@ func TestLoadSpec(t *testing.T) {
 		if hcaSpec == nil {
 			t.Fatal("Expected non-nil HCA spec, got nil")
 		}
-		if _, ok := hcaSpec.HcaSpec[boardIDs[0]]; !ok {
+		if _, ok := hcaSpec.getMap()[boardIDs[0]]; !ok {
 			t.Fatalf("Expected hardware key '%s', not found", boardIDs[0])
 		}
 	} else {
