@@ -66,3 +66,9 @@ nccltest:
 
 pcie_topo:
   enable: true
+
+ethernet:
+  query_interval: 10s
+  cache_size: 5
+  ignored_checkers: []
+  enable_metrics: true

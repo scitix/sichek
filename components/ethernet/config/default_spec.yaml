@@ -1,0 +1,13 @@
+ethernet:
+  default:
+    target_bond: "bond0"
+    bond_mode: "802.3ad"
+    mii_status: "up"
+    lacp_rate: "slow 0"
+    mtu: "1500"
+    speed: "25000"
+    min_slaves: 2
+    xmit_hash_policy: "layer3+4 1"
+    miimon: 100
+    updelay: 0
+    downdelay: 0
