@@ -9,15 +9,18 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
-	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 )
 
 // HCASpecs holds the specifications for HCA devices.
 // There are may be multiple HCA devices on one host, each identified by a unique board ID.
 type HCASpecs struct {
-	HcaSpec map[string]*HCASpec `json:"hca" yaml:"hca"`
+	Specs map[string]*HCASpec `json:"hca_specs" yaml:"hca_specs"`
+	// Hca is for backward compatibility with OSS/legacy specs using "hca" tag.
+	// We keep it for loading but omit it when writing back (omitempty).
+	Hca map[string]*HCASpec `json:"hca,omitempty" yaml:"hca,omitempty"`
 }
 
 type HCASpec struct {
@@ -30,22 +33,139 @@ type HCAPerf struct {
 	AvgLatency float64 `json:"avg_latency_us" yaml:"avg_latency_us"` // ns
 }
 
-// LoadSpec loads the HCA specifications from the provided file and merges with default locations.
-// The provided file has higher priority - if the same board ID exists in both, the provided file's spec will be used.
-// After merging, it filters the specs for the local host and loads missing specs from remote SICHEK_SPEC_URL if needed.
-func LoadSpec(file string) (*HCASpecs, error) {
-	s := &HCASpecs{}
-	if s.HcaSpec == nil {
-		s.HcaSpec = make(map[string]*HCASpec)
+// EnsureSpec ensures that `file` contains spec entries for all IB Board IDs
+// present on the local host.
+//
+// It reads sysfs to discover local Board IDs (no hardware drivers needed).
+// For any Board ID not yet in `file`, it downloads the per-board spec from
+// SICHEK_SPEC_URL and merges it into `file` (with backup and tracing).
+//
+// Call this after spec.EnsureSpecFile so that `file` is the cluster-level
+// multi-board map before this function adds local-host entries.
+func EnsureSpec(file string) (string, error) {
+	const comp = "hca/spec"
+
+	_, boardIDs, err := GetIBPFBoardIDs()
+	if err != nil {
+		return file, fmt.Errorf("EnsureSpec: cannot detect board IDs: %w", err)
 	}
 
-	// 1. Load spec from provided file (highest priority)
+	// Find which board IDs are missing from the cluster-level file
+	var s HCASpecs
+	_ = common.LoadSpec(file, &s) // may be empty on first run
+
+	var missing []string
+	m := s.GetMap()
+	for _, bid := range boardIDs {
+		if m == nil || m[bid] == nil {
+			missing = append(missing, bid)
+		}
+	}
+
+	if len(missing) == 0 {
+		logrus.WithField("component", comp).Infof("all local board IDs %v already present in %s, skipping download", boardIDs, file)
+		return file, nil
+	}
+	logrus.WithField("component", comp).Infof("board IDs %v are missing from %s, will try downloading", missing, file)
+
+	ossBase := os.Getenv("SICHEK_SPEC_URL")
+	if ossBase == "" {
+		return file, fmt.Errorf("EnsureSpec: board IDs %v not in spec and SICHEK_SPEC_URL not set", missing)
+	}
+
+	var downloaded HCASpecs
+	downloaded.Specs = make(map[string]*HCASpec)
+
+	for _, bid := range missing {
+		perBoardURL := fmt.Sprintf("%s/%s/%s.yaml",
+			strings.TrimRight(ossBase, "/"), consts.ComponentNameHCA, bid)
+		// Use os.CreateTemp to get a real unique path if needed, but here we just need a name
+		f, err := os.CreateTemp("", fmt.Sprintf("hca_%s_*.yaml", bid))
+		if err != nil {
+			logrus.WithField("component", comp).Warnf("failed to create temp file for %s: %v", bid, err)
+			continue
+		}
+		tmpPath := f.Name()
+		f.Close()
+
+		logrus.WithField("component", comp).Infof("downloading board ID %s spec from %s", bid, perBoardURL)
+		if err := common.DownloadSpecFile(perBoardURL, tmpPath, comp); err != nil {
+			logrus.WithField("component", comp).Warnf("download failed for %s: %v", bid, err)
+			os.Remove(tmpPath)
+			continue
+		}
+
+		var perBoard HCASpecs
+		if err := common.LoadSpec(tmpPath, &perBoard); err != nil {
+			logrus.WithField("component", comp).Warnf("parse failed for %s: %v", bid, err)
+			os.Remove(tmpPath)
+			continue
+		}
+
+		// Merge into both the cluster-level file AND our local collection
+		if err := common.MergeAndWriteSpec(
+			file,
+			"hca_specs",
+			perBoard.GetMap(),
+			func(c *HCASpecs) map[string]*HCASpec { return c.GetMap() },
+			func(c *HCASpecs, m map[string]*HCASpec) { c.Specs = m },
+		); err != nil {
+			logrus.WithField("component", comp).Warnf("merge into %s failed for %s: %v", file, bid, err)
+		}
+
+		for k, v := range perBoard.GetMap() {
+			downloaded.Specs[k] = v
+		}
+		os.Remove(tmpPath)
+	}
+
+	if len(downloaded.Specs) > 0 {
+		// If only one was downloaded, we could return it, but user wants them merged into one file
+		f, err := os.CreateTemp("", "hca_combined_*.yaml")
+		if err != nil {
+			return file, fmt.Errorf("EnsureSpec: failed to create combined temp file: %w", err)
+		}
+		defer f.Close()
+
+		data, err := yaml.Marshal(downloaded)
+		if err != nil {
+			return file, fmt.Errorf("EnsureSpec: failed to marshal combined specs: %w", err)
+		}
+
+		if _, err := f.Write(data); err != nil {
+			return file, fmt.Errorf("EnsureSpec: failed to write combined specs: %w", err)
+		}
+
+		logrus.WithField("component", comp).Infof("combined %d downloaded specs into %s", len(downloaded.Specs), f.Name())
+		return f.Name(), nil
+	}
+
+	return file, nil
+}
+
+// LoadSpec loads the HCA specifications from multiple sources.
+// It automatically calls EnsureSpec to guarantee that all local Board IDs
+// have an entry in `file` (potentially downloading from OSS if missing).
+func LoadSpec(file string) (*HCASpecs, error) {
+	// 1. Ensure all local board IDs are present in the file (OSS fallback)
+	if file != "" {
+		if _, err := EnsureSpec(file); err != nil {
+			logrus.WithField("component", "hca/spec").Warnf("EnsureSpec failed: %v", err)
+		}
+	}
+
+	s := &HCASpecs{}
+	if s.Specs == nil {
+		s.Specs = make(map[string]*HCASpec)
+	}
+
 	if file != "" {
 		err := s.tryLoadFromFile(file)
 		if err != nil {
 			logrus.WithField("component", "hca").Warnf("failed to load spec from provided file %s: %v", file, err)
-		} else if len(s.HcaSpec) > 0 {
+		} else if len(s.GetMap()) > 0 {
 			logrus.WithField("component", "hca").Infof("loaded HCA spec from provided file: %s", file)
+			return s, nil
 		}
 	}
 
@@ -55,8 +175,9 @@ func LoadSpec(file string) (*HCASpecs, error) {
 	err := s.tryLoadFromDefault()
 	if err != nil {
 		logrus.WithField("component", "hca").Warnf("failed to load default production spec: %v", err)
-	} else if len(s.HcaSpec) > 0 {
+	} else if len(s.GetMap()) > 0 {
 		logrus.WithField("component", "hca").Infof("merged default production HCA spec")
+		return s, nil
 	}
 
 	// 3. Try to load default spec from default config directory and merge
@@ -66,23 +187,23 @@ func LoadSpec(file string) (*HCASpecs, error) {
 	err = s.tryLoadFromDevConfig()
 	if err != nil {
 		logrus.WithField("component", "hca").Warnf("failed to load from default dev directory: %v", err)
-	} else if len(s.HcaSpec) > 0 {
+	} else if len(s.GetMap()) > 0 {
 		logrus.WithField("component", "hca").Infof("merged default dev HCA spec")
 	}
 
 	// Check if we have any HCA specs loaded
-	if len(s.HcaSpec) == 0 {
+	if len(s.GetMap()) == 0 {
 		return nil, fmt.Errorf("failed to load HCA spec from any source, please check the configuration")
 	}
 
 	// 4. Filter specs for local host and load missing specs from remote SICHEK_SPEC_URL
 	// This will check all board IDs on the host and ensure each has a spec
-	result, err := FilterSpecsForLocalHost(s)
+	result, err := FilterSpecsForLocalHost(file, s)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter HCA specs for local host: %w", err)
 	}
 
-	logrus.WithField("component", "hca").Infof("successfully loaded and merged HCA specs, total board IDs: %d", len(result.HcaSpec))
+	logrus.WithField("component", "hca").Infof("successfully loaded and merged HCA specs, total board IDs: %d", len(result.GetMap()))
 	return result, nil
 }
 
@@ -91,21 +212,31 @@ func (s *HCASpecs) tryLoadFromFile(file string) error {
 		return fmt.Errorf("file path is empty")
 	}
 	tempSpecs := &HCASpecs{}
-	err := utils.LoadFromYaml(file, tempSpecs)
-	if err != nil {
+	if err := common.LoadSpec(file, tempSpecs); err != nil {
 		return fmt.Errorf("failed to parse YAML file %s: %v", file, err)
 	}
-	if tempSpecs.HcaSpec == nil {
+	if tempSpecs.GetMap() == nil {
 		return fmt.Errorf("YAML file %s loaded but contains no hca section", file)
 	}
 	// Merge into the main spec (provided file has highest priority, so overwrite existing)
-	if s.HcaSpec == nil {
-		s.HcaSpec = make(map[string]*HCASpec)
+	if s.Specs == nil {
+		s.Specs = make(map[string]*HCASpec)
 	}
-	for hcaName, spec := range tempSpecs.HcaSpec {
-		s.HcaSpec[hcaName] = spec // Overwrite if exists (provided file has priority)
+	m := tempSpecs.GetMap()
+	for hcaName, spec := range m {
+		s.Specs[hcaName] = spec // Overwrite if exists (provided file has priority)
 	}
 	return nil
+}
+
+func (s *HCASpecs) GetMap() map[string]*HCASpec {
+	if s == nil {
+		return nil
+	}
+	if len(s.Specs) > 0 {
+		return s.Specs
+	}
+	return s.Hca
 }
 
 func (s *HCASpecs) tryLoadFromDefault() error {
@@ -114,17 +245,17 @@ func (s *HCASpecs) tryLoadFromDefault() error {
 	if err != nil {
 		return err
 	}
-	if specs.HcaSpec == nil {
+	if specs.GetMap() == nil {
 		return fmt.Errorf("default production top spec loaded but contains no hca section")
 	}
 	// Merge the loaded specs with the existing ones
-	if s.HcaSpec == nil {
-		s.HcaSpec = make(map[string]*HCASpec)
+	if s.Specs == nil {
+		s.Specs = make(map[string]*HCASpec)
 	}
 
-	for hcaName, spec := range specs.HcaSpec {
-		if _, ok := s.HcaSpec[hcaName]; !ok {
-			s.HcaSpec[hcaName] = spec
+	for hcaName, spec := range specs.GetMap() {
+		if _, ok := s.Specs[hcaName]; !ok {
+			s.Specs[hcaName] = spec
 		}
 	}
 	logrus.WithField("component", "hca").Infof("loaded default production top spec")
@@ -139,18 +270,18 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 				specs := &HCASpecs{}
 				filePath := filepath.Join(defaultDevCfgDirPath, file.Name())
 				err := utils.LoadFromYaml(filePath, specs)
-				if err != nil || specs.HcaSpec == nil {
+				if err != nil || specs.GetMap() == nil {
 					// If the file is not found or does not contain HCA specs, log the error
 					// and continue to the next file.
 					logrus.WithField("component", "hca").Warnf("failed to load HCA spec from YAML file %s: %v", filePath, err)
 					continue
 				}
-				if s.HcaSpec == nil {
-					s.HcaSpec = make(map[string]*HCASpec)
+				if s.Specs == nil {
+					s.Specs = make(map[string]*HCASpec)
 				}
-				for hcaName, hcaSpec := range specs.HcaSpec {
-					if _, ok := s.HcaSpec[hcaName]; !ok {
-						s.HcaSpec[hcaName] = hcaSpec
+				for hcaName, hcaSpec := range specs.GetMap() {
+					if _, ok := s.Specs[hcaName]; !ok {
+						s.Specs[hcaName] = hcaSpec
 					}
 				}
 			}
@@ -159,60 +290,43 @@ func (s *HCASpecs) tryLoadFromDevConfig() error {
 	return err
 }
 
-// FilterSpecsForLocalHost retrieves the hca specification for the current host by checking the board IDs of the IB devices.
-// It loads the specification from remote SICHEK_SPEC_URL if the board ID is not found in the current spec.
-func FilterSpecsForLocalHost(allSpecs *HCASpecs) (*HCASpecs, error) {
-	if allSpecs == nil || allSpecs.HcaSpec == nil {
+// FilterSpecsForLocalHost filters `allSpecs` to include only the board IDs
+// present on the local host. If `file` is non-empty, overwrites it with the
+// filtered subset (the applied baseline) using common.WriteSpec (.bak backup + tracing).
+// This is a pure lookup; no network calls. If IDs are missing, call EnsureSpec first.
+func FilterSpecsForLocalHost(file string, allSpecs *HCASpecs) (*HCASpecs, error) {
+	if allSpecs == nil || allSpecs.GetMap() == nil {
 		return nil, fmt.Errorf("HCA spec is not initialized")
 	}
-	// Get the board IDs of the IB devices in the host
 	_, ibDevs, err := GetIBPFBoardIDs()
 	if err != nil {
 		return nil, err
 	}
 
-	result := &HCASpecs{HcaSpec: map[string]*HCASpec{}}
-	// Check if the IBPFDevs in the spec have corresponding board IDs in host
-	missing := []string{}
+	result := &HCASpecs{Specs: map[string]*HCASpec{}}
+	var missing []string
 
-	for _, ibDevBoardId := range ibDevs {
-		if spec, ok := allSpecs.HcaSpec[ibDevBoardId]; ok {
-			// If the spec is found in the current spec, add it to the result
-			result.HcaSpec[ibDevBoardId] = spec
+	for _, boardID := range ibDevs {
+		if spec, ok := allSpecs.GetMap()[boardID]; ok {
+			result.Specs[boardID] = spec
 		} else {
-			// If the spec is not found in the current spec, try to load it from remote SICHEK_SPEC_URL
-			specURL := httpclient.GetSichekSpecURL()
-			if specURL == "" {
-				logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec and SICHEK_SPEC_URL environment variable is not set, skipping", ibDevBoardId)
-				missing = append(missing, ibDevBoardId)
-				continue
-			}
-			logrus.WithField("component", "hca").Warnf("spec for board ID %s not found in current spec, trying to load from remote SICHEK_SPEC_URL", ibDevBoardId)
-			tmpSpecs := &HCASpecs{}
-			url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameHCA, ibDevBoardId)
-			logrus.WithField("component", "hca").Infof("Loading spec for board ID %s from %s", ibDevBoardId, url)
-			// Attempt to load spec from remote URL
-			err := httpclient.LoadSpecFromURL(url, tmpSpecs)
-			if err == nil && tmpSpecs.HcaSpec != nil {
-				// If the spec is found at remote URL, add it to the main spec
-				if spec, ok := tmpSpecs.HcaSpec[ibDevBoardId]; ok {
-					result.HcaSpec[ibDevBoardId] = spec
-				} else {
-					logrus.WithField("component", "hca").Warnf("spec for board ID %s not found from remote URL %s, skipping", ibDevBoardId, url)
-					missing = append(missing, ibDevBoardId)
-					continue
-				}
-			} else {
-				logrus.WithField("component", "hca").Errorf("failed to load spec from remote URL %s for board ID %s: %v", url, ibDevBoardId, err)
-				missing = append(missing, ibDevBoardId)
-			}
+			logrus.WithField("component", "hca").Warnf(
+				"spec for board ID %s not found; call EnsureSpec first", boardID)
+			missing = append(missing, boardID)
 		}
 	}
 
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("spec for the following board IDs not found in any source: %v", common.ExtractAndDeduplicate(strings.Join(missing, ",")))
+		return nil, fmt.Errorf("spec not found for board IDs: %v; call EnsureSpec first or set SICHEK_SPEC_URL",
+			common.ExtractAndDeduplicate(strings.Join(missing, ",")))
 	}
 
+	// Persist the applied baseline (all local board IDs' specs)
+	if file != "" {
+		if err := common.WriteSpec(file, "hca_specs", "hca/spec", result); err != nil {
+			logrus.WithField("component", "hca").Warnf("failed to write applied baseline: %v", err)
+		}
+	}
 	return result, nil
 }
 func GetIBPFBoardIDs() (map[string]string, []string, error) {
