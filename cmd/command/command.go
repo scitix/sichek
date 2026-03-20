@@ -41,6 +41,8 @@ func NewRootCmd() *cobra.Command {
 				"h":          true,
 				"all":        true,
 				"run":        true,
+				"ethernet":   true,
+				"e":          true,
 			}
 
 			if commandsRequireRoot[cmd.Use] {
@@ -57,7 +59,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewCPUCmd())
 	rootCmd.AddCommand(component.NewNvidiaCmd())
 	rootCmd.AddCommand(component.NewInfinibandCmd())
-	// rootCmd.AddCommand(component.NewEthernetCmd())
+	rootCmd.AddCommand(component.NewEthernetCmd())
 	rootCmd.AddCommand(component.NewGpfsCmd())
 	rootCmd.AddCommand(component.NewPodLogCmd())
 	rootCmd.AddCommand(component.NewDmesgCmd())

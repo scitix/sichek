@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/cpu"
 	"github.com/scitix/sichek/components/dmesg"
+	"github.com/scitix/sichek/components/ethernet"
 	"github.com/scitix/sichek/components/gpfs"
 	gpuevents "github.com/scitix/sichek/components/gpuevents"
 	"github.com/scitix/sichek/components/infiniband"
@@ -186,6 +187,8 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 	case consts.ComponentNameSyslog:
 		// if skipPercent is -1, use the value from the config file
 		return syslog.NewComponent(cfgFile, "", -1)
+	case consts.ComponentNameEthernet:
+		return ethernet.NewEthernetComponent(cfgFile, specFile, ignoredCheckers)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}
