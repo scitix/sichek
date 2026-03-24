@@ -17,7 +17,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/scitix/sichek/pkg/utils"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,28 +41,96 @@ type EthernetSpecConfig struct {
 }
 
 type EthernetSpecs struct {
-	Ethernet map[string]*EthernetSpecConfig `json:"ethernet" yaml:"ethernet"`
+	Specs map[string]*EthernetSpecConfig `json:"ethernet" yaml:"ethernet"`
 }
 
-// LoadSpec loads Ethernet spec from the given file path.
+// ─── EnsureSpec ──────────────────────────────────────────────────────────────
+
+// EnsureSpec ensures that `file` contains a spec entry for the "default" ethernet config.
+// Since ethernet config is currently not per-device ID but global/default,
+// it just ensures the "default" key is present, potentially downloading from OSS.
+func EnsureSpec(file string) (string, error) {
+	const comp = "ethernet/spec"
+	const deviceID = "default"
+
+	// Check whether the cluster-level file already has this device
+	var s EthernetSpecs
+	if err := common.LoadSpec(file, &s); err == nil {
+		if s.Specs != nil {
+			if _, ok := s.Specs[deviceID]; ok {
+				logrus.WithField("component", comp).Infof("spec for ethernet %s already in %s, skipping download", deviceID, file)
+				return file, nil
+			}
+		}
+	} else {
+		logrus.WithField("component", comp).Debugf("LoadSpec failed during EnsureSpec (may be new file): %v", err)
+	}
+
+	// Download {SICHEK_SPEC_URL}/ethernet/{deviceID}.yaml
+	ossBase := os.Getenv("SICHEK_SPEC_URL")
+	if ossBase == "" {
+		return file, fmt.Errorf("EnsureSpec: ethernet %s not in spec and SICHEK_SPEC_URL not set", deviceID)
+	}
+
+	tmpDir := os.TempDir()
+	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("ethernet_%s.yaml", deviceID))
+	perDevURL := fmt.Sprintf("%s/%s/%s.yaml",
+		strings.TrimRight(ossBase, "/"), consts.ComponentNameEthernet, deviceID)
+
+	logrus.WithField("component", comp).Infof("downloading ethernet spec from %s", perDevURL)
+	if err := common.DownloadSpecFile(perDevURL, tmpFile, comp); err != nil {
+		return file, fmt.Errorf("EnsureSpec: download failed: %w", err)
+	}
+
+	// Load the per-device file and merge into cluster-level file
+	var perDevice EthernetSpecs
+	if err := common.LoadSpec(tmpFile, &perDevice); err != nil {
+		return file, fmt.Errorf("EnsureSpec: parse per-device spec: %w", err)
+	}
+
+	if err := common.MergeAndWriteSpec(
+		file,
+		"ethernet",
+		perDevice.Specs,
+		func(c *EthernetSpecs) map[string]*EthernetSpecConfig { return c.Specs },
+		func(c *EthernetSpecs, m map[string]*EthernetSpecConfig) { c.Specs = m },
+	); err != nil {
+		return file, fmt.Errorf("EnsureSpec: merge failed: %w", err)
+	}
+
+	logrus.WithField("component", comp).Infof("merged ethernet %s spec into %s", deviceID, file)
+	return file, nil
+}
+
+// ─── LoadSpec ────────────────────────────────────────────────────────────────
+
+// LoadSpec reads the Ethernet multi-spec YAML at `file`, ensures the "default" entry is present
+// (potentially downloading it from OSS), and overwrites `file` with only that entry.
 func LoadSpec(file string) (*EthernetSpecConfig, error) {
 	if file == "" {
 		return nil, fmt.Errorf("ethernet spec file path is empty")
 	}
-	s := &EthernetSpecs{}
-	if err := utils.LoadFromYaml(file, s); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML file %s: %v", file, err)
+
+	// 1. Ensure the "default" entry is present (downloads & merges if missing)
+	if _, err := EnsureSpec(file); err != nil {
+		logrus.WithField("component", "ethernet/spec").Warnf("EnsureSpec failed: %v", err)
 	}
 
-	if s.Ethernet == nil {
-		return nil, fmt.Errorf("ethernet spec is empty")
-	}
+	// 2. Filter for "default"
+	return FilterSpec(file, "default")
+}
 
-	// For ethernet, we assume a "default" spec for now, similar to infiniband
-	if spec, ok := s.Ethernet["default"]; ok {
-		logrus.WithField("component", "ethernet").Infof("Loaded default Ethernet spec")
-		return spec, nil
-	}
+// ─── FilterSpec ──────────────────────────────────────────────────────────────
 
-	return nil, fmt.Errorf("default ethernet spec not found in provided specs")
+// FilterSpec selects the entry for `id` from the multi-spec YAML at `file`,
+// overwrites `file` with that single entry, and returns the spec.
+func FilterSpec(file, id string) (*EthernetSpecConfig, error) {
+	logrus.WithField("component", "ethernet").Infof(
+		"filtering spec for ethernet %s in %s", id, file)
+	return common.FilterSpec(file, "ethernet", id,
+		func(c *EthernetSpecs, id string) (*EthernetSpecConfig, bool) {
+			spec, ok := c.Specs[id]
+			return spec, ok
+		},
+	)
 }
