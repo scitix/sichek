@@ -40,13 +40,21 @@ func PrintTitle(text, paddingChar string) {
 
 	textLength := len(text)
 	paddingLength := width - textLength
-	if paddingLength < 0 {
+	if paddingLength <= 0 {
 		fmt.Println(text)
+		return
 	}
+
+	charLen := len(paddingChar)
+	if charLen == 0 {
+		fmt.Println(text)
+		return
+	}
+
 	leftPadding := paddingLength / 2
 	rightPadding := paddingLength - leftPadding
 
-	left := strings.Repeat(paddingChar, leftPadding/len(paddingChar)) + paddingChar[:leftPadding%len(paddingChar)]
-	right := strings.Repeat(paddingChar, rightPadding/len(paddingChar)) + paddingChar[:rightPadding%len(paddingChar)]
+	left := strings.Repeat(paddingChar, leftPadding/charLen) + paddingChar[:leftPadding%charLen]
+	right := strings.Repeat(paddingChar, rightPadding/charLen) + paddingChar[:rightPadding%charLen]
 	fmt.Println(left + text + right)
 }
