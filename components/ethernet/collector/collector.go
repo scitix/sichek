@@ -369,7 +369,9 @@ func (c *EthernetCollector) Collect(ctx context.Context) (*EthernetInfo, error) 
 			fields := strings.Fields(line)
 			if len(fields) >= 5 {
 				rState.GatewayIP = fields[2]
-				if fields[4] == c.targetBond || (c.targetBond == "" && len(c.info.BondInterfaces) > 0 && fields[4] == c.info.BondInterfaces[0]) {
+				if len(c.info.BondInterfaces) == 0 {
+					rState.DefaultRouteViaBond = true
+				} else if fields[4] == c.targetBond || (c.targetBond == "" && len(c.info.BondInterfaces) > 0 && fields[4] == c.info.BondInterfaces[0]) {
 					rState.DefaultRouteViaBond = true
 				}
 			}
