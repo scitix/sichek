@@ -9,6 +9,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
@@ -68,7 +69,7 @@ func EnsureSpec(file string) (string, error) {
 	}
 	logrus.WithField("component", comp).Infof("board IDs %v are missing from %s, will try downloading", missing, file)
 
-	ossBase := os.Getenv("SICHEK_SPEC_URL")
+	ossBase := httpclient.GetSichekSpecURL()
 	if ossBase == "" {
 		return file, fmt.Errorf("EnsureSpec: board IDs %v not in spec and SICHEK_SPEC_URL not set", missing)
 	}

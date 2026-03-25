@@ -32,6 +32,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
@@ -69,7 +70,7 @@ func LoadSpec[T any](file string, out *T) error {
 //
 // Resolution order for the source content:
 //  1. specName empty   → derive cluster name (e.g. "changliu_spec.yaml") and
-//                        download it from SICHEK_SPEC_URL into the canonical file
+//     download it from SICHEK_SPEC_URL into the canonical file
 //  2. specName is URL  → download directly into the canonical file
 //  3. specName is existing path → copy into the canonical file
 //  4. specName is bare filename → check default dir first, then try SICHEK_SPEC_URL
@@ -115,7 +116,7 @@ func EnsureSpecFile(specName, defaultFileName string) (string, error) {
 				return destPath, nil
 			}
 		}
-		ossBase := os.Getenv("SICHEK_SPEC_URL")
+		ossBase := httpclient.GetSichekSpecURL()
 		if ossBase != "" {
 			fileURL := strings.TrimRight(ossBase, "/") + "/" + filepath.Base(sourceName)
 			if err := DownloadSpecFile(fileURL, destPath, comp); err == nil {
@@ -134,7 +135,7 @@ func EnsureSpecFile(specName, defaultFileName string) (string, error) {
 		return destPath, nil
 	}
 
-	return "", fmt.Errorf("no spec file available at %s (SICHEK_SPEC_URL=%q)", destPath, os.Getenv("SICHEK_SPEC_URL"))
+	return "", fmt.Errorf("no spec file available at %s (SICHEK_SPEC_URL=%q)", destPath, httpclient.GetSichekSpecURL())
 }
 
 // ─── FilterSpec ──────────────────────────────────────────────────────────────
@@ -169,7 +170,7 @@ func FilterSpec[T any, S any](
 	if !ok {
 		// Log what keys ARE present to help debug matching issues
 		logrus.WithFields(logrus.Fields{
-			"component": comp,
+			"component":  comp,
 			"hardwareID": hardwareID,
 			"file":       file,
 			"rootKey":    rootKey,
