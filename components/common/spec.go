@@ -29,8 +29,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
@@ -68,7 +70,7 @@ func LoadSpec[T any](file string, out *T) error {
 //
 // Resolution order for the source content:
 //  1. specName empty   → derive cluster name (e.g. "changliu_spec.yaml") and
-//                        download it from SICHEK_SPEC_URL into the canonical file
+//     download it from SICHEK_SPEC_URL into the canonical file
 //  2. specName is URL  → download directly into the canonical file
 //  3. specName is existing path → copy into the canonical file
 //  4. specName is bare filename → check default dir first, then try SICHEK_SPEC_URL
@@ -114,7 +116,7 @@ func EnsureSpecFile(specName, defaultFileName string) (string, error) {
 				return destPath, nil
 			}
 		}
-		ossBase := os.Getenv("SICHEK_SPEC_URL")
+		ossBase := httpclient.GetSichekSpecURL()
 		if ossBase != "" {
 			fileURL := strings.TrimRight(ossBase, "/") + "/" + filepath.Base(sourceName)
 			if err := DownloadSpecFile(fileURL, destPath, comp); err == nil {
@@ -133,7 +135,7 @@ func EnsureSpecFile(specName, defaultFileName string) (string, error) {
 		return destPath, nil
 	}
 
-	return "", fmt.Errorf("no spec file available at %s (SICHEK_SPEC_URL=%q)", destPath, os.Getenv("SICHEK_SPEC_URL"))
+	return "", fmt.Errorf("no spec file available at %s (SICHEK_SPEC_URL=%q)", destPath, httpclient.GetSichekSpecURL())
 }
 
 // ─── FilterSpec ──────────────────────────────────────────────────────────────
@@ -168,7 +170,7 @@ func FilterSpec[T any, S any](
 	if !ok {
 		// Log what keys ARE present to help debug matching issues
 		logrus.WithFields(logrus.Fields{
-			"component": comp,
+			"component":  comp,
 			"hardwareID": hardwareID,
 			"file":       file,
 			"rootKey":    rootKey,
@@ -271,27 +273,18 @@ func surgicalUpdateYAML(file, rootKey string, sectionData interface{}, logComp s
 	}
 
 	// 2. Patch the specific component's key
-	// If sectionData is themselves a container struct (like NvidiaSpecs), we need to extract the component key's value.
-	// But to keep it simple and robust, we expect sectionData to be the "content" of the rootKey.
-	// However, components are passing T (the container).
-	// Let's use reflection or just assume if it's a struct with that key, we unwrap it?
-	// Actually, NvidiaSpecs has a field tagged `yaml:"nvidia"`.
-	// If I put `container` directly into `allData["nvidia"]`, I'll get `nvidia: { nvidia: { ... } }`.
-	// So call-sites should pass the map or we unwrap it here.
-
-	// Let's unwrap if it's the same key to avoid nesting
+	// We want to avoid nested structures like nvidia: { nvidia: { ... } }.
+	// We check if sectionData (when marshaled) already contains the rootKey as a top-level key.
 	dataBytes, _ := yaml.Marshal(sectionData)
-
-	var unwrapped map[string]interface{}
-	if err := yaml.Unmarshal(dataBytes, &unwrapped); err != nil {
-		logrus.WithField("component", logComp).Warnf("failed to unwrap section data: %v", err)
-		allData[rootKey] = sectionData
-	} else {
-		if val, ok := unwrapped[rootKey]; ok {
+	var tempMap map[string]interface{}
+	if err := yaml.Unmarshal(dataBytes, &tempMap); err == nil {
+		if val, ok := tempMap[rootKey]; ok {
 			allData[rootKey] = val
 		} else {
-			allData[rootKey] = unwrapped
+			allData[rootKey] = tempMap
 		}
+	} else {
+		allData[rootKey] = sectionData
 	}
 	logrus.WithField("component", logComp).Debugf("surgicalUpdateYAML: patched %s key", rootKey)
 
@@ -300,7 +293,19 @@ func surgicalUpdateYAML(file, rootKey string, sectionData interface{}, logComp s
 		allData[rootKey] = sectionData
 	}
 
-	// 3. Backup and atomic write
+	// 3. Backup and atomic write with file locking
+	// We use the same lock for the entire directory or file to prevent concurrent access
+	lockFile := file + ".lock"
+	l, err := os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open lock file %s: %w", lockFile, err)
+	}
+	defer l.Close()
+	if err := syscall.Flock(int(l.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("failed to lock %s: %w", lockFile, err)
+	}
+	defer syscall.Flock(int(l.Fd()), syscall.LOCK_UN)
+
 	bakPath := file + ".bak"
 	if fileExists(file) {
 		_ = copyFile(file, bakPath)
@@ -310,12 +315,6 @@ func surgicalUpdateYAML(file, rootKey string, sectionData interface{}, logComp s
 	if err != nil {
 		return fmt.Errorf("marshal all: %w", err)
 	}
-
-	keys := make([]string, 0, len(allData))
-	for k := range allData {
-		keys = append(keys, k)
-	}
-	logrus.WithField("component", logComp).Debugf("surgicalUpdateYAML: writing %s with top-level keys: %v", file, keys)
 
 	tmp := file + ".tmp"
 	if err := os.WriteFile(tmp, finalData, 0644); err != nil {

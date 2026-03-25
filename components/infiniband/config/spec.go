@@ -113,7 +113,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		// Check each board ID and fill in missing specs from hcaSpecs
 		var missingBoardIDs []string
 		for _, boardID := range ibDevs {
-			if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
+			if hcaSpec, ok := hcaSpecs.Specs[boardID]; ok {
 				ibSpec.HCAs[boardID] = hcaSpec
 				logrus.WithField("component", "infiniband").
 					Infof("loaded HCA spec for hardware board ID %s", boardID)

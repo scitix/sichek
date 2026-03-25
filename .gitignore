@@ -10,3 +10,7 @@ sicl
 sichek
 *__pycache__
 *.pyc
+specs_download/
+*.md
+/doc
+/local

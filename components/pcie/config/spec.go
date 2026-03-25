@@ -9,6 +9,8 @@ import (
 	"github.com/scitix/sichek/components/common"
 	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/httpclient" // Added this import
+	// Added this import
 	"github.com/sirupsen/logrus"
 )
 
@@ -71,7 +73,7 @@ func EnsureSpec(file string) (string, error) {
 	}
 
 	// Download {SICHEK_SPEC_URL}/pcie/{deviceID}.yaml
-	ossBase := os.Getenv("SICHEK_SPEC_URL")
+	ossBase := httpclient.GetSichekSpecURL()
 	if ossBase == "" {
 		return file, fmt.Errorf("EnsureSpec: GPU %s not in pcie_topo spec and SICHEK_SPEC_URL not set", localDeviceID)
 	}

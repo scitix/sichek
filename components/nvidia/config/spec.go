@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/httpclient"
 	"github.com/sirupsen/logrus"
 )
 
@@ -108,7 +109,7 @@ func EnsureSpec(file string) (string, error) {
 	}
 
 	// Download {SICHEK_SPEC_URL}/nvidia/{deviceID}.yaml
-	ossBase := os.Getenv("SICHEK_SPEC_URL")
+	ossBase := httpclient.GetSichekSpecURL()
 	if ossBase == "" {
 		return file, fmt.Errorf("EnsureSpec: GPU %s not in spec and SICHEK_SPEC_URL not set", deviceID)
 	}
