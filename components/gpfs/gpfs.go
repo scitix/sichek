@@ -152,6 +152,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	c.cacheMtx.Lock()
+	c.cacheInfo[c.currIndex] = xstorHealthInfo
 	c.cacheBuffer[c.currIndex] = result
 	c.currIndex = (c.currIndex + 1) % c.cacheSize
 	c.cacheMtx.Unlock()
@@ -173,9 +174,11 @@ func (c *component) CacheResults() ([]*common.Result, error) {
 func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	result := c.cacheBuffer[c.currIndex]
+	var result *common.Result
 	if c.currIndex == 0 {
 		result = c.cacheBuffer[c.cacheSize-1]
+	} else {
+		result = c.cacheBuffer[c.currIndex-1]
 	}
 	return result, nil
 }

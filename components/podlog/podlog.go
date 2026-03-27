@@ -323,9 +323,11 @@ func (c *component) CacheInfos() ([]common.Info, error) {
 func (c *component) LastResult() (*common.Result, error) {
 	c.cacheMtx.RLock()
 	defer c.cacheMtx.RUnlock()
-	result := c.cacheResultBuffer[c.currIndex]
+	var result *common.Result
 	if c.currIndex == 0 {
 		result = c.cacheResultBuffer[c.cacheSize-1]
+	} else {
+		result = c.cacheResultBuffer[c.currIndex-1]
 	}
 	return result, nil
 }

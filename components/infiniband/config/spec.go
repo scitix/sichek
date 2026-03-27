@@ -18,6 +18,7 @@ package config
 import (
 	"fmt"
 
+	"github.com/scitix/sichek/components/common"
 	hcaConfig "github.com/scitix/sichek/components/hca/config"
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/pkg/utils"
@@ -30,22 +31,26 @@ type InfinibandSpecs struct {
 
 type InfinibandSpec struct {
 	// as IBPFDevs may be trimmed on conditions, the HCANum will store the original number of HCA devices in spec
-	HCANum         int                           `json:"hca_num,omitempty" yaml:"hca_num,omitempty"`
-	IBPFDevs       map[string]string             `json:"ib_devs" yaml:"ib_devs"`
-	IBSoftWareInfo *collector.IBSoftWareInfo     `json:"sw_deps" yaml:"sw_deps"`
-	PCIeACS        string                        `json:"pcie_acs" yaml:"pcie_acs"`
-	HCAs           map[string]*hcaConfig.HCASpec `json:"hca_specs,omitempty" yaml:"-"`
+	HCANum         int                       `json:"hca_num,omitempty" yaml:"hca_num,omitempty"`
+	IBPFDevs       map[string]string         `json:"ib_devs" yaml:"ib_devs"`
+	IBSoftWareInfo *collector.IBSoftWareInfo `json:"sw_deps" yaml:"sw_deps"`
+	PCIeACS        string                    `json:"pcie_acs" yaml:"pcie_acs"`
+
+	// HCAs is for in-memory use only (full specs)
+	HCAs map[string]*hcaConfig.HCASpec `json:"-" yaml:"-"`
+	// HCAStubs is for persistence only (board ID references)
+	HCAStubs map[string]interface{} `json:"hca_specs,omitempty" yaml:"hca_specs,omitempty"`
 }
 
-// LoadSpec loads infiniband spec from the given file path.
+// LoadSpec loads infiniband spec from the given file path using the common YAML loader.
 // The file path is expected to be already resolved by the command layer (e.g. via spec.EnsureSpecFile).
 func LoadSpec(file string) (*InfinibandSpec, error) {
 	if file == "" {
 		return nil, fmt.Errorf("infiniband spec file path is empty")
 	}
 	s := &InfinibandSpecs{}
-	if err := utils.LoadFromYaml(file, s); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML file %s: %v", file, err)
+	if err := common.LoadSpec(file, s); err != nil {
+		return nil, fmt.Errorf("failed to load infiniband spec from %s: %w", file, err)
 	}
 	if s.Specs == nil {
 		return nil, fmt.Errorf("YAML file %s loaded but contains no infiniband section", file)
@@ -96,6 +101,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		// Load HCA specs from provided file and merge with default specs
 		// This will load from the provided file, merge with built-in specs (provided file has higher priority),
 		// and load missing specs from remote URL for all board IDs on the host
+		// todo
 		hcaSpecs, err := hcaConfig.LoadSpec(file)
 		if err != nil {
 			logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
@@ -107,7 +113,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		// Check each board ID and fill in missing specs from hcaSpecs
 		var missingBoardIDs []string
 		for _, boardID := range ibDevs {
-			if hcaSpec, ok := hcaSpecs.HcaSpec[boardID]; ok {
+			if hcaSpec, ok := hcaSpecs.Specs[boardID]; ok {
 				ibSpec.HCAs[boardID] = hcaSpec
 				logrus.WithField("component", "infiniband").
 					Infof("loaded HCA spec for hardware board ID %s", boardID)
@@ -121,6 +127,27 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		// Return error if any board IDs are missing specs
 		if len(missingBoardIDs) > 0 {
 			return ibSpec, fmt.Errorf("spec not found for board IDs: %v, please check the HCA configuration", missingBoardIDs)
+		}
+
+		// Persist the applied baseline: overwrite file with this cluster's spec (surgically)
+		if file != "" {
+			// Populate stubs for persistence (only keys, empty objects as expected by user)
+			ibSpec.HCAStubs = make(map[string]interface{})
+			for bid := range ibSpec.HCAs {
+				ibSpec.HCAStubs[bid] = struct{}{}
+			}
+
+			// Wrap in plural container to preserve cluster name level
+			clusterName := utils.ExtractClusterName()
+			persistSpecs := &InfinibandSpecs{
+				Specs: map[string]*InfinibandSpec{
+					clusterName: ibSpec,
+				},
+			}
+
+			if err := common.WriteSpec(file, "infiniband", "infiniband/spec", persistSpecs); err != nil {
+				logrus.WithField("component", "infiniband").Warnf("failed to write applied baseline: %v", err)
+			}
 		}
 
 		return ibSpec, nil

@@ -47,6 +47,7 @@ type DaemonService struct {
 	node                 string
 	metrics              *metrics.HealthCheckResMetrics
 	notifier             Notifier
+	snapshotMgr          *SnapshotManager
 }
 
 func NewService(components map[string]common.Component, annoKey string, cfgFile string, metricsPort int, metricsSocket string) (s Service, err error) {
@@ -67,6 +68,11 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 	if err != nil {
 		logrus.WithField("daemon", "new").Errorf("get node name failed: %v", err)
 	}
+	snapshotMgr, err := NewSnapshotManager(cfgFile)
+	if err != nil {
+		logrus.WithField("daemon", "new").Errorf("create snapshot manager failed: %v", err)
+	}
+
 	daemonService := &DaemonService{
 		ctx:              ctx,
 		cancel:           cancel,
@@ -76,6 +82,7 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 		notifier:         notifier,
 		metrics:          metrics.GetHealthCheckResMetrics(),
 		node:             hostname,
+		snapshotMgr:      snapshotMgr,
 	}
 
 	return daemonService, nil
@@ -129,6 +136,25 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 				}
 				d.metrics.ExportMetrics(result)
 			}
+
+			if d.snapshotMgr != nil {
+				info, err := d.components[componentName].LastInfo()
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"daemon":    "run",
+						"component": componentName,
+					}).Errorf("LastInfo failed: %v", err)
+				} else {
+					if info == nil {
+						logrus.WithFields(logrus.Fields{
+							"daemon":    "run",
+							"component": componentName,
+						}).Warnf("LastInfo returned nil")
+					}
+					d.snapshotMgr.Update(componentName, info)
+				}
+			}
+
 			if err != nil {
 				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
 			}

@@ -23,18 +23,109 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
+
+	"github.com/scitix/sichek/consts"
+)
+
+var (
+	specURL     string
+	specURLOnce sync.Once
 )
 
 func GetSichekSpecURL() string {
-	return os.Getenv("SICHEK_SPEC_URL")
+	specURLOnce.Do(func() {
+		// 1. 尝试从环境变量获取
+		if envURL := os.Getenv("SICHEK_SPEC_URL"); envURL != "" {
+			specURL = envURL
+			return
+		}
+
+		// 2. 尝试从本地配置文件获取
+		configPath := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
+		if urlFromConfig := getSpecURLFromConfig(configPath); urlFromConfig != "" {
+			specURL = urlFromConfig
+			return
+		}
+
+		// 3. 自动探测并持久化
+		specURL = probeAndSaveSpecURL(configPath)
+	})
+	return specURL
+}
+
+func getSpecURLFromConfig(configPath string) string {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return ""
+	}
+
+	var config map[string]interface{}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return ""
+	}
+
+	if val, ok := config["sichek_spec_url"].(string); ok {
+		return val
+	}
+	return ""
+}
+
+func probeAndSaveSpecURL(configPath string) string {
+	probeTargets := []string{consts.DomesticSpecURL, consts.OverseasSpecURL}
+	selectedURL := consts.DomesticSpecURL // 默认回归到国内
+
+	client := http.Client{
+		Timeout: 2 * time.Second,
+	}
+
+	for _, baseURL := range probeTargets {
+		testURL := fmt.Sprintf("%s/text.txt", baseURL)
+		resp, err := client.Get(testURL)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				selectedURL = baseURL
+				logrus.Infof("successfully probed spec URL: %s", selectedURL)
+				break
+			}
+		}
+	}
+
+	// 持久化到配置文件
+	saveSpecURLToConfig(configPath, selectedURL)
+	return selectedURL
+}
+
+func saveSpecURLToConfig(configPath string, url string) {
+	config := make(map[string]interface{})
+	data, err := os.ReadFile(configPath)
+	if err == nil {
+		yaml.Unmarshal(data, &config)
+	}
+
+	config["sichek_spec_url"] = url
+	newData, err := yaml.Marshal(config)
+	if err != nil {
+		logrus.Errorf("failed to marshal config for spec URL persistence: %v", err)
+		return
+	}
+
+	// 确保目录存在
+	os.MkdirAll(filepath.Dir(configPath), 0755)
+	if err := os.WriteFile(configPath, newData, 0644); err != nil {
+		logrus.Errorf("failed to save spec URL to %s: %v", configPath, err)
+	} else {
+		logrus.Infof("persisted spec URL %s to %s", url, configPath)
+	}
 }
 
 func HasSichekSpecURL() bool {
-	return os.Getenv("SICHEK_SPEC_URL") != ""
+	return GetSichekSpecURL() != ""
 }
 
 // getDefaultClient returns a default HTTP client

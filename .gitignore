@@ -14,3 +14,7 @@ sichek
 local/
 doc/
 specs_download/
+specs_download/
+*.md
+/doc
+/local
