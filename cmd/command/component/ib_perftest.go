@@ -116,7 +116,7 @@ func NewIBPerftestCmd() *cobra.Command {
 					logrus.WithField("perftest", "infiniband").Errorf("failed to load HCA spec config: %v", err)
 					fmt.Println("No expected bandwidth or latency specified, using 0 Gbps and 0 us")
 				} else {
-					for _, spec := range specs.HcaSpec {
+					for _, spec := range specs.GetMap() {
 						expectedBandwidthGbps = spec.Perf.OneWayBW
 						expectedLatencyUs = spec.Perf.AvgLatency
 						fmt.Printf("Using %s expected bandwidth: %.2f Gbps and latency: %.2f us\n", spec.Hardware.VPD, spec.Perf.OneWayBW, spec.Perf.AvgLatency)

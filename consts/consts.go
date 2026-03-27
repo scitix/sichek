@@ -114,6 +114,11 @@ const (
 	DefaultEventRuleSuffix   = "_rules.yaml"
 	DefaultProductionPath    = "/var/sichek"
 	DefaultProductionCfgPath = "/var/sichek/config"
+	DefaultSnapshotPath      = "/var/sichek/data/snapshot.json"
+
+	// OSS Spec URLs
+	DomesticSpecURL = "https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/specs"
+	OverseasSpecURL = "https://oss-ap-southeast.scitix.ai/hisys-sichek/specs"
 )
 
 const (

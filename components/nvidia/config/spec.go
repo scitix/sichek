@@ -17,14 +17,19 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
 	nvutils "github.com/scitix/sichek/components/nvidia/utils"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/httpclient"
-	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
+
+// ─── Spec structs ─────────────────────────────────────────────────────────────
 
 type NvidiaSpec struct {
 	Name                 string                 `json:"name" yaml:"name"`
@@ -71,53 +76,114 @@ type PerfMetrics struct {
 	NcclAllReduceBw float64 `json:"nccl-all-reduce-bw" yaml:"nccl-all-reduce-bw"`
 }
 
-// LoadSpec loads NVIDIA spec from the given file path.
-// The file path is expected to be already resolved by the command layer (e.g. via spec.EnsureSpecFile).
+// ─── EnsureSpec ──────────────────────────────────────────────────────────────
+
+// EnsureSpec ensures that `file` contains a spec entry for the local GPU.
+//
+// It detects the GPU device ID via NVML. If the entry is already present in
+// `file`, it returns immediately. Otherwise it downloads the per-device spec
+// from SICHEK_SPEC_URL and merges it into `file` (with backup and tracing).
+//
+// This should be called after spec.EnsureSpecFile so that `file` already
+// contains the cluster-level multi-GPU map.
+func EnsureSpec(file string) (string, error) {
+	const comp = "nvidia/spec"
+
+	deviceID, err := nvutils.GetDeviceID()
+	if err != nil {
+		return file, fmt.Errorf("EnsureSpec: cannot detect GPU device ID: %w", err)
+	}
+	logrus.WithField("component", comp).Infof("local GPU device ID: %s", deviceID)
+
+	// Check whether the cluster-level file already has this device
+	var s NvidiaSpecs
+	if err := common.LoadSpec(file, &s); err == nil {
+		if s.Specs != nil {
+			if _, ok := s.Specs[deviceID]; ok {
+				logrus.WithField("component", comp).Infof("spec for GPU %s already in %s, skipping download", deviceID, file)
+				return file, nil
+			}
+		}
+	} else {
+		logrus.WithField("component", comp).Debugf("LoadSpec failed during EnsureSpec (may be new file): %v", err)
+	}
+
+	// Download {SICHEK_SPEC_URL}/nvidia/{deviceID}.yaml
+	ossBase := httpclient.GetSichekSpecURL()
+	if ossBase == "" {
+		return file, fmt.Errorf("EnsureSpec: GPU %s not in spec and SICHEK_SPEC_URL not set", deviceID)
+	}
+
+	tmpDir := os.TempDir()
+	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", deviceID))
+	perDevURL := fmt.Sprintf("%s/%s/%s.yaml",
+		strings.TrimRight(ossBase, "/"), consts.ComponentNameNvidia, deviceID)
+
+	logrus.WithField("component", comp).Infof("downloading per-device spec from %s", perDevURL)
+	if err := common.DownloadSpecFile(perDevURL, tmpFile, comp); err != nil {
+		return file, fmt.Errorf("EnsureSpec: download failed: %w", err)
+	}
+
+	// Load the per-device file and merge into cluster-level file
+	var perDevice NvidiaSpecs
+	if err := common.LoadSpec(tmpFile, &perDevice); err != nil {
+		return file, fmt.Errorf("EnsureSpec: parse per-device spec: %w", err)
+	}
+
+	if err := common.MergeAndWriteSpec(
+		file,
+		"nvidia",
+		perDevice.Specs,
+		func(c *NvidiaSpecs) map[string]*NvidiaSpec { return c.Specs },
+		func(c *NvidiaSpecs, m map[string]*NvidiaSpec) { c.Specs = m },
+	); err != nil {
+		return file, fmt.Errorf("EnsureSpec: merge failed: %w", err)
+	}
+
+	logrus.WithField("component", comp).Infof("merged GPU %s spec into %s", deviceID, file)
+	return file, nil
+}
+
+// ─── LoadSpec ────────────────────────────────────────────────────────────────
+
+// LoadSpec reads the NVIDIA multi-spec YAML at `file`, detects the local GPU,
+// and overwrites `file` with only that GPU's spec (the applied baseline).
+// It automatically calls EnsureSpec to guarantee the GPU entry is present
+// (potentially downloading it from OSS if missing).
 func LoadSpec(file string) (*NvidiaSpec, error) {
 	if file == "" {
 		return nil, fmt.Errorf("nvidia spec file path is empty")
 	}
-	s := &NvidiaSpecs{}
-	if err := utils.LoadFromYaml(file, s); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML file %s: %v", file, err)
+
+	// 1. Ensure the device entry is present (downloads & merges if missing)
+	if _, err := EnsureSpec(file); err != nil {
+		// Log but proceed; FilterSpec will provide the final definitive error if still missing
+		logrus.WithField("component", "nvidia/spec").Warnf("EnsureSpec failed: %v", err)
 	}
-	// Note: No need to check if s.Specs is nil, it will be checked in FilterSpec
-	return FilterSpec(s)
+
+	// 2. Detect and filter
+	deviceID, err := nvutils.GetDeviceID()
+	if err != nil {
+		return nil, fmt.Errorf("LoadSpec: cannot detect GPU device ID: %w", err)
+	}
+	return FilterSpec(file, deviceID)
 }
 
-// FilterSpec retrieves the NVIDIA spec for the local GPU device ID.
-func FilterSpec(s *NvidiaSpecs) (*NvidiaSpec, error) {
-	localDeviceID, err := nvutils.GetDeviceID()
-	logrus.WithField("component", "nvidia").Infof("local GPU device ID: %s", localDeviceID)
-	if err != nil {
-		return nil, err
-	}
-	var nvSpec *NvidiaSpec
-	if spec, ok := s.Specs[localDeviceID]; ok {
-		nvSpec = spec
-		logrus.WithField("component", "nvidia").Infof("NVIDIA spec for local GPU %s found in provided specs: %s", localDeviceID, nvSpec.Name)
-	} else {
-		logrus.WithField("component", "nvidia").Infof("NVIDIA spec for local GPU %s not found in provided specs, current gpu spec:", localDeviceID)
-		for gpu, spec := range s.Specs {
-			logrus.WithField("component", "nvidia").Infof("    %s: %s", gpu, spec.Name)
-		}
-		specURL := httpclient.GetSichekSpecURL()
-		if specURL == "" {
-			return nil, fmt.Errorf("NVIDIA spec for local GPU %s not found in provided specs and SICHEK_SPEC_URL environment variable is not set", localDeviceID)
-		}
-		nvidiaSpec := &NvidiaSpecs{}
-		url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameNvidia, localDeviceID)
-		logrus.WithField("component", "nvidia").Infof("Loading spec for gpu %s from %s", localDeviceID, url)
-		err := httpclient.LoadSpecFromURL(url, nvidiaSpec)
-		if err == nil && nvidiaSpec.Specs != nil {
-			if spec, ok := nvidiaSpec.Specs[localDeviceID]; ok {
-				nvSpec = spec
-			} else {
-				return nil, fmt.Errorf("failed to find NVIDIA spec for local GPU %s from remote URL %s", localDeviceID, url)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to load NVIDIA spec from remote URL %s: %v", url, err)
-		}
-	}
-	return nvSpec, nil
+// ─── FilterSpec ──────────────────────────────────────────────────────────────
+
+// FilterSpec selects the entry for `deviceID` from the multi-spec YAML at
+// `file`, overwrites `file` with that single entry (the applied baseline),
+// and returns the spec.
+//
+// The overwrite uses atomic rename with a `.bak` backup and logrus tracing.
+// No network calls are made; if deviceID is absent call EnsureSpec first.
+func FilterSpec(file, deviceID string) (*NvidiaSpec, error) {
+	logrus.WithField("component", "nvidia").Infof(
+		"filtering spec for GPU %s in %s", deviceID, file)
+	return common.FilterSpec(file, "nvidia", deviceID,
+		func(c *NvidiaSpecs, id string) (*NvidiaSpec, bool) {
+			spec, ok := c.Specs[id]
+			return spec, ok
+		},
+	)
 }
