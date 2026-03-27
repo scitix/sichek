@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -345,9 +346,11 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
 		}
-		// if strings.Contains(devName, "bond") {
-		// 	continue // Skip bonding devices
-		// }
+		if strings.Contains(devName, "bond") {
+			if isManagementBond(devName) {
+				continue // Skip management network cards
+			}
+		}
 		if strings.Contains(devName, "mezz") {
 			continue // Skip mezzanine card
 		}
@@ -370,4 +373,52 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		boardIDs = append(boardIDs, id)
 	}
 	return devBoardIDMap, boardIDs, nil
+}
+
+// isManagementBond checks if the given IB device name corresponds to a management network bond.
+// It is considered a management bond if its network member interface(s) have a speed <= 100G (100000 Mbps).
+func isManagementBond(devName string) bool {
+	bondName := devName
+	// e.g. "mlx5_bond_0" -> "bond0"
+	if strings.HasPrefix(devName, "mlx5_bond_") {
+		bondName = "bond" + strings.TrimPrefix(devName, "mlx5_bond_")
+	} else if strings.HasPrefix(devName, "roce_bond") {
+		bondName = "bond" + strings.TrimPrefix(devName, "roce_bond")
+	} else if !strings.HasPrefix(devName, "bond") {
+		idx := strings.Index(devName, "bond")
+		if idx != -1 {
+			bondName = devName[idx:]
+		}
+	}
+
+	slavesPath := filepath.Join("/sys/class/net", bondName, "bonding", "slaves")
+	content, err := os.ReadFile(slavesPath)
+	if err != nil {
+		return false // unable to read slaves, assume it's not a management bond
+	}
+
+	slaves := strings.Fields(strings.TrimSpace(string(content)))
+	if len(slaves) == 0 {
+		return false
+	}
+
+	for _, slave := range slaves {
+		speedPath := filepath.Join("/sys/class/net", slave, "speed")
+		speedStr, err := os.ReadFile(speedPath)
+		if err != nil {
+			continue
+		}
+
+		speed, err := strconv.Atoi(strings.TrimSpace(string(speedStr)))
+		if err != nil {
+			continue
+		}
+
+		// 100G is 100000 Mbps
+		if speed <= 100000 {
+			return true
+		}
+	}
+
+	return false
 }
