@@ -221,7 +221,8 @@ func (c *EthernetCollector) Collect(ctx context.Context) (*EthernetInfo, error) 
 		outIPAddr, _ := utils.ExecCommand(ctx, "sh", "-c", "ip addr | "+strings.Join(filterArgs, " "))
 		c.info.IPAddr = string(outIPAddr)
 
-		outIPRoute, _ := utils.ExecCommand(ctx, "sh", "-c", "ip route | "+strings.Join(filterArgs, " "))
+		routeFilterArgs := []string{"grep", "-iE", fmt.Sprintf("'default|%s'", strings.Join(grepParts, "|"))}
+		outIPRoute, _ := utils.ExecCommand(ctx, "sh", "-c", "ip route | "+strings.Join(routeFilterArgs, " "))
 		c.info.IPRoute = string(outIPRoute)
 
 		outIPRule, _ := utils.ExecCommand(ctx, "sh", "-c", "ip rule | "+strings.Join(filterArgs, " "))
@@ -369,8 +370,15 @@ func (c *EthernetCollector) Collect(ctx context.Context) (*EthernetInfo, error) 
 			fields := strings.Fields(line)
 			if len(fields) >= 5 {
 				rState.GatewayIP = fields[2]
-				if fields[4] == c.targetBond || (c.targetBond == "" && len(c.info.BondInterfaces) > 0 && fields[4] == c.info.BondInterfaces[0]) {
+				defaultDev := fields[4]
+				fmt.Printf("[debug] BondInterfaces=%v, defaultDev=%s, targetBond=%s\n", c.info.BondInterfaces, defaultDev, c.targetBond)
+				if len(c.info.BondInterfaces) == 0 {
+					// 机器未配置 bond 接口，跳过 bond 路由检查
 					rState.DefaultRouteViaBond = true
+				} else if c.targetBond != "" {
+					rState.DefaultRouteViaBond = (defaultDev == c.targetBond)
+				} else {
+					rState.DefaultRouteViaBond = (defaultDev == c.info.BondInterfaces[0])
 				}
 			}
 			break
