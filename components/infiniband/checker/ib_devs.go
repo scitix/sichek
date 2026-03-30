@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -86,6 +87,10 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		if strings.Contains(actualMlx5, "mezz") {
 			continue
 		}
+		if strings.Contains(actualMlx5, "bond") && utils.IsManagementBond(actualMlx5) {
+			logrus.WithField("component", "infiniband").Debugf("skip management bond %s in check", actualMlx5)
+			continue
+		}
 		if _, inSpec := c.spec.IBPFDevs[actualMlx5]; !inSpec {
 			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (not in spec)", actualMlx5))
 			logrus.WithField("component", "infiniband").Debugf("mismatch: actual device %s not defined in spec", actualMlx5)
@@ -102,6 +107,10 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		for k, v := range infinibandInfo.IBPFDevs {
 			if strings.Contains(k, "mezz") {
 				logrus.WithField("component", "infiniband").Debugf("skip mezzanine card %s in detail display", k)
+				continue
+			}
+			if strings.Contains(k, "bond") && utils.IsManagementBond(k) {
+				logrus.WithField("component", "infiniband").Debugf("skip management bond %s in detail display", k)
 				continue
 			}
 			ibpfDevsCopy[k] = v
