@@ -64,12 +64,7 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 				device.Index, device.UUID,
 				device.MemoryErrors.AggregateECC.SRAM.Uncorrected,
 				c.cfg.MemoryErrorThreshold.SRAMAggregateUncorrectableErrors)
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}

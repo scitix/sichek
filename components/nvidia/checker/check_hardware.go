@@ -83,14 +83,14 @@ func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]s
 					if _, found := nvidiaInfo.DeviceToPodMap[lostUUID]; found {
 						devicePodName = fmt.Sprintf("%s:%d", lostUUID, index)
 					} else {
-						devicePodName = fmt.Sprintf("%s:", lostUUID)
+						devicePodName = lostUUID
 					}
 				} else {
-					devicePodName = fmt.Sprintf("%d:", index)
+					devicePodName = fmt.Sprintf("%d", index)
 				}
 			} else {
 				// if the device UUID is not valid, use the index as the device UUID
-				devicePodName = fmt.Sprintf("%d:", index)
+				devicePodName = fmt.Sprintf("%d", index)
 			}
 			lostDeviceIDs = append(lostDeviceIDs, devicePodName)
 			logrus.WithField("component", "nvidia").Infof("GPU %d is lost/inaccessible: %s", index, errMsg)
