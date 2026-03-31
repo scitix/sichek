@@ -26,9 +26,20 @@ WORKDIR /go/src/sichek
 COPY . .
 
 ARG BUILD_TIME
+ARG INCLUDE_SICL=false
+ARG SICL_PKG_VERSION=v0.2.1
+ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
+
 RUN if [ -n "$BUILD_TIME" ]; then \
-      BUILD_TIME=$BUILD_TIME goreleaser release --snapshot --clean ; \
+      BUILD_TIME=$BUILD_TIME \
+      INCLUDE_SICL=$INCLUDE_SICL \
+      SICL_PKG_VERSION=$SICL_PKG_VERSION \
+      SICL_PKG_NAME=$SICL_PKG_NAME \
+      goreleaser release --snapshot --clean ; \
     else \
+      INCLUDE_SICL=$INCLUDE_SICL \
+      SICL_PKG_VERSION=$SICL_PKG_VERSION \
+      SICL_PKG_NAME=$SICL_PKG_NAME \
       goreleaser release --snapshot --clean ; \
     fi
 
