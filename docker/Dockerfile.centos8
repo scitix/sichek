@@ -1,0 +1,77 @@
+ARG CUDA_VERSION=12.8.1
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubi8 AS build
+
+ARG GO_VERSION=1.23.3
+ARG GORELEASER_VERSION=v2.13.1
+
+# Install build dependencies
+RUN yum install -y \
+        gcc gcc-c++ make curl git wget ca-certificates && \
+    yum clean all
+
+# Install Go
+RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | \
+    tar -C /usr/local -xz && \
+    ln -s /usr/local/go/bin/go /usr/local/bin/go
+
+# Install GoReleaser
+RUN curl -fsSL https://github.com/goreleaser/goreleaser/releases/download/${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz | \
+    tar -xz -C /usr/local/bin goreleaser && \
+    goreleaser --version
+
+ENV GOSUMDB=off
+WORKDIR /go/src/sichek
+
+COPY . .
+
+ARG BUILD_TIME
+RUN if [ -n "$BUILD_TIME" ]; then \
+      BUILD_TIME=$BUILD_TIME goreleaser release --snapshot --clean ; \
+    else \
+      goreleaser release --snapshot --clean ; \
+    fi
+
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubi8
+
+ENV TZ=Asia/Shanghai
+ENV NVIDIA_VISIBLE_DEVICES=""
+
+RUN yum install -y \
+        vim curl tzdata ca-certificates \
+        openssh-server openssh-clients \
+        iproute iputils jq \
+        numactl numactl-libs rdma-core perftest xz && \
+    yum clean all
+
+# Helm (runtime tool)
+RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+WORKDIR /opt/sichek
+COPY --from=build /go/src/sichek/dist ./dist
+
+# Install SICL and Sichek RPM
+ARG SICL_PKG_VERSION=v0.2.1
+ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
+
+RUN curl -fsSL -o ./dist/${SICL_PKG_NAME} \
+    https://github.com/scitix/nccl-tests/releases/download/${SICL_PKG_VERSION}/${SICL_PKG_NAME} && \
+    bash ./dist/${SICL_PKG_NAME} && \
+    yum localinstall -y ./dist/sichek_*_linux_amd64.rpm
+
+ENV SIHPC_HOME=/usr/local/sihpc
+ENV PATH=${SIHPC_HOME}/bin:$PATH
+ENV LD_LIBRARY_PATH=${SIHPC_HOME}/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV OMPI_MCA_opal_prefix=${SIHPC_HOME}
+ENV OPAL_PREFIX=${SIHPC_HOME}
+
+# SSH dependencies for MPI
+RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
+    echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
+    sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd /root/.ssh && \
+    chmod 700 /root/.ssh
+RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -N "" && \
+    cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
+    chmod 600 /root/.ssh/authorized_keys
+
+EXPOSE 22
