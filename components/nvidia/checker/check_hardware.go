@@ -93,7 +93,10 @@ func (c *HardwareChecker) checkGPUbyIndex(nvidiaInfo *collector.NvidiaInfo) ([]s
 				devicePodName = fmt.Sprintf("%d:", index)
 			}
 			lostDeviceIDs = append(lostDeviceIDs, devicePodName)
-			logrus.WithField("component", "nvidia").Infof("GPU %d is lost/inaccessible: %s", index, errMsg)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"gpu_index": index,
+			}).Errorf("GPU is lost/inaccessible: %s", errMsg)
 		}
 	}
 	return lostDeviceIDs, lostDeviceIDErrs

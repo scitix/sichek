@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type SRAMAggUncorrectableChecker struct {
@@ -74,6 +75,10 @@ func (c *SRAMAggUncorrectableChecker) Check(ctx context.Context, data any) (*com
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus_count": len(failedGpuidPodnames),
+		}).Errorf("SRAM Aggregate Uncorrectable Detected: %v", memoryErrorEvents)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", memoryErrorEvents)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

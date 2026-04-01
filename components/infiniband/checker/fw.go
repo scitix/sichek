@@ -93,7 +93,13 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			errMsg := fmt.Sprintf("fw check fail: hca:%s psid:%s curr:%s, spec:%v", hwInfo.IBDev, hwInfo.BoardID, hwInfo.FWVer, hcaSpec.Hardware.FWVer)
-			logrus.WithField("component", "infiniband").Warnf("%s", errMsg)
+			logrus.WithFields(logrus.Fields{
+				"checker":  c.Name(),
+				"hca":      hwInfo.IBDev,
+				"psid":     hwInfo.BoardID,
+				"curr":     hwInfo.FWVer,
+				"expected": hcaSpec.Hardware.FWVer,
+			}).Errorf("Infiniband Firmware version check failed")
 			detail = append(detail, errMsg)
 		}
 	}

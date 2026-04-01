@@ -13,6 +13,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBGDAChecker struct {
@@ -40,6 +41,7 @@ func (c *IBGDAChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	result := config.GPUCheckItems[config.IBGDACheckerName]
 	params := nvidiaInfo.IbgdaEnable
 	if params == nil {
+		logrus.WithField("checker", c.Name()).Errorf("Failed to retrieve driver parameters for IBGDA")
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelCritical
 		result.Detail = "Failed to retrieve driver parameters"
@@ -66,6 +68,10 @@ func (c *IBGDAChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	}
 
 	if len(errorDetails) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"errors": errorDetails,
+		}).Errorf("IBGDA check failed")
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelCritical
 		result.Detail = "IBGDA check failed:\n" + strings.Join(errorDetails, "\n")

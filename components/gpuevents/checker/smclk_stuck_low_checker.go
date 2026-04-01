@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/gpuevents/collector"
 	"github.com/scitix/sichek/components/gpuevents/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type SmClkStuckLowChecker struct {
@@ -95,6 +96,13 @@ func (c *SmClkStuckLowChecker) Check(ctx context.Context, data any) (*common.Che
 			status = consts.StatusAbnormal
 			devices = append(devices, uuid)
 		}
+	}
+	if status == consts.StatusAbnormal {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus": devices,
+			"threshold": SmClkLowThreshold,
+		}).Errorf("GPU SM Clock stuck low detected")
 	}
 
 	result.Device = strings.Join(devices, ",")

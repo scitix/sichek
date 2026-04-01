@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type GpuPStateChecker struct {
@@ -69,6 +70,11 @@ func (c *GpuPStateChecker) Check(ctx context.Context, data any) (*common.Checker
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus": failedGpuidPodnames,
+			"spec_pstate": c.cfg.State.GpuPstate,
+		}).Errorf("GPU pstate check failed: %s", info)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("The following GPUs pstates less than P%d:\n %v", c.cfg.State.GpuPstate, info)
 		result.Curr = fmt.Sprintf("Above P%d", c.cfg.State.GpuPstate)

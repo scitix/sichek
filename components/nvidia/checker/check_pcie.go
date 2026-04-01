@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type PCIeChecker struct {
@@ -60,11 +61,25 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 			(!device.ClockEvents.IsSupported || (device.ClockEvents.IsSupported && device.States.GpuPstate == 0)) {
 			info += fmt.Sprintf("GPU %d: %v PCIe link gen is %v, expected gen is %d\n",
 				device.Index, device.PCIeInfo.BDFID, device.PCIeInfo.PCILinkGen, device.PCIeInfo.PCILinkGenMAX)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"gpu_index": device.Index,
+				"bdf": device.PCIeInfo.BDFID,
+				"curr_gen": device.PCIeInfo.PCILinkGen,
+				"spec_gen": device.PCIeInfo.PCILinkGenMAX,
+			}).Errorf("PCIe link gen check failed")
 			result.Status = consts.StatusAbnormal
 		}
 		if device.PCIeInfo.PCILinkWidth != device.PCIeInfo.PCILinkWidthMAX {
 			info += fmt.Sprintf("GPU %d: %v PCIe link width is %d, expected width is %d\n",
 				device.Index, device.PCIeInfo.BDFID, device.PCIeInfo.PCILinkWidth, device.PCIeInfo.PCILinkWidthMAX)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"gpu_index": device.Index,
+				"bdf": device.PCIeInfo.BDFID,
+				"curr_width": device.PCIeInfo.PCILinkWidth,
+				"spec_width": device.PCIeInfo.PCILinkWidthMAX,
+			}).Errorf("PCIe link width check failed")
 			result.Status = consts.StatusAbnormal
 		}
 

@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type RemmapedRowsUncorrectableChecker struct {
@@ -73,6 +74,10 @@ func (c *RemmapedRowsUncorrectableChecker) Check(ctx context.Context, data any) 
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus_count": len(failedGpuidPodnames),
+		}).Errorf("Remapped Due To Uncorrectable Detected: %v", faliedGpusInfo)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", faliedGpusInfo)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

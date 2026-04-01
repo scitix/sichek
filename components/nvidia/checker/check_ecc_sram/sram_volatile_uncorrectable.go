@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type SRAMVolatileUncorrectableChecker struct {
@@ -72,6 +73,10 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus_count": len(failedGpuidPodnames),
+		}).Errorf("SRAM Volatile Uncorrectable Detected: %v", memoryErrorEvents)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", memoryErrorEvents)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

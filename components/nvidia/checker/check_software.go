@@ -23,6 +23,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type SoftwareChecker struct {
@@ -71,6 +72,10 @@ func (c *SoftwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 	// 	result.Status = commonCfg.StatusAbnormal
 	// }
 	if result.Status == consts.StatusAbnormal {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"info": info,
+		}).Errorf("Software version mismatch detected")
 		result.Detail = info
 	} else {
 		result.Status = consts.StatusNormal
