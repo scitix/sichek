@@ -34,6 +34,15 @@ docker:
 	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION} -f docker/Dockerfile .
 	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}
 
+docker-ubuntu2004-cuda128:
+	docker build \
+	--build-arg BUILD_TIME=${BUILD_TIME} \
+	--build-arg SICL_PKG_VERSION=${SICL_PKG_VERSION} \
+	--build-arg SICL_PKG_NAME=${SICL_PKG_NAME} \
+	-t registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}-ubuntu2004-cuda128 -f docker/Dockerfile.cuda128 .
+	docker push registry-ap-southeast.scitix.ai/hisys/sichek:${VERSION}-ubuntu2004-cuda128
+
+
 sichek:
 	BUILD_TIME=${BUILD_TIME} \
 	INCLUDE_SICL=1 SICL_PKG_VERSION=${SICL_PKG_VERSION} \
