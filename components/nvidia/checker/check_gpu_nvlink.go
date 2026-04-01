@@ -72,16 +72,24 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			devicePodName = fmt.Sprintf("%s:", device.UUID)
 		}
 		if device.NVLinkStates.NVlinkSupported != c.cfg.Nvlink.NVlinkSupported {
-			logrus.Warnf("GPU %d: NVlinkSupported is `%t`, while expected `%t`",
-				device.Index, device.NVLinkStates.NVlinkSupported, c.cfg.Nvlink.NVlinkSupported)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"gpu_index": device.Index,
+				"curr": device.NVLinkStates.NVlinkSupported,
+				"spec": c.cfg.Nvlink.NVlinkSupported,
+			}).Errorf("NVlinkSupported mismatch")
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: NVlinkSupported is `%t`, while expected `%t`\n",
 				device.Index, device.NVLinkStates.NVlinkSupported, c.cfg.Nvlink.NVlinkSupported))
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue
 		}
 		if device.NVLinkStates.NvlinkNum != c.cfg.Nvlink.NvlinkNum {
-			logrus.Warnf("GPU %d: NVlinkNum is `%d`, while expected `%d`",
-				device.Index, device.NVLinkStates.NvlinkNum, c.cfg.Nvlink.NvlinkNum)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"gpu_index": device.Index,
+				"curr": device.NVLinkStates.NvlinkNum,
+				"spec": c.cfg.Nvlink.NvlinkNum,
+			}).Errorf("NVlinkNum mismatch")
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: NVlinkNum is `%d`, while expected `%d`\n",
 				device.Index, device.NVLinkStates.NvlinkNum, c.cfg.Nvlink.NvlinkNum))
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
@@ -94,7 +102,11 @@ func (c *NvlinkChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 					disabledLinks = append(disabledLinks, link.LinkNo)
 				}
 			}
-			logrus.Warnf("GPU %d: Not All NVlink Features Are Enabled. Disabled links: %v", device.Index, disabledLinks)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"gpu_index": device.Index,
+				"disabled_links": disabledLinks,
+			}).Errorf("Not All NVlink Features Are Enabled")
 			failedReason = append(failedReason, fmt.Sprintf("GPU %d: Not All NVlink Features Are Enabled. Disabled links: %v\n", device.Index, disabledLinks))
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			continue

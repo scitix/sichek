@@ -12,6 +12,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type P2PChecker struct {
@@ -69,6 +70,10 @@ func (c *P2PChecker) Check(ctx context.Context, data any) (*common.CheckerResult
 		result.Status = consts.StatusNormal
 		result.Detail = "P2P is globally Disabled/Not Supported on this machine"
 	} else if len(missingLinks) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"missing_links_count": len(missingLinks),
+		}).Errorf("Partial P2P failure detected: %v", missingLinks)
 		result.Status = consts.StatusAbnormal
 		if len(missingLinks) > 5 {
 			result.Detail = fmt.Sprintf("Partial P2P failure detected (%d links broken). Examples:\n%s\n...", len(missingLinks), strings.Join(missingLinks[:5], "\n"))

@@ -183,11 +183,11 @@ func NewDaemonRunCmd() *cobra.Command {
 	daemonRunCmd.Flags().IntP("metrics-port", "p", 0, "Prometheus metrics server TCP port (0 means use config file)")
 	daemonRunCmd.Flags().String("metrics-socket", "", "Prometheus metrics Unix socket path (if set, listen on socket instead of TCP)")
 	daemonRunCmd.Flags().StringP("log-file", "f", "/tmp/sichek.log", "Path to log file (enables file logging with rotation)")
-	daemonRunCmd.Flags().StringP("log-level", "l", "info", "Log level (trace, debug, info, warn, error, fatal, panic)")
+	daemonRunCmd.Flags().StringP("log-level", "l", "debug", "Log level (trace, debug, info, warn, error, fatal, panic)")
 	daemonRunCmd.Flags().Int("log-max-size", 10, "Maximum size in megabytes of the log file before rotation")
 	daemonRunCmd.Flags().Int("log-max-backups", 10, "Maximum number of old log files to retain")
 	daemonRunCmd.Flags().Int("log-max-age", 10, "Maximum number of days to retain old log files")
 	daemonRunCmd.Flags().Bool("log-compress", false, "Compress rotated log files")
-	daemonRunCmd.Flags().Bool("log-also-stdout", false, "Also output logs to stdout in addition to file")
+	daemonRunCmd.Flags().Bool("log-also-stdout", true, "Also output logs to stdout in addition to file")
 	return daemonRunCmd
 }

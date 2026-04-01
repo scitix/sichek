@@ -8,6 +8,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/pcie/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type NumaCount struct {
@@ -37,17 +38,32 @@ func checkNuma(devices map[string]*DeviceInfo, numaConfig []*config.NumaConfig) 
 	for _, cfg := range numaConfig {
 		stat, ok := numaCount[uint64(cfg.NodeID)]
 		if !ok {
+			logrus.WithFields(logrus.Fields{
+				"checker": config.PciTopoNumaCheckerName,
+				"node_id": cfg.NodeID,
+			}).Errorf("NUMA node missing in actual data")
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d missing in actual data\n", cfg.NodeID))
 			continue
 		}
 		if stat.GPUCount != cfg.GPUCount {
-
+			logrus.WithFields(logrus.Fields{
+				"checker":  config.PciTopoNumaCheckerName,
+				"node_id":  cfg.NodeID,
+				"curr":     stat.GPUCount,
+				"expected": cfg.GPUCount,
+			}).Errorf("NUMA node GPU count mismatch")
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d GPU count mismatch: expected %d, got %d\n",
 				cfg.NodeID, cfg.GPUCount, stat.GPUCount))
 		}
 		if stat.IBCount != cfg.IBCount {
+			logrus.WithFields(logrus.Fields{
+				"checker":  config.PciTopoNumaCheckerName,
+				"node_id":  cfg.NodeID,
+				"curr":     stat.IBCount,
+				"expected": cfg.IBCount,
+			}).Errorf("NUMA node IB count mismatch")
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("NUMA node %d IB count mismatch: expected %d, got %d\n",
 				cfg.NodeID, cfg.IBCount, stat.IBCount))
@@ -64,6 +80,10 @@ func checkNuma(devices map[string]*DeviceInfo, numaConfig []*config.NumaConfig) 
 			}
 		}
 		if !found {
+			logrus.WithFields(logrus.Fields{
+				"checker": config.PciTopoNumaCheckerName,
+				"node_id": nodeID,
+			}).Errorf("unexpected NUMA node found in actual data")
 			res.Status = consts.StatusAbnormal
 			builder.WriteString(fmt.Sprintf("unexpected NUMA node %d found in actual data\n", nodeID))
 		}
@@ -112,7 +132,11 @@ func checkPciSwitches(pciTrees []PciTree, nodes map[string]*PciNode, devices map
 	actual := summarizeActualSwitch(endpointListbyCommonPcieSWs)
 
 	if !reflect.DeepEqual(expected, actual) {
-
+		logrus.WithFields(logrus.Fields{
+			"checker":  config.PciTopoSwitchCheckerName,
+			"curr":     actual,
+			"expected": expected,
+		}).Errorf("PCIe switch configuration mismatch")
 		res.Status = consts.StatusAbnormal
 		builder.WriteString(fmt.Sprintf("switch configuration mismatch.\nExpected: %v\nActual: %v\n", expected, actual))
 

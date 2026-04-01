@@ -22,9 +22,9 @@ goreleaser:
 	SICL_PKG_VERSION=${SICL_PKG_VERSION} \
 	SICL_PKG_NAME=${SICL_PKG_NAME} \
 	goreleaser release --snapshot --clean
-# 	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb shanghai-2/hisys:hisys-sichek-sh/dev/sichek_0.0.0~${VERSION}_linux_amd64.deb
-	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.deb
-	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz
+	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb shanghai-2/hisys:hisys-sichek-sh/dev/sichek_0.0.0~${VERSION}_linux_amd64.deb
+# 	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.deb scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.deb
+# 	ossctl cp dist/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz scitix_oss/hisys-sichek/dev/0.0.0~${VERSION}/sichek_0.0.0~${VERSION}_linux_amd64.tar.gz
 
 docker:
 	docker build \

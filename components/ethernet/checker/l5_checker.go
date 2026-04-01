@@ -23,6 +23,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type L5Checker struct{ spec *config.EthernetSpecConfig }
@@ -43,6 +44,7 @@ func (c *L5Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 	}
 
 	if !info.Routes.DefaultRouteViaBond {
+		logrus.WithField("checker", c.Name()).Errorf("System default route does not point directly to target bond")
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelWarning
 		result.ErrorName = "DirectRouteMismatch"
@@ -50,6 +52,11 @@ func (c *L5Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 	}
 
 	if info.RPFilter["all"] == "1" {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"interface": "all",
+			"curr": "1",
+		}).Errorf("System enabled rp_filter")
 		if result.Status == consts.StatusNormal {
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelWarning
@@ -60,6 +67,11 @@ func (c *L5Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 
 	for bond, val := range info.RPFilter {
 		if bond != "all" && val == "1" {
+			logrus.WithFields(logrus.Fields{
+				"checker":   c.Name(),
+				"interface": bond,
+				"curr":      "1",
+			}).Errorf("Interface enabled rp_filter=1")
 			if result.Status == consts.StatusNormal {
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning

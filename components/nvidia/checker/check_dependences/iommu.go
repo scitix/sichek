@@ -23,6 +23,7 @@ import (
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IOMMUChecker struct {
@@ -49,20 +50,25 @@ func (c *IOMMUChecker) Check(ctx context.Context, data any) (*common.CheckerResu
 	// Check if the path exists
 	_, err := os.Stat(iommuPath)
 	if os.IsNotExist(err) {
-		fmt.Printf("%v is not exist", iommuPath) // IOMMU is likely disabled
+		logrus.WithField("checker", c.Name()).Debugf("%v does not exist, IOMMU likely disabled", iommuPath)
 	} else if err != nil {
-		fmt.Printf("failed to access IOMMU groups: %v", err) // IOMMU is likely disabled
+		logrus.WithField("checker", c.Name()).Errorf("failed to access IOMMU groups: %v", err)
 	}
 
 	// Check if there are subdirectories (groups)
 	groups, err := os.ReadDir(iommuPath)
 	if err != nil {
-		fmt.Printf("failed to read IOMMU groups: %v", err) // IOMMU is likely disabled
+		logrus.WithField("checker", c.Name()).Errorf("failed to read IOMMU groups: %v", err)
 	}
 	isIOMMUClosed := len(groups) == 0
 	result := config.GPUCheckItems[config.IOMMUCheckerName]
 
 	if !isIOMMUClosed && c.cfg.Dependence.Iommu == "on" {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"curr": "ON",
+			"spec": "OFF",
+		}).Errorf("IOMMU is ON, while it should be OFF")
 		result.Status = consts.StatusAbnormal
 		result.Detail = "IOMMU is ON, while it should be OFF"
 		result.Suggestion = "Please turn off IOMMU"

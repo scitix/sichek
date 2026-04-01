@@ -25,6 +25,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type GpuTemperatureChecker struct {
@@ -79,6 +80,10 @@ func (c *GpuTemperatureChecker) Check(ctx context.Context, data any) (*common.Ch
 		}
 	}
 	if len(unexpectedGpusTemp) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus_count": len(failedGpuidPodnames),
+		}).Errorf("GPU temperature check abnormal: %v", unexpectedGpusTemp)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", unexpectedGpusTemp)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

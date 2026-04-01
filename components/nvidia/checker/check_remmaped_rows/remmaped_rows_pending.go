@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type RemmapedRowsPendingChecker struct {
@@ -66,6 +67,10 @@ func (c *RemmapedRowsPendingChecker) Check(ctx context.Context, data any) (*comm
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus": failedGpus,
+		}).Errorf("Remapped Rows Pending detected on GPU(s)")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Remapped Rows Pending detected on GPU(s): %v", failedGpus)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

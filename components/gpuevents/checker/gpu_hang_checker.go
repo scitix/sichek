@@ -151,10 +151,18 @@ func (c *GpuHangChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		c.abnormalDetectedTimes++
 		// If the abnormal state persists for `c.spec.AbnormalDetectedTimes`` consecutive checks, consider it a real GPU hang
 		if c.abnormalDetectedTimes >= c.spec.AbnormalDetectedTimes {
-			logrus.WithField("checker", "gpuevents").Errorf("GPU hang confirmed after %d checks", c.abnormalDetectedTimes)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"devices": devices,
+				"count":   c.abnormalDetectedTimes,
+			}).Errorf("GPU hang confirmed after consecutive abnormal checks")
 			status = consts.StatusAbnormal
 		} else {
-			logrus.WithField("checker", "gpuevents").Errorf("GPU hang suspected after %d checks: %s", c.abnormalDetectedTimes, devices)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"devices": devices,
+				"count":   c.abnormalDetectedTimes,
+			}).Errorf("GPU hang suspected but not yet confirmed")
 			status = consts.StatusNormal
 		}
 	case !abnormalDetected && c.HighSampleRateStatus:
@@ -164,8 +172,11 @@ func (c *GpuHangChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		freqController := common.GetFreqController()
 		freqController.SetModuleQueryInterval(consts.ComponentNameGpuEvents, c.originalQueryInterval)
 		freqController.SetModuleQueryInterval(consts.ComponentNameNvidia, c.originalNvidiaQueryInterval)
-		logrus.WithField("checker", "gpuevents").Infof("GPU hang status resolved, restoring hang query interval to %s, nviida query interval to %s.",
-			c.originalQueryInterval.Duration, c.originalNvidiaQueryInterval.Duration)
+		logrus.WithFields(logrus.Fields{
+			"checker":             c.Name(),
+			"hang_query_interval": c.originalQueryInterval.Duration,
+			"nvidia_query_interval": c.originalNvidiaQueryInterval.Duration,
+		}).Infof("GPU hang status resolved, restoring query intervals")
 	}
 
 	result.Device = strings.Join(devices, ",")

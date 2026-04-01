@@ -69,14 +69,22 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 				result.Status = consts.StatusNormal
 				result.Detail = "Not all CPUs are in \"performance\" mode. Already set all CPUs to \"performance\" mode successfully"
 				result.Suggestion = ""
-			} else {
 				result.Status = consts.StatusAbnormal
 				result.Detail = "Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode"
+				logrus.WithFields(logrus.Fields{
+					"checker": c.Name(),
+					"target": "performance",
+				}).Errorf("CPU performance mode check abnormal: Not all CPUs achieved performance mode after setting")
 			}
 		} else {
 			result.Status = consts.StatusAbnormal
 			result.Curr = "NotAllEnabled"
 			result.Detail = fmt.Sprintf("Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode: %v", err)
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"curr_state": "NotAllEnabled",
+				"error": err,
+			}).Errorf("CPU performance mode check abnormal")
 		}
 	} else {
 		result.Status = consts.StatusNormal

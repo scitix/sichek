@@ -87,7 +87,16 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.Hardware.PhyState)
 		curr = append(curr, hwInfo.PhyState)
+
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"hca": hwInfo.IBDev,
+			"curr_state": hwInfo.PhyState,
+			"spec_state": hcaSpec.Hardware.PhyState,
+		}).Infof("Checking PhyState")
+
 		if !strings.Contains(hwInfo.PhyState, hcaSpec.Hardware.PhyState) {
+			logrus.WithField("checker", c.Name()).Errorf("PhyState abnormal on %s: %s doesn't contain %s", hwInfo.IBDev, hwInfo.PhyState, hcaSpec.Hardware.PhyState)
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}

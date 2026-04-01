@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type L3Checker struct{ spec *config.EthernetSpecConfig }
@@ -43,6 +44,16 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		Curr:        "OK",
 	}
 
+	if len(info.BondInterfaces) == 0 {
+		logrus.WithField("checker", c.Name()).Errorf("No bond interfaces found")
+		result.Status = consts.StatusAbnormal
+		result.Level = consts.LevelCritical
+		result.ErrorName = "NoBondInterface"
+		result.Detail = "No bond interfaces found. Command: ls /proc/net/bonding/."
+		result.Suggestion = "Please check if bond interfaces are configured correctly, e.g., /etc/netplan or /etc/sysconfig/network-scripts."
+		return result, nil
+	}
+
 	for _, bond := range info.BondInterfaces {
 		bState, ok := info.Bonds[bond]
 		if !ok || !strings.Contains(bState.Mode, "802.3ad") {
@@ -51,6 +62,10 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 
 		lacp, exists := info.LACP[bond]
 		if !exists || lacp.PartnerMacAddress == "" {
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"bond":    bond,
+			}).Errorf("Active Aggregator missing for 802.3ad bond")
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "ActiveAggregatorMissing"
@@ -59,6 +74,11 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		}
 
 		if lacp.PartnerMacAddress == "00:00:00:00:00:00" {
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"bond":    bond,
+				"partner_mac": lacp.PartnerMacAddress,
+			}).Errorf("Partner Mac Address is invalid (zeros)")
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "PartnerMacInvalid"
@@ -71,6 +91,13 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			}
 
 			if slaveAggID, ok := lacp.SlaveAggregatorIDs[slaveName]; ok && slaveAggID != lacp.ActiveAggregatorID {
+				logrus.WithFields(logrus.Fields{
+					"checker":    c.Name(),
+					"bond":       bond,
+					"nic":        slaveName,
+					"slave_agg":  slaveAggID,
+					"active_agg": lacp.ActiveAggregatorID,
+				}).Errorf("Aggregator ID mismatch")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelCritical
 				result.ErrorName = "AggregatorMismatch"
@@ -78,6 +105,13 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			}
 
 			if portKey, ok := lacp.SlaveActorKeys[slaveName]; ok && portKey != lacp.ActorKey {
+				logrus.WithFields(logrus.Fields{
+					"checker":   c.Name(),
+					"bond":      bond,
+					"nic":       slaveName,
+					"port_key":  portKey,
+					"actor_key": lacp.ActorKey,
+				}).Errorf("Actor Key mismatch")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "ActorKeyMismatch"
@@ -85,6 +119,13 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			}
 
 			if operKey, ok := lacp.SlavePartnerKeys[slaveName]; ok && operKey != lacp.PartnerKey {
+				logrus.WithFields(logrus.Fields{
+					"checker":     c.Name(),
+					"bond":        bond,
+					"nic":         slaveName,
+					"oper_key":    operKey,
+					"partner_key": lacp.PartnerKey,
+				}).Errorf("Partner Key mismatch")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "PartnerKeyMismatch"
@@ -94,6 +135,12 @@ func (c *L3Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 
 		if c.spec != nil && c.spec.LACPRate != "" {
 			if !strings.Contains(bState.LACPRate, c.spec.LACPRate) {
+				logrus.WithFields(logrus.Fields{
+					"checker":  c.Name(),
+					"bond":     bond,
+					"curr":     bState.LACPRate,
+					"expected": c.spec.LACPRate,
+				}).Errorf("LACP rate mismatch")
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
