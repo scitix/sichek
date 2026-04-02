@@ -39,9 +39,10 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("invalid data type for RxPowerChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver Rx optical power per lane",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -63,8 +64,6 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			continue
 		}
 
-		isBusiness := module.NetworkType == "business"
-
 		for i, rxPow := range module.RxPower {
 			lane := i + 1
 			low := module.RxPowerLowAlarm + margin
@@ -72,14 +71,11 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 			if rxPow < low || rxPow > high {
 				result.Status = consts.StatusAbnormal
-				if isBusiness {
-					result.Level = consts.LevelCritical
-				} else {
-					if result.Level != consts.LevelCritical {
-						result.Level = consts.LevelWarning
-					}
+				itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+				if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+					result.Level = itemLevel
 				}
-				result.ErrorName = "RxPowerOutOfRange"
+				result.ErrorName = tmpl.ErrorName
 				result.Detail += fmt.Sprintf(
 					"Interface %s lane %d Rx power %.2f dBm out of range [%.2f, %.2f] dBm (alarm±margin).\n",
 					module.Interface, lane, rxPow, low, high,
@@ -90,7 +86,7 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Check fiber connections, transceiver seating, or replace faulty transceiver."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil
