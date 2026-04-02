@@ -78,6 +78,10 @@ func (c *TxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		moduleAbnormal := false
 		for i, txPow := range module.TxPower {
 			lane := i + 1
+			// Skip inactive lanes (laser off, no signal)
+			if txPow <= -30 {
+				continue
+			}
 			low := module.TxPowerLowAlarm + margin
 			high := module.TxPowerHighAlarm - margin
 

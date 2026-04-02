@@ -70,6 +70,10 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		moduleAbnormal := false
 		for i, rxPow := range module.RxPower {
 			lane := i + 1
+			// Skip inactive lanes (no signal)
+			if rxPow <= -30 {
+				continue
+			}
 			low := module.RxPowerLowAlarm + margin
 			high := module.RxPowerHighAlarm - margin
 
