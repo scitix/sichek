@@ -59,6 +59,10 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 		moduleAbnormal := false
 		for i, bias := range module.BiasCurrent {
 			lane := i + 1
+			// Skip inactive lanes: if Tx power is also <= -30 dBm, laser is intentionally off
+			if bias <= 0 && i < len(module.TxPower) && module.TxPower[i] <= -30 {
+				continue
+			}
 			if bias <= 0 {
 				result.Status = consts.StatusAbnormal
 				itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
