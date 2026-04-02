@@ -1,3 +1,5 @@
+//go:build requires_hardware
+
 /*
 Copyright 2024 The Scitix Authors.
 
