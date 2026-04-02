@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/scitix/sichek/components/common"
@@ -51,6 +52,8 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 		Curr:        "OK",
 	}
 
+	var abnormalDevices []string
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -78,6 +81,7 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 			continue
 		}
 
+		moduleAbnormal := false
 		for errType, currVal := range curr {
 			prevVal := prev[errType]
 			if currVal > prevVal {
@@ -92,7 +96,11 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 					"Interface %s link error %q increased by %d (prev=%d, curr=%d).\n",
 					iface, errType, delta, prevVal, currVal,
 				)
+				moduleAbnormal = true
 			}
+		}
+		if moduleAbnormal {
+			abnormalDevices = append(abnormalDevices, iface)
 		}
 
 		// Update snapshot
@@ -106,6 +114,9 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
 		result.Suggestion = tmpl.Suggestion
+	}
+	if len(abnormalDevices) > 0 {
+		result.Device = strings.Join(abnormalDevices, ",")
 	}
 
 	return result, nil

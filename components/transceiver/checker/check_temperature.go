@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/transceiver/collector"
@@ -48,6 +49,8 @@ func (c *TemperatureChecker) Check(ctx context.Context, data any) (*common.Check
 		Curr:        "OK",
 	}
 
+	var abnormalDevices []string
+
 	for _, module := range info.Modules {
 		if !module.Present {
 			continue
@@ -74,6 +77,7 @@ func (c *TemperatureChecker) Check(ctx context.Context, data any) (*common.Check
 				"Interface %s temperature %.1f°C exceeds critical threshold %.1f°C.\n",
 				module.Interface, temp, critThresh,
 			)
+			abnormalDevices = append(abnormalDevices, module.Interface)
 		} else if temp >= warnThresh {
 			result.Status = consts.StatusAbnormal
 			// At warning threshold, always use warning level regardless of network type
@@ -85,12 +89,16 @@ func (c *TemperatureChecker) Check(ctx context.Context, data any) (*common.Check
 				"Interface %s temperature %.1f°C exceeds warning threshold %.1f°C.\n",
 				module.Interface, temp, warnThresh,
 			)
+			abnormalDevices = append(abnormalDevices, module.Interface)
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
 		result.Suggestion = tmpl.Suggestion
+	}
+	if len(abnormalDevices) > 0 {
+		result.Device = strings.Join(abnormalDevices, ",")
 	}
 
 	return result, nil
