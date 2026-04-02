@@ -84,7 +84,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameEthernet, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog,
+		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog, ComponentNameTransceiver,
 	}
 )
 
