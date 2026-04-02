@@ -18,6 +18,7 @@ package transceiver
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -249,16 +250,19 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return checkAllPassed
 	}
 
-	fmt.Printf("%-20s %-12s %-20s %-20s %-12s %s\n", "Interface", "NetworkType", "Vendor", "PartNumber", "LinkSpeed", "Temp(C)")
-	fmt.Printf("%-20s %-12s %-20s %-20s %-12s %s\n",
-		"--------------------", "------------", "--------------------", "--------------------", "------------", "-------")
+	fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8s %-24s %-24s\n",
+		"Interface", "NetworkType", "Vendor", "PartNumber", "LinkSpeed", "Temp(C)", "TxPower(dBm)", "RxPower(dBm)")
+	fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8s %-24s %-24s\n",
+		"----------------", "------------", "------------", "--------------------", "------------", "--------", "------------------------", "------------------------")
 	for _, mod := range trInfo.Modules {
 		speed := mod.LinkSpeed
 		if speed == "" {
 			speed = "-"
 		}
-		fmt.Printf("%-20s %-12s %-20s %-20s %-12s %.1f\n",
-			mod.Interface, mod.NetworkType, mod.Vendor, mod.PartNumber, speed, mod.Temperature)
+		txStr := formatLanePower(mod.TxPower)
+		rxStr := formatLanePower(mod.RxPower)
+		fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8.1f %-24s %-24s\n",
+			mod.Interface, mod.NetworkType, mod.Vendor, mod.PartNumber, speed, mod.Temperature, txStr, rxStr)
 	}
 
 	if result != nil && len(result.Checkers) > 0 {
@@ -281,4 +285,15 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 
 	fmt.Println()
 	return checkAllPassed
+}
+
+func formatLanePower(powers []float64) string {
+	if len(powers) == 0 {
+		return "-"
+	}
+	parts := make([]string, len(powers))
+	for i, p := range powers {
+		parts[i] = fmt.Sprintf("%.2f", p)
+	}
+	return strings.Join(parts, ",")
 }

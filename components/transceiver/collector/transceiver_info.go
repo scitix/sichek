@@ -98,13 +98,28 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		if seen[iface.Name] {
 			continue
 		}
-		module, collectErr := CollectEthtool(ctx, iface.Name)
-		if collectErr != nil {
-			logrus.WithField("component", "transceiver").Debugf("skip %s: no transceiver module detected (%v)", iface.Name, collectErr)
-			continue
+
+		var module ModuleInfo
+		var collectErr error
+
+		// mlx5 ethernet ports: use mlxlink with PCIe BDF (ethtool -m gives hex dump)
+		if iface.IsMLX5 && iface.PcieBDF != "" {
+			module, collectErr = CollectMLXLink(ctx, iface.PcieBDF)
+			if collectErr != nil {
+				logrus.WithField("component", "transceiver").Debugf("skip mlx5 %s (BDF %s): %v", iface.Name, iface.PcieBDF, collectErr)
+				continue
+			}
+			module.CollectTool = "mlxlink"
+		} else {
+			module, collectErr = CollectEthtool(ctx, iface.Name)
+			if collectErr != nil {
+				logrus.WithField("component", "transceiver").Debugf("skip %s: no transceiver module detected (%v)", iface.Name, collectErr)
+				continue
+			}
+			module.CollectTool = "ethtool"
 		}
+
 		module.Interface = iface.Name
-		module.CollectTool = "ethtool"
 		module.NetworkType = c.networkClassifier.Classify(iface.Name)
 		module.LinkSpeed = GetLinkSpeed(iface.Name)
 		info.Modules = append(info.Modules, module)

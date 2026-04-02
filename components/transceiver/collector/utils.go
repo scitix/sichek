@@ -9,9 +9,11 @@ import (
 )
 
 type InterfaceEntry struct {
-	Name  string
-	IsIB  bool
-	IBDev string
+	Name     string
+	IsIB     bool
+	IBDev    string
+	IsMLX5   bool   // mlx5 driver (use mlxlink even for ethernet)
+	PcieBDF  string // PCIe BDF address for mlxlink -d
 }
 
 func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
@@ -39,7 +41,26 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 			continue
 		}
-		entries = append(entries, InterfaceEntry{Name: name, IsIB: false})
+		// Detect mlx5 driver — these need mlxlink instead of ethtool for DOM
+		entry := InterfaceEntry{Name: name, IsIB: false}
+		driverLink := filepath.Join(netDir, name, "device", "driver")
+		if target, err := os.Readlink(driverLink); err == nil {
+			driverName := filepath.Base(target)
+			if driverName == "mlx5_core" {
+				entry.IsMLX5 = true
+				// Read PCIe BDF from uevent
+				ueventPath := filepath.Join(netDir, name, "device", "uevent")
+				if data, err := os.ReadFile(ueventPath); err == nil {
+					for _, line := range strings.Split(string(data), "\n") {
+						if strings.HasPrefix(line, "PCI_SLOT_NAME=") {
+							entry.PcieBDF = strings.TrimPrefix(line, "PCI_SLOT_NAME=")
+							break
+						}
+					}
+				}
+			}
+		}
+		entries = append(entries, entry)
 	}
 
 	ibDir := "/sys/class/infiniband"
