@@ -49,6 +49,8 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		Curr:        "OK",
 	}
 
+	var abnormalDevices []string
+
 	for _, module := range info.Modules {
 		if !module.Present {
 			continue
@@ -79,12 +81,16 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 				"Interface %s vendor %q is not in the approved vendors list %v.\n",
 				module.Interface, vendor, netSpec.ApprovedVendors,
 			)
+			abnormalDevices = append(abnormalDevices, module.Interface)
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
 		result.Suggestion = tmpl.Suggestion
+	}
+	if len(abnormalDevices) > 0 {
+		result.Device = strings.Join(abnormalDevices, ",")
 	}
 
 	return result, nil

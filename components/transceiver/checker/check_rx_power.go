@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/transceiver/collector"
@@ -48,6 +49,8 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		Curr:        "OK",
 	}
 
+	var abnormalDevices []string
+
 	for _, module := range info.Modules {
 		if !module.Present {
 			continue
@@ -64,6 +67,7 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			continue
 		}
 
+		moduleAbnormal := false
 		for i, rxPow := range module.RxPower {
 			lane := i + 1
 			low := module.RxPowerLowAlarm + margin
@@ -80,13 +84,20 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 					"Interface %s lane %d Rx power %.2f dBm out of range [%.2f, %.2f] dBm (alarm±margin).\n",
 					module.Interface, lane, rxPow, low, high,
 				)
+				moduleAbnormal = true
 			}
+		}
+		if moduleAbnormal {
+			abnormalDevices = append(abnormalDevices, module.Interface)
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
 		result.Suggestion = tmpl.Suggestion
+	}
+	if len(abnormalDevices) > 0 {
+		result.Device = strings.Join(abnormalDevices, ",")
 	}
 
 	return result, nil

@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/transceiver/collector"
@@ -48,11 +49,14 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 		Curr:        "OK",
 	}
 
+	var abnormalDevices []string
+
 	for _, module := range info.Modules {
 		if !module.Present {
 			continue
 		}
 
+		moduleAbnormal := false
 		for i, bias := range module.BiasCurrent {
 			lane := i + 1
 			if bias <= 0 {
@@ -66,13 +70,20 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 					"Interface %s lane %d bias current %.3f mA is <= 0 (laser may be off or faulty).\n",
 					module.Interface, lane, bias,
 				)
+				moduleAbnormal = true
 			}
+		}
+		if moduleAbnormal {
+			abnormalDevices = append(abnormalDevices, module.Interface)
 		}
 	}
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
 		result.Suggestion = tmpl.Suggestion
+	}
+	if len(abnormalDevices) > 0 {
+		result.Device = strings.Join(abnormalDevices, ",")
 	}
 
 	return result, nil
