@@ -1,25 +1,26 @@
 transceiver:
-  networks:
-    management:
-      max_speed_mbps: 100000
-      thresholds:
-        tx_power_margin_db: 3.0
-        rx_power_margin_db: 3.0
-        temperature_warning_c: 75
-        temperature_critical_c: 85
-      check_vendor: false
-      check_link_errors: false
-      approved_vendors: []
-    business:
-      thresholds:
-        tx_power_margin_db: 1.0
-        rx_power_margin_db: 1.0
-        temperature_warning_c: 65
-        temperature_critical_c: 75
-      check_vendor: true
-      check_link_errors: true
-      approved_vendors:
-        - "Mellanox"
-        - "NVIDIA"
-        - "Innolight"
-        - "Hisense"
+  default:
+    networks:
+      management:
+        max_speed_mbps: 100000
+        thresholds:
+          tx_power_margin_db: 3.0
+          rx_power_margin_db: 3.0
+          temperature_warning_c: 75
+          temperature_critical_c: 85
+        check_vendor: false
+        check_link_errors: false
+        approved_vendors: []
+      business:
+        thresholds:
+          tx_power_margin_db: 1.0
+          rx_power_margin_db: 1.0
+          temperature_warning_c: 65
+          temperature_critical_c: 75
+        check_vendor: true
+        check_link_errors: true
+        approved_vendors:
+          - "Mellanox"
+          - "NVIDIA"
+          - "Innolight"
+          - "Hisense"
