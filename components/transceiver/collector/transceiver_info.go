@@ -28,6 +28,7 @@ type ModuleInfo struct {
 	Vendor       string `json:"vendor"`
 	PartNumber   string `json:"part_number"`
 	SerialNumber string `json:"serial_number"`
+	LinkSpeed    string `json:"link_speed"`
 
 	Temperature float64   `json:"temperature_c"`
 	Voltage     float64   `json:"voltage_v"`
@@ -66,26 +67,46 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 	}
 
 	info := &TransceiverInfo{}
-	for _, iface := range interfaces {
-		netType := c.networkClassifier.Classify(iface.Name)
-		var module ModuleInfo
+	seen := make(map[string]bool) // deduplicate by interface name
 
-		if iface.IsIB {
-			module, err = CollectMLXLink(ctx, iface.IBDev)
-			module.Interface = iface.Name
-			module.IBDev = iface.IBDev
-			module.CollectTool = "mlxlink"
-		} else {
-			module, err = CollectEthtool(ctx, iface.Name)
-			module.Interface = iface.Name
-			module.CollectTool = "ethtool"
-		}
-		if err != nil {
-			// ethtool -m failed means no transceiver module in this port — skip it entirely
-			logrus.WithField("component", "transceiver").Debugf("skip %s: no transceiver module detected (%v)", iface.Name, err)
+	// IB interfaces first (they have richer data via mlxlink)
+	for _, iface := range interfaces {
+		if !iface.IsIB {
 			continue
 		}
-		module.NetworkType = netType
+		if iface.Name != "" {
+			seen[iface.Name] = true
+		}
+		module, collectErr := CollectMLXLink(ctx, iface.IBDev)
+		if collectErr != nil {
+			logrus.WithField("component", "transceiver").Debugf("skip IB %s: %v", iface.IBDev, collectErr)
+			continue
+		}
+		module.Interface = iface.Name
+		module.IBDev = iface.IBDev
+		module.CollectTool = "mlxlink"
+		module.NetworkType = c.networkClassifier.Classify(iface.Name)
+		module.LinkSpeed = GetLinkSpeed(iface.Name)
+		info.Modules = append(info.Modules, module)
+	}
+
+	// Then ethernet interfaces (skip if already collected via IB)
+	for _, iface := range interfaces {
+		if iface.IsIB {
+			continue
+		}
+		if seen[iface.Name] {
+			continue
+		}
+		module, collectErr := CollectEthtool(ctx, iface.Name)
+		if collectErr != nil {
+			logrus.WithField("component", "transceiver").Debugf("skip %s: no transceiver module detected (%v)", iface.Name, collectErr)
+			continue
+		}
+		module.Interface = iface.Name
+		module.CollectTool = "ethtool"
+		module.NetworkType = c.networkClassifier.Classify(iface.Name)
+		module.LinkSpeed = GetLinkSpeed(iface.Name)
 		info.Modules = append(info.Modules, module)
 	}
 

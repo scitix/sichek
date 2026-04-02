@@ -91,3 +91,20 @@ func (c *NetworkClassifier) Classify(ifaceName string) string {
 	}
 	return "business"
 }
+
+// GetLinkSpeed reads the interface link speed from sysfs (e.g. "25000" Mbps) and returns a human-readable string.
+func GetLinkSpeed(ifaceName string) string {
+	if ifaceName == "" {
+		return ""
+	}
+	speedPath := filepath.Join("/sys/class/net", ifaceName, "speed")
+	data, err := os.ReadFile(speedPath)
+	if err != nil {
+		return ""
+	}
+	speedStr := strings.TrimSpace(string(data))
+	if speedStr == "" || speedStr == "-1" {
+		return ""
+	}
+	return speedStr + " Mbps"
+}

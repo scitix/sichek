@@ -249,16 +249,16 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return checkAllPassed
 	}
 
-	fmt.Printf("%-20s %-12s %-20s %-20s %s\n", "Interface", "NetworkType", "Vendor", "PartNumber", "Temp(C)")
-	fmt.Printf("%-20s %-12s %-20s %-20s %s\n",
-		"--------------------", "------------", "--------------------", "--------------------", "-------")
+	fmt.Printf("%-20s %-12s %-20s %-20s %-12s %s\n", "Interface", "NetworkType", "Vendor", "PartNumber", "LinkSpeed", "Temp(C)")
+	fmt.Printf("%-20s %-12s %-20s %-20s %-12s %s\n",
+		"--------------------", "------------", "--------------------", "--------------------", "------------", "-------")
 	for _, mod := range trInfo.Modules {
-		presentStr := ""
-		if !mod.Present {
-			presentStr = " (absent)"
+		speed := mod.LinkSpeed
+		if speed == "" {
+			speed = "-"
 		}
-		fmt.Printf("%-20s %-12s %-20s %-20s %.1f%s\n",
-			mod.Interface, mod.NetworkType, mod.Vendor, mod.PartNumber, mod.Temperature, presentStr)
+		fmt.Printf("%-20s %-12s %-20s %-20s %-12s %.1f\n",
+			mod.Interface, mod.NetworkType, mod.Vendor, mod.PartNumber, speed, mod.Temperature)
 	}
 
 	if result != nil && len(result.Checkers) > 0 {
