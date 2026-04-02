@@ -67,7 +67,7 @@ func defaultSpec() *TransceiverSpec {
 				ApprovedVendors: []string{"Mellanox", "NVIDIA", "Innolight", "Hisense"},
 			},
 			"management": {
-				InterfacePatterns: []string{"eno*", "eth0", "mgmt*"},
+				InterfacePatterns: []string{"eno*", "eth*", "mgmt*"},
 				Thresholds: ThresholdSpec{
 					TxPowerMarginDB: 3.0, RxPowerMarginDB: 3.0,
 					TemperatureWarningC: 75, TemperatureCriticalC: 85,
