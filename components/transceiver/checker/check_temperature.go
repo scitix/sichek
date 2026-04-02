@@ -39,9 +39,10 @@ func (c *TemperatureChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid data type for TemperatureChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver module temperature",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -63,18 +64,23 @@ func (c *TemperatureChecker) Check(ctx context.Context, data any) (*common.Check
 
 		if temp >= critThresh {
 			result.Status = consts.StatusAbnormal
-			result.Level = consts.LevelCritical
-			result.ErrorName = "TemperatureCritical"
+			// At critical threshold, use the network-type-appropriate level
+			itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+			if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+				result.Level = itemLevel
+			}
+			result.ErrorName = tmpl.ErrorName
 			result.Detail += fmt.Sprintf(
 				"Interface %s temperature %.1f°C exceeds critical threshold %.1f°C.\n",
 				module.Interface, temp, critThresh,
 			)
 		} else if temp >= warnThresh {
 			result.Status = consts.StatusAbnormal
-			if result.Level != consts.LevelCritical {
+			// At warning threshold, always use warning level regardless of network type
+			if consts.LevelPriority[consts.LevelWarning] > consts.LevelPriority[result.Level] {
 				result.Level = consts.LevelWarning
 			}
-			result.ErrorName = "TemperatureWarning"
+			result.ErrorName = tmpl.ErrorName
 			result.Detail += fmt.Sprintf(
 				"Interface %s temperature %.1f°C exceeds warning threshold %.1f°C.\n",
 				module.Interface, temp, warnThresh,
@@ -84,7 +90,7 @@ func (c *TemperatureChecker) Check(ctx context.Context, data any) (*common.Check
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Check airflow, ambient temperature, and cooling. Consider replacing if temperature remains high."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil

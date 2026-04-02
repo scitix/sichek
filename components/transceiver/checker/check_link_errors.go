@@ -42,9 +42,10 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 		return nil, fmt.Errorf("invalid data type for LinkErrorsChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver link error counter delta",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -82,8 +83,11 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 			if currVal > prevVal {
 				delta := currVal - prevVal
 				result.Status = consts.StatusAbnormal
-				result.Level = consts.LevelCritical
-				result.ErrorName = "LinkErrorsDelta"
+				itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+				if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+					result.Level = itemLevel
+				}
+				result.ErrorName = tmpl.ErrorName
 				result.Detail += fmt.Sprintf(
 					"Interface %s link error %q increased by %d (prev=%d, curr=%d).\n",
 					iface, errType, delta, prevVal, currVal,
@@ -101,7 +105,7 @@ func (c *LinkErrorsChecker) Check(ctx context.Context, data any) (*common.Checke
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Inspect cable and transceiver. Persistent link errors may indicate hardware failure."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil

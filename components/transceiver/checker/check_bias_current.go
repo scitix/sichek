@@ -27,7 +27,6 @@ import (
 
 // BiasCurrentChecker checks laser bias current per lane.
 // A value <= 0 indicates the laser is off or data is invalid.
-// Management network interfaces are skipped.
 type BiasCurrentChecker struct {
 	spec *config.TransceiverSpec
 }
@@ -40,9 +39,10 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 		return nil, fmt.Errorf("invalid data type for BiasCurrentChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver laser bias current per lane",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -52,17 +52,16 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 		if !module.Present {
 			continue
 		}
-		// Skip management network
-		if module.NetworkType == "management" {
-			continue
-		}
 
 		for i, bias := range module.BiasCurrent {
 			lane := i + 1
 			if bias <= 0 {
 				result.Status = consts.StatusAbnormal
-				result.Level = consts.LevelCritical
-				result.ErrorName = "BiasCurrentZero"
+				itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+				if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+					result.Level = itemLevel
+				}
+				result.ErrorName = tmpl.ErrorName
 				result.Detail += fmt.Sprintf(
 					"Interface %s lane %d bias current %.3f mA is <= 0 (laser may be off or faulty).\n",
 					module.Interface, lane, bias,
@@ -73,7 +72,7 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Verify transceiver is properly seated and laser is enabled. Replace transceiver if bias current remains zero."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil

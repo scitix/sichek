@@ -26,7 +26,6 @@ import (
 )
 
 // PresenceChecker verifies that each transceiver module is physically present.
-// A missing module on a business network is fatal; on a management network it is a warning.
 type PresenceChecker struct {
 	spec *config.TransceiverSpec
 }
@@ -39,9 +38,10 @@ func (c *PresenceChecker) Check(ctx context.Context, data any) (*common.CheckerR
 		return nil, fmt.Errorf("invalid data type for PresenceChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver module presence",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -53,29 +53,20 @@ func (c *PresenceChecker) Check(ctx context.Context, data any) (*common.CheckerR
 		}
 
 		result.Status = consts.StatusAbnormal
-
-		if module.NetworkType == "business" {
-			result.Level = consts.LevelFatal
-			result.ErrorName = "ModuleAbsent"
-			result.Detail += fmt.Sprintf(
-				"Interface %s transceiver module is not present (business network — fatal).\n",
-				module.Interface,
-			)
-		} else {
-			if result.Level != consts.LevelFatal {
-				result.Level = consts.LevelWarning
-			}
-			result.ErrorName = "ModuleAbsent"
-			result.Detail += fmt.Sprintf(
-				"Interface %s transceiver module is not present.\n",
-				module.Interface,
-			)
+		itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+		if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+			result.Level = itemLevel
 		}
+		result.ErrorName = tmpl.ErrorName
+		result.Detail += fmt.Sprintf(
+			"Interface %s transceiver module is not present.\n",
+			module.Interface,
+		)
 	}
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Re-seat or replace the missing transceiver module."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil

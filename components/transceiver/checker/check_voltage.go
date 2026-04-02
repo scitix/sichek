@@ -26,7 +26,6 @@ import (
 )
 
 // VoltageChecker checks supply voltage against module built-in alarm thresholds.
-// Management network interfaces are skipped.
 type VoltageChecker struct {
 	spec *config.TransceiverSpec
 }
@@ -39,9 +38,10 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		return nil, fmt.Errorf("invalid data type for VoltageChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver supply voltage",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -49,10 +49,6 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 	for _, module := range info.Modules {
 		if !module.Present {
-			continue
-		}
-		// Skip management network
-		if module.NetworkType == "management" {
 			continue
 		}
 
@@ -67,8 +63,11 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 		if volt < low || volt > high {
 			result.Status = consts.StatusAbnormal
-			result.Level = consts.LevelCritical
-			result.ErrorName = "VoltageOutOfRange"
+			itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+			if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+				result.Level = itemLevel
+			}
+			result.ErrorName = tmpl.ErrorName
 			result.Detail += fmt.Sprintf(
 				"Interface %s voltage %.3f V out of range [%.3f, %.3f] V.\n",
 				module.Interface, volt, low, high,
@@ -78,7 +77,7 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Check power supply rails and transceiver seating. Replace transceiver if issue persists."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil

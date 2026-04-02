@@ -40,9 +40,10 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		return nil, fmt.Errorf("invalid data type for VendorChecker")
 	}
 
+	tmpl := config.GetCheckItem(c.Name(), "business")
 	result := &common.CheckerResult{
-		Name:        c.Name(),
-		Description: "Check transceiver vendor approval",
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelInfo,
 		Curr:        "OK",
@@ -69,8 +70,11 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 		if !approved {
 			result.Status = consts.StatusAbnormal
-			result.Level = consts.LevelWarning
-			result.ErrorName = "UnapprovedVendor"
+			itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+			if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+				result.Level = itemLevel
+			}
+			result.ErrorName = tmpl.ErrorName
 			result.Detail += fmt.Sprintf(
 				"Interface %s vendor %q is not in the approved vendors list %v.\n",
 				module.Interface, vendor, netSpec.ApprovedVendors,
@@ -80,7 +84,7 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	if result.Status != consts.StatusNormal {
 		result.Curr = "abnormal"
-		result.Suggestion = "Replace with a transceiver from an approved vendor to ensure compatibility and support."
+		result.Suggestion = tmpl.Suggestion
 	}
 
 	return result, nil
