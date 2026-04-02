@@ -58,6 +58,11 @@ func (c *RxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			margin = netSpec.Thresholds.RxPowerMarginDB
 		}
 
+		// Skip if no valid alarm thresholds from module
+		if module.RxPowerLowAlarm == 0 && module.RxPowerHighAlarm == 0 {
+			continue
+		}
+
 		isBusiness := module.NetworkType == "business"
 
 		for i, rxPow := range module.RxPower {
