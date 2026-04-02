@@ -115,3 +115,36 @@ ethernet:
     miimon: 100
     updelay: 0
     downdelay: 0
+transceiver:
+  networks:
+    business:
+      interface_patterns:
+        - "mlx5_*"
+        - "ib*"
+        - "enp*s0f*"
+        - "bond*"
+      thresholds:
+        tx_power_margin_db: 1.0
+        rx_power_margin_db: 1.0
+        temperature_warning_c: 65
+        temperature_critical_c: 75
+      check_vendor: true
+      check_link_errors: true
+      approved_vendors:
+        - "Mellanox"
+        - "NVIDIA"
+        - "Innolight"
+        - "Hisense"
+    management:
+      interface_patterns:
+        - "eno*"
+        - "eth0"
+        - "mgmt*"
+      thresholds:
+        tx_power_margin_db: 3.0
+        rx_power_margin_db: 3.0
+        temperature_warning_c: 75
+        temperature_critical_c: 85
+      check_vendor: false
+      check_link_errors: false
+      approved_vendors: []
