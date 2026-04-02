@@ -81,8 +81,9 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 			module.CollectTool = "ethtool"
 		}
 		if err != nil {
-			logrus.WithField("component", "transceiver").Warnf("collect %s failed: %v", iface.Name, err)
-			module.Present = false
+			// ethtool -m failed means no transceiver module in this port — skip it entirely
+			logrus.WithField("component", "transceiver").Debugf("skip %s: no transceiver module detected (%v)", iface.Name, err)
+			continue
 		}
 		module.NetworkType = netType
 		info.Modules = append(info.Modules, module)

@@ -24,9 +24,17 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 	}
 	for _, e := range netEntries {
 		name := e.Name()
-		if name == "lo" || strings.HasPrefix(name, "veth") || strings.HasPrefix(name, "docker") || strings.HasPrefix(name, "br-") {
+		// Skip loopback, virtual, and container interfaces
+		if name == "lo" || name == "bonding_masters" ||
+			strings.HasPrefix(name, "veth") || strings.HasPrefix(name, "docker") ||
+			strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "virbr") {
 			continue
 		}
+		// Skip VLAN sub-interfaces (e.g. eth0.10, eth1.2)
+		if strings.Contains(name, ".") {
+			continue
+		}
+		// Must have a physical device backing it
 		devicePath := filepath.Join(netDir, name, "device")
 		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 			continue
