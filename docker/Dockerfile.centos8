@@ -27,7 +27,7 @@ COPY . .
 ARG BUILD_TIME
 ARG INCLUDE_SICL=false
 ARG SICL_PKG_VERSION=v0.2.1
-ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
+ARG SICL_PKG_NAME=sicl-nccl2.27.7-1-cuda12.4-ompi4.1.8-rockylinux8-20260402.run
 
 RUN if [ -n "$BUILD_TIME" ]; then \
       BUILD_TIME=$BUILD_TIME \
