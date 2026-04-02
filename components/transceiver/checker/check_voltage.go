@@ -60,6 +60,11 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		low := module.VoltageLowAlarm
 		high := module.VoltageHighAlarm
 
+		// Skip if no valid thresholds available (module doesn't report them)
+		if low == 0 && high == 0 {
+			continue
+		}
+
 		if volt < low || volt > high {
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical

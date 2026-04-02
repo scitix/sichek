@@ -68,6 +68,11 @@ func (c *TxPowerChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 		isBusiness := module.NetworkType == "business"
 
+		// Skip if no valid alarm thresholds from module
+		if module.TxPowerLowAlarm == 0 && module.TxPowerHighAlarm == 0 {
+			continue
+		}
+
 		for i, txPow := range module.TxPower {
 			lane := i + 1
 			low := module.TxPowerLowAlarm + margin
