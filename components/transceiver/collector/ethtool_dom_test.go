@@ -79,30 +79,23 @@ func TestParseEthtoolModule(t *testing.T) {
 	assert.InDelta(t, 38.0, m.Temperature, 1e-9)
 	assert.InDelta(t, 3.274, m.Voltage, 1e-9)
 
-	// The switch uses strings.HasPrefix(key, "Laser tx power"), which also matches
-	// "Laser tx power high alarm threshold" and "Laser tx power low alarm threshold",
-	// so all three lines are appended to TxPower and the explicit alarm cases are never reached.
-	if assert.Len(t, m.TxPower, 3) {
-		assert.InDelta(t, -3.0, m.TxPower[0], 1e-9)  // actual reading
-		assert.InDelta(t, 0.0, m.TxPower[1], 1e-9)   // high alarm threshold value
-		assert.InDelta(t, -20.0, m.TxPower[2], 1e-9) // low alarm threshold value
+	// Exact alarm threshold matches take priority over HasPrefix, so TxPower only has 1 entry
+	if assert.Len(t, m.TxPower, 1) {
+		assert.InDelta(t, -3.0, m.TxPower[0], 1e-9)
 	}
-	// TxPowerHighAlarm and TxPowerLowAlarm remain zero (consumed by the HasPrefix case above)
 	assert.InDelta(t, 0.0, m.TxPowerHighAlarm, 1e-9)
-	assert.InDelta(t, 0.0, m.TxPowerLowAlarm, 1e-9)
+	assert.InDelta(t, -20.0, m.TxPowerLowAlarm, 1e-9)
 
 	if assert.Len(t, m.RxPower, 1) {
 		assert.InDelta(t, -3.1, m.RxPower[0], 1e-9)
 	}
+	assert.InDelta(t, 0.0, m.RxPowerHighAlarm, 1e-9)
+	assert.InDelta(t, -20.0, m.RxPowerLowAlarm, 1e-9)
+
 	if assert.Len(t, m.BiasCurrent, 1) {
 		assert.InDelta(t, 6.75, m.BiasCurrent[0], 1e-9)
 	}
 
 	assert.InDelta(t, 75.0, m.TempHighAlarm, 1e-9)
 	assert.InDelta(t, -5.0, m.TempLowAlarm, 1e-9)
-
-	// Rx alarm threshold keys ("Laser rx power high/low alarm threshold") do NOT start with
-	// "Receiver signal average optical power", so they correctly reach the explicit alarm cases.
-	assert.InDelta(t, 0.0, m.RxPowerHighAlarm, 1e-9)
-	assert.InDelta(t, -20.0, m.RxPowerLowAlarm, 1e-9)
 }

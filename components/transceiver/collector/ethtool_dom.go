@@ -47,20 +47,19 @@ func (m *ModuleInfo) parseEthtoolModule(output string) {
 			m.PartNumber = val
 		case key == "Vendor SN":
 			m.SerialNumber = val
-		case key == "Module temperature":
-			m.Temperature = parseFloat(val)
-		case key == "Module voltage":
-			m.Voltage = parseFloat(val)
-		case strings.HasPrefix(key, "Laser tx power"):
-			m.TxPower = append(m.TxPower, parseDBM(val))
-		case strings.HasPrefix(key, "Receiver signal average optical power"):
-			m.RxPower = append(m.RxPower, parseDBM(val))
-		case strings.HasPrefix(key, "Laser tx bias current"):
-			m.BiasCurrent = append(m.BiasCurrent, parseFloat(val))
 		case key == "Module temperature high alarm threshold":
 			m.TempHighAlarm = parseFloat(val)
 		case key == "Module temperature low alarm threshold":
 			m.TempLowAlarm = parseFloat(val)
+		case key == "Module temperature":
+			m.Temperature = parseFloat(val)
+		case key == "Module voltage high alarm threshold":
+			m.VoltageHighAlarm = parseFloat(val)
+		case key == "Module voltage low alarm threshold":
+			m.VoltageLowAlarm = parseFloat(val)
+		case key == "Module voltage":
+			m.Voltage = parseFloat(val)
+		// Alarm thresholds (exact match) MUST come before HasPrefix matches
 		case key == "Laser tx power high alarm threshold":
 			m.TxPowerHighAlarm = parseDBM(val)
 		case key == "Laser tx power low alarm threshold":
@@ -69,10 +68,13 @@ func (m *ModuleInfo) parseEthtoolModule(output string) {
 			m.RxPowerHighAlarm = parseDBM(val)
 		case key == "Laser rx power low alarm threshold":
 			m.RxPowerLowAlarm = parseDBM(val)
-		case key == "Module voltage high alarm threshold":
-			m.VoltageHighAlarm = parseFloat(val)
-		case key == "Module voltage low alarm threshold":
-			m.VoltageLowAlarm = parseFloat(val)
+		// Prefix matches for per-lane values (after alarm thresholds)
+		case strings.HasPrefix(key, "Laser tx power"):
+			m.TxPower = append(m.TxPower, parseDBM(val))
+		case strings.HasPrefix(key, "Receiver signal average optical power"):
+			m.RxPower = append(m.RxPower, parseDBM(val))
+		case strings.HasPrefix(key, "Laser tx bias current"):
+			m.BiasCurrent = append(m.BiasCurrent, parseFloat(val))
 		}
 	}
 }
