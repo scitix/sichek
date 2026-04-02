@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,14 +89,22 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 }
 
 type NetworkClassifier struct {
-	patterns map[string][]string
+	patterns         map[string][]string // network_type -> interface patterns
+	managementMaxMbps int                 // speed <= this is management (0 = disabled)
 }
 
-func NewNetworkClassifier(patterns map[string][]string) *NetworkClassifier {
-	return &NetworkClassifier{patterns: patterns}
+func NewNetworkClassifier(patterns map[string][]string, managementMaxMbps int) *NetworkClassifier {
+	return &NetworkClassifier{patterns: patterns, managementMaxMbps: managementMaxMbps}
 }
 
-func (c *NetworkClassifier) Classify(ifaceName string) string {
+// Classify determines network type. Speed-based classification takes priority over pattern matching.
+func (c *NetworkClassifier) Classify(ifaceName string, speedMbps int) string {
+	// Speed-based classification first (most reliable)
+	if c.managementMaxMbps > 0 && speedMbps > 0 && speedMbps <= c.managementMaxMbps {
+		return "management"
+	}
+
+	// Fallback to pattern matching
 	if patterns, ok := c.patterns["management"]; ok {
 		for _, p := range patterns {
 			if matched, _ := filepath.Match(p, ifaceName); matched {
@@ -113,19 +122,21 @@ func (c *NetworkClassifier) Classify(ifaceName string) string {
 	return "business"
 }
 
-// GetLinkSpeed reads the interface link speed from sysfs (e.g. "25000" Mbps) and returns a human-readable string.
-func GetLinkSpeed(ifaceName string) string {
+// GetLinkSpeed reads the interface link speed from sysfs and returns (human-readable string, numeric Mbps).
+func GetLinkSpeed(ifaceName string) (string, int) {
 	if ifaceName == "" {
-		return ""
+		return "", 0
 	}
 	speedPath := filepath.Join("/sys/class/net", ifaceName, "speed")
 	data, err := os.ReadFile(speedPath)
 	if err != nil {
-		return ""
+		return "", 0
 	}
 	speedStr := strings.TrimSpace(string(data))
 	if speedStr == "" || speedStr == "-1" {
-		return ""
+		return "", 0
 	}
-	return speedStr + " Mbps"
+	speedInt := 0
+	fmt.Sscanf(speedStr, "%d", &speedInt)
+	return speedStr + " Mbps", speedInt
 }

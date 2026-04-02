@@ -12,6 +12,7 @@ type TransceiverSpec struct {
 
 type NetworkSpec struct {
 	InterfacePatterns []string      `json:"interface_patterns" yaml:"interface_patterns"`
+	MaxSpeedMbps      int           `json:"max_speed_mbps" yaml:"max_speed_mbps"` // 0 means no speed-based classification
 	Thresholds        ThresholdSpec `json:"thresholds" yaml:"thresholds"`
 	CheckVendor       bool          `json:"check_vendor" yaml:"check_vendor"`
 	CheckLinkErrors   bool          `json:"check_link_errors" yaml:"check_link_errors"`
@@ -57,22 +58,21 @@ func LoadSpec(file string) (*TransceiverSpec, error) {
 func defaultSpec() *TransceiverSpec {
 	return &TransceiverSpec{
 		Networks: map[string]*NetworkSpec{
+			"management": {
+				MaxSpeedMbps: 100000, // <= 100G is management
+				Thresholds: ThresholdSpec{
+					TxPowerMarginDB: 3.0, RxPowerMarginDB: 3.0,
+					TemperatureWarningC: 75, TemperatureCriticalC: 85,
+				},
+				CheckVendor: false, CheckLinkErrors: false,
+			},
 			"business": {
-				InterfacePatterns: []string{"mlx5_*", "ib*", "enp*s0f*", "bond*"},
 				Thresholds: ThresholdSpec{
 					TxPowerMarginDB: 1.0, RxPowerMarginDB: 1.0,
 					TemperatureWarningC: 65, TemperatureCriticalC: 75,
 				},
 				CheckVendor: true, CheckLinkErrors: true,
 				ApprovedVendors: []string{"Mellanox", "NVIDIA", "Innolight", "Hisense"},
-			},
-			"management": {
-				InterfacePatterns: []string{"eno*", "eth*", "mgmt*"},
-				Thresholds: ThresholdSpec{
-					TxPowerMarginDB: 3.0, RxPowerMarginDB: 3.0,
-					TemperatureWarningC: 75, TemperatureCriticalC: 85,
-				},
-				CheckVendor: false, CheckLinkErrors: false,
 			},
 		},
 	}

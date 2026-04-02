@@ -96,14 +96,18 @@ func newComponent(cfgFile string, specFile string, ignoredCheckers []string) (co
 		logrus.WithField("component", "transceiver").Warnf("failed to load spec %s: %v", specFile, err)
 	}
 
-	// Build interface-pattern map for the classifier from all networks in spec.
+	// Build classifier from spec: speed-based + pattern-based
 	patterns := make(map[string][]string)
+	managementMaxMbps := 0
 	if spec != nil {
 		for netName, netSpec := range spec.Networks {
 			patterns[netName] = netSpec.InterfacePatterns
+			if netName == "management" && netSpec.MaxSpeedMbps > 0 {
+				managementMaxMbps = netSpec.MaxSpeedMbps
+			}
 		}
 	}
-	classifier := collector.NewNetworkClassifier(patterns)
+	classifier := collector.NewNetworkClassifier(patterns, managementMaxMbps)
 
 	collectorInst := collector.NewTransceiverCollector(classifier)
 
@@ -250,10 +254,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return checkAllPassed
 	}
 
-	fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8s %-24s %-24s\n",
-		"Interface", "NetworkType", "Vendor", "PartNumber", "LinkSpeed", "Temp(C)", "TxPower(dBm)", "RxPower(dBm)")
-	fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8s %-24s %-24s\n",
-		"----------------", "------------", "------------", "--------------------", "------------", "--------", "------------------------", "------------------------")
+	fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8s %-10s %-24s %-24s\n",
+		"Interface", "NetworkType", "Vendor", "PartNumber", "LinkSpeed", "Temp(C)", "Volt(V)", "TxPower(dBm)", "RxPower(dBm)")
+	fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8s %-10s %-24s %-24s\n",
+		"----------------", "------------", "------------", "--------------------", "------------", "--------", "----------", "------------------------", "------------------------")
 	for _, mod := range trInfo.Modules {
 		speed := mod.LinkSpeed
 		if speed == "" {
@@ -261,8 +265,12 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		}
 		txStr := formatLanePower(mod.TxPower)
 		rxStr := formatLanePower(mod.RxPower)
-		fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8.1f %-24s %-24s\n",
-			mod.Interface, mod.NetworkType, mod.Vendor, mod.PartNumber, speed, mod.Temperature, txStr, rxStr)
+		voltStr := "-"
+		if mod.Voltage > 0 {
+			voltStr = fmt.Sprintf("%.3f", mod.Voltage)
+		}
+		fmt.Printf("%-16s %-12s %-12s %-20s %-12s %-8.1f %-10s %-24s %-24s\n",
+			mod.Interface, mod.NetworkType, mod.Vendor, mod.PartNumber, speed, mod.Temperature, voltStr, txStr, rxStr)
 	}
 
 	if result != nil && len(result.Checkers) > 0 {

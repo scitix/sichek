@@ -85,8 +85,9 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		module.Interface = iface.Name
 		module.IBDev = iface.IBDev
 		module.CollectTool = "mlxlink"
-		module.NetworkType = c.networkClassifier.Classify(iface.Name)
-		module.LinkSpeed = GetLinkSpeed(iface.Name)
+		speedStr, speedMbps := GetLinkSpeed(iface.Name)
+		module.LinkSpeed = speedStr
+		module.NetworkType = c.networkClassifier.Classify(iface.Name, speedMbps)
 		info.Modules = append(info.Modules, module)
 	}
 
@@ -120,8 +121,9 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		}
 
 		module.Interface = iface.Name
-		module.NetworkType = c.networkClassifier.Classify(iface.Name)
-		module.LinkSpeed = GetLinkSpeed(iface.Name)
+		speedStr, speedMbps := GetLinkSpeed(iface.Name)
+		module.LinkSpeed = speedStr
+		module.NetworkType = c.networkClassifier.Classify(iface.Name, speedMbps)
 		info.Modules = append(info.Modules, module)
 	}
 
