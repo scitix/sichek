@@ -3,7 +3,6 @@ build
 dist/
 cmd/cmd
 cmd/sichek
-vendor/
 .idea/workspace.xml
 goreleaser*
 sicl
