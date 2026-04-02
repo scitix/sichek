@@ -20,8 +20,8 @@ import (
 	"github.com/scitix/sichek/consts"
 )
 
-// TransceiverCheckItems defines the default CheckerResult template for each transceiver checker.
-var TransceiverCheckItems = map[string]common.CheckerResult{
+// BusinessCheckItems defines the default CheckerResult template for business network transceivers.
+var BusinessCheckItems = map[string]common.CheckerResult{
 	TxPowerCheckerName: {
 		Name:        TxPowerCheckerName,
 		Description: "Check transceiver Tx optical power per lane against module alarm thresholds with margin",
@@ -36,6 +36,83 @@ var TransceiverCheckItems = map[string]common.CheckerResult{
 		Description: "Check transceiver Rx optical power per lane against module alarm thresholds with margin",
 		Status:      consts.StatusNormal,
 		Level:       consts.LevelCritical,
+		Detail:      "All Rx power levels are within acceptable range",
+		ErrorName:   "RxPowerOutOfRange",
+		Suggestion:  "Check fiber connections, clean fiber connectors, inspect remote end transceiver",
+	},
+	TemperatureCheckerName: {
+		Name:        TemperatureCheckerName,
+		Description: "Check transceiver module temperature against warning and critical thresholds",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "All transceiver temperatures are within acceptable range",
+		ErrorName:   "TransceiverOverheat",
+		Suggestion:  "Check airflow and cooling, reduce ambient temperature, or replace overheating module",
+	},
+	VoltageCheckerName: {
+		Name:        VoltageCheckerName,
+		Description: "Check transceiver supply voltage against module built-in alarm thresholds",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "All transceiver voltages are within acceptable range",
+		ErrorName:   "VoltageOutOfRange",
+		Suggestion:  "Check power supply rails and transceiver seating, replace transceiver if issue persists",
+	},
+	BiasCurrentCheckerName: {
+		Name:        BiasCurrentCheckerName,
+		Description: "Check transceiver laser bias current per lane for abnormal values",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "All laser bias currents are normal",
+		ErrorName:   "BiasCurrentAbnormal",
+		Suggestion:  "Laser may be failing, replace the transceiver module",
+	},
+	VendorCheckerName: {
+		Name:        VendorCheckerName,
+		Description: "Check transceiver vendor is in the approved vendor list",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelWarning,
+		Detail:      "All transceiver vendors are approved",
+		ErrorName:   "VendorNotApproved",
+		Suggestion:  "Replace with an approved transceiver vendor module",
+	},
+	LinkErrorsCheckerName: {
+		Name:        LinkErrorsCheckerName,
+		Description: "Check transceiver link error counter delta between consecutive health checks",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "No link error increase detected",
+		ErrorName:   "LinkErrorsIncreased",
+		Suggestion:  "Check fiber integrity, clean connectors, replace transceiver or cable",
+	},
+	PresenceCheckerName: {
+		Name:        PresenceCheckerName,
+		Description: "Check all expected transceiver module slots are populated",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelFatal,
+		Detail:      "All transceiver modules are present",
+		ErrorName:   "TransceiverMissing",
+		Suggestion:  "Re-seat or replace the missing transceiver module",
+	},
+}
+
+// ManagementCheckItems defines the default CheckerResult template for management network transceivers.
+// All levels are warning — management network issues are non-critical.
+var ManagementCheckItems = map[string]common.CheckerResult{
+	TxPowerCheckerName: {
+		Name:        TxPowerCheckerName,
+		Description: "Check transceiver Tx optical power per lane against module alarm thresholds with margin",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelWarning,
+		Detail:      "All Tx power levels are within acceptable range",
+		ErrorName:   "TxPowerOutOfRange",
+		Suggestion:  "Check fiber connections, clean fiber connectors, or replace transceiver module",
+	},
+	RxPowerCheckerName: {
+		Name:        RxPowerCheckerName,
+		Description: "Check transceiver Rx optical power per lane against module alarm thresholds with margin",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelWarning,
 		Detail:      "All Rx power levels are within acceptable range",
 		ErrorName:   "RxPowerOutOfRange",
 		Suggestion:  "Check fiber connections, clean fiber connectors, inspect remote end transceiver",
@@ -80,7 +157,7 @@ var TransceiverCheckItems = map[string]common.CheckerResult{
 		Name:        LinkErrorsCheckerName,
 		Description: "Check transceiver link error counter delta between consecutive health checks",
 		Status:      consts.StatusNormal,
-		Level:       consts.LevelCritical,
+		Level:       consts.LevelWarning,
 		Detail:      "No link error increase detected",
 		ErrorName:   "LinkErrorsIncreased",
 		Suggestion:  "Check fiber integrity, clean connectors, replace transceiver or cable",
@@ -89,9 +166,22 @@ var TransceiverCheckItems = map[string]common.CheckerResult{
 		Name:        PresenceCheckerName,
 		Description: "Check all expected transceiver module slots are populated",
 		Status:      consts.StatusNormal,
-		Level:       consts.LevelFatal,
+		Level:       consts.LevelWarning,
 		Detail:      "All transceiver modules are present",
 		ErrorName:   "TransceiverMissing",
 		Suggestion:  "Re-seat or replace the missing transceiver module",
 	},
+}
+
+// GetCheckItem returns the CheckerResult template for the given checker and network type.
+func GetCheckItem(checkerName, networkType string) common.CheckerResult {
+	if networkType == "management" {
+		if item, ok := ManagementCheckItems[checkerName]; ok {
+			return item
+		}
+	}
+	if item, ok := BusinessCheckItems[checkerName]; ok {
+		return item
+	}
+	return common.CheckerResult{Name: checkerName}
 }
