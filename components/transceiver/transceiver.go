@@ -299,6 +299,17 @@ func formatLanePower(powers []float64) string {
 	if len(powers) == 0 {
 		return "-"
 	}
+	// If all values are exactly 0, treat as no DOM data
+	allZero := true
+	for _, p := range powers {
+		if p != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return "-"
+	}
 	parts := make([]string, len(powers))
 	for i, p := range powers {
 		parts[i] = fmt.Sprintf("%.2f", p)
