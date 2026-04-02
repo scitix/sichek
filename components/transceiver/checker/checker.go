@@ -28,7 +28,7 @@ func NewCheckers(cfg *config.TransceiverUserConfig, spec *config.TransceiverSpec
 		&TemperatureChecker{spec: spec},
 		&VoltageChecker{spec: spec},
 		&BiasCurrentChecker{spec: spec},
-		&VendorChecker{spec: spec},
+		// &VendorChecker{spec: spec}, // TODO: enable when approved vendor list is finalized
 		&LinkErrorsChecker{
 			spec:      spec,
 			prevErrors: make(map[string]map[string]uint64),
