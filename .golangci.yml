@@ -1,0 +1,17 @@
+run:
+  timeout: 5m
+  modules-download-mode: vendor
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gofmt
+
+issues:
+  exclude-dirs:
+    - vendor
+    - docs
