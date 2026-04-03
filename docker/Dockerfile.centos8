@@ -1,14 +1,13 @@
-ARG CUDA_VERSION=12.9.1
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04 AS build
+ARG CUDA_VERSION=12.8.1
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubi8 AS build
 
 ARG GO_VERSION=1.23.3
 ARG GORELEASER_VERSION=v2.13.1
 
-RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list 2>/dev/null || true && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        build-essential gcc g++ curl git wget ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN yum install -y \
+        gcc gcc-c++ make curl git wget ca-certificates && \
+    yum clean all
 
 # Install Go
 RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | \
@@ -28,7 +27,7 @@ COPY . .
 ARG BUILD_TIME
 ARG INCLUDE_SICL=false
 ARG SICL_PKG_VERSION=v0.2.1
-ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
+ARG SICL_PKG_NAME=sicl-nccl2.27.7-1-cuda12.4-ompi4.1.8-rockylinux8-20260402.run
 
 RUN if [ -n "$BUILD_TIME" ]; then \
       BUILD_TIME=$BUILD_TIME \
@@ -43,22 +42,17 @@ RUN if [ -n "$BUILD_TIME" ]; then \
       goreleaser release --snapshot --clean ; \
     fi
 
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubi8
 
-ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 ENV NVIDIA_VISIBLE_DEVICES=""
 
-RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list 2>/dev/null || true && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN yum install -y \
         vim curl tzdata ca-certificates \
-        openssh-server openssh-client \
-        iproute2 iputils-ping jq \
-        libnuma1 numactl rdmacm-utils perftest xz-utils && \
-    ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime && \
-    dpkg-reconfigure --frontend noninteractive tzdata && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+        openssh-server openssh-clients \
+        iproute iputils jq \
+        numactl numactl-libs rdma-core perftest xz && \
+    yum clean all
 
 # Helm (runtime tool)
 RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -66,13 +60,14 @@ RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm
 WORKDIR /opt/sichek
 COPY --from=build /go/src/sichek/dist ./dist
 
+# Install SICL and Sichek RPM
 ARG SICL_PKG_VERSION=v0.2.1
 ARG SICL_PKG_NAME=sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
 
 RUN curl -fsSL -o ./dist/${SICL_PKG_NAME} \
     https://github.com/scitix/nccl-tests/releases/download/${SICL_PKG_VERSION}/${SICL_PKG_NAME} && \
     bash ./dist/${SICL_PKG_NAME} && \
-    dpkg -i ./dist/sichek_*_linux_amd64.deb
+    yum localinstall -y ./dist/sichek_*_linux_amd64.rpm
 
 ENV SIHPC_HOME=/usr/local/sihpc
 ENV PATH=${SIHPC_HOME}/bin:$PATH
