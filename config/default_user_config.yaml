@@ -76,3 +76,9 @@ ethernet:
   cache_size: 5
   ignored_checkers: []
   enable_metrics: true
+
+transceiver:
+  query_interval: 30s
+  cache_size: 5
+  ignored_checkers: []
+  enable_metrics: true
