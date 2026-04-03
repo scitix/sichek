@@ -229,3 +229,147 @@ affinity:
 tolerations:
   - operator: Exists   # 容忍所有 taint（确保所有 GPU 节点都能部署）
 ```
+
+---
+
+## 八、ConfigMap 与 OSS 配置下载的关系
+
+### 整体流程图
+
+```
+                    ┌─────────────────────┐
+                    │    K8s ConfigMap     │
+                    │  sichek-default-spec │
+                    │  sichek-default-     │
+                    │  user-config         │
+                    └─────────┬───────────┘
+                              │ subPath 挂载
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│  init 容器                                                          │
+│                                                                     │
+│  容器内:                                                             │
+│  /var/sichek/config/default_spec.yaml         ← ConfigMap 挂载      │
+│  /var/sichek/config/default_user_config.yaml  ← ConfigMap 挂载      │
+│                                                                     │
+│  cp /var/sichek/config/*.yaml /host/var/sichek/config/   ──────┐    │
+│                                                                │    │
+└────────────────────────────────────────────────────────────────┼────┘
+                                                                 │
+                         ┌───────────────────────────────────────┘
+                         ↓ (等同于写入宿主机)
+┌─────────────────────────────────────────────────────────────────────┐
+│  宿主机 /var/sichek/config/                                         │
+│                                                                     │
+│  default_spec.yaml         ← [第1次写入] 来自 ConfigMap              │
+│  default_user_config.yaml  ← [第1次写入] 来自 ConfigMap              │
+│                                                                     │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ↓ sichek d start
+┌─────────────────────────────────────────────────────────────────────┐
+│  EnsureSpecFile (第一层: 集群级)                                      │
+│                                                                     │
+│  1. 从 hostname 提取集群名 (如 "changliu")                           │
+│  2. 拼接文件名: changliu_spec.yaml                                   │
+│  3. 本地 /var/sichek/config/changliu_spec.yaml 存在?                 │
+│     ├── 是 → 复制到 default_spec.yaml                               │
+│     └── 否 → 尝试从 OSS 下载                                        │
+│              SICHEK_SPEC_URL/changliu_spec.yaml                     │
+│              ├── 成功 → 覆盖 default_spec.yaml  ← [第2次写入] ⚠️     │
+│              └── 失败 → 用现有 default_spec.yaml (ConfigMap 版本)     │
+│                                                                     │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ↓ 各组件初始化
+┌─────────────────────────────────────────────────────────────────────┐
+│  EnsureSpec (第二层: 组件级, 每个组件各自调用)                          │
+│                                                                     │
+│  nvidia.EnsureSpec:                                                 │
+│    检查 default_spec.yaml 中有没有本机 GPU ID (如 0x233510de)         │
+│    ├── 有 → 跳过                                                    │
+│    └── 没有 → 从 OSS 下载                                           │
+│         SICHEK_SPEC_URL/nvidia/0x233510de.yaml                      │
+│         ├── 成功 → 合并写入 default_spec.yaml  ← [第3次写入] ⚠️      │
+│         └── 失败 → 用默认值                                          │
+│                                                                     │
+│  transceiver.EnsureSpec:                                            │
+│    检查有没有 transceiver.default 条目                                │
+│    ├── 有 → 跳过                                                    │
+│    └── 没有 → 从 SICHEK_SPEC_URL/transceiver/default.yaml 下载      │
+│                                                                     │
+│  ethernet.EnsureSpec / infiniband.EnsureSpec: 同理                   │
+│                                                                     │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │
+                                  ↓ 最终
+┌─────────────────────────────────────────────────────────────────────┐
+│  /var/sichek/config/default_spec.yaml (最终版本)                     │
+│                                                                     │
+│  内容 = ConfigMap 基线                                               │
+│       + OSS 集群级覆盖 (如果 SICHEK_SPEC_URL 可达)                   │
+│       + OSS 组件级合并 (补充缺失的硬件条目)                            │
+│                                                                     │
+│  ⚠️ 谁最后写入谁生效，没有明确优先级                                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 时序图
+
+```
+时间轴 →
+
+Pod 启动
+  │
+  ├── [init 容器]
+  │     │
+  │     ├── ConfigMap ──cp──→ /var/sichek/config/default_spec.yaml     (写入 #1)
+  │     ├── ConfigMap ──cp──→ /var/sichek/config/default_user_config.yaml
+  │     └── 退出
+  │
+  ├── [sichek 容器]
+  │     │
+  │     ├── nsenter → sichek d start
+  │     │     │
+  │     │     ├── EnsureSpecFile (第一层)
+  │     │     │     └── OSS 下载 ──→ 覆盖 default_spec.yaml            (写入 #2) ⚠️
+  │     │     │
+  │     │     ├── nvidia.NewComponent → nvidia.EnsureSpec (第二层)
+  │     │     │     └── OSS 下载 ──→ 合并到 default_spec.yaml           (写入 #3) ⚠️
+  │     │     │
+  │     │     ├── infiniband.NewComponent → infiniband.EnsureSpec
+  │     │     │     └── OSS 下载 ──→ 合并到 default_spec.yaml
+  │     │     │
+  │     │     ├── transceiver.NewComponent → transceiver.EnsureSpec
+  │     │     │     └── OSS 下载 ──→ 合并到 default_spec.yaml
+  │     │     │
+  │     │     └── daemon 开始运行（读取最终版 default_spec.yaml）
+  │     │
+  │     └── tail -F sichek.log (保活循环)
+  │
+  └── [sichek-exporter 容器]
+        └── 等待 metrics.sock → 启动 exporter
+```
+
+### 两种场景对比
+
+```
+场景 A: OSS 可达 (在线环境)
+─────────────────────────────────
+ConfigMap 写入 → 被 OSS 覆盖 → 最终用 OSS 版本
+ConfigMap 的 cp 操作是无用功
+
+场景 B: OSS 不可达 (离线环境)
+─────────────────────────────────
+ConfigMap 写入 → OSS 下载失败 → 最终用 ConfigMap 版本
+ConfigMap 是唯一数据源
+```
+
+### 问题与建议
+
+当前存在**数据源冲突**：ConfigMap 和 OSS 都写同一个文件，没有明确优先级。
+
+建议选择单一数据源：
+- **离线环境为主** → ConfigMap 为权威，去掉 OSS 下载
+- **在线环境为主** → OSS 为权威，去掉 ConfigMap
+- **混合环境** → ConfigMap 为基线保底，OSS 只补充缺失条目（不覆盖已有内容）
