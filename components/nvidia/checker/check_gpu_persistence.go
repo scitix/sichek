@@ -64,12 +64,7 @@ func (c *GpuPersistenceChecker) Check(ctx context.Context, data any) (*common.Ch
 	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.States.GpuPersistenceM != c.cfg.State.GpuPersistenceM {
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			disableGpus = append(disableGpus, fmt.Sprintf("GPU %d", device.Index))
 			_, err := utils.ExecCommand(ctx, "nvidia-persistenced")
 			if err != nil {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -62,20 +63,47 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 	for _, checker := range metrics.Checkers {
 		labelMap := make(map[string]*StructMetrics)
 		StructToMetricsMap(reflect.ValueOf(checker), "", "json", labelMap)
-		labelVals := make([]string, 0, len(m.HealthCheckResGauge.labelKeys)+1)
-		for _, k := range m.HealthCheckResGauge.labelKeys {
-			switch k {
-			case "node":
-				continue
-			default:
-				labelVals = append(labelVals, labelMap[k].StrLabel)
-			}
-		}
+		
 		metricName := metrics.Item + "_" + checker.ErrorName
+		
+		// Always reset first to clear previous state
+		m.HealthCheckResGauge.ResetMetric(metricName)
+
 		if checker.Status == consts.StatusAbnormal {
-			m.HealthCheckResGauge.SetMetric(metricName, labelVals, 1.0)
-		} else {
-			m.HealthCheckResGauge.ResetMetric(metricName)
+			devices := []string{checker.Device}
+			if checker.Device != "" && strings.Contains(checker.Device, ",") {
+				parts := strings.Split(checker.Device, ",")
+				devices = make([]string, 0, len(parts))
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p != "" {
+						devices = append(devices, p)
+					}
+				}
+			}
+
+			if len(devices) == 0 {
+				devices = []string{""}
+			}
+
+			for _, dev := range devices {
+				labelVals := make([]string, 0, len(m.HealthCheckResGauge.labelKeys)+1)
+				for _, k := range m.HealthCheckResGauge.labelKeys {
+					switch k {
+					case "node":
+						continue
+					case "device":
+						labelVals = append(labelVals, dev)
+					default:
+						if val, ok := labelMap[k]; ok {
+							labelVals = append(labelVals, val.StrLabel)
+						} else {
+							labelVals = append(labelVals, "")
+						}
+					}
+				}
+				m.HealthCheckResGauge.SetMetric(metricName, labelVals, 1.0)
+			}
 		}
 	}
 }

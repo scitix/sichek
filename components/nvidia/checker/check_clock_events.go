@@ -65,12 +65,7 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 				devClockEvents = make(map[int]string)
 			}
 			devClockEvents[device.Index] = device.ClockEvents.ToString()
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
