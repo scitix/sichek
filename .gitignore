@@ -11,10 +11,7 @@ sichek
 *__pycache__
 *.pyc
 
-local/
-doc/
 specs_download/
-specs_download/
-*.md
 /doc
 /local
+*.md
