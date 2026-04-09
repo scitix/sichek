@@ -1,0 +1,421 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sichek-gpu
+  namespace: monitoring
+  labels:
+    app: sichek
+spec:
+  selector:
+    matchLabels:
+      app: sichek
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 10
+
+  template:
+    metadata:
+      labels:
+        app: sichek
+    spec:
+      hostPID: true
+      hostNetwork: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: scitix.ai/gpu-type
+                    operator: Exists
+      tolerations:
+      - operator: Exists
+
+      serviceAccountName: sa-sichek
+
+      ############################################################
+      # volumes
+      ############################################################
+      volumes:
+      - name: sichek-host
+        hostPath:
+          path: /var/sichek
+          type: DirectoryOrCreate
+      - name: sichek-default-spec
+        configMap:
+          name: sichek-default-spec
+      - name: sichek-default-user-config
+        configMap:
+          name: sichek-default-user-config
+
+      ###########################################################
+      # main container
+      ###########################################################
+      containers:
+      - name: sichek
+        image: "{{ .registry }}/hisys/sichek:{{ .version }}"
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SICHEK_SPEC_URL
+          value: {{ .sichek_spec_url }}
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+
+        volumeMounts:
+        - name: sichek-host
+          mountPath: /host/var/sichek
+
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - |
+                rm -rf /host/var/sichek/run/pods/${POD_UID}
+
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -euo pipefail
+
+          HOST="nsenter -t 1 -m -p -n -u -i --"
+          echo "[sichek] ensure service started"
+          $HOST sichek d start
+
+          echo "[sichek] entering keepalive loop and tailing logs to stdout"
+          # Tail the log file so that `kubectl logs` can read sichek's logs directly
+          tail -n 100 -F /host/var/sichek/run/current/sichek.log &
+          TAIL_PID=$!
+          while true; do
+            if ! $HOST systemctl is-active --quiet sichek; then
+              echo "[sichek] service not active, restarting"
+              $HOST sichek d start
+            fi
+            # Optionally restart tail if it dies, but tail -F is robust against recreation/rotation
+            sleep 10
+          done
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 1Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+
+      - name: sichek-exporter
+        image: "{{ .registry }}/hisys/sichek:{{ .version }}"
+        securityContext:
+          privileged: true
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: sichek-host
+          mountPath: /host/var/sichek
+        ports:
+        - name: metrics
+          containerPort: {{ .metrics_port }}
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -euo pipefail
+
+          echo "[sichek] restart dcgm-exportor"
+          HOST="nsenter -t 1 -m -p -n -u -i --"
+          $HOST kubectl --kubeconfig=/var/sichek/run/current/kubeconfig delete pod -nmonitoring -lapp.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName=${NODE_NAME}
+          $HOST kubectl --kubeconfig=/var/sichek/run/current/kubeconfig get pod -nmonitoring -lapp.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName=${NODE_NAME}
+
+          RUNTIME=/host/var/sichek/run/current
+          timeout=10
+          elapsed=0
+          while [ ! -S "${RUNTIME}/metrics.sock" ]; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "[sichek] ERROR: ${RUNTIME}/metrics.sock not ready after ${timeout}s"
+              exit 1
+            fi
+            sleep 1
+            elapsed=$((elapsed + 1))
+          done
+
+          echo "[sichek] ${RUNTIME}/metrics.sock is ready, starting exporter..."
+          sichek exporter \
+            --metrics-socket ${RUNTIME}/metrics.sock \
+            --listen :19092
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 1Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+
+      ############################################################
+      # init container
+      ############################################################
+      initContainers:
+      - name: sichek-init
+        image: "{{ .registry }}/hisys/sichek:{{ .version }}"
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+          runAsUser: 0
+          capabilities:
+            add: [SYS_ADMIN]
+
+        env:
+        - name: SICHEK_VERSION
+          value: {{ .version }}
+        - name: SICHEK_SPEC_URL
+          value: {{ .sichek_spec_url }}
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+
+        volumeMounts:
+        - name: sichek-host
+          mountPath: /host/var/sichek
+        - name: sichek-default-spec
+          mountPath: /var/sichek/config/default_spec.yaml
+          subPath: default_spec.yaml
+        - name: sichek-default-user-config
+          mountPath: /var/sichek/config/default_user_config.yaml
+          subPath: default_user_config.yaml
+
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -euo pipefail
+          set -x
+
+          HOST="nsenter -t 1 -m -p -n -u -i --"
+          SICL=$(ls /opt/sichek/dist/sicl-*.run)
+          SICHEK_RPM=$(ls /opt/sichek/dist/sichek_*_linux_amd64.rpm)
+          SICHEK_DEB=$(ls /opt/sichek/dist/sichek_*_linux_amd64.deb)
+          RUNTIME_BASE=/host/var/sichek/run
+          HOST_RUNTIME_BASE=/var/sichek/run
+          HOST_SICL_INSTALL_PATH=/usr/local/sihpc
+          [[ -e "${RUNTIME_BASE}" ]] && rm -rf "${RUNTIME_BASE}"
+          mkdir -p "${RUNTIME_BASE}"
+
+          ##########################################################
+          # 1. install / verify sichek on host
+          ##########################################################
+          # 1.1 check existing sichek
+          need_install=true
+          if $HOST sh -c 'command -v sichek >/dev/null 2>&1'; then
+            if $HOST sichek version >/dev/null 2>&1; then
+              current_version=$($HOST sichek version 2>&1 | awk '/^Version:/ {print $2}')
+            else
+              echo "[sichek] sichek exists but cannot run (glibc mismatch?)"
+              current_version=""
+            fi
+            echo "[sichek] found sichek version=${current_version}"
+            if [[ "${current_version}" == "${SICHEK_VERSION}" ]]; then
+                echo "[sichek] version match(${current_version} == ${SICHEK_VERSION}), skip install"
+                need_install=false
+            else
+                echo "[sichek] version mismatch(${current_version} != ${SICHEK_VERSION}), reinstall"
+            fi
+          else
+            echo "[sichek] sichek not installed"
+          fi
+
+          # 1.2 install if needed
+          echo "[sichek] node=${NODE_NAME}"
+          if [[ "${need_install}" == "true" ]]; then
+            $HOST sichek daemon stop || echo "Failed to stop sichek daemon"
+
+            echo "[sichek] install sicl"
+            $HOST rm -rf "${HOST_SICL_INSTALL_PATH}"
+            cp "$SICL" "${RUNTIME_BASE}/"
+            $HOST bash "${HOST_RUNTIME_BASE}/$(basename "$SICL")"
+            rm "${RUNTIME_BASE}/$(basename "$SICL")"
+
+            echo "[sichek] install sichek"
+            if $HOST sh -c 'command -v rpm >/dev/null 2>&1'; then
+              echo "[sichek] install via rpm"
+              cp "$SICHEK_RPM" "${RUNTIME_BASE}/"
+              $HOST rpm -e sichek || echo "Failed to remove existing sichek"
+              $HOST rpm -Uvh --force "${HOST_RUNTIME_BASE}/$(basename "$SICHEK_RPM")"
+              rm "${RUNTIME_BASE}/$(basename "$SICHEK_RPM")"
+            elif $HOST sh -c 'command -v dpkg >/dev/null 2>&1'; then
+              echo "[sichek] install via dpkg"
+              cp "$SICHEK_DEB" "${RUNTIME_BASE}/"
+              $HOST dpkg -P sichek || echo "Failed to remove existing sichek"
+              ###dpkg: warning: while removing sichek, directory '/var/sichek/scripts' not empty so not removed
+              ###dpkg: warning: while removing sichek, directory '/var/sichek/config' not empty so not removed
+              rm -rf /host/var/sichek/scripts
+              rm -rf /host/var/sichek/config
+              $HOST dpkg -i "${HOST_RUNTIME_BASE}/$(basename "$SICHEK_DEB")"
+              rm "${RUNTIME_BASE}/$(basename "$SICHEK_DEB")"
+            else
+              echo "[sichek] no rpm / dpkg found on host"
+              exit 1
+            fi
+            cp /var/sichek/config/default_spec.yaml /host/var/sichek/config/default_spec.yaml
+            cp /var/sichek/config/default_user_config.yaml /host/var/sichek/config/default_user_config.yaml
+          fi
+
+          # 1.3 final version check
+          echo "[sichek] final version check"
+          if $HOST sichek version >/dev/null 2>&1; then
+            final_version=$($HOST sichek version 2>&1 | awk '/^Version:/ {print $2}')
+          else
+            echo "[sichek] sichek exists but cannot run (glibc mismatch?)"
+            final_version=""
+          fi
+          if [[ "${final_version}" != "${SICHEK_VERSION}" ]]; then
+            echo "Installed sichek version (${final_version}) does not match expected (${SICHEK_VERSION})"
+            exit 1
+          fi
+          echo "[sichek] sichek ${final_version} ready"
+          
+          ##########################################################
+          # 2. generate kubeconfig (atomic)
+          ##########################################################
+          POD_DIR=${RUNTIME_BASE}/pods/${POD_UID}
+          CURRENT_LINK=${RUNTIME_BASE}/current
+          mkdir -p "${POD_DIR}"
+          CA_FILE=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          TOKEN_FILE=/var/run/secrets/kubernetes.io/serviceaccount/token
+          SERVER="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+
+          CA_DATA=$(base64 < "${CA_FILE}" | tr -d '\n')
+          TOKEN=$(cat "${TOKEN_FILE}")
+
+          tmp=$(mktemp "${POD_DIR}/kubeconfig.XXXX")
+          cat <<EOF > "${tmp}"
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - name: local
+            cluster:
+              server: ${SERVER}
+              certificate-authority-data: ${CA_DATA}
+          users:
+          - name: sichek
+            user:
+              token: ${TOKEN}
+          contexts:
+          - name: sichek-context
+            context:
+              cluster: local
+              user: sichek
+          current-context: sichek-context
+          EOF
+
+          chmod 600 "${tmp}"
+          mv "${tmp}" "${POD_DIR}/kubeconfig"
+
+          # Use relative symlink so both host and container resolve current under their view of the mount.
+          # (Absolute /var/sichek/... would not resolve inside container which only has /host/var/sichek.)
+          ln -sfn "pods/${POD_UID}" "${CURRENT_LINK}"
+
+          HOST_CURRENT=${HOST_RUNTIME_BASE}/current
+          TMP_ENV=$(mktemp "${POD_DIR}/env.XXXX")
+          cat <<EOF > "${TMP_ENV}"
+          FLAGS="--metrics-socket ${HOST_CURRENT}/metrics.sock -s /var/sichek/config/default_spec.yaml -c /var/sichek/config/default_user_config.yaml --log-file ${HOST_CURRENT}/sichek.log"
+          KUBECONFIG=${HOST_CURRENT}/kubeconfig
+          SICHEK_SPEC_URL={{ .sichek_spec_url }}
+          EOF
+          chmod 644 "${TMP_ENV}"
+          mv "${TMP_ENV}" "${RUNTIME_BASE}/env"
+
+          ###########################################################################
+          # 3. delete pod dir in /var/sichek/run/pods except current and canary link
+          ###########################################################################
+          PODS_DIR="$RUNTIME_BASE/pods"
+          CURRENT_TARGET=$(readlink -f "$RUNTIME_BASE/current")
+          CANARY_TARGET=$(readlink -f "$RUNTIME_BASE/canary")
+          echo "Current points to: $CURRENT_TARGET"
+          echo "Canary points to: $CANARY_TARGET"
+
+          for d in "$PODS_DIR"/*; do
+            [ -d "$d" ] || continue
+
+            # skip current/canary dir
+            if [[ "$d" == "$CURRENT_TARGET" || "$d" == "$CANARY_TARGET" ]]; then
+              echo "Skipping $d"
+              continue
+            fi
+            echo "Deleting $d"
+            rm -rf "$d"
+          done
+
+      dnsPolicy: ClusterFirstWithHostNet
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-sichek
+  namespace: monitoring
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-role-sichek
+rules:
+  - apiGroups: ["kubeflow.org", ""]
+    resources: ["nodes", "pods", "pytorchjobs"]
+    verbs: ["get", "list", "patch", "update", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-role-binding-sichek
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io  # Remove the /v1
+  kind: ClusterRole
+  name: cluster-role-sichek
+subjects:
+  - kind: ServiceAccount
+    name: sa-sichek
+    namespace: monitoring
+---
+# Source: sichek/templates/prometheus.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: sichek-exporter
+  namespace: monitoring
+  labels:
+    app: sichek
+spec:
+  podMetricsEndpoints:
+    - interval: 15s  # Scrape interval
+      path: /metrics  # Metrics path
+      port: metrics
+      scrapeTimeout: 10s
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app: sichek

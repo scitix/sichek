@@ -71,12 +71,7 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 				device.Clock.AppMemoryClk,
 				device.Clock.MaxMemoryClk,
 			)
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID].String())
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}

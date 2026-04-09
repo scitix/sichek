@@ -60,12 +60,7 @@ func (c *SRAMVolatileUncorrectableChecker) Check(ctx context.Context, data any) 
 			if memoryErrorEvents == nil {
 				memoryErrorEvents = make(map[int]string)
 			}
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			memoryErrorEvents[device.Index] = fmt.Sprintf(
 				"GPU %d:%s SRAM Volatile Uncorrectable Detected\n",
