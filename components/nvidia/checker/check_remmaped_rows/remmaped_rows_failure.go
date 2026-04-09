@@ -55,12 +55,7 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 	var failedGpuidPodnames []string
 	for _, device := range nvidiaInfo.DevicesInfo {
 		if device.MemoryErrors.RemappedRows.RemappingFailureOccurred {
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 			failedGpus = append(failedGpus, fmt.Sprintf("%d:%s", device.Index, device.UUID))
 		}

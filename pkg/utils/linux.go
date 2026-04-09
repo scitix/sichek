@@ -22,7 +22,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func IsRoot() bool {
@@ -128,4 +133,67 @@ func IsInfinibandExist() bool {
 		return false
 	}
 	return len(entries) > 0
+}
+
+// IsManagementBond checks if the given IB device name corresponds to a management network bond.
+// It is considered a management bond if its network member interface(s) have a speed <= 100G (100000 Mbps).
+func IsManagementBond(devName string) bool {
+	bondName := devName
+	// e.g. "mlx5_bond_0" -> "bond0"
+	if strings.HasPrefix(devName, "mlx5_bond_") {
+		bondName = "bond" + strings.TrimPrefix(devName, "mlx5_bond_")
+	} else if strings.HasPrefix(devName, "roce_bond") {
+		bondName = "bond" + strings.TrimPrefix(devName, "roce_bond")
+	} else if !strings.HasPrefix(devName, "bond") {
+		idx := strings.Index(devName, "bond")
+		if idx != -1 {
+			bondName = devName[idx:]
+		}
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"component": "utils",
+		"devName":   devName,
+		"bondName":  bondName,
+	}).Debugf("checking if device is a management bond")
+
+	slavesPath := filepath.Join("/sys/class/net", bondName, "bonding", "slaves")
+	content, err := os.ReadFile(slavesPath)
+	if err != nil {
+		logrus.WithField("component", "utils").Debugf("unable to read slaves for bond %s at %s: %v, assuming not a management bond", bondName, slavesPath, err)
+		return false // unable to read slaves, assume it's not a management bond
+	}
+
+	slaves := strings.Fields(strings.TrimSpace(string(content)))
+	if len(slaves) == 0 {
+		logrus.WithField("component", "utils").Debugf("bond %s has no slaves", bondName)
+		return false
+	}
+
+	logrus.WithField("component", "utils").Debugf("bond %s has slaves: %v", bondName, slaves)
+
+	for _, slave := range slaves {
+		speedPath := filepath.Join("/sys/class/net", slave, "speed")
+		speedStr, err := os.ReadFile(speedPath)
+		if err != nil {
+			logrus.WithField("component", "utils").Debugf("unable to read speed for slave %s at %s: %v", slave, speedPath, err)
+			continue
+		}
+
+		speed, err := strconv.Atoi(strings.TrimSpace(string(speedStr)))
+		if err != nil {
+			logrus.WithField("component", "utils").Debugf("failed to parse speed for slave %s: %v", slave, err)
+			continue
+		}
+
+		logrus.WithField("component", "utils").Debugf("slave %s speed is %d Mbps", slave, speed)
+
+		// 100G is 100000 Mbps
+		if speed <= 100000 {
+			logrus.WithField("component", "utils").Infof("device %s (bond %s, slave %s) speed is <= 100000 Mbps, identified as management bond", devName, bondName, slave)
+			return true
+		}
+	}
+
+	return false
 }

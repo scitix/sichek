@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -60,7 +61,8 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 
 	result := config.InfinibandCheckItems[c.name]
 
-	var mismatchPairs []string
+	var failedDevices []string
+	var mismatchDetails []string
 	infinibandInfo.RLock()
 	// 1) Spec -> actual: missing or wrong mapping
 	for expectedMlx5, expectedIb := range c.spec.IBPFDevs {
@@ -71,14 +73,16 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		}
 		actualIb, found := infinibandInfo.IBPFDevs[expectedMlx5]
 		if !found {
-			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (missing)", expectedMlx5))
+			failedDevices = append(failedDevices, expectedMlx5)
+			mismatchDetails = append(mismatchDetails, fmt.Sprintf("%s (missing)", expectedMlx5))
 			logrus.WithField("component", "infiniband").Debugf("mismatch pair %s in check", expectedMlx5)
 			continue
 		}
 
 		if actualIb != expectedIb {
 			logrus.WithField("component", "infiniband").Debugf("mismatch pair %s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb)
-			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
+			failedDevices = append(failedDevices, expectedMlx5)
+			mismatchDetails = append(mismatchDetails, fmt.Sprintf("%s -> %s (expected %s)", expectedMlx5, actualIb, expectedIb))
 		}
 	}
 	// 2) Actual -> spec: extra devices not defined in spec (e.g. mlx5_7 in spec but actual shows mlx5_13_6209)
@@ -86,16 +90,21 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		if strings.Contains(actualMlx5, "mezz") {
 			continue
 		}
+		if strings.Contains(actualMlx5, "bond") && utils.IsManagementBond(actualMlx5) {
+			logrus.WithField("component", "infiniband").Debugf("skip management bond %s in check", actualMlx5)
+			continue
+		}
 		if _, inSpec := c.spec.IBPFDevs[actualMlx5]; !inSpec {
-			mismatchPairs = append(mismatchPairs, fmt.Sprintf("%s (not in spec)", actualMlx5))
+			failedDevices = append(failedDevices, actualMlx5)
+			mismatchDetails = append(mismatchDetails, fmt.Sprintf("%s (not in spec)", actualMlx5))
 			logrus.WithField("component", "infiniband").Debugf("mismatch: actual device %s not defined in spec", actualMlx5)
 		}
 	}
 	infinibandInfo.RUnlock()
 
-	if len(mismatchPairs) > 0 {
+	if len(failedDevices) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Device = strings.Join(mismatchPairs, ",")
+		result.Device = strings.Join(failedDevices, ",")
 		// Read IBPFDevs under lock protection
 		infinibandInfo.RLock()
 		ibpfDevsCopy := make(map[string]string)
@@ -104,10 +113,17 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 				logrus.WithField("component", "infiniband").Debugf("skip mezzanine card %s in detail display", k)
 				continue
 			}
+			if strings.Contains(k, "bond") && utils.IsManagementBond(k) {
+				logrus.WithField("component", "infiniband").Debugf("skip management bond %s in detail display", k)
+				continue
+			}
 			ibpfDevsCopy[k] = v
 		}
 		infinibandInfo.RUnlock()
-		result.Detail = fmt.Sprintf("Mismatched IB devices %v, expected: %v", ibpfDevsCopy, c.spec.IBPFDevs)
+		
+		// Use mismatchDetails for a more helpful detail message
+		detailStr := strings.Join(mismatchDetails, "; ")
+		result.Detail = fmt.Sprintf("Mismatched IB devices: %s. Current map: %v, Expected map: %v", detailStr, ibpfDevsCopy, c.spec.IBPFDevs)
 	} else {
 		result.Status = consts.StatusNormal
 	}

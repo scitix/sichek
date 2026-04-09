@@ -59,12 +59,7 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 			if memoryErrorEvents == nil {
 				memoryErrorEvents = make(map[string]string)
 			}
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 

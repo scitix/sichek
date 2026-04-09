@@ -54,6 +54,15 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		expectedMinSlaves = c.spec.MinSlaves
 	}
 
+	if len(info.BondInterfaces) == 0 {
+		result.Status = consts.StatusAbnormal
+		result.Level = consts.LevelCritical
+		result.ErrorName = "NoBondInterface"
+		result.Detail = "No bond interfaces found. Command: ls /proc/net/bonding/."
+		result.Suggestion = "Please check if bond interfaces are configured correctly, e.g., /etc/netplan or /etc/sysconfig/network-scripts."
+		return result, nil
+	}
+
 	for _, bond := range info.BondInterfaces {
 		bState, exists := info.Bonds[bond]
 		if !exists || bState.Name == "" {

@@ -69,12 +69,7 @@ func (c *PCIeChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 		}
 
 		if device.PCIeInfo.PCILinkGen != device.PCIeInfo.PCILinkGenMAX || device.PCIeInfo.PCILinkWidth != device.PCIeInfo.PCILinkWidthMAX {
-			var devicePodName string
-			if _, found := nvidiaInfo.DeviceToPodMap[device.UUID]; found {
-				devicePodName = fmt.Sprintf("%s:%s", device.UUID, nvidiaInfo.DeviceToPodMap[device.UUID])
-			} else {
-				devicePodName = fmt.Sprintf("%s:", device.UUID)
-			}
+			devicePodName := fmt.Sprintf("%d", device.Index)
 			failedGpuidPodnames = append(failedGpuidPodnames, devicePodName)
 		}
 	}
