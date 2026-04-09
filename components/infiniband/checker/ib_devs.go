@@ -122,7 +122,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		infinibandInfo.RUnlock()
 
 		// Use mismatchDetails for a more helpful detail message
-		detailStr := strings.Join(mismatchPairs, "; ")
+		detailStr := strings.Join(mismatchDetails, "; ")
 		logrus.WithFields(logrus.Fields{
 			"checker":  c.Name(),
 			"mismatch": detailStr,
