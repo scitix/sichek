@@ -160,7 +160,6 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		logrus.WithField("component", "ethernet").Errorf("failed to collect ethernet info: %v", err)
 		return nil, err
 	}
-	logrus.WithField("component", "ethernet").Infof("collected ethernet info: %+v", ethInfo)
 
 	if c.cfg.Ethernet != nil && c.cfg.Ethernet.EnableMetrics {
 		c.metrics.ExportMetrics(ethInfo)

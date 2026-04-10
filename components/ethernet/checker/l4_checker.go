@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type L4Checker struct{ spec *config.EthernetSpecConfig }
@@ -44,6 +45,7 @@ func (c *L4Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 	}
 
 	if strings.Contains(info.IPNeigh, "FAILED") || strings.Contains(info.IPNeigh, "INCOMPLETE") {
+		logrus.WithField("checker", c.Name()).Errorf("FAILED/INCOMPLETE entries found in ARP neighbor table: %s", info.IPNeigh)
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelWarning
 		result.ErrorName = "ARPFailed"
@@ -52,6 +54,10 @@ func (c *L4Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 	}
 
 	if info.Routes.GatewayIP != "" && !info.Routes.GatewayReachable {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"gateway_ip": info.Routes.GatewayIP,
+		}).Errorf("System gateway unreachable")
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelCritical
 		result.ErrorName = "GatewayUnreachable"

@@ -26,6 +26,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet/collector"
 	"github.com/scitix/sichek/components/ethernet/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type L2Checker struct {
@@ -55,6 +56,16 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 	}
 
 	if len(info.BondInterfaces) == 0 {
+		logrus.WithField("checker", c.Name()).Errorf("No bond interfaces found")
+		result.Status = consts.StatusAbnormal
+		result.Level = consts.LevelCritical
+		result.ErrorName = "NoBondInterface"
+		result.Detail = "No bond interfaces found. Command: ls /proc/net/bonding/."
+		result.Suggestion = "Please check if bond interfaces are configured correctly, e.g., /etc/netplan or /etc/sysconfig/network-scripts."
+		return result, nil
+	}
+
+	if len(info.BondInterfaces) == 0 {
 		result.Status = consts.StatusAbnormal
 		result.Level = consts.LevelCritical
 		result.ErrorName = "NoBondInterface"
@@ -66,6 +77,10 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 	for _, bond := range info.BondInterfaces {
 		bState, exists := info.Bonds[bond]
 		if !exists || bState.Name == "" {
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"bond":    bond,
+			}).Errorf("Bond interface missing in /proc/net/bonding")
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "BondingMissing"
@@ -80,6 +95,11 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		}
 
 		if (expectedMII == "up" && !bState.IsUp) || !strings.Contains(procContent, "MII Status: "+expectedMII) {
+			logrus.WithFields(logrus.Fields{
+				"checker":  c.Name(),
+				"bond":     bond,
+				"expected": expectedMII,
+			}).Errorf("Overall status of bond interface mismatch")
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "BondDown"
@@ -90,6 +110,12 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		if c.spec != nil && c.spec.MTU != "" {
 			expectedMTU, _ := strconv.Atoi(c.spec.MTU)
 			if bState.MTU > 0 && bState.MTU != expectedMTU {
+				logrus.WithFields(logrus.Fields{
+					"checker":  c.Name(),
+					"bond":     bond,
+					"curr":     bState.MTU,
+					"expected": expectedMTU,
+				}).Errorf("Bond MTU mismatch")
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
@@ -102,6 +128,12 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		// check xmit_hash_policy
 		if c.spec != nil && c.spec.XmitHashPolicy != "" {
 			if bState.XmitHashPolicy != "" && bState.XmitHashPolicy != c.spec.XmitHashPolicy {
+				logrus.WithFields(logrus.Fields{
+					"checker":  c.Name(),
+					"bond":     bond,
+					"curr":     bState.XmitHashPolicy,
+					"expected": c.spec.XmitHashPolicy,
+				}).Errorf("Bond xmit_hash_policy mismatch")
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
@@ -114,6 +146,12 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		// check slave count
 		slaveCount := len(info.Slaves[bond])
 		if slaveCount < expectedMinSlaves {
+			logrus.WithFields(logrus.Fields{
+				"checker":  c.Name(),
+				"bond":     bond,
+				"curr":     slaveCount,
+				"expected": expectedMinSlaves,
+			}).Errorf("Bond insufficient slave count")
 			if result.Status == consts.StatusNormal {
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
@@ -139,12 +177,22 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		}
 
 		if miimon == 0 {
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"bond":    bond,
+			}).Errorf("Bond MII Polling Interval (miimon) is 0")
 			result.Status = consts.StatusAbnormal
 			result.Level = consts.LevelCritical
 			result.ErrorName = "MiimonDisabled"
 			result.Detail += fmt.Sprintf("Bond %s MII Polling Interval (miimon) is 0. Command: cat /proc/net/bonding/%s, please enable link detection (miimon) to avoid packet loss.\n", bond, bond)
 		} else {
 			if expectedMiimon > 0 && miimon != expectedMiimon {
+				logrus.WithFields(logrus.Fields{
+					"checker":  c.Name(),
+					"bond":     bond,
+					"curr":     miimon,
+					"expected": expectedMiimon,
+				}).Errorf("Bond miimon mismatch")
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
@@ -154,11 +202,23 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			}
 
 			if downdelay < miimon {
+				logrus.WithFields(logrus.Fields{
+					"checker":   c.Name(),
+					"bond":      bond,
+					"downdelay": downdelay,
+					"miimon":    miimon,
+				}).Errorf("Bond downdelay less than miimon")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "DowndelayTooSmall"
 				result.Detail += fmt.Sprintf("Bond %s downdelay (%d ms) less than miimon (%d ms). Command: cat /proc/net/bonding/%s, unreasonable config may cause flapping.\n", bond, downdelay, miimon, bond)
 			} else if expectedDownDelay > 0 && downdelay != expectedDownDelay {
+				logrus.WithFields(logrus.Fields{
+					"checker":  c.Name(),
+					"bond":     bond,
+					"curr":     downdelay,
+					"expected": expectedDownDelay,
+				}).Errorf("Bond downdelay mismatch")
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
@@ -168,11 +228,21 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			}
 
 			if updelay == 0 {
+				logrus.WithFields(logrus.Fields{
+					"checker": c.Name(),
+					"bond":    bond,
+				}).Errorf("Bond updelay is 0")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "UpdelayZero"
 				result.Detail += fmt.Sprintf("Bond %s updelay is 0. Command: cat /proc/net/bonding/%s, updelay is recommended to avoid packet loss during switch port negotiation.\n", bond, bond)
 			} else if expectedUpDelay > 0 && updelay != expectedUpDelay {
+				logrus.WithFields(logrus.Fields{
+					"checker":  c.Name(),
+					"bond":     bond,
+					"curr":     updelay,
+					"expected": expectedUpDelay,
+				}).Errorf("Bond updelay mismatch")
 				if result.Status == consts.StatusNormal {
 					result.Status = consts.StatusAbnormal
 					result.Level = consts.LevelWarning
@@ -187,6 +257,12 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 		if len(activeSlaveMatch) > 1 {
 			currActive := activeSlaveMatch[1]
 			if prev, ok := c.prevActiveSlave[bond]; ok && prev != "" && prev != currActive {
+				logrus.WithFields(logrus.Fields{
+					"checker": c.Name(),
+					"bond":    bond,
+					"prev":    prev,
+					"curr":    currActive,
+				}).Errorf("Bond active slave switched (flapping detection)")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "ActiveSlaveFlapping"
@@ -207,6 +283,13 @@ func (c *L2Checker) Check(ctx context.Context, data any) (*common.CheckerResult,
 			trackKey := bond + "-" + slaveName
 
 			if prev, ok := c.prevLinkFailures[trackKey]; ok && failCount > prev {
+				logrus.WithFields(logrus.Fields{
+					"checker": c.Name(),
+					"bond":    bond,
+					"slave":   slaveName,
+					"prev":    prev,
+					"curr":    failCount,
+				}).Errorf("Bond slave NIC link failure occurred")
 				result.Status = consts.StatusAbnormal
 				result.Level = consts.LevelWarning
 				result.ErrorName = "LinkFailureGrowing"

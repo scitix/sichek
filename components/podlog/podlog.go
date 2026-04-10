@@ -222,7 +222,16 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	c.currIndex++
 	c.cacheMtx.Unlock()
 	if result.Status == consts.StatusAbnormal {
-		logrus.WithField("component", "podlog").Errorf("Health Check Failed")
+		var failedCheckers []string
+		for _, c := range result.Checkers {
+			if c.Status == consts.StatusAbnormal {
+				failedCheckers = append(failedCheckers, c.Name)
+			}
+		}
+		logrus.WithFields(logrus.Fields{
+			"component":       "podlog",
+			"failed_checkers": failedCheckers,
+		}).Errorf("Health Check Failed")
 	} else {
 		logrus.WithField("component", "podlog").Infof("Health Check PASSED")
 	}

@@ -175,8 +175,16 @@ func (c *IBOFEDChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		}
 	}
 	infinibandInfo.RUnlock()
+
+	logrus.WithFields(logrus.Fields{
+		"checker": c.Name(),
+		"curr_state": curr,
+		"spec_state": spec,
+	}).Infof("Checking OFED")
+
 	pass, err := checkOFEDVersion(spec, curr)
 	if !pass || err != nil {
+		logrus.WithField("checker", c.Name()).Errorf("OFED check failed: expected=%s, curr=%s, err=%v", spec, curr, err)
 		result.Status = consts.StatusAbnormal
 		if err == nil {
 			result.Detail = fmt.Sprintf("OFED version mismatch, expected:%s  current:%s", spec, curr)

@@ -126,6 +126,12 @@ func Check(ctx context.Context, componentName string, data any, checkers []Check
 				logrus.WithField("component", componentName).Errorf("[%s]failed to check: %v", each.Name(), err)
 				return
 			}
+			if checkResult != nil && checkResult.Status == consts.StatusAbnormal {
+				logrus.WithFields(logrus.Fields{
+					"component": componentName,
+					"checker":   each.Name(),
+				}).Errorf("Check Abnormal: %s", checkResult.Detail)
+			}
 			checkerResults[idx] = checkResult
 		}(idx, each)
 	}

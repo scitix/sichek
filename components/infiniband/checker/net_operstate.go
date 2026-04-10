@@ -86,7 +86,16 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.Hardware.NetOperstate)
 		curr = append(curr, hwInfo.NetOperstate)
+		
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"hca": hwInfo.IBDev,
+			"curr_state": hwInfo.NetOperstate,
+			"spec_state": hcaSpec.Hardware.NetOperstate,
+		}).Infof("Checking NetOperstate")
+		
 		if hwInfo.NetOperstate != hcaSpec.Hardware.NetOperstate {
+			logrus.WithField("checker", c.Name()).Errorf("NetOperstate abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.NetOperstate, hcaSpec.Hardware.NetOperstate)
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}

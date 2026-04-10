@@ -88,7 +88,16 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.Hardware.PCIEMRR)
 		curr = append(curr, hwInfo.PCIEMRR)
+
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"hca": hwInfo.IBDev,
+			"curr_state": hwInfo.PCIEMRR,
+			"spec_state": hcaSpec.Hardware.PCIEMRR,
+		}).Infof("Checking PCIEMRR")
+
 		if hwInfo.PCIEMRR != hcaSpec.Hardware.PCIEMRR {
+			logrus.WithField("checker", c.Name()).Errorf("PCIEMRR abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.PCIEMRR, hcaSpec.Hardware.PCIEMRR)
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			faiedHcasSpec = append(faiedHcasSpec, hcaSpec.Hardware.PCIEMRR)

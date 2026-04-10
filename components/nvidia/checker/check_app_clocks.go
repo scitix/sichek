@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type AppClocksChecker struct {
@@ -75,6 +76,10 @@ func (c *AppClocksChecker) Check(ctx context.Context, data any) (*common.Checker
 		}
 	}
 	if len(gpusAppClocksStatus) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker":           c.Name(),
+			"failed_gpus_count": len(failedGpuidPodnames),
+		}).Errorf("Not all GPU application clocks are set to max: %v", gpusAppClocksStatus)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Not all GPU application clocks are set to max: \n %v", gpusAppClocksStatus)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

@@ -336,10 +336,12 @@ func (c *RoCEChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	result.Detail = detail
 
 	if detail == "" {
+		logrus.WithField("checker", c.Name()).Infof("Finish RoCE check, no error detail")
 		result.Status = consts.StatusNormal
 		result.Detail = "RoCE checks passed successfully"
 		return &result, nil
 	} else {
+		logrus.WithField("checker", c.Name()).Errorf("RoCE checks failed with detail: %s", detail)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("RoCE checks failed: %s", detail)
 		result.ErrorName = "RoCENotEnabled"

@@ -70,6 +70,10 @@ func (c *ClockEventsChecker) Check(ctx context.Context, data any) (*common.Check
 		}
 	}
 	if len(devClockEvents) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"critical_events": devClockEvents,
+		}).Errorf("Critical clock events engaged")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Critical clock events engaged: \n%v", devClockEvents)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

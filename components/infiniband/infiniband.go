@@ -171,8 +171,6 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	}
 
 	info, err := c.collector.Collect(ctx)
-	ibInfo, _ := json.MarshalIndent(info, "", "  ")
-	logrus.WithField("component", "Infiniband").Debugf("Collecting Infiniband info: %v", string(ibInfo))
 	if err != nil {
 		logrus.WithField("component", "Infiniband").Errorf("failed to collect Infiniband info: %v", err)
 		return nil, err

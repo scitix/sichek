@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type PCIeACSChecker struct {
@@ -63,6 +64,10 @@ func (c *PCIeACSChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 				failedBDFs = append(failedBDFs, failedDevice.BDF)
 			}
 			result.Device = strings.Join(failedBDFs, ",")
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"failed_bdfs": failedBDFs,
+			}).Errorf("Not All PCIe ACS are disabled. Failed to disable online")
 			result.Status = consts.StatusAbnormal
 			result.Curr = "NotAllDisabled"
 			result.Detail = fmt.Sprintf("Not All PCIe ACS are disabled. Failed to disable online: %v", failedBDFs)

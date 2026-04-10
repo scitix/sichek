@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type IBLostChecker struct {
@@ -60,10 +61,28 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			nodeEffectiveHCANum--
 		}
 	}
+	logrus.WithFields(logrus.Fields{
+		"checker": c.Name(),
+		"HCAPCINum": infinibandInfo.HCAPCINum,
+		"IBCapablePCINum": infinibandInfo.IBCapablePCINum,
+		"nodeEffectiveHCANum": nodeEffectiveHCANum,
+		"spec_HCANum": c.spec.HCANum,
+	}).Infof("Start IB lost check")
+
 	if infinibandInfo.HCAPCINum != infinibandInfo.IBCapablePCINum {
+		logrus.WithFields(logrus.Fields{
+			"checker":   c.Name(),
+			"hca_pci":   infinibandInfo.HCAPCINum,
+			"cap_pci":   infinibandInfo.IBCapablePCINum,
+		}).Errorf("IBLost: HCAPCINum != IBCapablePCINum")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum)
 	} else if nodeEffectiveHCANum != c.spec.HCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
+		logrus.WithFields(logrus.Fields{
+			"checker":   c.Name(),
+			"effective": nodeEffectiveHCANum,
+			"spec":      c.spec.HCANum,
+		}).Errorf("IBLost: effective HCANum != spec effective HCANum")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("IBLost: effective HCANum != spec effective HCANum(%d != %d)", nodeEffectiveHCANum, c.spec.HCANum)
 	}

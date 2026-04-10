@@ -90,7 +90,16 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.Hardware.PCIEWidth)
 		curr = append(curr, hwInfo.PCIEWidth)
+
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"hca": hwInfo.IBDev,
+			"curr_state": hwInfo.PCIEWidth,
+			"spec_state": hcaSpec.Hardware.PCIEWidth,
+		}).Infof("Checking PCIEWidth")
+
 		if hwInfo.PCIEWidth != hcaSpec.Hardware.PCIEWidth {
+			logrus.WithField("checker", c.Name()).Errorf("PCIEWidth abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.PCIEWidth, hcaSpec.Hardware.PCIEWidth)
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIEWidth)
