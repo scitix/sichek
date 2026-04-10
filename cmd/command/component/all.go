@@ -34,6 +34,7 @@ import (
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
 	"github.com/scitix/sichek/components/syslog"
+	"github.com/scitix/sichek/components/transceiver"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -189,6 +190,8 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		return syslog.NewComponent(cfgFile, "", -1)
 	case consts.ComponentNameEthernet:
 		return ethernet.NewEthernetComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameTransceiver:
+		return transceiver.NewComponent(cfgFile, specFile, ignoredCheckers)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}
