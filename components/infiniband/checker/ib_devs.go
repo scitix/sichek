@@ -120,9 +120,13 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			ibpfDevsCopy[k] = v
 		}
 		infinibandInfo.RUnlock()
-		
+
 		// Use mismatchDetails for a more helpful detail message
 		detailStr := strings.Join(mismatchDetails, "; ")
+		logrus.WithFields(logrus.Fields{
+			"checker":  c.Name(),
+			"mismatch": detailStr,
+		}).Errorf("Infiniband device mapping mismatch detected")
 		result.Detail = fmt.Sprintf("Mismatched IB devices: %s. Current map: %v, Expected map: %v", detailStr, ibpfDevsCopy, c.spec.IBPFDevs)
 	} else {
 		result.Status = consts.StatusNormal

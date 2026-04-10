@@ -22,6 +22,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/systemd"
+	"github.com/sirupsen/logrus"
 )
 
 type NVFabricManagerChecker struct {
@@ -52,6 +53,10 @@ func (c *NVFabricManagerChecker) Check(ctx context.Context, data any) (*common.C
 	active, _ := systemd.IsActive("nvidia-fabricmanager")
 
 	if !active {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"active": active,
+		}).Errorf("FabricManager is not active")
 		result.Status = consts.StatusAbnormal
 		result.Detail = "Nvidia FabricManager is not active, please check to restart Nvidia FabricManager"
 		result.Curr = "NotActive"

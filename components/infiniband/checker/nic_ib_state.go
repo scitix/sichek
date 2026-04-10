@@ -87,7 +87,16 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
 		spec = append(spec, hcaSpec.Hardware.PortState)
 		curr = append(curr, hwInfo.PortState)
+
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"hca": hwInfo.IBDev,
+			"curr_state": hwInfo.PortState,
+			"spec_state": hcaSpec.Hardware.PortState,
+		}).Infof("Checking PortState")
+
 		if !strings.Contains(hwInfo.PortState, hcaSpec.Hardware.PortState) {
+			logrus.WithField("checker", c.Name()).Errorf("PortState abnormal on %s: %s doesn't contain %s", hwInfo.IBDev, hwInfo.PortState, hcaSpec.Hardware.PortState)
 			result.Status = consts.StatusAbnormal
 			failedHcas = append(failedHcas, hwInfo.IBDev)
 		}

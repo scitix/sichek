@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type RemmapedRowsFailureChecker struct {
@@ -61,6 +62,10 @@ func (c *RemmapedRowsFailureChecker) Check(ctx context.Context, data any) (*comm
 		}
 	}
 	if len(failedGpuidPodnames) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus": failedGpus,
+		}).Errorf("Row Remap Failure occurred on GPUs")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("Row Remap Failure occurred on GPUs: %v", failedGpus)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

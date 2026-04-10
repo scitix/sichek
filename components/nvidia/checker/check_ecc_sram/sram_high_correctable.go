@@ -24,6 +24,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
 )
 
 type SRAMHighcorrectableChecker struct {
@@ -77,6 +78,10 @@ func (c *SRAMHighcorrectableChecker) Check(ctx context.Context, data any) (*comm
 		}
 	}
 	if len(memoryErrorEvents) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"failed_gpus_count": len(failedGpuidPodnames),
+		}).Errorf("SRAM High Correctable Detected: %v", memoryErrorEvents)
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("%v", memoryErrorEvents)
 		result.Device = strings.Join(failedGpuidPodnames, ",")

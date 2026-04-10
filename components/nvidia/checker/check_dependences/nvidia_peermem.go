@@ -23,6 +23,7 @@ import (
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type NvPeerMemChecker struct {
@@ -65,6 +66,10 @@ func (c *NvPeerMemChecker) Check(ctx context.Context, data any) (*common.Checker
 			result.Detail = "nvidia_peermem is not loaded. It has been loaded online successfully"
 			result.Suggestion = ""
 		} else {
+			logrus.WithFields(logrus.Fields{
+				"checker": c.Name(),
+				"error": err,
+			}).Errorf("nvidia_peermem is not loaded correctly. Failed to load online")
 			result.Status = consts.StatusAbnormal
 			result.Curr = "NotLoaded"
 			result.Detail = fmt.Sprintf("nvidia_peermem is not loaded correctly. Failed to load nvidia_peermem online: %v", err)
