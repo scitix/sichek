@@ -37,11 +37,11 @@ func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec, 
 		config.CheckIBDevs:      NewIBDevsChecker,
 		config.CheckIBDriver:    NewIBDriverChecker,
 		config.CheckIBLost:      NewIBLostChecker,
+		config.CheckPCIETreeSpeed: NewIBPCIETreeSpeedChecker,
+		config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
 		// config.CheckIBNUM:         dependence.NewIOMMUChecker,
 		// config.CheckNetOperstate:  NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
-		// config.CheckPCIETreeSpeed: NewBPCIETreeSpeedChecker,
-		// config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
 	}
 	info.RLock()
 	for _, hwinfo := range info.IBHardWareInfo {
