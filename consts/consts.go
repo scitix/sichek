@@ -41,8 +41,10 @@ const (
 	ComponentNameHCA        = "hca"
 	ComponentIDPCIE         = "14"
 	ComponentNamePCIE       = "pcie"
-	ComponentIDSyslog       = "15"
-	ComponentNameSyslog     = "syslog"
+	ComponentIDSyslog         = "15"
+	ComponentNameSyslog       = "syslog"
+	ComponentIDTransceiver    = "16"
+	ComponentNameTransceiver  = "transceiver"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"
@@ -82,7 +84,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameEthernet, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog,
+		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog, ComponentNameTransceiver,
 	}
 )
 

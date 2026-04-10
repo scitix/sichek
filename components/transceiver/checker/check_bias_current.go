@@ -1,0 +1,94 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package checker
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/transceiver/collector"
+	"github.com/scitix/sichek/components/transceiver/config"
+	"github.com/scitix/sichek/consts"
+)
+
+// BiasCurrentChecker checks laser bias current per lane.
+// A value <= 0 indicates the laser is off or data is invalid.
+type BiasCurrentChecker struct {
+	spec *config.TransceiverSpec
+}
+
+func (c *BiasCurrentChecker) Name() string { return config.BiasCurrentCheckerName }
+
+func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
+	info, ok := data.(*collector.TransceiverInfo)
+	if !ok {
+		return nil, fmt.Errorf("invalid data type for BiasCurrentChecker")
+	}
+
+	tmpl := config.GetCheckItem(c.Name(), "business")
+	result := &common.CheckerResult{
+		Name:        tmpl.Name,
+		Description: tmpl.Description,
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelInfo,
+		Curr:        "OK",
+	}
+
+	var abnormalDevices []string
+
+	for _, module := range info.Modules {
+		if !module.Present {
+			continue
+		}
+
+		moduleAbnormal := false
+		for i, bias := range module.BiasCurrent {
+			lane := i + 1
+			// Skip inactive lanes: if Tx power is also <= -30 dBm, laser is intentionally off
+			if bias <= 0 && i < len(module.TxPower) && module.TxPower[i] <= -30 {
+				continue
+			}
+			if bias <= 0 {
+				result.Status = consts.StatusAbnormal
+				itemLevel := config.GetCheckItem(c.Name(), module.NetworkType).Level
+				if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
+					result.Level = itemLevel
+				}
+				result.ErrorName = tmpl.ErrorName
+				result.Detail += fmt.Sprintf(
+					"Interface %s lane %d bias current %.3f mA is <= 0 (laser may be off or faulty).\n",
+					module.Interface, lane, bias,
+				)
+				moduleAbnormal = true
+			}
+		}
+		if moduleAbnormal {
+			abnormalDevices = append(abnormalDevices, module.Interface)
+		}
+	}
+
+	if result.Status != consts.StatusNormal {
+		result.Curr = "abnormal"
+		result.Suggestion = tmpl.Suggestion
+	}
+	if len(abnormalDevices) > 0 {
+		result.Device = strings.Join(abnormalDevices, ",")
+	}
+
+	return result, nil
+}

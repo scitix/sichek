@@ -77,5 +77,6 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewNcclPerftestCmd())
 	rootCmd.AddCommand(component.NewRoCEPerftestCmd())
 	rootCmd.AddCommand(component.NewSyslogCmd())
+	rootCmd.AddCommand(component.NewTransceiverCmd())
 	return rootCmd
 }
