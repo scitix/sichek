@@ -74,11 +74,11 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	failedHcas := make([]string, 0)
+	failedDevices := make([]string, 0)
 	spec := make([]string, 0, hwInfoLen)
 	curr := make([]string, 0, hwInfoLen)
-	var failedHcasSpec []string
-	var failedHcasCurr []string
+	var failedSpec []string
+	var failedCurr []string
 
 	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
@@ -100,19 +100,20 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 
 		if treeWidthMin != expectedWidth {
 			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
-			failedHcasSpec = append(failedHcasSpec, expectedWidth)
-			failedHcasCurr = append(failedHcasCurr, treeWidthMin)
+			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
+			failedDevices = append(failedDevices, devInfo)
+			failedSpec = append(failedSpec, expectedWidth)
+			failedCurr = append(failedCurr, treeWidthMin)
 		}
 	}
 	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")
-	result.Device = strings.Join(failedHcas, ",")
-	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("PCIETreeWidth check fail: %s upstream path min width %s, expect %s", strings.Join(failedHcas, ","), failedHcasCurr, failedHcasSpec)
-		result.Suggestion = fmt.Sprintf("Check upstream PCIe switch/bridge width for %s, expected x%s but found x%s in path to root complex", strings.Join(failedHcas, ","), strings.Join(failedHcasSpec, ","), strings.Join(failedHcasCurr, ","))
+	result.Device = strings.Join(failedDevices, ",")
+	if len(failedDevices) != 0 {
+		result.Detail = fmt.Sprintf("PCIETreeWidth check fail: %s upstream path min width x%s, expect x%s", strings.Join(failedDevices, ","), strings.Join(failedCurr, ","), strings.Join(failedSpec, ","))
+		result.Suggestion = fmt.Sprintf("Check upstream PCIe switch/bridge width for %s, expected x%s but found x%s in path to root complex", strings.Join(failedDevices, ","), strings.Join(failedSpec, ","), strings.Join(failedCurr, ","))
 	}
 
 	return &result, nil

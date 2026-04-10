@@ -74,11 +74,11 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	failedHcas := make([]string, 0)
+	failedDevices := make([]string, 0)
 	spec := make([]string, 0, hwInfoLen)
 	curr := make([]string, 0, hwInfoLen)
-	var failedHcasSpec []string
-	var failedHcasCurr []string
+	var failedSpec []string
+	var failedCurr []string
 
 	infinibandInfo.RLock()
 	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
@@ -101,19 +101,20 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 
 		if treeSpeedMin != expectedSpeed {
 			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
-			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIESpeed)
-			failedHcasCurr = append(failedHcasCurr, treeSpeedMin)
+			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
+			failedDevices = append(failedDevices, devInfo)
+			failedSpec = append(failedSpec, hcaSpec.Hardware.PCIESpeed)
+			failedCurr = append(failedCurr, treeSpeedMin)
 		}
 	}
 	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")
-	result.Device = strings.Join(failedHcas, ",")
-	if len(failedHcas) != 0 {
-		result.Detail = fmt.Sprintf("PCIETreeSpeed check fail: %s upstream path min speed %s, expect %s", strings.Join(failedHcas, ","), failedHcasCurr, failedHcasSpec)
-		result.Suggestion = fmt.Sprintf("Check upstream PCIe switch/bridge speed for %s, expected %s but found %s in path to root complex", strings.Join(failedHcas, ","), strings.Join(failedHcasSpec, ","), strings.Join(failedHcasCurr, ","))
+	result.Device = strings.Join(failedDevices, ",")
+	if len(failedDevices) != 0 {
+		result.Detail = fmt.Sprintf("PCIETreeSpeed check fail: %s upstream path min speed %s, expect %s", strings.Join(failedDevices, ","), strings.Join(failedCurr, ","), strings.Join(failedSpec, ","))
+		result.Suggestion = fmt.Sprintf("Check upstream PCIe switch/bridge speed for %s, expected %s but found %s in path to root complex", strings.Join(failedDevices, ","), strings.Join(failedSpec, ","), strings.Join(failedCurr, ","))
 	}
 
 	return &result, nil
