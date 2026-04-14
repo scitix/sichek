@@ -59,10 +59,21 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	var err error
 	// Get PCIe device list at collector initialization
 	i.IBPCIDevs, err = GetRDMACapablePCIeDevices()
-	i.IBCapablePCINum = len(i.IBPCIDevs)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)
 	}
+	// Exclude management bond slave PCIs so IBCapablePCINum stays
+	// aligned with HCAPCINum (which is based on IBPFDevs that already
+	// filters out the logical mlx5_bond_* device).
+	if len(i.IBPCIDevs) > 0 {
+		for bdf := range GetManagementBondSlavePCIs() {
+			if _, ok := i.IBPCIDevs[bdf]; ok {
+				logrus.WithField("component", "infiniband").Debugf("drop management bond slave PCI %s from IBPCIDevs", bdf)
+				delete(i.IBPCIDevs, bdf)
+			}
+		}
+	}
+	i.IBCapablePCINum = len(i.IBPCIDevs)
 
 	return i, nil
 }
