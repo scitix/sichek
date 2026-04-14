@@ -322,12 +322,8 @@ func FilterSpecsForLocalHost(file string, allSpecs *HCASpecs) (*HCASpecs, error)
 			common.ExtractAndDeduplicate(strings.Join(missing, ",")))
 	}
 
-	// Persist the applied baseline (all local board IDs' specs)
-	if file != "" {
-		if err := common.WriteSpec(file, "hca_specs", "hca/spec", result); err != nil {
-			logrus.WithField("component", "hca").Warnf("failed to write applied baseline: %v", err)
-		}
-	}
+	// Do not persist the filtered HCA specs back to file. The yaml is
+	// the source of truth maintained by humans.
 	return result, nil
 }
 func GetIBPFBoardIDs() (map[string]string, []string, error) {
