@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -218,9 +219,10 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 
 	IBPFDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
-		// if isIBBondDev(IBDev) {
-		// 	continue
-		// }
+		if strings.Contains(IBDev, "bond") && utils.IsManagementBond(IBDev) {
+			logrus.WithField("component", "infiniband").Debugf("skip management bond %s in IBPFDevs enumeration", IBDev)
+			continue
+		}
 		ibNetDev, _ := GetIBdev2NetDev(IBDev)
 		IBPFDevs[IBDev] = ibNetDev
 	}

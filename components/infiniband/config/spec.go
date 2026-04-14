@@ -84,7 +84,6 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 		specKeys := make([]string, 0, len(ibSpec.IBPFDevs))
-		ibSpec.HCANum = len(ibSpec.IBPFDevs)
 		for k := range ibSpec.IBPFDevs {
 			specKeys = append(specKeys, k)
 		}
@@ -97,6 +96,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			logrus.WithField("component", "infiniband").
 				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)
 		}
+		ibSpec.HCANum = len(ibSpec.IBPFDevs)
 
 		// Load HCA specs from provided file and merge with default specs
 		// This will load from the provided file, merge with built-in specs (provided file has higher priority),
