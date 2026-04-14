@@ -346,9 +346,11 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 			continue // Skip virtual functions
 		}
 		if strings.Contains(devName, "bond") {
-			if utils.IsManagementBond(devName) {
-				continue // Skip management network cards
-			}
+			// bond IB devices are not counted as independent HCAs.
+			// Filter by name unconditionally; the previous speed-based
+			// check was unreliable in containers with partial
+			// /sys/class/net visibility.
+			continue
 		}
 		if strings.Contains(devName, "mezz") {
 			continue // Skip mezzanine card

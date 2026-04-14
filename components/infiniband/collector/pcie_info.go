@@ -100,48 +100,6 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 	return foundDevices, nil
 }
 
-// GetManagementBondSlavePCIs returns a set of PCI BDFs that belong to
-// slaves of management bonds (see utils.IsManagementBond). These BDFs
-// should be excluded from the IB-capable PCI device count so that the
-// counts stay aligned with IBPFDevs (which already filters out the
-// logical mlx5_bond_* device).
-func GetManagementBondSlavePCIs() map[string]struct{} {
-	result := make(map[string]struct{})
-	const netDir = "/sys/class/net"
-	entries, err := os.ReadDir(netDir)
-	if err != nil {
-		logrus.WithField("component", "pci-scanner").Debugf("failed to read %s: %v", netDir, err)
-		return result
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if !strings.HasPrefix(name, "bond") {
-			continue
-		}
-		if !utils.IsManagementBond(name) {
-			continue
-		}
-		slavesPath := filepath.Join(netDir, name, "bonding", "slaves")
-		content, err := os.ReadFile(slavesPath)
-		if err != nil {
-			logrus.WithField("component", "pci-scanner").Debugf("failed to read %s: %v", slavesPath, err)
-			continue
-		}
-		for _, slave := range strings.Fields(strings.TrimSpace(string(content))) {
-			devLink := filepath.Join(netDir, slave, "device")
-			target, err := filepath.EvalSymlinks(devLink)
-			if err != nil {
-				logrus.WithField("component", "pci-scanner").Debugf("failed to resolve %s: %v", devLink, err)
-				continue
-			}
-			bdf := filepath.Base(target)
-			result[bdf] = struct{}{}
-			logrus.WithField("component", "pci-scanner").Debugf("management bond %s slave %s -> BDF %s", name, slave, bdf)
-		}
-	}
-	return result
-}
-
 func IsVirtualFunctionByBDF(bdf string) (bool, error) {
 	p := filepath.Join(PCIPath, bdf, "physfn")
 

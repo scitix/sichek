@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -59,21 +58,10 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	var err error
 	// Get PCIe device list at collector initialization
 	i.IBPCIDevs, err = GetRDMACapablePCIeDevices()
+	i.IBCapablePCINum = len(i.IBPCIDevs)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)
 	}
-	// Exclude management bond slave PCIs so IBCapablePCINum stays
-	// aligned with HCAPCINum (which is based on IBPFDevs that already
-	// filters out the logical mlx5_bond_* device).
-	if len(i.IBPCIDevs) > 0 {
-		for bdf := range GetManagementBondSlavePCIs() {
-			if _, ok := i.IBPCIDevs[bdf]; ok {
-				logrus.WithField("component", "infiniband").Debugf("drop management bond slave PCI %s from IBPCIDevs", bdf)
-				delete(i.IBPCIDevs, bdf)
-			}
-		}
-	}
-	i.IBCapablePCINum = len(i.IBPCIDevs)
 
 	return i, nil
 }
@@ -122,6 +110,27 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 
 	newInfo.IBPFDevs = i.GetIBPFdevs()
 	newInfo.HCAPCINum = countHCAPCINum(newInfo.IBPFDevs)
+	// Trim IBPCIDevs to only the BDFs that back retained IB PFs so
+	// IBCapablePCINum stays aligned with HCAPCINum regardless of
+	// whether /sys/class/net is fully visible in this namespace.
+	if len(newInfo.IBPCIDevs) > 0 {
+		keptBDFs := make(map[string]struct{})
+		for IBDev := range newInfo.IBPFDevs {
+			for _, bdf := range GetIBDevBDF(IBDev) {
+				if bdf != "" {
+					keptBDFs[bdf] = struct{}{}
+				}
+			}
+		}
+		trimmed := make(map[string]string, len(keptBDFs))
+		for bdf, v := range newInfo.IBPCIDevs {
+			if _, ok := keptBDFs[bdf]; ok {
+				trimmed[bdf] = v
+			}
+		}
+		newInfo.IBPCIDevs = trimmed
+		newInfo.IBCapablePCINum = len(trimmed)
+	}
 	newInfo.IBSoftWareInfo.Collect(ctx)
 
 	// // IBPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
@@ -230,8 +239,13 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 
 	IBPFDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
-		if strings.Contains(IBDev, "bond") && utils.IsManagementBond(IBDev) {
-			logrus.WithField("component", "infiniband").Debugf("skip management bond %s in IBPFDevs enumeration", IBDev)
+		// bond IB devices (mlx5_bond_*, roce_bond*, *_bond_*) are not
+		// counted as independent HCAs. The previous speed-based
+		// IsManagementBond check was unreliable inside containers
+		// where /sys/class/net visibility is partial, so filter by
+		// name unconditionally.
+		if strings.Contains(IBDev, "bond") {
+			logrus.WithField("component", "infiniband").Debugf("skip bond %s in IBPFDevs enumeration", IBDev)
 			continue
 		}
 		ibNetDev, _ := GetIBdev2NetDev(IBDev)
