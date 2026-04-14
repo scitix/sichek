@@ -345,11 +345,10 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
 		}
-		if strings.Contains(devName, "bond") {
-			// bond IB devices are not counted as independent HCAs.
-			// Filter by name unconditionally; the previous speed-based
-			// check was unreliable in containers with partial
-			// /sys/class/net visibility.
+		if utils.IsLowSpeedIBBond(devName) {
+			// Skip bond IB devices that look like management
+			// aggregations (port rate <= 100 Gb/sec). Business bonds
+			// are kept and participate in HCA enumeration.
 			continue
 		}
 		if strings.Contains(devName, "mezz") {

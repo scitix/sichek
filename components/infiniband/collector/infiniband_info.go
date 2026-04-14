@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -239,13 +240,11 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 
 	IBPFDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
-		// bond IB devices (mlx5_bond_*, roce_bond*, *_bond_*) are not
-		// counted as independent HCAs. The previous speed-based
-		// IsManagementBond check was unreliable inside containers
-		// where /sys/class/net visibility is partial, so filter by
-		// name unconditionally.
-		if strings.Contains(IBDev, "bond") {
-			logrus.WithField("component", "infiniband").Debugf("skip bond %s in IBPFDevs enumeration", IBDev)
+		// Skip bond IB devices that look like management aggregations
+		// (port rate <= 100 Gb/sec). Business bonds (RoCE LAG / IB
+		// bond over high-speed HCAs) are kept.
+		if utils.IsLowSpeedIBBond(IBDev) {
+			logrus.WithField("component", "infiniband").Debugf("skip low-speed bond %s in IBPFDevs enumeration", IBDev)
 			continue
 		}
 		ibNetDev, _ := GetIBdev2NetDev(IBDev)

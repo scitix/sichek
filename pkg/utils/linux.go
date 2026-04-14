@@ -137,6 +137,45 @@ func IsInfinibandExist() bool {
 
 // IsManagementBond checks if the given IB device name corresponds to a management network bond.
 // It is considered a management bond if its network member interface(s) have a speed <= 100G (100000 Mbps).
+// IsLowSpeedIBBond returns true if the given IB device name looks like a bond
+// (contains "bond") and its IB port rate is <= 100 Gb/sec, which indicates a
+// non-HCA management bond (e.g. two 25G NIC slaves aggregated) rather than a
+// business RoCE LAG / IB bond over high-speed HCAs.
+//
+// Detection uses /sys/class/infiniband/<ibDev>/ports/1/rate — available
+// inside containers that expose /sys/class/infiniband — instead of the
+// ethernet-bond slave speed path which is often not visible there.
+//
+// When the rate file cannot be read or parsed, returns false so callers
+// conservatively keep the device rather than silently dropping a potential
+// business port.
+func IsLowSpeedIBBond(ibDev string) bool {
+	if !strings.Contains(ibDev, "bond") {
+		return false
+	}
+	ratePath := filepath.Join("/sys/class/infiniband", ibDev, "ports/1/rate")
+	content, err := os.ReadFile(ratePath)
+	if err != nil {
+		logrus.WithField("component", "utils").Debugf("unable to read IB rate for %s at %s: %v, not treating as low-speed bond", ibDev, ratePath, err)
+		return false
+	}
+	// rate file format e.g. "200 Gb/sec (2X NDR)"
+	fields := strings.Fields(strings.TrimSpace(string(content)))
+	if len(fields) == 0 {
+		return false
+	}
+	gbps, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		logrus.WithField("component", "utils").Debugf("failed to parse IB rate %q for %s: %v", string(content), ibDev, err)
+		return false
+	}
+	if gbps <= 100 {
+		logrus.WithField("component", "utils").Infof("IB bond %s port rate %.0f Gb/sec <= 100, treating as non-HCA management bond", ibDev, gbps)
+		return true
+	}
+	return false
+}
+
 func IsManagementBond(devName string) bool {
 	bondName := devName
 	// e.g. "mlx5_bond_0" -> "bond0"
