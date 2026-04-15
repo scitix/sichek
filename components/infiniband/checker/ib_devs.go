@@ -90,7 +90,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		if strings.Contains(actualMlx5, "mezz") {
 			continue
 		}
-		if strings.Contains(actualMlx5, "bond") && utils.IsManagementBond(actualMlx5) {
+		if utils.IsLowSpeedIBBond(actualMlx5) {
 			logrus.WithField("component", "infiniband").Debugf("skip management bond %s in check", actualMlx5)
 			continue
 		}
@@ -113,7 +113,7 @@ func (c *IBDevsChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 				logrus.WithField("component", "infiniband").Debugf("skip mezzanine card %s in detail display", k)
 				continue
 			}
-			if strings.Contains(k, "bond") && utils.IsManagementBond(k) {
+			if utils.IsLowSpeedIBBond(k) {
 				logrus.WithField("component", "infiniband").Debugf("skip management bond %s in detail display", k)
 				continue
 			}

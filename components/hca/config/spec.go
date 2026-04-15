@@ -322,12 +322,8 @@ func FilterSpecsForLocalHost(file string, allSpecs *HCASpecs) (*HCASpecs, error)
 			common.ExtractAndDeduplicate(strings.Join(missing, ",")))
 	}
 
-	// Persist the applied baseline (all local board IDs' specs)
-	if file != "" {
-		if err := common.WriteSpec(file, "hca_specs", "hca/spec", result); err != nil {
-			logrus.WithField("component", "hca").Warnf("failed to write applied baseline: %v", err)
-		}
-	}
+	// Do not persist the filtered HCA specs back to file. The yaml is
+	// the source of truth maintained by humans.
 	return result, nil
 }
 func GetIBPFBoardIDs() (map[string]string, []string, error) {
@@ -345,10 +341,11 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 		if _, err := os.Stat(vfPath); err == nil {
 			continue // Skip virtual functions
 		}
-		if strings.Contains(devName, "bond") {
-			if utils.IsManagementBond(devName) {
-				continue // Skip management network cards
-			}
+		if utils.IsLowSpeedIBBond(devName) {
+			// Skip bond IB devices that look like management
+			// aggregations (port rate <= 100 Gb/sec). Business bonds
+			// are kept and participate in HCA enumeration.
+			continue
 		}
 		if strings.Contains(devName, "mezz") {
 			continue // Skip mezzanine card
