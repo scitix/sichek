@@ -77,7 +77,7 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		}).Errorf("IBLost: HCAPCINum != IBCapablePCINum")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum)
-	} else if nodeEffectiveHCANum != c.spec.HCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
+	} else if len(c.spec.IBPFDevs) > 0 && nodeEffectiveHCANum != c.spec.HCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
 		logrus.WithFields(logrus.Fields{
 			"checker":   c.Name(),
 			"effective": nodeEffectiveHCANum,
