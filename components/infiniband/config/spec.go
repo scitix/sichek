@@ -84,7 +84,6 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return nil, err
 		}
 		specKeys := make([]string, 0, len(ibSpec.IBPFDevs))
-		ibSpec.HCANum = len(ibSpec.IBPFDevs)
 		for k := range ibSpec.IBPFDevs {
 			specKeys = append(specKeys, k)
 		}
@@ -97,6 +96,7 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			logrus.WithField("component", "infiniband").
 				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)
 		}
+		ibSpec.HCANum = len(ibSpec.IBPFDevs)
 
 		// Load HCA specs from provided file and merge with default specs
 		// This will load from the provided file, merge with built-in specs (provided file has higher priority),
@@ -129,27 +129,11 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 			return ibSpec, fmt.Errorf("spec not found for board IDs: %v, please check the HCA configuration", missingBoardIDs)
 		}
 
-		// Persist the applied baseline: overwrite file with this cluster's spec (surgically)
-		if file != "" {
-			// Populate stubs for persistence (only keys, empty objects as expected by user)
-			ibSpec.HCAStubs = make(map[string]interface{})
-			for bid := range ibSpec.HCAs {
-				ibSpec.HCAStubs[bid] = struct{}{}
-			}
-
-			// Wrap in plural container to preserve cluster name level
-			clusterName := utils.ExtractClusterName()
-			persistSpecs := &InfinibandSpecs{
-				Specs: map[string]*InfinibandSpec{
-					clusterName: ibSpec,
-				},
-			}
-
-			if err := common.WriteSpec(file, "infiniband", "infiniband/spec", persistSpecs); err != nil {
-				logrus.WithField("component", "infiniband").Warnf("failed to write applied baseline: %v", err)
-			}
-		}
-
+		// Do not persist runtime-derived spec back to file. The yaml is
+		// the source of truth maintained by humans; writing a trimmed
+		// snapshot has been observed to fossilise startup-time
+		// enumeration gaps (e.g. ib_devs losing entries and hca_num
+		// shrinking) and corrupt the baseline.
 		return ibSpec, nil
 	}
 	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)

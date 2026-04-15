@@ -109,6 +109,7 @@ func (m *HealthCheckResMetrics) ExportMetrics(metrics *common.Result) {
 }
 
 func (m *HealthCheckResMetrics) ExportAnnotationMetrics(annoStr string) {
+	m.AnnotationResGauge.ResetMetric("node_annotaion")
 	m.AnnotationResGauge.SetMetric("node_annotaion", []string{annoStr}, 1.0)
 }
 

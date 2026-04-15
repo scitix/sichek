@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -110,6 +111,27 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 
 	newInfo.IBPFDevs = i.GetIBPFdevs()
 	newInfo.HCAPCINum = countHCAPCINum(newInfo.IBPFDevs)
+	// Trim IBPCIDevs to only the BDFs that back retained IB PFs so
+	// IBCapablePCINum stays aligned with HCAPCINum regardless of
+	// whether /sys/class/net is fully visible in this namespace.
+	if len(newInfo.IBPCIDevs) > 0 {
+		keptBDFs := make(map[string]struct{})
+		for IBDev := range newInfo.IBPFDevs {
+			for _, bdf := range GetIBDevBDF(IBDev) {
+				if bdf != "" {
+					keptBDFs[bdf] = struct{}{}
+				}
+			}
+		}
+		trimmed := make(map[string]string, len(keptBDFs))
+		for bdf, v := range newInfo.IBPCIDevs {
+			if _, ok := keptBDFs[bdf]; ok {
+				trimmed[bdf] = v
+			}
+		}
+		newInfo.IBPCIDevs = trimmed
+		newInfo.IBCapablePCINum = len(trimmed)
+	}
 	newInfo.IBSoftWareInfo.Collect(ctx)
 
 	// // IBPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
@@ -218,9 +240,13 @@ func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 
 	IBPFDevs := make(map[string]string)
 	for _, IBDev := range PFDevs {
-		// if isIBBondDev(IBDev) {
-		// 	continue
-		// }
+		// Skip bond IB devices that look like management aggregations
+		// (port rate <= 100 Gb/sec). Business bonds (RoCE LAG / IB
+		// bond over high-speed HCAs) are kept.
+		if utils.IsLowSpeedIBBond(IBDev) {
+			logrus.WithField("component", "infiniband").Debugf("skip low-speed bond %s in IBPFDevs enumeration", IBDev)
+			continue
+		}
 		ibNetDev, _ := GetIBdev2NetDev(IBDev)
 		IBPFDevs[IBDev] = ibNetDev
 	}
