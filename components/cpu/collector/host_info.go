@@ -28,6 +28,7 @@ type HostInfo struct {
 	Hostname      string `json:"hostname"`
 	OSVersion     string `json:"os_version"`
 	KernelVersion string `json:"kernel_version"`
+	SerialNumber  string `json:"serial_number"`
 }
 
 // JSON converts the HostInfo struct to a JSON byte slice.
@@ -69,5 +70,23 @@ func (hostInfo *HostInfo) Get() error {
 	}
 	hostInfo.KernelVersion = strings.TrimSpace(string(kernelVersion))
 
+	hostInfo.SerialNumber = getSerialNumber()
+
 	return nil
+}
+
+// getSerialNumber reads the system serial number from DMI sysfs, falling back
+// to dmidecode. Returns "Unknown" when neither source is available.
+func getSerialNumber() string {
+	if data, err := os.ReadFile("/sys/class/dmi/id/product_serial"); err == nil {
+		if sn := strings.TrimSpace(string(data)); sn != "" {
+			return sn
+		}
+	}
+	if out, err := exec.Command("dmidecode", "-s", "system-serial-number").Output(); err == nil {
+		if sn := strings.TrimSpace(string(out)); sn != "" {
+			return sn
+		}
+	}
+	return "Unknown"
 }
