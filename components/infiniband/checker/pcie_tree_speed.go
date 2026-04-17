@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -99,7 +100,7 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		}
 		curr = append(curr, treeSpeedMin)
 
-		if treeSpeedMin != expectedSpeed {
+		if !numericSpeedEqual(treeSpeedMin, expectedSpeed) {
 			result.Status = consts.StatusAbnormal
 			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
 			failedDevices = append(failedDevices, devInfo)
@@ -128,4 +129,15 @@ func extractNumericSpeed(speed string) string {
 		return speed
 	}
 	return parts[0]
+}
+
+// numericSpeedEqual compares two speed strings numerically to avoid
+// false mismatches like "16" != "16.0".
+func numericSpeedEqual(a, b string) bool {
+	va, errA := strconv.ParseFloat(a, 64)
+	vb, errB := strconv.ParseFloat(b, 64)
+	if errA != nil || errB != nil {
+		return a == b
+	}
+	return va == vb
 }
