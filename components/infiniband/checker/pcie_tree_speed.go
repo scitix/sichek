@@ -88,9 +88,13 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		// Extract numeric speed from spec (e.g., "32.0 GT/s PCIe" -> "32.0")
-		expectedSpeed := extractNumericSpeed(hcaSpec.Hardware.PCIESpeed)
-		spec = append(spec, hcaSpec.Hardware.PCIESpeed)
+		// Use PCIETreeSpeedMin from spec for tree speed comparison
+		expectedSpeed := hcaSpec.Hardware.PCIETreeSpeedMin
+		if expectedSpeed == "" {
+			// Fallback to extracting from PCIESpeed if tree speed not set in spec
+			expectedSpeed = extractNumericSpeed(hcaSpec.Hardware.PCIESpeed)
+		}
+		spec = append(spec, expectedSpeed)
 
 		treeSpeedMin := hwInfo.PCIETreeSpeedMin
 		if treeSpeedMin == "" {
@@ -104,7 +108,7 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 			result.Status = consts.StatusAbnormal
 			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
 			failedDevices = append(failedDevices, devInfo)
-			failedSpec = append(failedSpec, hcaSpec.Hardware.PCIESpeed)
+			failedSpec = append(failedSpec, expectedSpeed)
 			failedCurr = append(failedCurr, treeSpeedMin)
 		}
 	}
