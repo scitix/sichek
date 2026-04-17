@@ -84,43 +84,30 @@ nfpms:
     contents:
       - src: ./components/cpu/config/*.yaml
         dst: /var/sichek/config/cpu/
-        type: "config|noreplace"
       - src: ./components/dmesg/config/*.yaml
         dst: /var/sichek/config/dmesg/
-        type: "config|noreplace"
       - src: ./components/gpfs/config/*.yaml
         dst: /var/sichek/config/gpfs/
-        type: "config|noreplace"
       - src: ./components/gpuevents/config/*.yaml
         dst: /var/sichek/config/gpuevents/
-        type: "config|noreplace"
       - src: ./components/infiniband/config/*.yaml
         dst: /var/sichek/config/infiniband/
-        type: "config|noreplace"
       - src: ./components/memory/config/*.yaml
         dst: /var/sichek/config/memory/
-        type: "config|noreplace"
       - src: ./components/podlog/config/*.yaml
         dst: /var/sichek/config/podlog/
-        type: "config|noreplace"
       - src: ./components/syslog/config/*.yaml
         dst: /var/sichek/config/syslog/
-        type: "config|noreplace"
       - src: ./components/nvidia/config/*.yaml
         dst: /var/sichek/config/nvidia/
-        type: "config|noreplace"
       - src: ./components/hca/config/*.yaml
         dst: /var/sichek/config/hca/
-        type: "config|noreplace"
       - src: ./components/pcie/config/*.yaml
         dst: /var/sichek/config/pcie/
-        type: "config|noreplace"
       - src: ./components/ethernet/config/*.yaml
         dst: /var/sichek/config/ethernet/
-        type: "config|noreplace"
       - src: ./config/*.yaml
         dst: /var/sichek/config/
-        type: "config|noreplace"
       - src: ./scripts
         dst: /var/sichek/scripts
       - src: ./k8s/sichek/*
