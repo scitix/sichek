@@ -20,3 +20,10 @@ cpu:
     regexp: "(soft lockup)|(hard LOCKUP)"
     level: warning
     suggestion: ""
+  mce_error:
+    name: "mce_error"
+    description: "Machine Check Exception detected in kernel log"
+    log_file: "/var/log/syslog"
+    regexp: "(Machine check|MCE|mce:)"
+    level: critical
+    suggestion: "Check CPU/memory hardware health. Run mcelog or rasdaemon for details"
