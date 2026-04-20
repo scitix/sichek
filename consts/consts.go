@@ -66,6 +66,17 @@ const (
 	CheckerIDPodLog                  = "4300"
 	CheckerIDHang                    = "4400"
 
+	// CPU extended checker IDs
+	CheckerIDClockSyncService  = "1300"
+	CheckerIDClockSyncOffset   = "1301"
+	CheckerIDCPUMCEUncorrected = "1302"
+	CheckerIDCPUMCECorrected   = "1303"
+
+	// Memory extended checker IDs
+	CheckerIDMemoryECCUncorrected = "2100"
+	CheckerIDMemoryECCCorrected   = "2101"
+	CheckerIDMemoryCapacity       = "2102"
+
 	/*----------------------error name------------------------*/
 	ErrorNameNCCL  = "NCCLTimeout"
 	ErrorNameDmesg = "DmesgError"

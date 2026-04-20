@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -87,9 +88,13 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		// Extract numeric speed from spec (e.g., "32.0 GT/s PCIe" -> "32.0")
-		expectedSpeed := extractNumericSpeed(hcaSpec.Hardware.PCIESpeed)
-		spec = append(spec, hcaSpec.Hardware.PCIESpeed)
+		// Use PCIETreeSpeedMin from spec for tree speed comparison
+		expectedSpeed := hcaSpec.Hardware.PCIETreeSpeedMin
+		if expectedSpeed == "" {
+			// Fallback to extracting from PCIESpeed if tree speed not set in spec
+			expectedSpeed = extractNumericSpeed(hcaSpec.Hardware.PCIESpeed)
+		}
+		spec = append(spec, expectedSpeed)
 
 		treeSpeedMin := hwInfo.PCIETreeSpeedMin
 		if treeSpeedMin == "" {
@@ -99,11 +104,11 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		}
 		curr = append(curr, treeSpeedMin)
 
-		if treeSpeedMin != expectedSpeed {
+		if !numericSpeedEqual(treeSpeedMin, expectedSpeed) {
 			result.Status = consts.StatusAbnormal
 			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
 			failedDevices = append(failedDevices, devInfo)
-			failedSpec = append(failedSpec, hcaSpec.Hardware.PCIESpeed)
+			failedSpec = append(failedSpec, expectedSpeed)
 			failedCurr = append(failedCurr, treeSpeedMin)
 		}
 	}
@@ -128,4 +133,15 @@ func extractNumericSpeed(speed string) string {
 		return speed
 	}
 	return parts[0]
+}
+
+// numericSpeedEqual compares two speed strings numerically to avoid
+// false mismatches like "16" != "16.0".
+func numericSpeedEqual(a, b string) bool {
+	va, errA := strconv.ParseFloat(a, 64)
+	vb, errB := strconv.ParseFloat(b, 64)
+	if errA != nil || errB != nil {
+		return a == b
+	}
+	return va == vb
 }
