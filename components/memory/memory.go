@@ -23,6 +23,7 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	filter "github.com/scitix/sichek/components/common/eventfilter"
+	"github.com/scitix/sichek/components/memory/checker"
 	"github.com/scitix/sichek/components/memory/collector"
 	"github.com/scitix/sichek/components/memory/config"
 	"github.com/scitix/sichek/components/memory/metrics"
@@ -95,6 +96,12 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 		return nil, err
 	}
 
+	checkers, err := checker.NewCheckers(0)
+	if err != nil {
+		logrus.WithField("component", "memory").Errorf("NewMemoryComponent create checkers failed: %v", err)
+		return nil, err
+	}
+
 	filterPointer, err := filter.NewEventFilter(consts.ComponentNameMemory, eventRules, 100)
 	if err != nil {
 		return nil, err
@@ -108,7 +115,7 @@ func newMemoryComponent(cfgFile string, specFile string) (comp *component, err e
 		cancel:        cancel,
 		componentName: consts.ComponentNameMemory,
 		collector:     collectorPointer,
-		checkers:      nil,
+		checkers:      checkers,
 		filter:        filterPointer,
 		cfg:           memoryCfg,
 		cacheBuffer:   make([]*common.Result, memoryCfg.Memory.CacheSize),

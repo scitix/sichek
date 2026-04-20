@@ -28,5 +28,30 @@ func NewCheckers() ([]common.Checker, error) {
 		return nil, fmt.Errorf("create cpu perf checker failed: %v", err)
 	}
 	checkers = append(checkers, checker)
+
+	clockSyncSvc, err := NewClockSyncServiceChecker()
+	if err != nil {
+		return nil, fmt.Errorf("create clock sync service checker failed: %v", err)
+	}
+	checkers = append(checkers, clockSyncSvc)
+
+	clockSyncOffset, err := NewClockSyncOffsetChecker(1.0, 10.0)
+	if err != nil {
+		return nil, fmt.Errorf("create clock sync offset checker failed: %v", err)
+	}
+	checkers = append(checkers, clockSyncOffset)
+
+	mceUncorrected, err := NewCPUMCEUncorrectedChecker()
+	if err != nil {
+		return nil, fmt.Errorf("create cpu mce uncorrected checker failed: %v", err)
+	}
+	checkers = append(checkers, mceUncorrected)
+
+	mceCorrected, err := NewCPUMCECorrectedChecker(10)
+	if err != nil {
+		return nil, fmt.Errorf("create cpu mce corrected checker failed: %v", err)
+	}
+	checkers = append(checkers, mceCorrected)
+
 	return checkers, nil
 }

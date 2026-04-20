@@ -26,8 +26,10 @@ import (
 )
 
 type Output struct {
-	Info *MemoryInfo `json:"info"`
-	Time time.Time
+	Info     *MemoryInfo        `json:"info"`
+	EDAC     EDACInfo           `json:"edac"`
+	Capacity MemoryCapacityInfo `json:"capacity"`
+	Time     time.Time
 }
 
 func (o *Output) JSON() (string, error) {
@@ -57,9 +59,16 @@ func (c *MemoryCollector) Collect(ctx context.Context) (common.Info, error) {
 		return nil, err
 	}
 
+	edac := &EDACInfo{}
+	edac.Get()
+
+	capacity := MemoryCapacityFromMemInfo(info)
+
 	output := &Output{
-		Info: info,
-		Time: time.Now(),
+		Info:     info,
+		EDAC:     *edac,
+		Capacity: capacity,
+		Time:     time.Now(),
 	}
 
 	return output, nil
