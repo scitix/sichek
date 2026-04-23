@@ -133,6 +133,18 @@ const (
 	Cyan   = "\033[36m"
 	White  = "\033[37m"
 )
+// LevelColor returns the ANSI color for a given severity level.
+func LevelColor(level string) string {
+	switch level {
+	case LevelWarning:
+		return Yellow
+	case LevelCritical, LevelFatal:
+		return Red
+	default:
+		return Green
+	}
+}
+
 const PadLen = len(Green) + len(Reset)
 const CmdTimeout = 30 * time.Second
 const IbPerfTestTimeout = 600 * time.Second

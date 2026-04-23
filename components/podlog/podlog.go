@@ -385,7 +385,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		for _, checkerResult := range checkerResults {
 			if checkerResult.Status == consts.StatusAbnormal {
 				checkAllPassed = false
-				fmt.Printf("\t%sDetected %s error for %s times in %s%s\n", consts.Red, checkerResult.ErrorName, checkerResult.Curr, checkerResult.Device, consts.Reset)
+				fmt.Printf("\t%sDetected %s error for %s times in %s%s\n", consts.LevelColor(checkerResult.Level), checkerResult.ErrorName, checkerResult.Curr, checkerResult.Device, consts.Reset)
 			}
 		}
 	}

@@ -209,7 +209,7 @@ func PrintInfo(result *common.Result, verbos bool) bool {
 	}
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {
-			fmt.Printf("%s%s%s\n", consts.Red, result.ErrorName, consts.Reset)
+			fmt.Printf("%s%s%s\n", consts.LevelColor(result.Level), result.ErrorName, consts.Reset)
 			fmt.Printf("%s\n", result.Detail)
 		}
 	}

@@ -281,7 +281,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 					fmt.Printf("\nErrors Events:\n")
 					hasErrors = true
 				}
-				fmt.Printf("\tEvent: %s%s%s -> %s\n", consts.Red, res.ErrorName, consts.Reset, res.Detail)
+				fmt.Printf("\tEvent: %s%s%s -> %s\n", consts.LevelColor(res.Level), res.ErrorName, consts.Reset, res.Detail)
 			}
 		}
 		if !hasErrors {
