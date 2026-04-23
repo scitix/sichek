@@ -42,6 +42,12 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 			continue
 		}
+		// Skip SR-IOV Virtual Functions — physfn exists only on VFs, not PFs.
+		// mlxlink on VF BDFs fails slowly (8-11s), wasting the collection budget.
+		physfnPath := filepath.Join(netDir, name, "device", "physfn")
+		if _, err := os.Stat(physfnPath); err == nil {
+			continue
+		}
 		// Detect mlx5 driver — these need mlxlink instead of ethtool for DOM
 		entry := InterfaceEntry{Name: name, IsIB: false}
 		driverLink := filepath.Join(netDir, name, "device", "driver")
@@ -79,10 +85,20 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 		netDevDir := filepath.Join(ibDir, ibDev, "device", "net")
 		netDevs, _ := os.ReadDir(netDevDir)
 		netDevName := ""
+		var netBDF string
 		if len(netDevs) > 0 {
 			netDevName = netDevs[0].Name()
+			ueventPath := filepath.Join(netDir, netDevName, "device", "uevent")
+			if data, err := os.ReadFile(ueventPath); err == nil {
+				for _, line := range strings.Split(string(data), "\n") {
+					if strings.HasPrefix(line, "PCI_SLOT_NAME=") {
+						netBDF = strings.TrimPrefix(line, "PCI_SLOT_NAME=")
+						break
+					}
+				}
+			}
 		}
-		entries = append(entries, InterfaceEntry{Name: netDevName, IsIB: true, IBDev: ibDev})
+		entries = append(entries, InterfaceEntry{Name: netDevName, IsIB: true, IBDev: ibDev, PcieBDF: netBDF})
 	}
 
 	return entries, nil
