@@ -79,10 +79,20 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 		netDevDir := filepath.Join(ibDir, ibDev, "device", "net")
 		netDevs, _ := os.ReadDir(netDevDir)
 		netDevName := ""
+		var netBDF string
 		if len(netDevs) > 0 {
 			netDevName = netDevs[0].Name()
+			ueventPath := filepath.Join(netDir, netDevName, "device", "uevent")
+			if data, err := os.ReadFile(ueventPath); err == nil {
+				for _, line := range strings.Split(string(data), "\n") {
+					if strings.HasPrefix(line, "PCI_SLOT_NAME=") {
+						netBDF = strings.TrimPrefix(line, "PCI_SLOT_NAME=")
+						break
+					}
+				}
+			}
 		}
-		entries = append(entries, InterfaceEntry{Name: netDevName, IsIB: true, IBDev: ibDev})
+		entries = append(entries, InterfaceEntry{Name: netDevName, IsIB: true, IBDev: ibDev, PcieBDF: netBDF})
 	}
 
 	return entries, nil
