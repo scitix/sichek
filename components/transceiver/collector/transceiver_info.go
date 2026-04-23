@@ -115,14 +115,20 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		}
 	}
 
-	// Collect all interfaces concurrently to avoid sequential mlxlink timeouts.
+	// Collect interfaces concurrently with a bounded worker pool.
+	// Unlimited parallelism causes PCIe device lock contention across 40+ mlxlink
+	// processes, which serializes them anyway and wastes the 30s command timeout.
+	const maxWorkers = 8
 	resultCh := make(chan indexedModule, len(tasks))
+	sem := make(chan struct{}, maxWorkers)
 	var wg sync.WaitGroup
 
 	for i, task := range tasks {
 		wg.Add(1)
 		go func(i int, task collectTask) {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
 			var module ModuleInfo
 			var collectErr error
