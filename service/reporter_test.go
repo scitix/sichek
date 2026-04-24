@@ -374,3 +374,20 @@ func TestReporter_Run_PushFailureDoesNotKillLoop(t *testing.T) {
 		t.Errorf("calls=%d, expected >=2 despite server 5xx", n)
 	}
 }
+
+func TestResolveNodeName_EnvOverride(t *testing.T) {
+	t.Setenv("NODE_NAME", "from-env")
+	got := ResolveNodeName()
+	if got != "from-env" {
+		t.Errorf("ResolveNodeName=%q", got)
+	}
+}
+
+func TestResolveNodeName_FallbackToHostname(t *testing.T) {
+	t.Setenv("NODE_NAME", "")
+	got := ResolveNodeName()
+	host, _ := os.Hostname()
+	if got != host {
+		t.Errorf("ResolveNodeName=%q want %q", got, host)
+	}
+}

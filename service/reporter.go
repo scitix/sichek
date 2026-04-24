@@ -237,3 +237,17 @@ func (r *Reporter) pushWithRecover(ctx context.Context) {
 		r.logEntry().Warnf("push failed: %v", err)
 	}
 }
+
+// ResolveNodeName returns the preferred node identity:
+// NODE_NAME env (set by K8s DaemonSet spec.nodeName fieldRef) if present,
+// else os.Hostname().
+func ResolveNodeName() string {
+	if v := os.Getenv("NODE_NAME"); v != "" {
+		return v
+	}
+	h, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return h
+}
