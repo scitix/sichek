@@ -10,8 +10,15 @@ You may obtain a copy of the License at
 package service
 
 import (
+	"bytes"
+	"compress/gzip"
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -103,5 +110,158 @@ func TestLoadReporterConfig_InvalidYAML(t *testing.T) {
 	_, err := LoadReporterConfig(p)
 	if err == nil {
 		t.Errorf("expected error on invalid yaml")
+	}
+}
+
+func TestReporter_pushOnce_Success(t *testing.T) {
+	var gotNode, gotCE, gotCT string
+	var gotBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotNode = r.Header.Get("X-Sichek-Node")
+		gotCE = r.Header.Get("Content-Encoding")
+		gotCT = r.Header.Get("Content-Type")
+		b, _ := io.ReadAll(r.Body)
+		if gotCE == "gzip" {
+			gz, _ := gzip.NewReader(bytes.NewReader(b))
+			b, _ = io.ReadAll(gz)
+		}
+		gotBody = b
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte(`{"ok":1}`), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.Gzip = true
+	cfg.Timeout = 2 * time.Second
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	if err := r.pushOnce(context.Background()); err != nil {
+		t.Fatalf("pushOnce: %v", err)
+	}
+	if gotNode != "node-a" {
+		t.Errorf("node header=%q", gotNode)
+	}
+	if gotCE != "gzip" {
+		t.Errorf("Content-Encoding=%q want gzip", gotCE)
+	}
+	if gotCT != "application/json" {
+		t.Errorf("Content-Type=%q want application/json", gotCT)
+	}
+	if string(gotBody) != `{"ok":1}` {
+		t.Errorf("body=%q", string(gotBody))
+	}
+}
+
+func TestReporter_pushOnce_GzipDisabled(t *testing.T) {
+	var gotCE string
+	var gotBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotCE = r.Header.Get("Content-Encoding")
+		gotBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte("raw"), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.Gzip = false
+	cfg.Timeout = 2 * time.Second
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	if err := r.pushOnce(context.Background()); err != nil {
+		t.Fatalf("pushOnce: %v", err)
+	}
+	if gotCE != "" {
+		t.Errorf("Content-Encoding=%q want empty", gotCE)
+	}
+	if string(gotBody) != "raw" {
+		t.Errorf("body=%q", string(gotBody))
+	}
+}
+
+func TestReporter_pushOnce_MissingSnapshotFile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("server should not be called when snapshot missing")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	r := NewReporter(cfg, "/nonexistent/snap.json", "node-a")
+
+	err := r.pushOnce(context.Background())
+	if err == nil {
+		t.Errorf("expected error on missing file")
+	}
+}
+
+func TestReporter_pushOnce_RetryOn5xx(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := attempts.Add(1)
+		if n < 3 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte("x"), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.RetryMax = 3
+	cfg.Timeout = 2 * time.Second
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	r.backoff = func(i int) time.Duration { return 0 }
+
+	if err := r.pushOnce(context.Background()); err != nil {
+		t.Fatalf("pushOnce: %v", err)
+	}
+	if got := attempts.Load(); got != 3 {
+		t.Errorf("attempts=%d want 3", got)
+	}
+}
+
+func TestReporter_pushOnce_NoRetryOn4xx(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte("x"), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.RetryMax = 5
+	cfg.Timeout = 2 * time.Second
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	r.backoff = func(i int) time.Duration { return 0 }
+
+	if err := r.pushOnce(context.Background()); err == nil {
+		t.Errorf("expected error on 400")
+	}
+	if got := attempts.Load(); got != 1 {
+		t.Errorf("attempts=%d want 1 (no retry on 4xx)", got)
 	}
 }

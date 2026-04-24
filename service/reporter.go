@@ -10,10 +10,16 @@ You may obtain a copy of the License at
 package service
 
 import (
+	"bytes"
+	"compress/gzip"
+	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -84,4 +90,109 @@ func mergeReporterDefaults(user, def ReporterConfig) ReporterConfig {
 		out.RetryMax = def.RetryMax
 	}
 	return out
+}
+
+// Reporter periodically POSTs snapshot bytes to a collector.
+type Reporter struct {
+	cfg          ReporterConfig
+	snapshotPath string
+	nodeName     string
+	client       *http.Client
+
+	// backoff allows tests to inject zero-sleep. Defaults to exponential.
+	backoff func(attempt int) time.Duration
+}
+
+// NewReporter constructs a Reporter. Call Run(ctx) to start the loop.
+func NewReporter(cfg ReporterConfig, snapshotPath, nodeName string) *Reporter {
+	return &Reporter{
+		cfg:          cfg,
+		snapshotPath: snapshotPath,
+		nodeName:     nodeName,
+		client: &http.Client{
+			Timeout: cfg.Timeout,
+		},
+		backoff: defaultBackoff,
+	}
+}
+
+func defaultBackoff(attempt int) time.Duration {
+	// 1s, 2s, 4s, 8s capped at 30s.
+	d := time.Second << attempt
+	if d > 30*time.Second {
+		d = 30 * time.Second
+	}
+	return d
+}
+
+// pushOnce reads the snapshot file and POSTs it, with retries on 5xx or
+// transport errors up to cfg.RetryMax. 4xx responses abort immediately.
+func (r *Reporter) pushOnce(ctx context.Context) error {
+	raw, err := os.ReadFile(r.snapshotPath)
+	if err != nil {
+		return fmt.Errorf("read snapshot: %w", err)
+	}
+
+	body := raw
+	if r.cfg.Gzip {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		if _, err := gz.Write(raw); err != nil {
+			return fmt.Errorf("gzip write: %w", err)
+		}
+		if err := gz.Close(); err != nil {
+			return fmt.Errorf("gzip close: %w", err)
+		}
+		body = buf.Bytes()
+	}
+
+	var lastErr error
+	attempts := r.cfg.RetryMax
+	if attempts < 1 {
+		attempts = 1
+	}
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(r.backoff(i - 1)):
+			}
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.cfg.Endpoint, bytes.NewReader(body))
+		if err != nil {
+			return fmt.Errorf("new request: %w", err)
+		}
+		req.Header.Set("X-Sichek-Node", r.nodeName)
+		req.Header.Set("Content-Type", "application/json")
+		if r.cfg.Gzip {
+			req.Header.Set("Content-Encoding", "gzip")
+		}
+
+		resp, err := r.client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return nil
+		}
+		// 4xx: don't retry — configuration/auth errors won't fix themselves.
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			return fmt.Errorf("collector returned %d", resp.StatusCode)
+		}
+		lastErr = fmt.Errorf("collector returned %d", resp.StatusCode)
+	}
+	return lastErr
+}
+
+// logEntry returns a structured logger with the standard reporter fields.
+func (r *Reporter) logEntry() *logrus.Entry {
+	return logrus.WithFields(logrus.Fields{
+		"service": "reporter",
+		"node":    r.nodeName,
+	})
 }
