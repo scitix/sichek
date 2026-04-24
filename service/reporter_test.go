@@ -265,3 +265,112 @@ func TestReporter_pushOnce_NoRetryOn4xx(t *testing.T) {
 		t.Errorf("attempts=%d want 1 (no retry on 4xx)", got)
 	}
 }
+
+func TestReporter_Run_DisabledNoOp(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("server should not be called when disabled")
+	}))
+	defer srv.Close()
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = false
+	cfg.Endpoint = srv.URL
+	cfg.Interval = 10 * time.Millisecond
+
+	r := NewReporter(cfg, "/tmp/unused", "node-a")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	r.Run(ctx)
+}
+
+func TestReporter_Run_PushesPeriodically(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte("x"), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.Interval = 20 * time.Millisecond
+	cfg.Timeout = 1 * time.Second
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	r.backoff = func(i int) time.Duration { return 0 }
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
+	defer cancel()
+	r.Run(ctx)
+
+	if n := calls.Load(); n < 2 {
+		t.Errorf("calls=%d, expected >=2", n)
+	}
+}
+
+func TestReporter_Run_ContextCancel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte("x"), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.Interval = 1 * time.Second
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	r.backoff = func(i int) time.Duration { return 0 }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		r.Run(ctx)
+		close(done)
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		t.Error("Run did not return within 500ms after ctx cancel")
+	}
+}
+
+func TestReporter_Run_PushFailureDoesNotKillLoop(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	snapPath := filepath.Join(t.TempDir(), "snap.json")
+	os.WriteFile(snapPath, []byte("x"), 0o600)
+
+	cfg := defaultReporterConfig()
+	cfg.Enable = true
+	cfg.Endpoint = srv.URL
+	cfg.Interval = 20 * time.Millisecond
+	cfg.Timeout = 200 * time.Millisecond
+	cfg.RetryMax = 1
+
+	r := NewReporter(cfg, snapPath, "node-a")
+	r.backoff = func(i int) time.Duration { return 0 }
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	r.Run(ctx)
+
+	if n := calls.Load(); n < 2 {
+		t.Errorf("calls=%d, expected >=2 despite server 5xx", n)
+	}
+}

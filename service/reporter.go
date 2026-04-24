@@ -196,3 +196,44 @@ func (r *Reporter) logEntry() *logrus.Entry {
 		"node":    r.nodeName,
 	})
 }
+
+// Run starts the reporter loop. When ctx is canceled, Run returns.
+// If the reporter is disabled via config, Run returns immediately.
+// Panics inside pushOnce are recovered so that the daemon's health-check
+// pipeline is never affected.
+func (r *Reporter) Run(ctx context.Context) {
+	if !r.cfg.Enable {
+		r.logEntry().Info("reporter disabled; exiting")
+		return
+	}
+	r.logEntry().Infof("reporter started; endpoint=%s interval=%v gzip=%v",
+		r.cfg.Endpoint, r.cfg.Interval, r.cfg.Gzip)
+
+	ticker := time.NewTicker(r.cfg.Interval)
+	defer ticker.Stop()
+
+	// Fire an initial push immediately so the collector sees the node
+	// as soon as the daemon comes up.
+	r.pushWithRecover(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			r.logEntry().Info("reporter stopped (context canceled)")
+			return
+		case <-ticker.C:
+			r.pushWithRecover(ctx)
+		}
+	}
+}
+
+func (r *Reporter) pushWithRecover(ctx context.Context) {
+	defer func() {
+		if p := recover(); p != nil {
+			r.logEntry().Errorf("reporter panic: %v", p)
+		}
+	}()
+	if err := r.pushOnce(ctx); err != nil {
+		r.logEntry().Warnf("push failed: %v", err)
+	}
+}
