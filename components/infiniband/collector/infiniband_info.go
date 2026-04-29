@@ -41,24 +41,29 @@ type InfinibandInfo struct {
 	IBSoftWareInfo  IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
 	// PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
 	IBCounters map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
-	IBNicRole  string                `json:"ib_nic_role" yaml:"ib_nic_role"`
-	Time       time.Time             `json:"time" yaml:"time"`
-	mu         sync.RWMutex
+	IBNicRole   string                `json:"ib_nic_role" yaml:"ib_nic_role"`
+	allowedDevs map[string]string     // spec.ib_devs allowlist; nil/empty = legacy auto-discover
+	Time        time.Time             `json:"time" yaml:"time"`
+	mu          sync.RWMutex
 }
 
-func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
+func NewIBCollector(ctx context.Context, allowed map[string]string) (*InfinibandInfo, error) {
 	i := &InfinibandInfo{
 		IBHardWareInfo: make(map[string]IBHardWareInfo),
 		IBSoftWareInfo: IBSoftWareInfo{},
 		// PCIETreeInfo:   make(map[string]PCIETreeInfo),
-		IBPFDevs:   make(map[string]string),
-		IBCounters: make(map[string]IBCounters),
-		mu:         sync.RWMutex{},
+		IBPFDevs:    make(map[string]string),
+		IBCounters:  make(map[string]IBCounters),
+		allowedDevs: allowed,
+		mu:          sync.RWMutex{},
 	}
 	i.IBNicRole = i.GetNICRole()
 	var err error
-	// Get PCIe device list at collector initialization
-	i.IBPCIDevs, err = GetRDMACapablePCIeDevices()
+	// Get PCIe device list at collector initialization.
+	// When the spec carries an allowlist (SR-IOV node listing VFs), include VFs
+	// in the scan so the trim step in Collect can keep VF BDFs that back the
+	// IB devices we actually want to check.
+	i.IBPCIDevs, err = GetRDMACapablePCIeDevices(len(allowed) > 0)
 	i.IBCapablePCINum = len(i.IBPCIDevs)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)
@@ -107,6 +112,7 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 		IBNicRole:       i.IBNicRole,
 		IBPCIDevs:       i.IBPCIDevs,
 		IBCapablePCINum: i.IBCapablePCINum,
+		allowedDevs:     i.allowedDevs,
 	}
 
 	newInfo.IBPFDevs = i.GetIBPFdevs()
@@ -209,27 +215,30 @@ func ignoreVirtualFunction(ibDev string) bool {
 }
 
 func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
+	useAllowlist := len(i.allowedDevs) > 0
 	PFDevs := make([]string, 0)
 	for _, IBDev := range IBDevs {
-
-		// // ignore cx4 interface: why???
-		// shouldIgnore := ignoreByHCATYPE(IBDev)
-		// if shouldIgnore {
-		// 	continue
-		// }
-
-		// ignore virtual functions
-		shouldIgnore := ignoreVirtualFunction(IBDev)
-		if shouldIgnore {
+		if useAllowlist {
+			if _, ok := i.allowedDevs[IBDev]; !ok {
+				continue // Strict allowlist: only spec-listed names participate
+			}
+			// Listed device — keep it regardless of PF/VF
+			PFDevs = append(PFDevs, IBDev)
 			continue
 		}
-
+		// Legacy: skip virtual functions, keep PFs
+		if ignoreVirtualFunction(IBDev) {
+			continue
+		}
 		PFDevs = append(PFDevs, IBDev)
 	}
 	return PFDevs
 }
 
-// GetIBPFdevs Get IB PF devices igoring virtual functions and bond devices
+// GetIBPFdevs returns the IB devices to check on this node.
+// When the InfinibandInfo carries a non-empty allowlist (from spec.ib_devs),
+// only listed names are returned (PF or VF). Otherwise legacy behavior:
+// auto-discover PFs and skip VFs. Mezzanine and low-speed bonds are always skipped.
 func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
 	allIBDevs, err := GetFileCnt(IBSYSPathPre)
 	if err != nil {

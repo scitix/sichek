@@ -46,7 +46,7 @@ type HCAPerf struct {
 func EnsureSpec(file string) (string, error) {
 	const comp = "hca/spec"
 
-	_, boardIDs, err := GetIBPFBoardIDs()
+	_, boardIDs, err := GetIBPFBoardIDs(nil)
 	if err != nil {
 		return file, fmt.Errorf("EnsureSpec: cannot detect board IDs: %w", err)
 	}
@@ -299,7 +299,7 @@ func FilterSpecsForLocalHost(file string, allSpecs *HCASpecs) (*HCASpecs, error)
 	if allSpecs == nil || allSpecs.GetMap() == nil {
 		return nil, fmt.Errorf("HCA spec is not initialized")
 	}
-	_, ibDevs, err := GetIBPFBoardIDs()
+	_, ibDevs, err := GetIBPFBoardIDs(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -326,20 +326,34 @@ func FilterSpecsForLocalHost(file string, allSpecs *HCASpecs) (*HCASpecs, error)
 	// the source of truth maintained by humans.
 	return result, nil
 }
-func GetIBPFBoardIDs() (map[string]string, []string, error) {
+// GetIBPFBoardIDs scans /sys/class/infiniband and returns:
+//   - devBoardIDMap: map of IB device name -> board_id
+//   - boardIDs:      deduplicated list of board IDs
+//
+// Filtering rules:
+//   - mezzanine cards are always skipped (legacy)
+//   - low-speed bond aggregations are always skipped (legacy)
+//   - if `allowed` is non-nil and non-empty, ONLY device names present in
+//     `allowed` are returned (PF or VF). This lets a spec that lists VFs
+//     bring those VFs into scope and lets a spec that lists PFs exclude
+//     auto-discovered PFs that are not part of the cluster baseline.
+//   - if `allowed` is nil or empty, fall back to legacy behavior: skip VFs
+//     (devices with a `physfn` symlink), keep all other PFs.
+func GetIBPFBoardIDs(allowed map[string]string) (map[string]string, []string, error) {
 	baseDir := "/sys/class/infiniband"
 	devices, err := os.ReadDir(baseDir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read %s: %v", baseDir, err)
 	}
 
+	useAllowlist := len(allowed) > 0
+
 	boardIDSet := make(map[string]struct{})
 	devBoardIDMap := make(map[string]string)
 	for _, dev := range devices {
 		devName := dev.Name()
-		vfPath := filepath.Join(baseDir, devName, "device", "physfn")
-		if _, err := os.Stat(vfPath); err == nil {
-			continue // Skip virtual functions
+		if strings.Contains(devName, "mezz") {
+			continue // Skip mezzanine card
 		}
 		if utils.IsLowSpeedIBBond(devName) {
 			// Skip bond IB devices that look like management
@@ -347,9 +361,20 @@ func GetIBPFBoardIDs() (map[string]string, []string, error) {
 			// are kept and participate in HCA enumeration.
 			continue
 		}
-		if strings.Contains(devName, "mezz") {
-			continue // Skip mezzanine card
+
+		if useAllowlist {
+			if _, ok := allowed[devName]; !ok {
+				continue // Strict allowlist: only spec-listed names participate
+			}
+			// Listed device — keep it regardless of PF/VF
+		} else {
+			// Legacy: skip virtual functions
+			vfPath := filepath.Join(baseDir, devName, "device", "physfn")
+			if _, err := os.Stat(vfPath); err == nil {
+				continue
+			}
 		}
+
 		boardIDPath := filepath.Join(baseDir, devName, "board_id")
 		content, err := os.ReadFile(boardIDPath)
 		if err != nil {

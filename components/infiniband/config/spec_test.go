@@ -123,7 +123,7 @@ hca:
 	}
 
 	// Test the LoadSpec function
-	_, nic, err := hcaConfig.GetIBPFBoardIDs()
+	_, nic, err := hcaConfig.GetIBPFBoardIDs(nil)
 	if err != nil {
 		t.Skip("Skipping test due to error in GetIBPFBoardIDs: ", err)
 	}
@@ -303,5 +303,116 @@ hca:
 			}
 		}
 		break
+	}
+}
+
+// firstVFOnHost returns the name of any VF currently exposed in
+// /sys/class/infiniband, or "" if there is none. Used by VF-aware tests
+// so they self-skip on dev hosts without SR-IOV.
+func firstVFOnHost() string {
+	devices, err := os.ReadDir("/sys/class/infiniband")
+	if err != nil {
+		return ""
+	}
+	for _, d := range devices {
+		vfPath := "/sys/class/infiniband/" + d.Name() + "/device/physfn"
+		if _, err := os.Stat(vfPath); err == nil {
+			return d.Name()
+		}
+	}
+	return ""
+}
+
+// TestFilterSpec_AllowVF_True verifies that when spec.ib_devs lists VF
+// names AND allow_vf: true is set, FilterSpec preserves those entries via
+// the allowlist passed to GetIBPFBoardIDs. The test runs only on hosts
+// that actually expose at least one VF; otherwise it skips.
+func TestFilterSpec_AllowVF_True(t *testing.T) {
+	firstVF := firstVFOnHost()
+	if firstVF == "" {
+		t.Skip("no VF on this host; skipping AllowVF=true test")
+	}
+
+	specData := `
+nvidia: {}
+infiniband:
+  default:
+    allow_vf: true
+    ib_devs:
+      ` + firstVF + `: dummy_net
+    sw_deps:
+      kernel_module: ["mlx5_core"]
+      ofed_ver: ">=24.10"
+    pcie_acs: "disable"
+hca: {}
+`
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("temp file: %v", err)
+	}
+	defer os.Remove(specFile.Name())
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	specFile.Close()
+
+	spec, err := LoadSpec(specFile.Name())
+	// LoadSpec may return an error about missing HCA spec for the VF's
+	// board id (the `hca: {}` block has no entry); the assertion below
+	// only cares that the VF survived FilterSpec/trim.
+	if spec == nil {
+		t.Fatalf("LoadSpec returned nil spec: %v", err)
+	}
+	if !spec.AllowVF {
+		t.Fatalf("expected spec.AllowVF == true after unmarshal, got false")
+	}
+	if _, ok := spec.IBPFDevs[firstVF]; !ok {
+		t.Fatalf("expected VF %q to remain in spec.IBPFDevs after FilterSpec, got %v", firstVF, spec.IBPFDevs)
+	}
+}
+
+// TestFilterSpec_AllowVF_Default verifies that without allow_vf in the
+// spec (legacy specs on every existing cluster), a VF named in ib_devs
+// is treated as today: the host scan skips VFs, so trim removes the VF
+// from spec.IBPFDevs. This is the regression guard for clnet36-style
+// nodes whose spec happens to list mlx5_4..7 names that resolve to VFs
+// on some hosts.
+func TestFilterSpec_AllowVF_Default(t *testing.T) {
+	firstVF := firstVFOnHost()
+	if firstVF == "" {
+		t.Skip("no VF on this host; skipping AllowVF default test")
+	}
+
+	specData := `
+nvidia: {}
+infiniband:
+  default:
+    ib_devs:
+      ` + firstVF + `: dummy_net
+    sw_deps:
+      kernel_module: ["mlx5_core"]
+      ofed_ver: ">=24.10"
+    pcie_acs: "disable"
+hca: {}
+`
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("temp file: %v", err)
+	}
+	defer os.Remove(specFile.Name())
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	specFile.Close()
+
+	spec, err := LoadSpec(specFile.Name())
+	if spec == nil {
+		t.Fatalf("LoadSpec returned nil spec: %v", err)
+	}
+	if spec.AllowVF {
+		t.Fatalf("expected spec.AllowVF == false (default), got true")
+	}
+	if _, ok := spec.IBPFDevs[firstVF]; ok {
+		t.Fatalf("expected VF %q to be trimmed from spec.IBPFDevs when AllowVF=false, but it survived: %v", firstVF, spec.IBPFDevs)
 	}
 }
