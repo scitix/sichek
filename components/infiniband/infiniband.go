@@ -136,7 +136,14 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}
 
 	// create collector
-	collector, err := collector.NewIBCollector(ctx)
+	// Only opt the collector into the SR-IOV-aware allowlist path when the
+	// spec explicitly enables it via allow_vf. Otherwise pass nil so the
+	// collector keeps the legacy behavior (auto-discover PFs, skip VFs).
+	var collectorAllow map[string]string
+	if ibSpec.AllowVF {
+		collectorAllow = ibSpec.IBPFDevs
+	}
+	collector, err := collector.NewIBCollector(ctx, collectorAllow)
 	if err != nil {
 		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
 		component.initError = fmt.Errorf("failed to create infiniband collector: %w", err)

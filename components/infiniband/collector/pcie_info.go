@@ -42,8 +42,13 @@ var (
 	}
 )
 
-// FindIBPCIDevices finds RDMA-capable PCI devices by checking infiniband sysfs, and ignore virtual functions
-func GetRDMACapablePCIeDevices() (map[string]string, error) {
+// GetRDMACapablePCIeDevices finds RDMA-capable PCI devices by checking infiniband sysfs.
+// When `includeVFs` is false, virtual functions are skipped (legacy behavior).
+// When `includeVFs` is true, VFs whose underlying PCI device backs an IB device
+// are returned alongside PFs; downstream callers must trim by IBPFDevs to keep
+// only the BDFs they care about. Used by SR-IOV nodes whose data path runs
+// over VFs.
+func GetRDMACapablePCIeDevices(includeVFs bool) (map[string]string, error) {
 	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
 	}
@@ -59,7 +64,7 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 		pciAddr := entry.Name()
 		deviceDir := filepath.Join(PCIPath, pciAddr)
 		isVirtualFunction, err := IsVirtualFunctionByBDF(pciAddr)
-		if isVirtualFunction {
+		if isVirtualFunction && !includeVFs {
 			continue
 		}
 		if err != nil {

@@ -35,6 +35,14 @@ type InfinibandSpec struct {
 	IBPFDevs       map[string]string         `json:"ib_devs" yaml:"ib_devs"`
 	IBSoftWareInfo *collector.IBSoftWareInfo `json:"sw_deps" yaml:"sw_deps"`
 	PCIeACS        string                    `json:"pcie_acs" yaml:"pcie_acs"`
+	// AllowVF opts this cluster's spec into the SR-IOV-aware behavior:
+	// when true, ib_devs is treated as an authoritative allowlist that
+	// may include VF names (the data path on these nodes runs over VFs).
+	// when false (default), legacy behavior applies: ib_devs is a hint
+	// used only for trimming, the collector auto-discovers PFs and VFs
+	// are unconditionally skipped. Default false preserves backward
+	// compatibility for every existing cluster spec.
+	AllowVF bool `json:"allow_vf,omitempty" yaml:"allow_vf,omitempty"`
 
 	// HCAs is for in-memory use only (full specs)
 	HCAs map[string]*hcaConfig.HCASpec `json:"-" yaml:"-"`
@@ -78,8 +86,15 @@ func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
 		} else {
 			return nil, fmt.Errorf("no infiniband specification for cluster %s and no default in %s", clusterName, file)
 		}
-		// Get the board IDs of the IB devices in the host
-		devBoardIDMap, ibDevs, err := hcaConfig.GetIBPFBoardIDs()
+		// Get the board IDs of the IB devices in the host.
+		// When the spec opts into VF-aware behavior, scope the host scan to
+		// spec-listed names so VFs explicitly named in ib_devs are admitted.
+		// Otherwise stay with legacy behavior (skip VFs, auto-discover PFs).
+		var hostScanAllow map[string]string
+		if ibSpec.AllowVF {
+			hostScanAllow = ibSpec.IBPFDevs
+		}
+		devBoardIDMap, ibDevs, err := hcaConfig.GetIBPFBoardIDs(hostScanAllow)
 		if err != nil {
 			return nil, err
 		}

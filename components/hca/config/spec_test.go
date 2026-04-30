@@ -151,7 +151,7 @@ func TestLoadSpecFromRemoteURL(t *testing.T) {
 }
 
 func TestGetBoardIDs(t *testing.T) {
-	_, boardIDs, err := GetIBPFBoardIDs()
+	_, boardIDs, err := GetIBPFBoardIDs(nil)
 	if err != nil {
 		t.Fatalf("getBoardIDs() returned an error: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestGetBoardIDs(t *testing.T) {
 }
 
 func TestLoadSpec(t *testing.T) {
-	_, boardIDs, _ := GetIBPFBoardIDs()
+	_, boardIDs, _ := GetIBPFBoardIDs(nil)
 	if len(boardIDs) == 1 && boardIDs[0] == "MT_0000000970" {
 		hcaSpec, err := LoadSpec("")
 		if err != nil {
