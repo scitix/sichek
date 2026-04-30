@@ -52,8 +52,10 @@ type IBHardWareInfo struct {
 	PCIESpeedState   string `json:"pcie_speed_state" yaml:"pcie_speed_state"`
 	PCIEWidth        string `json:"pcie_width" yaml:"pcie_width"`
 	PCIEWidthState   string `json:"pcie_width_state" yaml:"pcie_width_state"`
-	PCIETreeSpeedMin string `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
-	PCIETreeWidthMin string `json:"pcie_tree_width" yaml:"pcie_tree_width"`
+	PCIETreeSpeedMin    string `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
+	PCIETreeSpeedMinBDF string `json:"pcie_tree_speed_bdf" yaml:"pcie_tree_speed_bdf"`
+	PCIETreeWidthMin    string `json:"pcie_tree_width" yaml:"pcie_tree_width"`
+	PCIETreeWidthMinBDF string `json:"pcie_tree_width_bdf" yaml:"pcie_tree_width_bdf"`
 	PCIEMRR          string `json:"pcie_mrr" yaml:"pcie_mrr"`
 	// Slot             string `json:"slot" yaml:"slot"`
 	NumaNode string `json:"numa_node" yaml:"numa_node"`
@@ -106,8 +108,8 @@ func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, ibNicRole s
 	if len(GetPCIEMRR(ctx, IBDev)) >= 1 {
 		hw.PCIEMRR = GetPCIEMRR(ctx, IBDev)[0]
 	}
-	hw.PCIETreeSpeedMin = GetPCIETreeMin(IBDev, "current_link_speed")
-	hw.PCIETreeWidthMin = GetPCIETreeMin(IBDev, "current_link_width")
+	hw.PCIETreeSpeedMin, hw.PCIETreeSpeedMinBDF = GetPCIETreeMin(IBDev, "current_link_speed")
+	hw.PCIETreeWidthMin, hw.PCIETreeWidthMinBDF = GetPCIETreeMin(IBDev, "current_link_width")
 	if len(GetNumaNode(IBDev)) >= 1 {
 		hw.NumaNode = GetNumaNode(IBDev)[0]
 	}
