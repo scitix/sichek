@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -26,12 +27,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 )
 
 type IBHardWareInfo struct {
 	IBDev            string `json:"IBdev" yaml:"IBdev"`
+	Port             int    `json:"port,omitempty" yaml:"port,omitempty"`
 	NetDev           string `json:"net_dev" yaml:"net_dev"`
 	HCAType          string `json:"hca_type" yaml:"hca_type"`
 	SystemGUID       string `json:"system_guid" yaml:"system_guid"`
@@ -63,9 +66,12 @@ type IBHardWareInfo struct {
 	OFEDVer  string `json:"ofed_ver" yaml:"ofed_ver"` // compatible with IB Spec Requirement
 }
 
-// Collect collects all hardware information for a given IB device and fills the struct
-func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, ibNicRole string) {
+// Collect collects all hardware information for a given IB device and fills the struct.
+// port selects which entry under /sys/class/infiniband/<dev>/ports/ is sampled
+// (multi-plane HCAs expose more than one). Pass 1 for legacy single-port cards.
+func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, port int, ibNicRole string) {
 	hw.IBDev = IBDev
+	hw.Port = port
 
 	// Basic device information
 	hw.HCAType = hw.GetHCAType(IBDev)
@@ -79,14 +85,19 @@ func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, ibNicRole s
 	hw.NodeGUID = hw.GetNodeGUID(IBDev)
 
 	// Port state information
-	hw.PhyState = hw.GetPhyStat(IBDev)
-	hw.PortState = hw.GetIBStat(IBDev)
-	hw.LinkLayer = hw.GetLinkLayer(IBDev)
-	hw.PortSpeed = hw.GetPortSpeed(IBDev)
+	hw.PhyState = hw.GetPhyStat(IBDev, port)
+	hw.PortState = hw.GetIBStat(IBDev, port)
+	hw.LinkLayer = hw.GetLinkLayer(IBDev, port)
+	hw.PortSpeed = hw.GetPortSpeed(IBDev, port)
 
-	// Network device information
-	hw.NetOperstate = hw.GetNetOperstate(IBDev)
-	hw.NetDev, _ = GetIBdev2NetDev(IBDev)
+	// Network device information.  For multi-plane PFs the per-port netdev
+	// lives under ports/<port>/gid_attrs/ndevs/0; fall back to the legacy
+	// device-level lookup for single-port cards.
+	hw.NetDev = hw.GetPortNetDev(IBDev, port)
+	if hw.NetDev == "" {
+		hw.NetDev, _ = GetIBdev2NetDev(IBDev)
+	}
+	hw.NetOperstate = hw.GetNetOperstate(IBDev, hw.NetDev)
 
 	// Gateway information
 	hw.PFGW = GetIBGateway().GetPFGW(IBDev)
@@ -170,52 +181,53 @@ func (c *IBHardWareInfo) GetBoardID(IBDev string) string {
 	return result[0]
 }
 
-// GetPhyStat gets physical state
-func (c *IBHardWareInfo) GetPhyStat(IBDev string) string {
-	result, err := ReadIBDevSysfileLines(IBDev, "ports/1/phys_state")
-	if err != nil || len(result) == 0 {
-		if err != nil {
-			logrus.WithField("component", "infiniband").Errorf("Failed to read physical state for %s: %v", IBDev, err)
-		}
-		return ""
+// readPortAttr reads /sys/class/infiniband/<IBDev>/ports/<port>/<attr> as a single line.
+func readPortAttr(IBDev string, port int, attr string) (string, error) {
+	rel := fmt.Sprintf("ports/%d/%s", port, attr)
+	result, err := ReadIBDevSysfileLines(IBDev, rel)
+	if err != nil {
+		return "", err
 	}
-	return result[0]
+	if len(result) == 0 {
+		return "", nil
+	}
+	return result[0], nil
+}
+
+// GetPhyStat gets physical state
+func (c *IBHardWareInfo) GetPhyStat(IBDev string, port int) string {
+	v, err := readPortAttr(IBDev, port, "phys_state")
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to read physical state for %s/p%d: %v", IBDev, port, err)
+	}
+	return v
 }
 
 // GetIBStat gets IB state
-func (c *IBHardWareInfo) GetIBStat(IBDev string) string {
-	result, err := ReadIBDevSysfileLines(IBDev, "ports/1/state")
-	if err != nil || len(result) == 0 {
-		if err != nil {
-			logrus.WithField("component", "infiniband").Errorf("Failed to read IB state for %s: %v", IBDev, err)
-		}
-		return ""
+func (c *IBHardWareInfo) GetIBStat(IBDev string, port int) string {
+	v, err := readPortAttr(IBDev, port, "state")
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to read IB state for %s/p%d: %v", IBDev, port, err)
 	}
-	return result[0]
+	return v
 }
 
 // GetPortSpeed gets port speed
-func (c *IBHardWareInfo) GetPortSpeed(IBDev string) string {
-	result, err := ReadIBDevSysfileLines(IBDev, "ports/1/rate")
-	if err != nil || len(result) == 0 {
-		if err != nil {
-			logrus.WithField("component", "infiniband").Errorf("Failed to read port speed for %s: %v", IBDev, err)
-		}
-		return ""
+func (c *IBHardWareInfo) GetPortSpeed(IBDev string, port int) string {
+	v, err := readPortAttr(IBDev, port, "rate")
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to read port speed for %s/p%d: %v", IBDev, port, err)
 	}
-	return result[0]
+	return v
 }
 
 // GetLinkLayer gets link layer
-func (c *IBHardWareInfo) GetLinkLayer(IBDev string) string {
-	result, err := ReadIBDevSysfileLines(IBDev, "ports/1/link_layer")
-	if err != nil || len(result) == 0 {
-		if err != nil {
-			logrus.WithField("component", "infiniband").Errorf("Failed to read link layer for %s: %v", IBDev, err)
-		}
-		return ""
+func (c *IBHardWareInfo) GetLinkLayer(IBDev string, port int) string {
+	v, err := readPortAttr(IBDev, port, "link_layer")
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to read link layer for %s/p%d: %v", IBDev, port, err)
 	}
-	return result[0]
+	return v
 }
 
 // GetDeviceID gets device ID
@@ -254,8 +266,96 @@ func (c *IBHardWareInfo) GetNodeGUID(IBDev string) string {
 	return result[0]
 }
 
-// GetNetOperstate gets network operational state
-func (c *IBHardWareInfo) GetNetOperstate(IBDev string) string {
+// rdmaLinkNetdevs caches the (IBDev, port) -> netdev mapping derived from
+// `rdma link` so multi-plane HCAs do not need to shell out 32 times per
+// collection cycle.  The cache is populated lazily on first use and reset
+// at the start of every Collect() round.
+var (
+	rdmaLinkNetdevs   map[string]string
+	rdmaLinkNetdevMu  sync.Mutex
+	rdmaLinkPopulated bool
+)
+
+func rdmaLinkKey(IBDev string, port int) string {
+	return fmt.Sprintf("%s/%d", IBDev, port)
+}
+
+// resetRDMALinkCache invalidates the cached mapping so the next call
+// repopulates from `rdma link`.  Called at the top of InfinibandInfo.Collect.
+func resetRDMALinkCache() {
+	rdmaLinkNetdevMu.Lock()
+	defer rdmaLinkNetdevMu.Unlock()
+	rdmaLinkNetdevs = nil
+	rdmaLinkPopulated = false
+}
+
+func populateRDMALinkCache() {
+	rdmaLinkNetdevMu.Lock()
+	defer rdmaLinkNetdevMu.Unlock()
+	if rdmaLinkPopulated {
+		return
+	}
+	rdmaLinkPopulated = true
+	rdmaLinkNetdevs = make(map[string]string)
+	out, err := exec.Command("rdma", "link").CombinedOutput()
+	if err != nil {
+		logrus.WithField("component", "infiniband").Debugf("rdma link unavailable: %v", err)
+		return
+	}
+	// Lines look like:
+	//   link roce_r0/3 state ACTIVE physical_state LINK_UP netdev eth_r0_p0
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "link" {
+			continue
+		}
+		dp := strings.SplitN(fields[1], "/", 2)
+		if len(dp) != 2 {
+			continue
+		}
+		port, err := strconv.Atoi(dp[1])
+		if err != nil {
+			continue
+		}
+		netDev := ""
+		for i := 0; i < len(fields)-1; i++ {
+			if fields[i] == "netdev" {
+				netDev = fields[i+1]
+				break
+			}
+		}
+		if netDev == "" {
+			continue
+		}
+		rdmaLinkNetdevs[rdmaLinkKey(dp[0], port)] = netDev
+	}
+}
+
+// GetPortNetDev returns the netdev backing a specific port of an HCA.
+// Authoritative source is `rdma link`; falls back to the legacy device-level
+// lookup (first netdev under /sys/class/infiniband/<dev>/device/net) when
+// rdma is unavailable or the port is not enumerated.
+func (c *IBHardWareInfo) GetPortNetDev(IBDev string, port int) string {
+	populateRDMALinkCache()
+	rdmaLinkNetdevMu.Lock()
+	netDev, ok := rdmaLinkNetdevs[rdmaLinkKey(IBDev, port)]
+	rdmaLinkNetdevMu.Unlock()
+	if ok {
+		return netDev
+	}
+	return ""
+}
+
+// GetNetOperstate gets network operational state for a specific netdev.
+// netDev is the per-port name resolved earlier (e.g. eth_r0_p0); falls back
+// to the first netdev under the IB device when empty.
+func (c *IBHardWareInfo) GetNetOperstate(IBDev string, netDev string) string {
+	if netDev != "" {
+		operstatePath := filepath.Join("/sys/class/net", netDev, "operstate")
+		if data, err := os.ReadFile(operstatePath); err == nil {
+			return strings.TrimSpace(string(data))
+		}
+	}
 	netPath := filepath.Join(IBSYSPathPre, IBDev, "device", "net")
 	dirs, err := os.ReadDir(netPath)
 	if err != nil {

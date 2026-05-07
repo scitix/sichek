@@ -14,6 +14,14 @@ const (
 	TagPrefix    = "json"
 )
 
+// devPortKey identifies a (ib_dev, port) tuple in the bookkeeping maps used
+// to delete prometheus series for samples that disappeared between scrapes.
+// Mirrors the new prometheus label set on the per-port gauges.
+type devPortKey struct {
+	dev  string
+	port string
+}
+
 type IBMetrics struct {
 	IBHardWareInfoGauge    *common.GaugeVecMetricExporter
 	IBNumGauge             *common.GaugeVecMetricExporter
@@ -22,57 +30,76 @@ type IBMetrics struct {
 	IBCounterGauge         *common.GaugeVecMetricExporter
 	IBSoftWareInfoGauge    *common.GaugeVecMetricExporter
 	// previous label sets: used by deleting series that disappeared
-	prevIBDevs       map[string]struct{}
-	prevCounterPairs map[string]map[string]struct{} // ibDev -> set of counter names
+	prevIBDevs       map[devPortKey]struct{}
+	prevCounterPairs map[devPortKey]map[string]struct{} // (ibDev, port) -> set of counter names
 	prevMu           sync.Mutex
 }
 
 func NewInfinibandMetrics() *IBMetrics {
 	return &IBMetrics{
-		IBHardWareInfoGauge:    common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev"}),
+		IBHardWareInfoGauge:    common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "port"}),
 		IBNumGauge:             common.NewGaugeVecMetricExporter(MetricPrefix, nil),
 		IBPCINumGauge:          common.NewGaugeVecMetricExporter(MetricPrefix, nil),
-		IBHardWareInfoStrGauge: common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "metric_name"}),
-		IBCounterGauge:         common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "counter_name"}),
+		IBHardWareInfoStrGauge: common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "port", "metric_name"}),
+		IBCounterGauge:         common.NewGaugeVecMetricExporter(MetricPrefix, []string{"ib_dev", "port", "counter_name"}),
 		IBSoftWareInfoGauge:    common.NewGaugeVecMetricExporter(MetricPrefix, []string{"metric_name"}),
-		prevIBDevs:             make(map[string]struct{}),
-		prevCounterPairs:       make(map[string]map[string]struct{}),
+		prevIBDevs:             make(map[devPortKey]struct{}),
+		prevCounterPairs:       make(map[devPortKey]map[string]struct{}),
 	}
+}
+
+// portLabel renders a hwInfo.Port as a prometheus label value.  Legacy
+// single-port records (Port==0) emit "1" so that callers querying by port
+// always have a stable value.
+func portLabel(port int) string {
+	if port <= 0 {
+		return "1"
+	}
+	return strconv.Itoa(port)
 }
 
 func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
 	infinibandInfo.RLock()
-	curIBDevs := make(map[string]struct{}, len(infinibandInfo.IBHardWareInfo))
-	for ibDev := range infinibandInfo.IBHardWareInfo {
-		curIBDevs[ibDev] = struct{}{}
+	curIBDevs := make(map[devPortKey]struct{}, len(infinibandInfo.IBHardWareInfo))
+	hwIndex := make(map[string]devPortKey, len(infinibandInfo.IBHardWareInfo))
+	for mapKey, hw := range infinibandInfo.IBHardWareInfo {
+		k := devPortKey{dev: hw.IBDev, port: portLabel(hw.Port)}
+		curIBDevs[k] = struct{}{}
+		hwIndex[mapKey] = k
 	}
-	curCounterPairs := make(map[string]map[string]struct{})
-	for ibDev, counters := range infinibandInfo.IBCounters {
-		if curCounterPairs[ibDev] == nil {
-			curCounterPairs[ibDev] = make(map[string]struct{})
+	curCounterPairs := make(map[devPortKey]map[string]struct{})
+	for mapKey, counters := range infinibandInfo.IBCounters {
+		k, ok := hwIndex[mapKey]
+		if !ok {
+			// Counters without a matching hwInfo slot: fall back to
+			// treating the map key as the device with port "1".
+			k = devPortKey{dev: mapKey, port: "1"}
+		}
+		if curCounterPairs[k] == nil {
+			curCounterPairs[k] = make(map[string]struct{})
 		}
 		for c := range counters {
-			curCounterPairs[ibDev][c] = struct{}{}
+			curCounterPairs[k][c] = struct{}{}
 		}
 	}
 	infinibandInfo.RUnlock()
 
 	m.prevMu.Lock()
-	// Delete only disappeared device series
-	for prevDev := range m.prevIBDevs {
-		if _, stillPresent := curIBDevs[prevDev]; stillPresent {
+	// Delete only disappeared (ib_dev, port) series
+	for prev := range m.prevIBDevs {
+		if _, stillPresent := curIBDevs[prev]; stillPresent {
 			continue
 		}
-		m.IBHardWareInfoGauge.DeleteLabelValues("phy_state", []string{prevDev})
-		m.IBHardWareInfoGauge.DeleteLabelValues("port_state", []string{prevDev})
-		m.IBHardWareInfoGauge.DeleteLabelValues("port_speed_state", []string{prevDev})
+		m.IBHardWareInfoGauge.DeleteLabelValues("phy_state", []string{prev.dev, prev.port})
+		m.IBHardWareInfoGauge.DeleteLabelValues("port_state", []string{prev.dev, prev.port})
+		m.IBHardWareInfoGauge.DeleteLabelValues("port_speed_state", []string{prev.dev, prev.port})
 	}
-	for prevDev, prevCounters := range m.prevCounterPairs {
-		if _, stillPresent := curIBDevs[prevDev]; stillPresent {
+	for prev, prevCounters := range m.prevCounterPairs {
+		if _, stillPresent := curIBDevs[prev]; stillPresent {
 			continue
 		}
 		for prevCounter := range prevCounters {
-			m.IBCounterGauge.DeleteLabelValues("counter", []string{prevDev, prevCounter})
+			m.IBCounterGauge.DeleteLabelValues("counter", []string{prev.dev, prev.port, prevCounter})
 		}
 	}
 	m.prevIBDevs = curIBDevs
@@ -84,27 +111,25 @@ func (m *IBMetrics) ExportMetrics(infinibandInfo *collector.InfinibandInfo) {
 	m.IBNumGauge.SetMetric("hca_num", nil, float64(infinibandInfo.HCAPCINum))
 	m.IBPCINumGauge.SetMetric("hca_pci_num", nil, float64(len(infinibandInfo.IBPCIDevs)))
 	for _, hardWareInfo := range infinibandInfo.IBHardWareInfo {
-		m.IBHardWareInfoGauge.SetMetric("phy_state", []string{hardWareInfo.IBDev}, convertState(hardWareInfo.PhyState))
-		m.IBHardWareInfoGauge.SetMetric("port_state", []string{hardWareInfo.IBDev}, convertState(hardWareInfo.PortState))
-		m.IBHardWareInfoGauge.SetMetric("port_speed_state", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PortSpeedState))
-		// m.IBHardWareInfoGauge.SetMetric("pcie_speed", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIESpeed))
-		// m.IBHardWareInfoGauge.SetMetric("pcie_speed_min", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIETreeSpeedMin))
-		// m.IBHardWareInfoGauge.SetMetric("pcie_speed_state", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIESpeedState))
-		// m.IBHardWareInfoGauge.SetMetric("pcie_width", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIEWidth))
-		// m.IBHardWareInfoGauge.SetMetric("pcie_width_min", []string{hardWareInfo.IBDev}, convertSpeed(hardWareInfo.PCIETreeWidthMin))
-		// m.IBHardWareInfoGauge.SetMetric("pcie_width_state", []string{hardWareInfo.IBDev}, utils.ParseStringToFloat(hardWareInfo.PCIEWidthState))
+		port := portLabel(hardWareInfo.Port)
+		m.IBHardWareInfoGauge.SetMetric("phy_state", []string{hardWareInfo.IBDev, port}, convertState(hardWareInfo.PhyState))
+		m.IBHardWareInfoGauge.SetMetric("port_state", []string{hardWareInfo.IBDev, port}, convertState(hardWareInfo.PortState))
+		m.IBHardWareInfoGauge.SetMetric("port_speed_state", []string{hardWareInfo.IBDev, port}, convertSpeed(hardWareInfo.PortSpeedState))
+	}
+	// ib_counters keyed by the same per-port hwInfo map key (<ibdev>/p<port>).
+	for mapKey, ibCounter := range infinibandInfo.IBCounters {
+		k, ok := hwIndex[mapKey]
+		if !ok {
+			k = devPortKey{dev: mapKey, port: "1"}
+		}
+		for counterName, counterValue := range ibCounter {
+			m.IBCounterGauge.SetMetric("counter", []string{k.dev, k.port, counterName}, float64(counterValue))
+		}
 	}
 	infinibandInfo.RUnlock()
 
 	// ib_software_info
 	m.IBSoftWareInfoGauge.ExportStructWithStrField(infinibandInfo.IBSoftWareInfo, []string{}, TagPrefix)
-
-	// ibcounters
-	for IBDev, ibCounter := range infinibandInfo.IBCounters {
-		for counterName, counterValue := range ibCounter {
-			m.IBCounterGauge.SetMetric("counter", []string{IBDev, counterName}, float64(counterValue))
-		}
-	}
 }
 
 func extractFirstNumber(s string) float64 {
