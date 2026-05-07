@@ -296,6 +296,10 @@ hca:
   # ConnectX-8 RoCE PF on B300 NVL8 Umbriel platform.  Each card exposes 4
   # data planes at 200Gb/sec (2X NDR); the IB checkers run per-plane and
   # use this single board-level baseline.
+  #
+  # PCIe note: CX8 itself links at PCIe Gen6 (64 GT/s) but the upstream
+  # switch on this platform is Gen5, so the path-min stays at 32 GT/s —
+  # hence pcie_speed=64 / pcie_tree_speed=32.
   NVD0000000072:
     hardware:
       hca_type: "MT4131"
@@ -309,9 +313,9 @@ hca:
       net_operstate: "up"
       link_layer: "Ethernet"
       pcie_width: "16"
-      pcie_speed: "32.0 GT/s PCIe"
+      pcie_speed: "64.0 GT/s PCIe"
       pcie_tree_width: "16"
-      pcie_tree_speed: "32"
+      pcie_tree_speed: "32.0"
       pcie_acs: "disable"
       pcie_mrr: "4096"
     perf:

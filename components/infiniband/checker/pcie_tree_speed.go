@@ -18,6 +18,8 @@ package checker
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -26,6 +28,19 @@ import (
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
 )
+
+// pcieSpeedEqual compares two PCIe speed strings ("32", "32.0", "32.00 GT/s")
+// numerically so spec authors do not have to mirror sysfs's trailing-zero
+// formatting verbatim.  Falls back to string equality when either value is
+// not parseable, preserving prior behaviour for free-form spec values.
+func pcieSpeedEqual(a, b string) bool {
+	af, errA := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(a)), 64)
+	bf, errB := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(b)), 64)
+	if errA != nil || errB != nil {
+		return a == b
+	}
+	return math.Abs(af-bf) < 1e-9
+}
 
 type IBPCIETreeSpeedChecker struct {
 	id          string
@@ -89,9 +104,17 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		// Extract numeric speed from spec (e.g., "32.0 GT/s PCIe" -> "32.0")
-		expectedSpeed := extractNumericSpeed(hcaSpec.Hardware.PCIESpeed)
-		spec = append(spec, hcaSpec.Hardware.PCIESpeed)
+		// Tree-speed has its own spec field (yaml: pcie_tree_speed) because
+		// upstream switches and root complexes are often slower than the
+		// device-level link.  CX8 e.g. links at PCIe Gen6 (64 GT/s) but the
+		// upstream Gen5 switch caps the path at 32 GT/s.  Fall back to
+		// PCIESpeed for board specs that predate the dedicated field.
+		treeSpec := hcaSpec.Hardware.PCIETreeSpeedMin
+		if treeSpec == "" {
+			treeSpec = hcaSpec.Hardware.PCIESpeed
+		}
+		expectedSpeed := extractNumericSpeed(treeSpec)
+		spec = append(spec, treeSpec)
 
 		treeSpeedMin := hwInfo.PCIETreeSpeedMin
 		if treeSpeedMin == "" {
@@ -101,11 +124,13 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		}
 		curr = append(curr, treeSpeedMin)
 
-		if treeSpeedMin != expectedSpeed {
+		// Compare numerically so "32" / "32.0" / "32.00" all match without
+		// requiring spec authors to keep the trailing zero in sync with sysfs.
+		if !pcieSpeedEqual(treeSpeedMin, expectedSpeed) {
 			result.Status = consts.StatusAbnormal
 			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
 			failedDevices = append(failedDevices, devInfo)
-			failedSpec = append(failedSpec, hcaSpec.Hardware.PCIESpeed)
+			failedSpec = append(failedSpec, treeSpec)
 			failedCurr = append(failedCurr, treeSpeedMin)
 		}
 	}
