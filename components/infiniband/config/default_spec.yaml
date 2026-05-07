@@ -35,10 +35,6 @@ infiniband:
       roce_r5: eth_r5_p0
       roce_r6: eth_r6_p0
       roce_r7: eth_r7_p0
-      mezz_0: mezz0
-      mezz_1: mezz1
-      mezz_2: mezz2
-      mezz_3: mezz3
     default_ports: [1]
     device_ports:
       roce_r0: [3, 6, 9, 12]
