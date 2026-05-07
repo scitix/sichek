@@ -96,9 +96,10 @@ func (c *IBStateChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		}).Infof("Checking PortState")
 
 		if !strings.Contains(hwInfo.PortState, hcaSpec.Hardware.PortState) {
-			logrus.WithField("checker", c.Name()).Errorf("PortState abnormal on %s: %s doesn't contain %s", hwInfo.IBDev, hwInfo.PortState, hcaSpec.Hardware.PortState)
+			label := devPortLabel(hwInfo)
+			logrus.WithField("checker", c.Name()).Errorf("PortState abnormal on %s: %s doesn't contain %s", label, hwInfo.PortState, hcaSpec.Hardware.PortState)
 			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
+			failedHcas = append(failedHcas, label)
 		}
 	}
 	infinibandInfo.RUnlock()

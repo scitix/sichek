@@ -16,6 +16,7 @@ limitations under the License.
 package collector
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -28,8 +29,9 @@ import (
 // IBCounters handles collection of InfiniBand counters
 type IBCounters map[string]uint64
 
-// Collect collects all counters for a given IB device and fills the map
-func (cnt *IBCounters) Collect(IBDev string) {
+// Collect collects all counters for a given IB device port and fills the map.
+// port is the numeric port id under /sys/class/infiniband/<dev>/ports/.
+func (cnt *IBCounters) Collect(IBDev string, port int) {
 	Counters := make(map[string]uint64, 0)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -39,7 +41,7 @@ func (cnt *IBCounters) Collect(IBDev string) {
 	for _, counterType := range counterTypes {
 		go func(ct string) {
 			defer wg.Done()
-			counter, err := cnt.GetIBCounter(IBDev, ct)
+			counter, err := cnt.GetIBCounter(IBDev, port, ct)
 			if err != nil {
 				logrus.WithField("component", "infiniband").Errorf("Get IB Counter failed, err:%s", err)
 				return
@@ -61,9 +63,9 @@ func (cnt *IBCounters) Collect(IBDev string) {
 }
 
 // GetIBCounter gets IB counter for a specific counter type
-func (cnt *IBCounters) GetIBCounter(IBDev string, counterType string) (map[string]uint64, error) {
+func (cnt *IBCounters) GetIBCounter(IBDev string, port int, counterType string) (map[string]uint64, error) {
 	Counters := make(map[string]uint64, 0)
-	counterPath := path.Join(IBSYSPathPre, IBDev, "ports/1", counterType)
+	counterPath := path.Join(IBSYSPathPre, IBDev, "ports", fmt.Sprintf("%d", port), counterType)
 	ibCounterName, err := ListDir(counterPath)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("Fail to get the counter from path :%s", counterPath)

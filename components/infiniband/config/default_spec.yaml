@@ -19,9 +19,55 @@ infiniband:
         - "mlxfw"
       ofed_ver: ">=MLNX_OFED_LINUX-23.10-1.1.9.0"
     pcie_acs: "disable"
+  # zy: NVIDIA B300 NVL8 / CX8 4-plane RoCE nodes.  Each ConnectX-8 PF
+  # exposes 12 ports under /sys/class/infiniband but only ports 3/6/9/12
+  # carry data (eth_rX_p0..p3); the other ports are permanently disabled
+  # by the platform.  The per-device port lists below tell the collector
+  # to sample exactly those four planes per card, leaving mezz_* on the
+  # default port 1.
+  zy:
+    ib_devs:
+      roce_r0: eth_r0_p0
+      roce_r1: eth_r1_p0
+      roce_r2: eth_r2_p0
+      roce_r3: eth_r3_p0
+      roce_r4: eth_r4_p0
+      roce_r5: eth_r5_p0
+      roce_r6: eth_r6_p0
+      roce_r7: eth_r7_p0
+      mezz_0: mezz0
+      mezz_1: mezz1
+      mezz_2: mezz2
+      mezz_3: mezz3
+    default_ports: [1]
+    device_ports:
+      roce_r0: [3, 6, 9, 12]
+      roce_r1: [3, 6, 9, 12]
+      roce_r2: [3, 6, 9, 12]
+      roce_r3: [3, 6, 9, 12]
+      roce_r4: [3, 6, 9, 12]
+      roce_r5: [3, 6, 9, 12]
+      roce_r6: [3, 6, 9, 12]
+      roce_r7: [3, 6, 9, 12]
+    sw_deps:
+      kernel_module:
+        - "rdma_ucm"
+        - "rdma_cm"
+        - "ib_ipoib"
+        - "mlx5_core"
+        - "mlx5_ib"
+        - "ib_uverbs"
+        - "ib_umad"
+        - "ib_cm"
+        - "ib_core"
+        - "mlxfw"
+      ofed_ver: ">=MLNX_OFED_LINUX-23.10-1.1.9.0"
+    pcie_acs: "disable"
 hca:
   MT_0000000970: {}
   MT_0000000838: {}
   MT_0000000971: {}
   MT_0000000223: {}
   DEL0000000036: {}
+  NVD0000000072: {}
+  NVD0000000079: {}

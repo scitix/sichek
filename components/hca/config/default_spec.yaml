@@ -293,3 +293,49 @@ hca:
     perf:
       one_way_bw: 360 # Gbps
       avg_latency_us: 10 # us
+  # ConnectX-8 RoCE PF on B300 NVL8 Umbriel platform.  Each card exposes 4
+  # data planes at 200Gb/sec (2X NDR); the IB checkers run per-plane and
+  # use this single board-level baseline.
+  NVD0000000072:
+    hardware:
+      hca_type: "MT4131"
+      board_id: "NVD0000000072"
+      fw_ver: ">=40.48.1000"
+      vpd: "Nvidia ConnectX8 XDR IB/800GBE for Nvidia B300 NVL8 Umbriel System"
+      net_port: 4
+      port_speed: "200 Gb/sec (2X NDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "up"
+      link_layer: "Ethernet"
+      pcie_width: "16"
+      pcie_speed: "32.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "32"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 175 # Gbps
+      avg_latency_us: 12 # us
+  # ConnectX-7 mezzanine on B300 NVL8 Umbriel: HDR IB management fabric.
+  NVD0000000079:
+    hardware:
+      hca_type: "MT4129"
+      board_id: "NVD0000000079"
+      fw_ver: ">=28.47.2526"
+      vpd: "Nvidia ConnectX7 mezz for Nvidia B300 NVL8 Umbriel System"
+      net_port: 1
+      port_speed: "100 Gb/sec (2X HDR)"
+      phy_state: "LinkUp"
+      port_state: "ACTIVE"
+      net_operstate: "down"
+      link_layer: "InfiniBand"
+      pcie_width: "16"
+      pcie_speed: "16.0 GT/s PCIe"
+      pcie_tree_width: "16"
+      pcie_tree_speed: "16"
+      pcie_acs: "disable"
+      pcie_mrr: "4096"
+    perf:
+      one_way_bw: 90 # Gbps
+      avg_latency_us: 15 # us
