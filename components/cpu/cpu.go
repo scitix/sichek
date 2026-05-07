@@ -262,7 +262,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	for _, result := range checkerResults {
 		statusColor := consts.Green
 		if result.Status != consts.StatusNormal {
-			statusColor = consts.Red
+			statusColor = consts.LevelColor(result.Level)
 			checkAllPassed = false
 		}
 		switch result.Name {

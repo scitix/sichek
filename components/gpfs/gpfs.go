@@ -240,7 +240,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	for _, result := range checkerResults {
 		if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
 			checkAllPassed = false
-			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", consts.Red, result.ErrorName, consts.Reset)
+			gpfsEvent[result.Name] = fmt.Sprintf("Event: %s%s%s", consts.LevelColor(result.Level), result.ErrorName, consts.Reset)
 		}
 	}
 
