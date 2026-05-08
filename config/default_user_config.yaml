@@ -5,6 +5,14 @@ snapshot:
   enable: true
   path: "/var/sichek/data/snapshot.json"
 
+reporter:
+  enable: false  # master switch; flip to true after deploying sichek-collector
+  endpoint: "http://sichek-collector.monitoring.svc:38080/api/v1/snapshots"
+  interval: 60s
+  timeout: 30s
+  retry_max: 3
+  gzip: true     # keep true unless gzip cannot be decoded upstream
+
 nvidia:
   query_interval: 10s
   cache_size: 5
