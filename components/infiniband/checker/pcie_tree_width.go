@@ -81,13 +81,20 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 	var failedCurr []string
 
 	infinibandInfo.RLock()
-	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+	hws := uniqueByDev(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+	for _, hwInfo := range hws {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.WithField("component", "infiniband").Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		expectedWidth := hcaSpec.Hardware.PCIEWidth
+		// Prefer the dedicated tree spec (yaml: pcie_tree_width); fall back
+		// to the device-level PCIEWidth for older specs that omit it.
+		expectedWidth := hcaSpec.Hardware.PCIETreeWidthMin
+		if expectedWidth == "" {
+			expectedWidth = hcaSpec.Hardware.PCIEWidth
+		}
 		spec = append(spec, expectedWidth)
 
 		treeWidthMin := hwInfo.PCIETreeWidthMin
@@ -109,7 +116,6 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 			failedCurr = append(failedCurr, treeWidthMin)
 		}
 	}
-	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

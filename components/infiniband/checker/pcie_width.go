@@ -80,6 +80,7 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 	var failedHcasSpec []string
 	var failedHcasCurr []string
 	var devicesToUpdate []string
+	seenDev := make(map[string]bool) // dedupe per-IBDev for multi-plane HCAs
 	// First acquire read lock to read all data
 	infinibandInfo.RLock()
 	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
@@ -88,24 +89,28 @@ func (c *IBPCIEWidthChecker) Check(ctx context.Context, data any) (*common.Check
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.Hardware.PCIEWidth)
-		curr = append(curr, hwInfo.PCIEWidth)
-
-		logrus.WithFields(logrus.Fields{
-			"checker": c.Name(),
-			"hca": hwInfo.IBDev,
-			"curr_state": hwInfo.PCIEWidth,
-			"spec_state": hcaSpec.Hardware.PCIEWidth,
-		}).Infof("Checking PCIEWidth")
+		if !seenDev[hwInfo.IBDev] {
+			spec = append(spec, hcaSpec.Hardware.PCIEWidth)
+			curr = append(curr, hwInfo.PCIEWidth)
+			logrus.WithFields(logrus.Fields{
+				"checker":    c.Name(),
+				"hca":        hwInfo.IBDev,
+				"curr_state": hwInfo.PCIEWidth,
+				"spec_state": hcaSpec.Hardware.PCIEWidth,
+			}).Infof("Checking PCIEWidth")
+		}
 
 		if hwInfo.PCIEWidth != hcaSpec.Hardware.PCIEWidth {
-			logrus.WithField("checker", c.Name()).Errorf("PCIEWidth abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.PCIEWidth, hcaSpec.Hardware.PCIEWidth)
-			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
-			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIEWidth)
-			failedHcasCurr = append(failedHcasCurr, hwInfo.PCIEWidth)
 			devicesToUpdate = append(devicesToUpdate, dev)
+			if !seenDev[hwInfo.IBDev] {
+				logrus.WithField("checker", c.Name()).Errorf("PCIEWidth abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.PCIEWidth, hcaSpec.Hardware.PCIEWidth)
+				result.Status = consts.StatusAbnormal
+				failedHcas = append(failedHcas, hwInfo.IBDev)
+				failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIEWidth)
+				failedHcasCurr = append(failedHcasCurr, hwInfo.PCIEWidth)
+			}
 		}
+		seenDev[hwInfo.IBDev] = true
 	}
 	infinibandInfo.RUnlock()
 	// Batch update status (using write lock)
