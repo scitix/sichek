@@ -262,7 +262,7 @@ func (c *component) PrintInfo(info common.Info /*ignored*/, result *common.Resul
 		for _, result := range checkerResults {
 			if result.Status == consts.StatusAbnormal {
 				checkAllPassed = false
-				syslogEvents[result.Name] = fmt.Sprintf("%sDetect %s %v times in %s %s", consts.Red, result.ErrorName, result.Curr, result.Device, consts.Reset)
+				syslogEvents[result.Name] = fmt.Sprintf("%sDetect %s %v times in %s %s", consts.LevelColor(result.Level), result.ErrorName, result.Curr, result.Device, consts.Reset)
 			}
 		}
 	}
