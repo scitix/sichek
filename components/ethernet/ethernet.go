@@ -276,13 +276,13 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	for _, res := range checkerResults {
 		if res.Status != consts.StatusNormal && res.Level != consts.LevelInfo {
 			checkAllPassed = false
-			ethEvent[res.Name] = fmt.Sprintf("Event: %s%s%s -> %s", consts.Red, res.ErrorName, consts.Reset, strings.TrimRight(res.Detail, "\n"))
+			ethEvent[res.Name] = fmt.Sprintf("Event: %s%s%s -> %s", consts.LevelColor(res.Level), res.ErrorName, consts.Reset, strings.TrimRight(res.Detail, "\n"))
 		}
 
 		statusColor := consts.Green
 		statusText := "OK"
 		if res.Status != consts.StatusNormal {
-			statusColor = consts.Red
+			statusColor = consts.LevelColor(res.Level)
 			statusText = "Err"
 		}
 

@@ -223,10 +223,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	dmesgEvent := make(map[string]string)
 	checkAllPassed := true
 	checkerResults := result.Checkers
-	for _, result := range checkerResults {
-		if result.Status == consts.StatusAbnormal {
+	for _, checkerResult := range checkerResults {
+		if checkerResult.Status == consts.StatusAbnormal {
 			checkAllPassed = false
-			dmesgEvent[result.Name] = fmt.Sprintf("%s%s%s", consts.Red, result.Detail, consts.Reset)
+			dmesgEvent[checkerResult.Name] = fmt.Sprintf("%s%s%s", consts.LevelColor(checkerResult.Level), checkerResult.Detail, consts.Reset)
 		}
 	}
 
@@ -235,7 +235,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		fmt.Printf("%sNo Dmesg event detected%s\n", consts.Green, consts.Reset)
 		return checkAllPassed
 	}
-	fmt.Printf("%sDetected %d Types of Abnormal Dmesg Events:%s\n", consts.Red, len(dmesgEvent), consts.Reset)
+	fmt.Printf("%sDetected %d Types of Abnormal Dmesg Events:%s\n", consts.LevelColor(result.Level), len(dmesgEvent), consts.Reset)
 	for n := range dmesgEvent {
 		fmt.Printf("\t%s%s%s Events:\n %s\n", consts.Yellow, n, consts.Reset, dmesgEvent[n])
 	}

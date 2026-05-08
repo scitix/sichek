@@ -211,7 +211,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {
 			checkAllPassed = false
-			fmt.Printf("\t%s%s%s\n", consts.Red, result.Detail, consts.Reset)
+			fmt.Printf("\t%s%s%s\n", consts.LevelColor(result.Level), result.Detail, consts.Reset)
 		}
 	}
 	if checkAllPassed {
