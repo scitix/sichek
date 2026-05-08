@@ -48,6 +48,7 @@ type DaemonService struct {
 	metrics              *metrics.HealthCheckResMetrics
 	notifier             Notifier
 	snapshotMgr          *SnapshotManager
+	reporter             *Reporter
 }
 
 func NewService(components map[string]common.Component, annoKey string, cfgFile string, metricsPort int, metricsSocket string) (s Service, err error) {
@@ -73,6 +74,21 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 		logrus.WithField("daemon", "new").Errorf("create snapshot manager failed: %v", err)
 	}
 
+	// Reporter: periodically POST snapshot.json to sichek-collector.
+	reporterCfg, err := LoadReporterConfig(cfgFile)
+	if err != nil {
+		logrus.WithField("daemon", "new").Warnf("load reporter config failed: %v", err)
+		reporterCfg = defaultReporterConfig()
+	}
+	var reporter *Reporter
+	if reporterCfg.Enable {
+		snapPath := consts.DefaultSnapshotPath
+		if snapshotMgr != nil && snapshotMgr.path != "" {
+			snapPath = snapshotMgr.path
+		}
+		reporter = NewReporter(reporterCfg, snapPath, ResolveNodeName())
+	}
+
 	daemonService := &DaemonService{
 		ctx:              ctx,
 		cancel:           cancel,
@@ -83,6 +99,7 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 		metrics:          metrics.GetHealthCheckResMetrics(),
 		node:             hostname,
 		snapshotMgr:      snapshotMgr,
+		reporter:         reporter,
 	}
 
 	return daemonService, nil
@@ -96,6 +113,10 @@ func (d *DaemonService) Run() {
 		d.componentResults[componentName] = resultChan
 	}
 	d.componentsLock.Unlock()
+
+	if d.reporter != nil {
+		go d.reporter.Run(d.ctx)
+	}
 
 	for componentName, resultChan := range d.componentResults {
 		go d.monitorComponent(componentName, resultChan)
