@@ -135,7 +135,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 	CheckPCIETreeSpeed: {
 		Name:        CheckPCIETreeSpeed,
 		Description: "Check full PCIe tree speed to root complex",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelCritical,
 		Detail:      "PCIe path to root complex supports full speed",
 		ErrorName:   "PCIETreeSpeedDownDegraded",
 		Suggestion:  "Check upstream PCIe device speed and configuration",
@@ -143,7 +143,7 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 	CheckPCIETreeWidth: {
 		Name:        CheckPCIETreeWidth,
 		Description: "Check full PCIe tree width to root complex",
-		Level:       consts.LevelWarning,
+		Level:       consts.LevelCritical,
 		Detail:      "PCIe path to root complex supports full width",
 		ErrorName:   "PCIETreeWidthIncorrect",
 		Suggestion:  "Check PCIe switch and topology configuration",

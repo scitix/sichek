@@ -101,6 +101,9 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 		if !numericSpeedEqual(treeWidthMin, expectedWidth) {
 			result.Status = consts.StatusAbnormal
 			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
+			if hwInfo.PCIETreeWidthMinBDF != "" {
+				devInfo = fmt.Sprintf("%s(%s, bottleneck@%s)", hwInfo.IBDev, hwInfo.PCIEBDF, hwInfo.PCIETreeWidthMinBDF)
+			}
 			failedDevices = append(failedDevices, devInfo)
 			failedSpec = append(failedSpec, expectedWidth)
 			failedCurr = append(failedCurr, treeWidthMin)

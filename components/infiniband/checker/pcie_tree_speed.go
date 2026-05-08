@@ -107,6 +107,9 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		if !numericSpeedEqual(treeSpeedMin, expectedSpeed) {
 			result.Status = consts.StatusAbnormal
 			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
+			if hwInfo.PCIETreeSpeedMinBDF != "" {
+				devInfo = fmt.Sprintf("%s(%s, bottleneck@%s)", hwInfo.IBDev, hwInfo.PCIEBDF, hwInfo.PCIETreeSpeedMinBDF)
+			}
 			failedDevices = append(failedDevices, devInfo)
 			failedSpec = append(failedSpec, expectedSpeed)
 			failedCurr = append(failedCurr, treeSpeedMin)
