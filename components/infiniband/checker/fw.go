@@ -80,7 +80,9 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 	var spec []string
 	var curr []string
 	infinibandInfo.RLock()
-	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+	hws := uniqueByDev(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+	for _, hwInfo := range hws {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.Warnf("hca %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
@@ -103,7 +105,6 @@ func (c *IBFirmwareChecker) Check(ctx context.Context, data any) (*common.Checke
 			detail = append(detail, errMsg)
 		}
 	}
-	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

@@ -36,10 +36,36 @@ type InfinibandSpec struct {
 	IBSoftWareInfo *collector.IBSoftWareInfo `json:"sw_deps" yaml:"sw_deps"`
 	PCIeACS        string                    `json:"pcie_acs" yaml:"pcie_acs"`
 
+	// DevicePorts maps an IB device name (key in IBPFDevs) to the list of
+	// port numbers under /sys/class/infiniband/<dev>/ports/ that should be
+	// sampled and health-checked. Used for multi-plane HCAs (e.g. CX8 4P
+	// RoCE) where the data path lives on ports other than 1.
+	DevicePorts map[string][]int `json:"device_ports,omitempty" yaml:"device_ports,omitempty"`
+	// DefaultPorts is the fallback port list applied to any IBPFDevs entry
+	// not present in DevicePorts. When both are empty, the collector keeps
+	// legacy behavior and reads only port 1.
+	DefaultPorts []int `json:"default_ports,omitempty" yaml:"default_ports,omitempty"`
+
 	// HCAs is for in-memory use only (full specs)
 	HCAs map[string]*hcaConfig.HCASpec `json:"-" yaml:"-"`
 	// HCAStubs is for persistence only (board ID references)
 	HCAStubs map[string]interface{} `json:"hca_specs,omitempty" yaml:"hca_specs,omitempty"`
+}
+
+// PortsFor returns the port numbers that should be sampled for the given IB
+// device. Resolution order: DevicePorts entry → DefaultPorts → []int{1}.
+// The returned slice is always non-empty so callers can range over it
+// unconditionally.
+func (s *InfinibandSpec) PortsFor(ibDev string) []int {
+	if s != nil {
+		if ports, ok := s.DevicePorts[ibDev]; ok && len(ports) > 0 {
+			return ports
+		}
+		if len(s.DefaultPorts) > 0 {
+			return s.DefaultPorts
+		}
+	}
+	return []int{1}
 }
 
 // LoadSpec loads infiniband spec from the given file path using the common YAML loader.

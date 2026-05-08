@@ -80,7 +80,9 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	var faiedHcasSpec []string
 	var faiedHcasCurr []string
 	infinibandInfo.RLock()
-	for _, hwInfo := range infinibandInfo.IBHardWareInfo {
+	hws := uniqueByDev(infinibandInfo.IBHardWareInfo)
+	infinibandInfo.RUnlock()
+	for _, hwInfo := range hws {
 		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
 			logrus.WithField("component", "infiniband").Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
 			continue
@@ -90,8 +92,8 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 		curr = append(curr, hwInfo.PCIEMRR)
 
 		logrus.WithFields(logrus.Fields{
-			"checker": c.Name(),
-			"hca": hwInfo.IBDev,
+			"checker":    c.Name(),
+			"hca":        hwInfo.IBDev,
 			"curr_state": hwInfo.PCIEMRR,
 			"spec_state": hcaSpec.Hardware.PCIEMRR,
 		}).Infof("Checking PCIEMRR")
@@ -108,7 +110,6 @@ func (c *PCIEMRRChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			}
 		}
 	}
-	infinibandInfo.RUnlock()
 
 	result.Curr = strings.Join(curr, ",")
 	result.Spec = strings.Join(spec, ",")

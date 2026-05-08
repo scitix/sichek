@@ -79,6 +79,11 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 	var failedHcasSpec []string
 	var failedHcasCurr []string
 	var devicesToUpdate []string
+	// PCIe link characteristics are per PCI device, not per port — dedupe so
+	// multi-plane HCAs do not show up four times in the aggregate result, but
+	// still mark every per-port hwInfo record so the metric exporter can flag
+	// the whole device.
+	seenDev := make(map[string]bool)
 	// First acquire read lock to read all data
 	infinibandInfo.RLock()
 	for dev, hwInfo := range infinibandInfo.IBHardWareInfo {
@@ -87,24 +92,28 @@ func (c *IBPCIESpeedChecker) Check(ctx context.Context, data any) (*common.Check
 			continue
 		}
 		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		spec = append(spec, hcaSpec.Hardware.PCIESpeed)
-		curr = append(curr, hwInfo.PCIESpeed)
-
-		logrus.WithFields(logrus.Fields{
-			"checker": c.Name(),
-			"hca": hwInfo.IBDev,
-			"curr_state": hwInfo.PCIESpeed,
-			"spec_state": hcaSpec.Hardware.PCIESpeed,
-		}).Infof("Checking PCIESpeed")
+		if !seenDev[hwInfo.IBDev] {
+			spec = append(spec, hcaSpec.Hardware.PCIESpeed)
+			curr = append(curr, hwInfo.PCIESpeed)
+			logrus.WithFields(logrus.Fields{
+				"checker":    c.Name(),
+				"hca":        hwInfo.IBDev,
+				"curr_state": hwInfo.PCIESpeed,
+				"spec_state": hcaSpec.Hardware.PCIESpeed,
+			}).Infof("Checking PCIESpeed")
+		}
 
 		if !strings.Contains(hwInfo.PCIESpeed, hcaSpec.Hardware.PCIESpeed) {
-			logrus.WithField("checker", c.Name()).Errorf("PCIESpeed abnormal on %s: %s doesn't contain %s", hwInfo.IBDev, hwInfo.PCIESpeed, hcaSpec.Hardware.PCIESpeed)
-			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
-			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIESpeed)
-			failedHcasCurr = append(failedHcasCurr, hwInfo.PCIESpeed)
 			devicesToUpdate = append(devicesToUpdate, dev)
+			if !seenDev[hwInfo.IBDev] {
+				logrus.WithField("checker", c.Name()).Errorf("PCIESpeed abnormal on %s: %s doesn't contain %s", hwInfo.IBDev, hwInfo.PCIESpeed, hcaSpec.Hardware.PCIESpeed)
+				result.Status = consts.StatusAbnormal
+				failedHcas = append(failedHcas, hwInfo.IBDev)
+				failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PCIESpeed)
+				failedHcasCurr = append(failedHcasCurr, hwInfo.PCIESpeed)
+			}
 		}
+		seenDev[hwInfo.IBDev] = true
 	}
 	infinibandInfo.RUnlock()
 	// Batch update status (using write lock)

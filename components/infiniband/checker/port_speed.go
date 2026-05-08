@@ -99,9 +99,10 @@ func (c *IBPortSpeedChecker) Check(ctx context.Context, data any) (*common.Check
 		}).Infof("Checking PortSpeed")
 
 		if hwInfo.PortSpeed != hcaSpec.Hardware.PortSpeed {
-			logrus.WithField("checker", c.Name()).Errorf("PortSpeed abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.PortSpeed, hcaSpec.Hardware.PortSpeed)
+			label := devPortLabel(hwInfo)
+			logrus.WithField("checker", c.Name()).Errorf("PortSpeed abnormal on %s: %s != %s", label, hwInfo.PortSpeed, hcaSpec.Hardware.PortSpeed)
 			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
+			failedHcas = append(failedHcas, label)
 			failedHcasSpec = append(failedHcasSpec, hcaSpec.Hardware.PortSpeed)
 			failedHcasCurr = append(failedHcasCurr, hwInfo.PortSpeed)
 			devicesToUpdate = append(devicesToUpdate, dev)

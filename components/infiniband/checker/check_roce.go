@@ -262,10 +262,17 @@ func (c *RoCEChecker) Check(ctx context.Context, data any) (*common.CheckerResul
 	}
 	var devices []deviceInfo
 	infinibandInfo.RLock()
-	for index := range infinibandInfo.IBHardWareInfo {
+	// Dedupe per IBDev: VF/gateway checks are per-PCI-device, multi-plane
+	// HCAs would otherwise fire 4× and pay the ICMP timeout 4×.
+	seenDev := make(map[string]bool)
+	for _, hw := range infinibandInfo.IBHardWareInfo {
+		if seenDev[hw.IBDev] {
+			continue
+		}
+		seenDev[hw.IBDev] = true
 		devices = append(devices, deviceInfo{
-			IBDev: infinibandInfo.IBHardWareInfo[index].IBDev,
-			PFGW:  infinibandInfo.IBHardWareInfo[index].PFGW,
+			IBDev: hw.IBDev,
+			PFGW:  hw.PFGW,
 		})
 	}
 	infinibandInfo.RUnlock()

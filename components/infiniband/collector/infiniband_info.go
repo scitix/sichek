@@ -32,6 +32,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// HWInfoKey returns the canonical map key used for per-port hardware info
+// and counter records: "<ibdev>/p<port>". Single-port cards still use
+// "<ibdev>/p1" for uniformity.
+func HWInfoKey(IBDev string, port int) string {
+	return fmt.Sprintf("%s/p%d", IBDev, port)
+}
+
+// PortResolver returns the list of port numbers to sample under
+// /sys/class/infiniband/<IBDev>/ports/.  Wiring the spec.PortsFor as a
+// resolver lets the collector stay free of a config-package import.
+type PortResolver func(IBDev string) []int
+
 type InfinibandInfo struct {
 	HCAPCINum       int                       `json:"hca_pci_num" yaml:"hca_pci_num"`
 	IBCapablePCINum int                       `json:"ib_capable_pci_num" yaml:"ib_capable_pci_num"`
@@ -40,10 +52,11 @@ type InfinibandInfo struct {
 	IBHardWareInfo  map[string]IBHardWareInfo `json:"ib_hardware_info" yaml:"ib_hardware_info"`
 	IBSoftWareInfo  IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
 	// PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
-	IBCounters map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
-	IBNicRole  string                `json:"ib_nic_role" yaml:"ib_nic_role"`
-	Time       time.Time             `json:"time" yaml:"time"`
-	mu         sync.RWMutex
+	IBCounters   map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
+	IBNicRole    string                `json:"ib_nic_role" yaml:"ib_nic_role"`
+	Time         time.Time             `json:"time" yaml:"time"`
+	portResolver PortResolver
+	mu           sync.RWMutex
 }
 
 func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
@@ -65,6 +78,24 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 	}
 
 	return i, nil
+}
+
+// SetPortResolver installs a port resolver so Collect samples the configured
+// ports for each device.  Pass nil (or never call this) to fall back to
+// reading port 1 only — preserving legacy single-port behaviour.
+func (i *InfinibandInfo) SetPortResolver(r PortResolver) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.portResolver = r
+}
+
+func (i *InfinibandInfo) resolvePorts(IBDev string) []int {
+	if i.portResolver != nil {
+		if ports := i.portResolver(IBDev); len(ports) > 0 {
+			return ports
+		}
+	}
+	return []int{1}
 }
 
 func (i *InfinibandInfo) JSON() (string, error) {
@@ -96,6 +127,9 @@ func (i *InfinibandInfo) Unlock() {
 }
 
 func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
+	// Refresh the rdma-link cache once per collection cycle so per-port
+	// netdev mapping reflects the current kernel state.
+	resetRDMALinkCache()
 	// Create a new InfinibandInfo object to avoid retaining historical data
 	newInfo := &InfinibandInfo{
 		IBHardWareInfo: make(map[string]IBHardWareInfo),
@@ -107,6 +141,7 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 		IBNicRole:       i.IBNicRole,
 		IBPCIDevs:       i.IBPCIDevs,
 		IBCapablePCINum: i.IBCapablePCINum,
+		portResolver:    i.portResolver,
 	}
 
 	newInfo.IBPFDevs = i.GetIBPFdevs()
@@ -165,13 +200,16 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 			}
 		}
 
-		var hwInfo IBHardWareInfo
-		hwInfo.Collect(ctx, IBDev, newInfo.IBNicRole)
-		newInfo.IBHardWareInfo[IBDev] = hwInfo
+		for _, port := range newInfo.resolvePorts(IBDev) {
+			var hwInfo IBHardWareInfo
+			hwInfo.Collect(ctx, IBDev, port, newInfo.IBNicRole)
+			key := HWInfoKey(IBDev, port)
+			newInfo.IBHardWareInfo[key] = hwInfo
 
-		var counters IBCounters = make(map[string]uint64)
-		counters.Collect(IBDev)
-		newInfo.IBCounters[IBDev] = counters
+			counters := make(IBCounters)
+			counters.Collect(IBDev, port)
+			newInfo.IBCounters[key] = counters
+		}
 	}
 
 	newInfo.Time = time.Now()

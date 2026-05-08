@@ -95,9 +95,10 @@ func (c *NetOperstateChecker) Check(ctx context.Context, data any) (*common.Chec
 		}).Infof("Checking NetOperstate")
 		
 		if hwInfo.NetOperstate != hcaSpec.Hardware.NetOperstate {
-			logrus.WithField("checker", c.Name()).Errorf("NetOperstate abnormal on %s: %s != %s", hwInfo.IBDev, hwInfo.NetOperstate, hcaSpec.Hardware.NetOperstate)
+			label := devPortLabel(hwInfo)
+			logrus.WithField("checker", c.Name()).Errorf("NetOperstate abnormal on %s: %s != %s", label, hwInfo.NetOperstate, hcaSpec.Hardware.NetOperstate)
 			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
+			failedHcas = append(failedHcas, label)
 		}
 	}
 	infinibandInfo.RUnlock()

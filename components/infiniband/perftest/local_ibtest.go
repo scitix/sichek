@@ -184,8 +184,11 @@ func getActiveIBPFDevices() ([]collector.IBHardWareInfo, []collector.IBHardWareI
 	for mlxDev := range ibDevs {
 		var hwInfo collector.IBHardWareInfo
 		hwInfo.IBDev = mlxDev
-		hwInfo.PhyState = hwInfo.GetPhyStat(mlxDev)
-		hwInfo.PortState = hwInfo.GetIBStat(mlxDev)
+		// perftest historically samples port 1; the multi-plane refactor is
+		// scoped to the regular health-check pipeline.
+		hwInfo.PhyState = hwInfo.GetPhyStat(mlxDev, 1)
+		hwInfo.PortState = hwInfo.GetIBStat(mlxDev, 1)
+		hwInfo.Port = 1
 
 		numaNodes := collector.GetNumaNode(mlxDev)
 		if len(numaNodes) > 0 {

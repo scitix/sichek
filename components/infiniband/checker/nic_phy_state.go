@@ -96,9 +96,10 @@ func (c *IBPhyStateChecker) Check(ctx context.Context, data any) (*common.Checke
 		}).Infof("Checking PhyState")
 
 		if !strings.Contains(hwInfo.PhyState, hcaSpec.Hardware.PhyState) {
-			logrus.WithField("checker", c.Name()).Errorf("PhyState abnormal on %s: %s doesn't contain %s", hwInfo.IBDev, hwInfo.PhyState, hcaSpec.Hardware.PhyState)
+			label := devPortLabel(hwInfo)
+			logrus.WithField("checker", c.Name()).Errorf("PhyState abnormal on %s: %s doesn't contain %s", label, hwInfo.PhyState, hcaSpec.Hardware.PhyState)
 			result.Status = consts.StatusAbnormal
-			failedHcas = append(failedHcas, hwInfo.IBDev)
+			failedHcas = append(failedHcas, label)
 		}
 	}
 	infinibandInfo.RUnlock()

@@ -88,7 +88,11 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	if err != nil || cfg.Infiniband == nil {
 		logrus.WithField("component", "infiniband").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
 		component.initError = fmt.Errorf("get user confgig failed: %w", err)
-		// Even if config loading fails, try to create service with a default config to report init error
+		// Even if config loading fails, create service with a default config
+		// so the daemon can keep running and report the init error.  The
+		// caches must be sized here too — otherwise LastInfo()/LastResult()
+		// dereference a nil slice with index -1 and panic on the first
+		// CLI-style invocation that has no IB hardware or no spec on disk.
 		defaultCfg := &config.InfinibandUserConfig{
 			Infiniband: &config.InfinibandConfig{
 				QueryInterval: common.Duration{Duration: 10 * time.Second},
@@ -96,6 +100,9 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 			},
 		}
 		component.cfg = defaultCfg
+		component.cacheSize = defaultCfg.Infiniband.CacheSize
+		component.cacheBuffer = make([]*common.Result, component.cacheSize)
+		component.cacheInfo = make([]common.Info, component.cacheSize)
 		component.service = common.NewCommonService(ctx, defaultCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 		return component, nil
 	}
@@ -136,17 +143,20 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	}
 
 	// create collector
-	collector, err := collector.NewIBCollector(ctx)
+	ibCollector, err := collector.NewIBCollector(ctx)
 	if err != nil {
 		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
 		component.initError = fmt.Errorf("failed to create infiniband collector: %w", err)
 		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
 		return component, nil
 	}
-	component.collector = collector
+	// Wire spec port resolution into the collector so multi-plane HCAs are
+	// sampled per port instead of the legacy port-1 hard-coding.
+	ibCollector.SetPortResolver(ibSpec.PortsFor)
+	component.collector = ibCollector
 
 	// create checkers
-	checkers, err := checker.NewCheckers(cfg, ibSpec, collector)
+	checkers, err := checker.NewCheckers(cfg, ibSpec, ibCollector)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
 		component.initError = fmt.Errorf("failed to create infiniband checkers: %w", err)
@@ -323,6 +333,26 @@ func (c *component) buildSpecEmptyErrorResult() *common.CheckerResult {
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	checkAllPassed := true
 
+	// info==nil happens on the init-error path: spec missing, no IB
+	// hardware, or user config failed to load.  Print whatever the
+	// HealthCheck-time result captured so the operator sees the actual
+	// reason instead of an opaque "invalid data type" line.
+	if info == nil {
+		fmt.Println("Errors Events:")
+		if result == nil || len(result.Checkers) == 0 {
+			fmt.Printf("\t%sInfiniband component initialization failed (no detail)%s\n", consts.Red, consts.Reset)
+		} else {
+			for _, cr := range result.Checkers {
+				detail := cr.Detail
+				if detail == "" {
+					detail = cr.Curr
+				}
+				fmt.Printf("\t%s[%s] %s%s\n", consts.Red, cr.ErrorName, detail, consts.Reset)
+			}
+		}
+		return false
+	}
+
 	ibInfo, ok := info.(*collector.InfinibandInfo)
 	if !ok {
 		logrus.WithField("component", "infiniband").Errorf("invalid data type, expected InfinibandInfo")
@@ -403,7 +433,12 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	ibControllersPrint := fmt.Sprintf("Host Channel Adaptor: %s", ibControllersPrintColor)
 	ibInfo.RLock()
 	for _, hwInfo := range ibInfo.IBHardWareInfo {
-		ibControllersPrint += fmt.Sprintf("%s(%s), ", hwInfo.IBDev, hwInfo.NetDev)
+		// Multi-plane HCAs: show port suffix so operators can tell them apart.
+		if hwInfo.Port > 0 {
+			ibControllersPrint += fmt.Sprintf("%s/p%d(%s), ", hwInfo.IBDev, hwInfo.Port, hwInfo.NetDev)
+		} else {
+			ibControllersPrint += fmt.Sprintf("%s(%s), ", hwInfo.IBDev, hwInfo.NetDev)
+		}
 	}
 	ibInfo.RUnlock()
 
