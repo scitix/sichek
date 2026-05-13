@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -135,6 +136,62 @@ func getBondInterface(slaveInterface string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// ListActiveRoceVFs scans /sys/class/infiniband and returns the names of
+// RDMA VF devices that are RoCE (link_layer=Ethernet) and have at least one
+// port in ACTIVE state. NCCL 2.29.x crashes during topology construction on
+// hosts that expose multi-vport RoCE PFs, so callers building an
+// NCCL_IB_HCA whitelist should prefer this VF set when present and fall
+// back to the default NCCL behaviour when it is empty.
+//
+// A device is treated as a VF when /sys/class/infiniband/<dev>/device/physfn
+// exists. Names are returned in lexicographic order.
+func ListActiveRoceVFs() []string {
+	return listActiveRoceVFs(IBSYSPathPre)
+}
+
+func listActiveRoceVFs(root string) []string {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil
+	}
+	var vfs []string
+	for _, e := range entries {
+		dev := e.Name()
+		devDir := filepath.Join(root, dev)
+		if _, err := os.Lstat(filepath.Join(devDir, "device", "physfn")); err != nil {
+			continue
+		}
+		if !hasActiveRocePort(filepath.Join(devDir, "ports")) {
+			continue
+		}
+		vfs = append(vfs, dev)
+	}
+	sort.Strings(vfs)
+	return vfs
+}
+
+func hasActiveRocePort(portsDir string) bool {
+	ports, err := os.ReadDir(portsDir)
+	if err != nil {
+		return false
+	}
+	for _, p := range ports {
+		portDir := filepath.Join(portsDir, p.Name())
+		linkLayer, err := os.ReadFile(filepath.Join(portDir, "link_layer"))
+		if err != nil || !strings.EqualFold(strings.TrimSpace(string(linkLayer)), "Ethernet") {
+			continue
+		}
+		state, err := os.ReadFile(filepath.Join(portDir, "state"))
+		if err != nil {
+			continue
+		}
+		if strings.Contains(strings.ToUpper(string(state)), "ACTIVE") {
+			return true
+		}
+	}
+	return false
 }
 
 // GetIBdev2NetDev returns final network interfaces for an IB device.
