@@ -195,7 +195,7 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Name:        SRAMVolatileUncorrectableCheckerName,
 		Description: "Check if any Nvidia GPU has ecc sram volatile uncorrectable errors",
 		Status:      consts.StatusNormal,
-		Level:       consts.LevelCritical,
+		Level:       consts.LevelWarning,
 		Detail:      "No volatile uncorrectable SRAM errors detected",
 		ErrorName:   "SRAMVolatileUncorrectableErrors",
 		Suggestion:  "Reset the GPU device",
