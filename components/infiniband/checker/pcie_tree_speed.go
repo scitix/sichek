@@ -169,3 +169,32 @@ func numericSpeedEqual(a, b string) bool {
 	}
 	return va == vb
 }
+
+// pcieSpeedLessThan returns true iff a < b after extracting the leading numeric
+// part of each (so "16.0 GT/s PCIe" parses as 16.0). Returns false when either
+// value cannot be parsed — callers must treat "unknown" as "not less" so the
+// checker stays normal on unreadable sysfs entries.
+func pcieSpeedLessThan(a, b string) bool {
+	af, errA := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(a)), 64)
+	bf, errB := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(b)), 64)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return af < bf-1e-9
+}
+
+// minNumericSpeed returns whichever of a or b parses to the smaller numeric
+// value, preserving the raw string form. If either side is unparseable
+// returns "" so the checker can skip the link rather than emit a noisy
+// "unknown" comparison.
+func minNumericSpeed(a, b string) string {
+	af, errA := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(a)), 64)
+	bf, errB := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(b)), 64)
+	if errA != nil || errB != nil {
+		return ""
+	}
+	if af <= bf {
+		return a
+	}
+	return b
+}
