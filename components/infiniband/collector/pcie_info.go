@@ -128,6 +128,22 @@ type PCIETreeWidthInfo struct {
 	Width string `json:"width" yaml:"width"`
 }
 
+// PCIETreeLink represents a single PCIe link on the upstream path from an
+// IB device to the root complex. Each adjacent (parent, child) BDF pair in
+// the readlink path is one link. Speed/width strings keep their sysfs raw
+// form (e.g. "32.0 GT/s PCIe" or "16") so downstream comparisons can choose
+// how to parse them.
+type PCIETreeLink struct {
+	ParentBDF      string `json:"parent_bdf" yaml:"parent_bdf"`
+	ChildBDF       string `json:"child_bdf" yaml:"child_bdf"`
+	CurSpeed       string `json:"cur_speed" yaml:"cur_speed"`
+	CurWidth       string `json:"cur_width" yaml:"cur_width"`
+	ParentMaxSpeed string `json:"parent_max_speed" yaml:"parent_max_speed"`
+	ChildMaxSpeed  string `json:"child_max_speed" yaml:"child_max_speed"`
+	ParentMaxWidth string `json:"parent_max_width" yaml:"parent_max_width"`
+	ChildMaxWidth  string `json:"child_max_width" yaml:"child_max_width"`
+}
+
 // Collect collects PCIe tree information for a given IB device
 func (pcie *PCIETreeInfo) Collect(IBDev string) {
 	pcie.PCIETreeSpeed = GetPCIETreeSpeed(IBDev)
