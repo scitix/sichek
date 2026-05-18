@@ -344,6 +344,77 @@ func GetPCIETreeMin(IBDev, linkType string) (string, string) {
 	return minNumericString, minBdf
 }
 
+// GetPCIETreeLinks enumerates every PCIe link on the upstream path of an IB
+// device. Each adjacent (parent, child) BDF pair in the readlink path becomes
+// one link, with current_link_{speed,width} and max_link_{speed,width} read
+// from both endpoints.  Direct-to-CPU devices (<2 BDFs in path) return nil.
+//
+// This is the spec-free replacement for GetPCIETreeMin: the checker compares
+// link.CurSpeed against min(ParentMaxSpeed, ChildMaxSpeed) per link, so no
+// HCA yaml expected value is needed.
+func GetPCIETreeLinks(IBDev string) []PCIETreeLink {
+	bdfList := GetIBDevBDF(IBDev)
+	if len(bdfList) == 0 {
+		logrus.WithField("component", "infiniband").Warnf("Could not get BDF for IB device %s", IBDev)
+		return nil
+	}
+	return getPCIETreeLinksByBDF(bdfList[0])
+}
+
+// getPCIETreeLinksByBDF is the testable core of GetPCIETreeLinks. It does
+// the readlink + per-link sysfs walk for a single NIC BDF.  Sysfs failures
+// on individual files leave the corresponding fields blank rather than
+// dropping the entire link, so the checker can still emit a useful message.
+func getPCIETreeLinksByBDF(nicBDF string) []PCIETreeLink {
+	devicePath := filepath.Join(PCIPath, nicBDF)
+	linkPath, err := os.Readlink(devicePath)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to resolve symlink for %s: %v", devicePath, err)
+		return nil
+	}
+
+	bdfRegexPattern := `\b[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]\b`
+	re := regexp.MustCompile(bdfRegexPattern)
+	allBdfs := re.FindAllString(linkPath, -1)
+	if len(allBdfs) < 2 {
+		logrus.WithField("component", "infiniband").Infof("No upstream PCIe link for %s (path has <2 BDFs), skipping.", nicBDF)
+		return nil
+	}
+
+	links := make([]PCIETreeLink, 0, len(allBdfs)-1)
+	for i := 1; i < len(allBdfs); i++ {
+		parent := allBdfs[i-1]
+		child := allBdfs[i]
+		link := PCIETreeLink{ParentBDF: parent, ChildBDF: child}
+		link.CurSpeed = readSysfsString(filepath.Join(PCIPath, child, "current_link_speed"))
+		if link.CurSpeed == "" {
+			// Fall back to parent's report; the two endpoints share the link.
+			link.CurSpeed = readSysfsString(filepath.Join(PCIPath, parent, "current_link_speed"))
+		}
+		link.CurWidth = readSysfsString(filepath.Join(PCIPath, child, "current_link_width"))
+		if link.CurWidth == "" {
+			link.CurWidth = readSysfsString(filepath.Join(PCIPath, parent, "current_link_width"))
+		}
+		link.ParentMaxSpeed = readSysfsString(filepath.Join(PCIPath, parent, "max_link_speed"))
+		link.ChildMaxSpeed = readSysfsString(filepath.Join(PCIPath, child, "max_link_speed"))
+		link.ParentMaxWidth = readSysfsString(filepath.Join(PCIPath, parent, "max_link_width"))
+		link.ChildMaxWidth = readSysfsString(filepath.Join(PCIPath, child, "max_link_width"))
+		links = append(links, link)
+	}
+	return links
+}
+
+// readSysfsString reads a single-line sysfs file and trims trailing whitespace.
+// Returns "" on any read error; callers downgrade gracefully.
+func readSysfsString(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Debugf("readSysfsString: %s: %v", path, err)
+		return ""
+	}
+	return strings.TrimRight(string(data), "\n\r\t ")
+}
+
 // GetPCIETreeSpeed gets PCIe tree speed information
 func GetPCIETreeSpeed(IBDev string) []PCIETreeSpeedInfo {
 	bdf := GetIBDevBDF(IBDev)
