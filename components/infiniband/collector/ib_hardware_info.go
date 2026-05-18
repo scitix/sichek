@@ -55,10 +55,11 @@ type IBHardWareInfo struct {
 	PCIESpeedState   string `json:"pcie_speed_state" yaml:"pcie_speed_state"`
 	PCIEWidth        string `json:"pcie_width" yaml:"pcie_width"`
 	PCIEWidthState   string `json:"pcie_width_state" yaml:"pcie_width_state"`
-	PCIETreeSpeedMin    string `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
-	PCIETreeSpeedMinBDF string `json:"pcie_tree_speed_bdf" yaml:"pcie_tree_speed_bdf"`
-	PCIETreeWidthMin    string `json:"pcie_tree_width" yaml:"pcie_tree_width"`
-	PCIETreeWidthMinBDF string `json:"pcie_tree_width_bdf" yaml:"pcie_tree_width_bdf"`
+	PCIETreeSpeedMin    string         `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
+	PCIETreeSpeedMinBDF string         `json:"pcie_tree_speed_bdf" yaml:"pcie_tree_speed_bdf"`
+	PCIETreeWidthMin    string         `json:"pcie_tree_width" yaml:"pcie_tree_width"`
+	PCIETreeWidthMinBDF string         `json:"pcie_tree_width_bdf" yaml:"pcie_tree_width_bdf"`
+	PCIETreeLinks       []PCIETreeLink `json:"pcie_tree_links" yaml:"pcie_tree_links"`
 	PCIEMRR          string `json:"pcie_mrr" yaml:"pcie_mrr"`
 	// Slot             string `json:"slot" yaml:"slot"`
 	NumaNode string `json:"numa_node" yaml:"numa_node"`
@@ -119,8 +120,9 @@ func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, port int, i
 	if len(GetPCIEMRR(ctx, IBDev)) >= 1 {
 		hw.PCIEMRR = GetPCIEMRR(ctx, IBDev)[0]
 	}
-	hw.PCIETreeSpeedMin, hw.PCIETreeSpeedMinBDF = GetPCIETreeMin(IBDev, "current_link_speed")
-	hw.PCIETreeWidthMin, hw.PCIETreeWidthMinBDF = GetPCIETreeMin(IBDev, "current_link_width")
+	hw.PCIETreeLinks = GetPCIETreeLinks(IBDev)
+	hw.PCIETreeSpeedMin, hw.PCIETreeSpeedMinBDF = minLinkCurSpeed(hw.PCIETreeLinks)
+	hw.PCIETreeWidthMin, hw.PCIETreeWidthMinBDF = minLinkCurWidth(hw.PCIETreeLinks)
 	if len(GetNumaNode(IBDev)) >= 1 {
 		hw.NumaNode = GetNumaNode(IBDev)[0]
 	}
@@ -459,4 +461,73 @@ func GetCPUList(IBDev string) []string {
 		return nil
 	}
 	return CPUList
+}
+
+// minLinkCurSpeed returns the smallest CurSpeed across links (using numeric
+// comparison after parseNumericSpeed) and the ChildBDF of that link.
+// Empty CurSpeed entries are skipped. Returns ("", "") if no link has a
+// parseable speed.
+func minLinkCurSpeed(links []PCIETreeLink) (string, string) {
+	var (
+		bestVal string
+		bestBDF string
+		bestNum float64
+		found   bool
+	)
+	for _, l := range links {
+		if l.CurSpeed == "" {
+			continue
+		}
+		num, ok := parseNumericSpeed(l.CurSpeed)
+		if !ok {
+			continue
+		}
+		if !found || num < bestNum {
+			bestNum = num
+			bestVal = l.CurSpeed
+			bestBDF = l.ChildBDF
+			found = true
+		}
+	}
+	return bestVal, bestBDF
+}
+
+// minLinkCurWidth is the width counterpart of minLinkCurSpeed.
+func minLinkCurWidth(links []PCIETreeLink) (string, string) {
+	var (
+		bestVal string
+		bestBDF string
+		bestNum float64
+		found   bool
+	)
+	for _, l := range links {
+		if l.CurWidth == "" {
+			continue
+		}
+		num, ok := parseNumericSpeed(l.CurWidth)
+		if !ok {
+			continue
+		}
+		if !found || num < bestNum {
+			bestNum = num
+			bestVal = l.CurWidth
+			bestBDF = l.ChildBDF
+			found = true
+		}
+	}
+	return bestVal, bestBDF
+}
+
+// parseNumericSpeed reuses the same heuristic the checker uses:
+// strip the unit suffix and parse the leading float.
+func parseNumericSpeed(s string) (float64, bool) {
+	parts := strings.Fields(strings.TrimSpace(s))
+	if len(parts) == 0 {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, false
+	}
+	return f, true
 }
