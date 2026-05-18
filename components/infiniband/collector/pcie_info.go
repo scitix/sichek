@@ -32,9 +32,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	PCIPath = "/sys/bus/pci/devices"
-)
+// PCIPath is the root of the PCI sysfs tree. It is a var (not a const) so
+// tests can redirect it to a t.TempDir() before exercising the collector.
+var PCIPath = "/sys/bus/pci/devices"
 
 var (
 	targetVendorID = []string{
