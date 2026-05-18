@@ -48,7 +48,7 @@ The detection processes are categorized into three main areas: *hardware*, *soft
 - Criticality: critical
 - Suggestion: Check whether the HCA is installed in the correct PCIe slot.
 
-## PCIe Tree Speed/Width 检测
+#### PCIe Tree Speed/Width 检测
 
 `PCIETreeSpeedDownDegraded` / `PCIETreeWidthIncorrect` 不再依赖 HCA `board_id` spec
 中的 `pcie_tree_speed` / `pcie_tree_width` 字段。Collector 直接从 sysfs
