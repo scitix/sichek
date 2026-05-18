@@ -33,34 +33,34 @@ import (
 )
 
 type IBHardWareInfo struct {
-	IBDev            string `json:"IBdev" yaml:"IBdev"`
-	Port             int    `json:"port,omitempty" yaml:"port,omitempty"`
-	NetDev           string `json:"net_dev" yaml:"net_dev"`
-	HCAType          string `json:"hca_type" yaml:"hca_type"`
-	SystemGUID       string `json:"system_guid" yaml:"system_guid"`
-	NodeGUID         string `json:"node_guid" yaml:"node_guid"`
-	PFGW             string `json:"pf_gw" yaml:"pf_gw"`
-	VFSpec           string `json:"vf_spec" yaml:"vf_spec"`
-	VFNum            string `json:"vf_num" yaml:"vf_num"`
-	PhyState         string `json:"phy_state" yaml:"phy_state"`
-	PortState        string `json:"port_state" yaml:"port_state"`
-	LinkLayer        string `json:"link_layer" yaml:"link_layer"`
-	NetOperstate     string `json:"net_operstate" yaml:"net_operstate"`
-	PortSpeed        string `json:"port_speed" yaml:"port_speed"`
-	PortSpeedState   string `json:"port_speed_state" yaml:"port_speed_state"`
-	BoardID          string `json:"board_id" yaml:"board_id"`
-	DeviceID         string `json:"device_id" yaml:"device_id"`
-	PCIEBDF          string `json:"pcie_bdf" yaml:"pcie_bdf"`
-	PCIESpeed        string `json:"pcie_speed" yaml:"pcie_speed"`
-	PCIESpeedState   string `json:"pcie_speed_state" yaml:"pcie_speed_state"`
-	PCIEWidth        string `json:"pcie_width" yaml:"pcie_width"`
-	PCIEWidthState   string `json:"pcie_width_state" yaml:"pcie_width_state"`
+	IBDev               string         `json:"IBdev" yaml:"IBdev"`
+	Port                int            `json:"port,omitempty" yaml:"port,omitempty"`
+	NetDev              string         `json:"net_dev" yaml:"net_dev"`
+	HCAType             string         `json:"hca_type" yaml:"hca_type"`
+	SystemGUID          string         `json:"system_guid" yaml:"system_guid"`
+	NodeGUID            string         `json:"node_guid" yaml:"node_guid"`
+	PFGW                string         `json:"pf_gw" yaml:"pf_gw"`
+	VFSpec              string         `json:"vf_spec" yaml:"vf_spec"`
+	VFNum               string         `json:"vf_num" yaml:"vf_num"`
+	PhyState            string         `json:"phy_state" yaml:"phy_state"`
+	PortState           string         `json:"port_state" yaml:"port_state"`
+	LinkLayer           string         `json:"link_layer" yaml:"link_layer"`
+	NetOperstate        string         `json:"net_operstate" yaml:"net_operstate"`
+	PortSpeed           string         `json:"port_speed" yaml:"port_speed"`
+	PortSpeedState      string         `json:"port_speed_state" yaml:"port_speed_state"`
+	BoardID             string         `json:"board_id" yaml:"board_id"`
+	DeviceID            string         `json:"device_id" yaml:"device_id"`
+	PCIEBDF             string         `json:"pcie_bdf" yaml:"pcie_bdf"`
+	PCIESpeed           string         `json:"pcie_speed" yaml:"pcie_speed"`
+	PCIESpeedState      string         `json:"pcie_speed_state" yaml:"pcie_speed_state"`
+	PCIEWidth           string         `json:"pcie_width" yaml:"pcie_width"`
+	PCIEWidthState      string         `json:"pcie_width_state" yaml:"pcie_width_state"`
 	PCIETreeSpeedMin    string         `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
 	PCIETreeSpeedMinBDF string         `json:"pcie_tree_speed_bdf" yaml:"pcie_tree_speed_bdf"`
 	PCIETreeWidthMin    string         `json:"pcie_tree_width" yaml:"pcie_tree_width"`
 	PCIETreeWidthMinBDF string         `json:"pcie_tree_width_bdf" yaml:"pcie_tree_width_bdf"`
 	PCIETreeLinks       []PCIETreeLink `json:"pcie_tree_links" yaml:"pcie_tree_links"`
-	PCIEMRR          string `json:"pcie_mrr" yaml:"pcie_mrr"`
+	PCIEMRR             string         `json:"pcie_mrr" yaml:"pcie_mrr"`
 	// Slot             string `json:"slot" yaml:"slot"`
 	NumaNode string `json:"numa_node" yaml:"numa_node"`
 	CPULists string `json:"cpu_lists" yaml:"cpu_lists"`

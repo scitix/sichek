@@ -23,10 +23,10 @@ import (
 
 func TestMinLinkCurSpeed(t *testing.T) {
 	cases := []struct {
-		name     string
-		links    []PCIETreeLink
-		wantVal  string
-		wantBDF  string
+		name    string
+		links   []PCIETreeLink
+		wantVal string
+		wantBDF string
 	}{
 		{
 			name:    "empty",
