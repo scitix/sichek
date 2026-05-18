@@ -32,6 +32,7 @@ import (
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/cmd/command/spec"
 	"github.com/scitix/sichek/components/common"
+	ibcollector "github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/nvidia/config"
 	"github.com/scitix/sichek/consts"
 	"github.com/sirupsen/logrus"
@@ -45,6 +46,14 @@ type Config struct {
 	beginBuffer string
 	endBuffer   string
 	DisableNvls bool
+	// IBHCA controls NCCL_IB_HCA selection:
+	//   ""             → auto-detect active RoCE VFs (respects an externally
+	//                    exported NCCL_IB_HCA)
+	//   "off"/"none"/  → leave NCCL_IB_HCA at its default, no detection
+	//   "disable"
+	//   anything else  → strict whitelist; "=" prefix is added automatically
+	//                    when missing
+	IBHCA string
 }
 
 func NewNcclPerftestCmd() *cobra.Command {
@@ -150,19 +159,24 @@ func NewNcclPerftestCmd() *cobra.Command {
 				logrus.WithField("perftest", "nccl").Error(err)
 				return
 			}
+			ibHCA, err := cmd.Flags().GetString("ib-hca")
+			if err != nil {
+				logrus.WithField("perftest", "nccl").Error(err)
+				return
+			}
 			var res *common.Result
 			result := 0
 			fmt.Printf("Running NCCL performance test with %d GPUs, begin buffer: %s, end buffer: %s, disable NVLinks: %t, expected bandwidth: %.2f Gbps\n", numGpus, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps)
 			if scale {
 				for g := 2; g <= numGpus; g++ {
-					res, err = CheckNcclPerf(g, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps, timeout)
+					res, err = CheckNcclPerf(g, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps, timeout, ibHCA)
 					if err != nil {
 						logrus.WithField("perftest", "nccl").Error(err)
 						result = -1
 					}
 				}
 			} else {
-				res, err = CheckNcclPerf(numGpus, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps, timeout)
+				res, err = CheckNcclPerf(numGpus, gpulist, beginBuffer, endBuffer, disableNvls, expectedBandwidthGbps, timeout, ibHCA)
 				if err != nil {
 					logrus.WithField("perftest", "nccl").Error(err)
 					result = -1
@@ -186,6 +200,7 @@ func NewNcclPerftestCmd() *cobra.Command {
 	ncclPerftestCmd.Flags().Float64("expect-bw", 0, "Expected bandwidth in Gbps")
 	ncclPerftestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 	ncclPerftestCmd.Flags().IntP("timeout", "t", 120, "Timeout in seconds")
+	ncclPerftestCmd.Flags().String("ib-hca", "", "NCCL_IB_HCA control: empty=auto-detect active RoCE VFs (respects external NCCL_IB_HCA); 'off'/'none'/'disable'=skip; otherwise a strict HCA whitelist (e.g. 'roce_vf_r0,roce_vf_r1')")
 
 	return ncclPerftestCmd
 }
@@ -203,6 +218,40 @@ func GetDefaultNcclTestPath(testBin string) (string, error) {
 	upperDir := filepath.Dir(filepath.Dir(curFile))
 	defaultScriptsDirPath = filepath.Join(upperDir, "scripts", testBin)
 	return defaultScriptsDirPath, nil
+}
+
+// applyIBHCA resolves the --ib-hca flag and updates envMap accordingly.
+//   - "off"/"none"/"disable" → leave NCCL_IB_HCA untouched (no detection)
+//   - explicit list (e.g. "roce_vf_r0,roce_vf_r1") → set strict whitelist,
+//     auto-prefixing "=" when the user did not already provide it
+//   - empty → auto-detect active RoCE VFs via sysfs; if any are found and
+//     NCCL_IB_HCA is not already set in the environment, set a strict
+//     whitelist; otherwise leave envMap alone
+func applyIBHCA(envMap map[string]string, ibHCA string) {
+	switch strings.ToLower(strings.TrimSpace(ibHCA)) {
+	case "off", "none", "disable":
+		fmt.Println("NCCL_IB_HCA auto-detection disabled by flag")
+		return
+	case "":
+		if _, ok := envMap["NCCL_IB_HCA"]; ok {
+			fmt.Printf("NCCL_IB_HCA already set in environment (%q), skipping auto-detect\n", envMap["NCCL_IB_HCA"])
+			return
+		}
+		vfs := ibcollector.ListActiveRoceVFs()
+		if len(vfs) == 0 {
+			fmt.Println("No active RoCE VFs detected, leaving NCCL_IB_HCA at NCCL default")
+			return
+		}
+		envMap["NCCL_IB_HCA"] = "=" + strings.Join(vfs, ",")
+		fmt.Printf("Auto-detected RoCE VFs for NCCL_IB_HCA: %s\n", envMap["NCCL_IB_HCA"])
+	default:
+		val := strings.TrimSpace(ibHCA)
+		if !strings.HasPrefix(val, "=") {
+			val = "=" + val
+		}
+		envMap["NCCL_IB_HCA"] = val
+		fmt.Printf("Using user-specified NCCL_IB_HCA: %s\n", val)
+	}
 }
 
 func buildNcclTestCmd(cfg Config) *exec.Cmd {
@@ -246,6 +295,7 @@ func buildNcclTestCmd(cfg Config) *exec.Cmd {
 	}
 	envMap["UCX_TLS"] = ""
 	envMap["OMPI_MCA_pml"] = "^ucx"
+	applyIBHCA(envMap, cfg.IBHCA)
 
 	// Convert map back to slice of "KEY=VALUE" format
 	env := make([]string, 0, len(envMap))
@@ -392,7 +442,7 @@ func checkBandwidth(avgBusBandwidths []float64, exceptBwGbps float64) *common.Re
 
 }
 
-func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableNvls bool, exceptBwGbps float64, timeout int) (*common.Result, error) {
+func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableNvls bool, exceptBwGbps float64, timeout int, ibHCA string) (*common.Result, error) {
 	jobCfg := Config{
 		NumGpus:     numGpus,
 		Gpulist:     gpulist,
@@ -400,6 +450,7 @@ func CheckNcclPerf(numGpus int, gpulist, beginBuffer, endBuffer string, disableN
 		DisableNvls: disableNvls,
 		beginBuffer: beginBuffer,
 		endBuffer:   endBuffer,
+		IBHCA:       ibHCA,
 	}
 	records, err := runNcclTest(jobCfg, timeout)
 	if err != nil {
