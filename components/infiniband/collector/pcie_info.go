@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -245,103 +244,6 @@ func GetPCIEMRR(ctx context.Context, IBDev string) []string {
 	}
 
 	return mrr
-}
-
-// GetPCIETreeMin gets minimum PCIe tree value for a given link type
-// alongside the upstream BDF where that minimum was observed. The returned
-// BDF identifies the actual bottleneck bridge, not the IB device's own BDF.
-func GetPCIETreeMin(IBDev, linkType string) (string, string) {
-	bdfList := GetIBDevBDF(IBDev)
-	if len(bdfList) == 0 {
-		logrus.WithField("component", "infiniband").Warnf("Could not get BDF for IB device %s", IBDev)
-		return "", ""
-	}
-	// bdf is the BDF address of the terminal device itself
-	bdf := bdfList[0]
-
-	devicePath := filepath.Join(PCIPath, bdf)
-	linkPath, err := os.Readlink(devicePath)
-	if err != nil {
-		logrus.WithField("component", "infiniband").Errorf("Failed to resolve symlink for %s: %v", devicePath, err)
-		return "", ""
-	}
-
-	bdfRegexPattern := `\b[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]\b`
-	re := regexp.MustCompile(bdfRegexPattern)
-
-	allBdfsInPath := re.FindAllString(string(linkPath), -1)
-
-	// Filter out the device's own BDF
-	var upstreamBdfs []string
-	for _, foundBdf := range allBdfsInPath {
-		if foundBdf != bdf {
-			upstreamBdfs = append(upstreamBdfs, foundBdf)
-		}
-	}
-
-	if len(upstreamBdfs) == 0 {
-		// If there are no upstream devices (e.g., device directly connected to CPU), this is normal, just return
-		logrus.WithField("component", "infiniband").Infof("No upstream PCIe devices found in path for %s, skipping check.", bdf)
-		return "", ""
-	}
-
-	if len(upstreamBdfs) == 1 {
-		// If there's only one upstream device, it means it's directly connected to CPU, this is also normal, just return
-		logrus.WithField("component", "infiniband").Infof("Only one upstream PCIe device found in path for %s, likely direct to CPU, skipping check.", bdf)
-		return "", ""
-	}
-
-	logrus.WithField("component", "infiniband").Infof("Checking upstream devices for %s: %v", bdf, upstreamBdfs)
-
-	var minNumericString string
-	var minBdf string
-	minNumericValue := math.MaxFloat64
-
-	// Now, we only iterate through the BDF list of upstream devices
-	for _, currentBdf := range upstreamBdfs {
-		logrus.WithField("component", "infiniband").Infof("Checking upstream device %s for property %s", currentBdf, linkType)
-		propertyFilePath := filepath.Join(PCIPath, currentBdf, linkType)
-
-		propertyContents, err := GetFileCnt(propertyFilePath)
-		if err != nil || len(propertyContents) == 0 {
-			if err != nil {
-				logrus.WithField("component", "infiniband").Debugf("Property file '%s' is unreadable for BDF %s: %v, skipping.", linkType, currentBdf, err)
-			} else {
-				logrus.WithField("component", "infiniband").Debugf("Property file '%s' is empty for BDF %s, skipping.", linkType, currentBdf)
-			}
-			continue
-		}
-
-		currentPropertyString := strings.TrimSpace(propertyContents[0])
-		parts := strings.Fields(currentPropertyString)
-		if len(parts) == 0 {
-			logrus.WithField("component", "infiniband").Warnf("Malformed property string '%s' for BDF %s", currentPropertyString, currentBdf)
-			continue
-		}
-		numericStringPart := parts[0]
-
-		currentNumericValue, err := strconv.ParseFloat(numericStringPart, 64)
-		if err != nil {
-			logrus.WithField("component", "infiniband").Warnf("Could not parse numeric value from '%s' in file %s", numericStringPart, propertyFilePath)
-			continue
-		}
-
-		if currentNumericValue < minNumericValue {
-			minNumericValue = currentNumericValue
-			minNumericString = numericStringPart
-			minBdf = currentBdf
-			logrus.WithField("component", "infiniband").Debugf(
-				"Found new upstream minimum for %s (%s): %s (full value: '%s', at BDF: %s)",
-				IBDev, linkType, minNumericString, currentPropertyString, currentBdf,
-			)
-		}
-	}
-
-	if minNumericString == "" {
-		logrus.WithField("component", "infiniband").Warnf("Could not determine a minimum value for property '%s' on upstream path of device %s", linkType, IBDev)
-	}
-
-	return minNumericString, minBdf
 }
 
 // GetPCIETreeLinks enumerates every PCIe link on the upstream path of an IB

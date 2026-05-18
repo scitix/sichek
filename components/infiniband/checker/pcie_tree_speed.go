@@ -18,7 +18,6 @@ package checker
 import (
 	"context"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -27,19 +26,6 @@ import (
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
 )
-
-// pcieSpeedEqual compares two PCIe speed strings ("32", "32.0", "32.00 GT/s")
-// numerically so spec authors do not have to mirror sysfs's trailing-zero
-// formatting verbatim.  Falls back to string equality when either value is
-// not parseable, preserving prior behaviour for free-form spec values.
-func pcieSpeedEqual(a, b string) bool {
-	af, errA := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(a)), 64)
-	bf, errB := strconv.ParseFloat(strings.TrimSpace(extractNumericSpeed(b)), 64)
-	if errA != nil || errB != nil {
-		return a == b
-	}
-	return math.Abs(af-bf) < 1e-9
-}
 
 type IBPCIETreeSpeedChecker struct {
 	id          string
@@ -166,17 +152,6 @@ func extractNumericSpeed(speed string) string {
 		return speed
 	}
 	return parts[0]
-}
-
-// numericSpeedEqual compares two speed strings numerically to avoid
-// false mismatches like "16" != "16.0".
-func numericSpeedEqual(a, b string) bool {
-	va, errA := strconv.ParseFloat(a, 64)
-	vb, errB := strconv.ParseFloat(b, 64)
-	if errA != nil || errB != nil {
-		return a == b
-	}
-	return va == vb
 }
 
 // pcieSpeedLessThan returns true iff a < b after extracting the leading numeric
