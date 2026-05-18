@@ -26,7 +26,6 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/sirupsen/logrus"
 )
 
 // pcieSpeedEqual compares two PCIe speed strings ("32", "32.0", "32.00 GT/s")
@@ -89,61 +88,71 @@ func (c *IBPCIETreeSpeedChecker) Check(ctx context.Context, data any) (*common.C
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	failedDevices := make([]string, 0)
-	spec := make([]string, 0, hwInfoLen)
-	curr := make([]string, 0, hwInfoLen)
-	var failedSpec []string
-	var failedCurr []string
-
 	infinibandInfo.RLock()
 	hws := uniqueByDev(infinibandInfo.IBHardWareInfo)
 	infinibandInfo.RUnlock()
+
+	failedDevices := make([]string, 0)
+	failedCurr := make([]string, 0)
+	failedCap := make([]string, 0)
+	detailLines := make([]string, 0)
+	suggestionLines := make([]string, 0)
+
 	for _, hwInfo := range hws {
-		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
-			logrus.WithField("component", "infiniband").Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+		if len(hwInfo.PCIETreeLinks) == 0 {
+			// Direct-to-CPU or sysfs unavailable; treat as normal.
 			continue
 		}
-		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		// Tree-speed has its own spec field (yaml: pcie_tree_speed) because
-		// upstream switches and root complexes are often slower than the
-		// device-level link.  CX8 e.g. links at PCIe Gen6 (64 GT/s) but the
-		// upstream Gen5 switch caps the path at 32 GT/s.  Fall back to
-		// PCIESpeed for board specs that predate the dedicated field.
-		treeSpec := hcaSpec.Hardware.PCIETreeSpeedMin
-		if treeSpec == "" {
-			treeSpec = hcaSpec.Hardware.PCIESpeed
-		}
-		expectedSpeed := extractNumericSpeed(treeSpec)
-		spec = append(spec, treeSpec)
 
-		treeSpeedMin := hwInfo.PCIETreeSpeedMin
-		if treeSpeedMin == "" {
-			// No upstream tree info available (e.g., direct to CPU), skip
-			curr = append(curr, hwInfo.PCIESpeed)
-			continue
-		}
-		curr = append(curr, treeSpeedMin)
-
-		// Compare numerically so "32" / "32.0" / "32.00" all match without
-		// requiring spec authors to keep the trailing zero in sync with sysfs.
-		if !pcieSpeedEqual(treeSpeedMin, expectedSpeed) {
-			result.Status = consts.StatusAbnormal
-			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
-			if hwInfo.PCIETreeSpeedMinBDF != "" {
-				devInfo = fmt.Sprintf("%s(%s, bottleneck@%s)", hwInfo.IBDev, hwInfo.PCIEBDF, hwInfo.PCIETreeSpeedMinBDF)
+		// Compute the path-level capability: the minimum parseable cap across
+		// all links.  A link whose max is unparseable is excluded from the
+		// path cap calculation (treated as ∞ for this purpose).  If no link
+		// yields a parseable cap, skip the whole NIC.
+		pathCap := ""
+		for _, link := range hwInfo.PCIETreeLinks {
+			cap := minNumericSpeed(link.ParentMaxSpeed, link.ChildMaxSpeed)
+			if cap == "" {
+				continue
 			}
+			if pathCap == "" {
+				pathCap = cap
+			} else {
+				pathCap = minNumericSpeed(pathCap, cap)
+			}
+		}
+		if pathCap == "" {
+			// No parseable caps on any link; skip silently.
+			continue
+		}
+
+		// Flag each link whose current speed falls below the path cap — these
+		// are the true bottlenecks.  A link running at the path cap (because
+		// its own max matches the path cap) is expected and not flagged.
+		for _, link := range hwInfo.PCIETreeLinks {
+			if !pcieSpeedLessThan(link.CurSpeed, pathCap) {
+				continue
+			}
+			result.Status = consts.StatusAbnormal
+			devInfo := fmt.Sprintf("%s(%s, bottleneck@%s->%s)",
+				hwInfo.IBDev, hwInfo.PCIEBDF, link.ParentBDF, link.ChildBDF)
 			failedDevices = append(failedDevices, devInfo)
-			failedSpec = append(failedSpec, treeSpec)
-			failedCurr = append(failedCurr, treeSpeedMin)
+			failedCurr = append(failedCurr, link.CurSpeed)
+			failedCap = append(failedCap, pathCap)
+			detailLines = append(detailLines, fmt.Sprintf(
+				"%s upstream link %s->%s current %s < cap %s",
+				hwInfo.IBDev, link.ParentBDF, link.ChildBDF, link.CurSpeed, pathCap))
+			suggestionLines = append(suggestionLines, fmt.Sprintf(
+				"Check upstream PCIe link %s->%s for %s, current %s is below link capability %s (min of both endpoints' max).",
+				link.ParentBDF, link.ChildBDF, hwInfo.IBDev, link.CurSpeed, pathCap))
 		}
 	}
 
-	result.Curr = strings.Join(curr, ",")
-	result.Spec = strings.Join(spec, ",")
+	result.Curr = strings.Join(failedCurr, ",")
+	result.Spec = strings.Join(failedCap, ",")
 	result.Device = strings.Join(failedDevices, ",")
 	if len(failedDevices) != 0 {
-		result.Detail = fmt.Sprintf("PCIETreeSpeed check fail: %s upstream path min speed %s, expect %s", strings.Join(failedDevices, ","), strings.Join(failedCurr, ","), strings.Join(failedSpec, ","))
-		result.Suggestion = fmt.Sprintf("Check upstream PCIe switch/bridge speed for %s, expected %s but found %s in path to root complex", strings.Join(failedDevices, ","), strings.Join(failedSpec, ","), strings.Join(failedCurr, ","))
+		result.Detail = strings.Join(detailLines, "\n")
+		result.Suggestion = strings.Join(suggestionLines, "\n")
 	}
 
 	return &result, nil
