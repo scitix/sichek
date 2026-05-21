@@ -42,8 +42,9 @@ type DeviceInfo struct {
 	Utilization   UtilizationInfo `json:"utilization_info" yaml:"utilization_info"`
 	NVLinkStates  NVLinkStates    `json:"nvlink_state" yaml:"nvlink_state"`
 	MemoryErrors  MemoryErrors    `json:"ecc_event" yaml:"ecc_event"`
-	NProcess      int             `json:"nprocess" yaml:"nprocess"`
-	PartialErrors []string        `json:"partial_errors,omitempty" yaml:"partial_errors,omitempty"`
+	NProcess      int              `json:"nprocess" yaml:"nprocess"`
+	Processes     ComputeProcesses `json:"compute_processes" yaml:"compute_processes"`
+	PartialErrors []string         `json:"partial_errors,omitempty" yaml:"partial_errors,omitempty"`
 }
 
 func (deviceInfo *DeviceInfo) JSON() ([]byte, error) {
@@ -165,13 +166,14 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get nvlink states: %v", err2))
 	}
 
-	// Get the number of processes using the GPU
-	processInfo, err := device.GetComputeRunningProcesses()
-	if !errors.Is(err, nvml.SUCCESS) {
-		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get processes: %v", nvml.ErrorString(err)))
+	// Get the compute processes using the GPU (PID, comm, used GPU memory).
+	// NProcess is derived from the resulting list so its meaning is unchanged.
+	err2 = deviceInfo.Processes.Get(device, uuid)
+	if err2 != nil {
+		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get compute processes: %v", err2))
 		deviceInfo.NProcess = 0
 	} else {
-		deviceInfo.NProcess = len(processInfo)
+		deviceInfo.NProcess = len(deviceInfo.Processes)
 	}
 
 	if len(deviceInfo.PartialErrors) > 0 {
