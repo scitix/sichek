@@ -45,6 +45,8 @@ const (
 	ComponentNameSyslog       = "syslog"
 	ComponentIDTransceiver    = "16"
 	ComponentNameTransceiver  = "transceiver"
+	ComponentIDLLDP           = "17"
+	ComponentNameLLDP         = "lldp"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"
@@ -95,7 +97,7 @@ var (
 
 	DefaultComponents = []string{
 		ComponentNameCPU, ComponentNameNvidia, ComponentNameInfiniband, ComponentNameEthernet, ComponentNameGpfs, ComponentNameDmesg,
-		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog, ComponentNameTransceiver,
+		ComponentNamePodlog, ComponentNameGpuEvents, ComponentNameSyslog, ComponentNameTransceiver, ComponentNameLLDP,
 	}
 )
 

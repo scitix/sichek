@@ -1,0 +1,35 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "eth1": {
+          "via": "LLDP",
+          "rid": "2",
+          "age": "84 days, 03:03:34",
+          "chassis": {
+            "TJWQHY_D2_401-C-01-47.VEGS0-0-50": {
+              "id": { "type": "mac", "value": "5c:f7:96:ab:07:13" },
+              "descr": "Lambda OS B5020",
+              "mgmt-ip": [
+                "33.239.145.151",
+                "fdbd:dc41:199:4901::21ef:9197"
+              ],
+              "mgmt-iface": [ "6", "6" ],
+              "capability": [
+                { "type": "Bridge",  "enabled": true },
+                { "type": "Router",  "enabled": true },
+                { "type": "Wlan",    "enabled": false },
+                { "type": "Station", "enabled": false }
+              ]
+            }
+          },
+          "port": {
+            "id": { "type": "ifname", "value": "ethernet12a" },
+            "descr": "TO-SERVER-26.208.100.178",
+            "ttl": "120"
+          }
+        }
+      }
+    ]
+  }
+}

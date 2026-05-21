@@ -30,6 +30,7 @@ import (
 	"github.com/scitix/sichek/components/gpfs"
 	gpuevents "github.com/scitix/sichek/components/gpuevents"
 	"github.com/scitix/sichek/components/infiniband"
+	"github.com/scitix/sichek/components/lldp"
 	"github.com/scitix/sichek/components/nvidia"
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
@@ -192,6 +193,8 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		return ethernet.NewEthernetComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameTransceiver:
 		return transceiver.NewComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameLLDP:
+		return lldp.NewComponent(cfgFile, specFile)
 	default:
 		return nil, fmt.Errorf("invalid component name: %s", componentName)
 	}
