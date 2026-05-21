@@ -44,7 +44,11 @@ gpuevents:
   mock: false
   enable_metrics: true
   ignore_namespaces: []
-  ignored_checkers: []
+  # GPUHang temporarily disabled: current rule has known false-positive
+  # sources (pviol thermal bug, rxpci/txpci delta semantics, strict 8/8 AND).
+  # See docs/gpu-hang-detection-summary.md before re-enabling.
+  ignored_checkers:
+    - "GPUHang"
 
 podlog:
   query_interval: 10s
