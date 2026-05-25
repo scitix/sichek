@@ -271,7 +271,11 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		}
 	}
 	if summaryPrint {
-		fmt.Printf("\nHostname: %s\n\n", cpuInfo.HostInfo.Hostname)
+		if cpuInfo.HostInfo.MgmtIP != "" {
+			fmt.Printf("\nHostname: %s (MgmtIP: %s)\n\n", cpuInfo.HostInfo.Hostname, cpuInfo.HostInfo.MgmtIP)
+		} else {
+			fmt.Printf("\nHostname: %s\n\n", cpuInfo.HostInfo.Hostname)
+		}
 		utils.PrintTitle("System", "-")
 		termWidth, err := utils.GetTerminalWidth()
 		printInterval := 40

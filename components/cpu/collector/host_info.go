@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/utils"
 )
 
 type HostInfo struct {
@@ -29,6 +30,10 @@ type HostInfo struct {
 	OSVersion     string `json:"os_version"`
 	KernelVersion string `json:"kernel_version"`
 	SerialNumber  string `json:"serial_number"`
+	// MgmtIP is the node's management IP — the IP on the interface that
+	// carries its default route. Excluded from metric labels so the gauge
+	// vector's cardinality is not bumped by an IP change.
+	MgmtIP string `json:"mgmt_ip,omitempty" metric:"-"`
 }
 
 // JSON converts the HostInfo struct to a JSON byte slice.
@@ -71,6 +76,7 @@ func (hostInfo *HostInfo) Get() error {
 	hostInfo.KernelVersion = strings.TrimSpace(string(kernelVersion))
 
 	hostInfo.SerialNumber = getSerialNumber()
+	hostInfo.MgmtIP = utils.GetMgmtIP()
 
 	return nil
 }
