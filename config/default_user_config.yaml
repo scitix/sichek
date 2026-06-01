@@ -90,3 +90,9 @@ transceiver:
   cache_size: 5
   ignored_checkers: []
   enable_metrics: true
+
+# lldp:
+#   query_interval: 5m
+#   cache_size: 5
+#   lldpctl_path: ""        # leave empty to resolve from $PATH
+#   exec_timeout: 10s
