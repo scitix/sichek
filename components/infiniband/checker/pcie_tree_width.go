@@ -24,7 +24,6 @@ import (
 	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/scitix/sichek/consts"
-	"github.com/sirupsen/logrus"
 )
 
 type IBPCIETreeWidthChecker struct {
@@ -74,55 +73,68 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 		return &result, fmt.Errorf("fail to get the IB device")
 	}
 
-	failedDevices := make([]string, 0)
-	spec := make([]string, 0, hwInfoLen)
-	curr := make([]string, 0, hwInfoLen)
-	var failedSpec []string
-	var failedCurr []string
-
 	infinibandInfo.RLock()
 	hws := uniqueByDev(infinibandInfo.IBHardWareInfo)
 	infinibandInfo.RUnlock()
+
+	failedDevices := make([]string, 0)
+	failedCurr := make([]string, 0)
+	failedCap := make([]string, 0)
+	detailLines := make([]string, 0)
+	suggestionLines := make([]string, 0)
+
 	for _, hwInfo := range hws {
-		if _, ok := c.spec.HCAs[hwInfo.BoardID]; !ok {
-			logrus.WithField("component", "infiniband").Warnf("HCA %s not found in spec, skipping %s", hwInfo.BoardID, c.name)
+		if len(hwInfo.PCIETreeLinks) == 0 {
+			// Direct-to-CPU or sysfs unavailable; treat as normal.
 			continue
 		}
-		hcaSpec := c.spec.HCAs[hwInfo.BoardID]
-		// Prefer the dedicated tree spec (yaml: pcie_tree_width); fall back
-		// to the device-level PCIEWidth for older specs that omit it.
-		expectedWidth := hcaSpec.Hardware.PCIETreeWidthMin
-		if expectedWidth == "" {
-			expectedWidth = hcaSpec.Hardware.PCIEWidth
-		}
-		spec = append(spec, expectedWidth)
 
-		treeWidthMin := hwInfo.PCIETreeWidthMin
-		if treeWidthMin == "" {
-			// No upstream tree info available (e.g., direct to CPU), skip
-			curr = append(curr, hwInfo.PCIEWidth)
-			continue
-		}
-		curr = append(curr, treeWidthMin)
-
-		if !numericSpeedEqual(treeWidthMin, expectedWidth) {
-			result.Status = consts.StatusAbnormal
-			devInfo := fmt.Sprintf("%s(%s)", hwInfo.IBDev, hwInfo.PCIEBDF)
-			if hwInfo.PCIETreeWidthMinBDF != "" {
-				devInfo = fmt.Sprintf("%s(%s, bottleneck@%s)", hwInfo.IBDev, hwInfo.PCIEBDF, hwInfo.PCIETreeWidthMinBDF)
+		// Compute the path-level cap: minimum parseable cap across all links.
+		// Links whose max is unparseable are excluded from the path cap (not
+		// constraining the path).  If no link yields a parseable cap, skip
+		// the whole NIC silently.
+		pathCap := ""
+		for _, link := range hwInfo.PCIETreeLinks {
+			cap := minNumericSpeed(link.ParentMaxWidth, link.ChildMaxWidth)
+			if cap == "" {
+				continue
 			}
+			if pathCap == "" {
+				pathCap = cap
+			} else {
+				pathCap = minNumericSpeed(pathCap, cap)
+			}
+		}
+		if pathCap == "" {
+			continue
+		}
+
+		// Flag each link whose current width falls below the path cap.
+		for _, link := range hwInfo.PCIETreeLinks {
+			if !pcieSpeedLessThan(link.CurWidth, pathCap) {
+				continue
+			}
+			result.Status = consts.StatusAbnormal
+			devInfo := fmt.Sprintf("%s(%s, bottleneck@%s->%s)",
+				hwInfo.IBDev, hwInfo.PCIEBDF, link.ParentBDF, link.ChildBDF)
 			failedDevices = append(failedDevices, devInfo)
-			failedSpec = append(failedSpec, expectedWidth)
-			failedCurr = append(failedCurr, treeWidthMin)
+			failedCurr = append(failedCurr, link.CurWidth)
+			failedCap = append(failedCap, pathCap)
+			detailLines = append(detailLines, fmt.Sprintf(
+				"%s upstream link %s->%s current width x%s < cap x%s",
+				hwInfo.IBDev, link.ParentBDF, link.ChildBDF, link.CurWidth, pathCap))
+			suggestionLines = append(suggestionLines, fmt.Sprintf(
+				"Check upstream PCIe link %s->%s for %s, current width x%s is below link capability x%s (min of both endpoints' max).",
+				link.ParentBDF, link.ChildBDF, hwInfo.IBDev, link.CurWidth, pathCap))
 		}
 	}
 
-	result.Curr = strings.Join(curr, ",")
-	result.Spec = strings.Join(spec, ",")
+	result.Curr = strings.Join(failedCurr, ",")
+	result.Spec = strings.Join(failedCap, ",")
 	result.Device = strings.Join(failedDevices, ",")
 	if len(failedDevices) != 0 {
-		result.Detail = fmt.Sprintf("PCIETreeWidth check fail: %s upstream path min width x%s, expect x%s", strings.Join(failedDevices, ","), strings.Join(failedCurr, ","), strings.Join(failedSpec, ","))
-		result.Suggestion = fmt.Sprintf("Check upstream PCIe switch/bridge width for %s, expected x%s but found x%s in path to root complex", strings.Join(failedDevices, ","), strings.Join(failedSpec, ","), strings.Join(failedCurr, ","))
+		result.Detail = strings.Join(detailLines, "\n")
+		result.Suggestion = strings.Join(suggestionLines, "\n")
 	}
 
 	return &result, nil

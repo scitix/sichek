@@ -48,15 +48,23 @@ The detection processes are categorized into three main areas: *hardware*, *soft
 - Criticality: critical
 - Suggestion: Check whether the HCA is installed in the correct PCIe slot.
 
-#### HCA_PCIe_TREE_SPEED
-- Description: Evaluates the integrity of the PCIe links between the HCAs and the motherboard to detect any issues that could impair communication.
-- Criticality: critical
-- Suggestion: check the PCIe switch is work properly.
+#### PCIe Tree Speed/Width 检测
 
-#### HCA_PCIe_TREE_WIDTH
-- Description: Confirms that the PCIe bandwidth settings are consistent across all HCAs, preventing disparities that could affect network performance.
-- Criticality: critical
-- Suggestion: check the hca card port speed properly.
+`PCIETreeSpeedDownDegraded` / `PCIETreeWidthIncorrect` 不再依赖 HCA `board_id` spec
+中的 `pcie_tree_speed` / `pcie_tree_width` 字段。Collector 直接从 sysfs
+（`/sys/bus/pci/devices/<BDF>/{current,max}_link_{speed,width}`）枚举从 NIC 到 root
+complex 的每一条 PCIe link，取整条路径上所有 link 的 `min(parent.max, child.max)`
+的最小值作为路径理论上限；当某条 link 的 `current_link_*` 低于该上限时上报。
+
+效果：
+
+- 多 NIC 混插场景无需补 spec；新 SKU 上线零维护。
+- 当 root port 物理上限低于 NIC（例如 root port 仅支持 Gen4 而 NIC 是 Gen5）时
+  不再误报：路径上所有 link 都按 Gen4 跑是正常的。
+- `Detail` / `Suggestion` 字段精确到出问题的具体 link，例如 `bottleneck@0000:80:01.0->0000:81:00.0`。
+
+`pcie_tree_speed` / `pcie_tree_width` 字段在 HCA spec yaml 中保留为历史信息，
+运行时不再读取。
 
 #### HCA_PCIe_ACS
 - Description: Checks the Access Control Services (ACS) settings of the PCIe to ensure proper traffic routing and prevent potential security vulnerabilities within the pcie topology.
