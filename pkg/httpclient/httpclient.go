@@ -39,21 +39,29 @@ var (
 
 func GetSichekSpecURL() string {
 	specURLOnce.Do(func() {
-		// 1. 尝试从环境变量获取
+		configPath := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
+
+		// 1. 自动探测:取当前可达的地址(最高优先,避免用到过期的持久化值)
+		if probed := probeSpecURL(); probed != "" {
+			specURL = probed
+			saveSpecURLToConfig(configPath, probed)
+			return
+		}
+
+		// 2. 探测失败(两个地址都不通),回退到环境变量
 		if envURL := os.Getenv("SICHEK_SPEC_URL"); envURL != "" {
 			specURL = envURL
 			return
 		}
 
-		// 2. 尝试从本地配置文件获取
-		configPath := filepath.Join(consts.DefaultProductionCfgPath, consts.DefaultUserCfgName)
+		// 3. 再回退到本地配置文件
 		if urlFromConfig := getSpecURLFromConfig(configPath); urlFromConfig != "" {
 			specURL = urlFromConfig
 			return
 		}
 
-		// 3. 自动探测并持久化
-		specURL = probeAndSaveSpecURL(configPath)
+		// 4. 最终兜底:回归国内地址
+		specURL = consts.DomesticSpecURL
 	})
 	return specURL
 }
@@ -75,9 +83,11 @@ func getSpecURLFromConfig(configPath string) string {
 	return ""
 }
 
-func probeAndSaveSpecURL(configPath string) string {
+// probeSpecURL probes the candidate OSS base URLs and returns the first reachable
+// one. It returns "" when none are reachable, leaving the fallback decision (env →
+// config → domestic) to the caller.
+func probeSpecURL() string {
 	probeTargets := []string{consts.DomesticSpecURL, consts.OverseasSpecURL}
-	selectedURL := consts.DomesticSpecURL // 默认回归到国内
 
 	client := http.Client{
 		Timeout: 2 * time.Second,
@@ -89,16 +99,13 @@ func probeAndSaveSpecURL(configPath string) string {
 		if err == nil {
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				selectedURL = baseURL
-				logrus.Infof("successfully probed spec URL: %s", selectedURL)
-				break
+				logrus.Infof("successfully probed spec URL: %s", baseURL)
+				return baseURL
 			}
 		}
 	}
 
-	// 持久化到配置文件
-	saveSpecURLToConfig(configPath, selectedURL)
-	return selectedURL
+	return ""
 }
 
 func saveSpecURLToConfig(configPath string, url string) {

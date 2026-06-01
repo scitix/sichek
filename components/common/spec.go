@@ -412,7 +412,7 @@ func copyFile(src, dst string) error {
 }
 
 func httpDownload(fileURL, destPath string) error {
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(fileURL)
 	if err != nil {
 		return fmt.Errorf("GET %s: %w", fileURL, err)
