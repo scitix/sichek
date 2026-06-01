@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,9 +31,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	PCIPath = "/sys/bus/pci/devices"
-)
+// PCIPath is the root of the PCI sysfs tree. It is a var (not a const) so
+// tests can redirect it to a t.TempDir() before exercising the collector.
+var PCIPath = "/sys/bus/pci/devices"
 
 var (
 	targetVendorID = []string{
@@ -126,6 +125,22 @@ type PCIETreeSpeedInfo struct {
 type PCIETreeWidthInfo struct {
 	BDF   string `json:"bdf" yaml:"bdf"`
 	Width string `json:"width" yaml:"width"`
+}
+
+// PCIETreeLink represents a single PCIe link on the upstream path from an
+// IB device to the root complex. Each adjacent (parent, child) BDF pair in
+// the readlink path is one link. Speed/width strings keep their sysfs raw
+// form (e.g. "32.0 GT/s PCIe" or "16") so downstream comparisons can choose
+// how to parse them.
+type PCIETreeLink struct {
+	ParentBDF      string `json:"parent_bdf" yaml:"parent_bdf"`
+	ChildBDF       string `json:"child_bdf" yaml:"child_bdf"`
+	CurSpeed       string `json:"cur_speed" yaml:"cur_speed"`
+	CurWidth       string `json:"cur_width" yaml:"cur_width"`
+	ParentMaxSpeed string `json:"parent_max_speed" yaml:"parent_max_speed"`
+	ChildMaxSpeed  string `json:"child_max_speed" yaml:"child_max_speed"`
+	ParentMaxWidth string `json:"parent_max_width" yaml:"parent_max_width"`
+	ChildMaxWidth  string `json:"child_max_width" yaml:"child_max_width"`
 }
 
 // Collect collects PCIe tree information for a given IB device
@@ -231,101 +246,75 @@ func GetPCIEMRR(ctx context.Context, IBDev string) []string {
 	return mrr
 }
 
-// GetPCIETreeMin gets minimum PCIe tree value for a given link type
-// alongside the upstream BDF where that minimum was observed. The returned
-// BDF identifies the actual bottleneck bridge, not the IB device's own BDF.
-func GetPCIETreeMin(IBDev, linkType string) (string, string) {
+// GetPCIETreeLinks enumerates every PCIe link on the upstream path of an IB
+// device. Each adjacent (parent, child) BDF pair in the readlink path becomes
+// one link, with current_link_{speed,width} and max_link_{speed,width} read
+// from both endpoints.  Direct-to-CPU devices (<2 BDFs in path) return nil.
+//
+// This is the spec-free replacement for GetPCIETreeMin: the checker compares
+// link.CurSpeed against min(ParentMaxSpeed, ChildMaxSpeed) per link, so no
+// HCA yaml expected value is needed.
+func GetPCIETreeLinks(IBDev string) []PCIETreeLink {
 	bdfList := GetIBDevBDF(IBDev)
 	if len(bdfList) == 0 {
 		logrus.WithField("component", "infiniband").Warnf("Could not get BDF for IB device %s", IBDev)
-		return "", ""
+		return nil
 	}
-	// bdf is the BDF address of the terminal device itself
-	bdf := bdfList[0]
+	return getPCIETreeLinksByBDF(bdfList[0])
+}
 
-	devicePath := filepath.Join(PCIPath, bdf)
+// getPCIETreeLinksByBDF is the testable core of GetPCIETreeLinks. It does
+// the readlink + per-link sysfs walk for a single NIC BDF.  Sysfs failures
+// on individual files leave the corresponding fields blank rather than
+// dropping the entire link, so the checker can still emit a useful message.
+func getPCIETreeLinksByBDF(nicBDF string) []PCIETreeLink {
+	devicePath := filepath.Join(PCIPath, nicBDF)
 	linkPath, err := os.Readlink(devicePath)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("Failed to resolve symlink for %s: %v", devicePath, err)
-		return "", ""
+		return nil
 	}
 
 	bdfRegexPattern := `\b[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]\b`
 	re := regexp.MustCompile(bdfRegexPattern)
-
-	allBdfsInPath := re.FindAllString(string(linkPath), -1)
-
-	// Filter out the device's own BDF
-	var upstreamBdfs []string
-	for _, foundBdf := range allBdfsInPath {
-		if foundBdf != bdf {
-			upstreamBdfs = append(upstreamBdfs, foundBdf)
-		}
+	allBdfs := re.FindAllString(linkPath, -1)
+	if len(allBdfs) < 2 {
+		logrus.WithField("component", "infiniband").Infof("No upstream PCIe link for %s (path has <2 BDFs), skipping.", nicBDF)
+		return nil
 	}
 
-	if len(upstreamBdfs) == 0 {
-		// If there are no upstream devices (e.g., device directly connected to CPU), this is normal, just return
-		logrus.WithField("component", "infiniband").Infof("No upstream PCIe devices found in path for %s, skipping check.", bdf)
-		return "", ""
-	}
-
-	if len(upstreamBdfs) == 1 {
-		// If there's only one upstream device, it means it's directly connected to CPU, this is also normal, just return
-		logrus.WithField("component", "infiniband").Infof("Only one upstream PCIe device found in path for %s, likely direct to CPU, skipping check.", bdf)
-		return "", ""
-	}
-
-	logrus.WithField("component", "infiniband").Infof("Checking upstream devices for %s: %v", bdf, upstreamBdfs)
-
-	var minNumericString string
-	var minBdf string
-	minNumericValue := math.MaxFloat64
-
-	// Now, we only iterate through the BDF list of upstream devices
-	for _, currentBdf := range upstreamBdfs {
-		logrus.WithField("component", "infiniband").Infof("Checking upstream device %s for property %s", currentBdf, linkType)
-		propertyFilePath := filepath.Join(PCIPath, currentBdf, linkType)
-
-		propertyContents, err := GetFileCnt(propertyFilePath)
-		if err != nil || len(propertyContents) == 0 {
-			if err != nil {
-				logrus.WithField("component", "infiniband").Debugf("Property file '%s' is unreadable for BDF %s: %v, skipping.", linkType, currentBdf, err)
-			} else {
-				logrus.WithField("component", "infiniband").Debugf("Property file '%s' is empty for BDF %s, skipping.", linkType, currentBdf)
-			}
-			continue
+	links := make([]PCIETreeLink, 0, len(allBdfs)-1)
+	for i := 1; i < len(allBdfs); i++ {
+		parent := allBdfs[i-1]
+		child := allBdfs[i]
+		link := PCIETreeLink{ParentBDF: parent, ChildBDF: child}
+		link.CurSpeed = readSysfsString(filepath.Join(PCIPath, child, "current_link_speed"))
+		if link.CurSpeed == "" {
+			// Fall back to parent's report; the two endpoints share the link.
+			link.CurSpeed = readSysfsString(filepath.Join(PCIPath, parent, "current_link_speed"))
 		}
-
-		currentPropertyString := strings.TrimSpace(propertyContents[0])
-		parts := strings.Fields(currentPropertyString)
-		if len(parts) == 0 {
-			logrus.WithField("component", "infiniband").Warnf("Malformed property string '%s' for BDF %s", currentPropertyString, currentBdf)
-			continue
+		link.CurWidth = readSysfsString(filepath.Join(PCIPath, child, "current_link_width"))
+		if link.CurWidth == "" {
+			link.CurWidth = readSysfsString(filepath.Join(PCIPath, parent, "current_link_width"))
 		}
-		numericStringPart := parts[0]
-
-		currentNumericValue, err := strconv.ParseFloat(numericStringPart, 64)
-		if err != nil {
-			logrus.WithField("component", "infiniband").Warnf("Could not parse numeric value from '%s' in file %s", numericStringPart, propertyFilePath)
-			continue
-		}
-
-		if currentNumericValue < minNumericValue {
-			minNumericValue = currentNumericValue
-			minNumericString = numericStringPart
-			minBdf = currentBdf
-			logrus.WithField("component", "infiniband").Debugf(
-				"Found new upstream minimum for %s (%s): %s (full value: '%s', at BDF: %s)",
-				IBDev, linkType, minNumericString, currentPropertyString, currentBdf,
-			)
-		}
+		link.ParentMaxSpeed = readSysfsString(filepath.Join(PCIPath, parent, "max_link_speed"))
+		link.ChildMaxSpeed = readSysfsString(filepath.Join(PCIPath, child, "max_link_speed"))
+		link.ParentMaxWidth = readSysfsString(filepath.Join(PCIPath, parent, "max_link_width"))
+		link.ChildMaxWidth = readSysfsString(filepath.Join(PCIPath, child, "max_link_width"))
+		links = append(links, link)
 	}
+	return links
+}
 
-	if minNumericString == "" {
-		logrus.WithField("component", "infiniband").Warnf("Could not determine a minimum value for property '%s' on upstream path of device %s", linkType, IBDev)
+// readSysfsString reads a single-line sysfs file and trims trailing whitespace.
+// Returns "" on any read error; callers downgrade gracefully.
+func readSysfsString(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Debugf("readSysfsString: %s: %v", path, err)
+		return ""
 	}
-
-	return minNumericString, minBdf
+	return strings.TrimRight(string(data), "\n\r\t ")
 }
 
 // GetPCIETreeSpeed gets PCIe tree speed information
