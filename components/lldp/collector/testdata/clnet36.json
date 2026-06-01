@@ -1,0 +1,61 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "ens14f0np0": {
+          "via": "LLDP",
+          "rid": "4",
+          "age": "55 days, 00:25:58",
+          "chassis": {
+            "CL-A052A": {
+              "id": { "type": "mac", "value": "28:c9:7a:b2:ab:b8" },
+              "descr": "H3C Comware S6825-54HF",
+              "capability": [
+                { "type": "Bridge", "enabled": true },
+                { "type": "Router", "enabled": true }
+              ]
+            }
+          },
+          "port": {
+            "id": { "type": "ifname", "value": "Twenty-FiveGigE1/0/16" },
+            "descr": "SDN_LAGG",
+            "ttl": "121",
+            "mfs": "9416",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "25GbaseSR - 25GBASE-R PCS/PMA over multimode fiber"
+            }
+          },
+          "vlan": { "vlan-id": "2069", "pvid": true }
+        }
+      },
+      {
+        "eth0": {
+          "via": "LLDP",
+          "rid": "5",
+          "age": "55 days, 00:25:58",
+          "chassis": {
+            "CL-RLF233": {
+              "id": { "type": "mac", "value": "90:74:2e:ed:72:c0" },
+              "descr": "H3C S9827-128DH",
+              "mgmt-ip": "26.9.135.254",
+              "mgmt-iface": "65542",
+              "capability": [
+                { "type": "Bridge", "enabled": true },
+                { "type": "Router", "enabled": true }
+              ]
+            }
+          },
+          "port": {
+            "id": { "type": "ifname", "value": "FourHundredGigE1/0/98" },
+            "descr": "To-changliu-g86-114-eth0",
+            "ttl": "121",
+            "mfs": "9216"
+          },
+          "vlan": { "vlan-id": "52", "pvid": true }
+        }
+      }
+    ]
+  }
+}
