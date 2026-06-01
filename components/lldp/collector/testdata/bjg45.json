@@ -1,0 +1,32 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "ens11f0": {
+          "via": "LLDP",
+          "rid": "3",
+          "age": "3 days, 01:12:02",
+          "chassis": {
+            "bj08-m1-a10-40-swl017": {
+              "id": { "type": "mac", "value": "0c:4f:9b:c4:18:61" },
+              "descr": "Huawei CE6863E",
+              "mgmt-ip": "214.30.0.21",
+              "mgmt-iface": "63",
+              "capability": [
+                { "type": "Bridge", "enabled": true },
+                { "type": "Router", "enabled": true }
+              ]
+            }
+          },
+          "port": {
+            "id": { "type": "ifname", "value": "25GE1/0/39" },
+            "ttl": "120",
+            "mfs": "9216",
+            "aggregation": "139"
+          },
+          "vlan": { "vlan-id": "1", "pvid": true, "value": "VLAN1" }
+        }
+      }
+    ]
+  }
+}
