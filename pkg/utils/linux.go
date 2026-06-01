@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +30,29 @@ import (
 
 	"github.com/sirupsen/logrus"
 )
+
+// GetMgmtIP returns the node's management IP — the IP on the interface that
+// carries its default route. NODE_IP (injected by the K8s downward API in
+// DaemonSet mode) wins when set to a valid address; otherwise we open a UDP
+// socket to a public address — the kernel selects the egress interface from
+// the routing table without sending a packet, so the LocalAddr is the IP on
+// the default-route interface. Returns "" when both sources fail.
+func GetMgmtIP() string {
+	if env := strings.TrimSpace(os.Getenv("NODE_IP")); env != "" {
+		if ip := net.ParseIP(env); ip != nil {
+			return ip.String()
+		}
+	}
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	if addr, ok := conn.LocalAddr().(*net.UDPAddr); ok && addr.IP != nil {
+		return addr.IP.String()
+	}
+	return ""
+}
 
 func IsRoot() bool {
 	return os.Geteuid() == 0

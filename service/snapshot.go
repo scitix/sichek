@@ -40,6 +40,7 @@ type SnapshotConfig struct {
 // Snapshot represents the aggregated data from all components.
 type Snapshot struct {
 	Node       string                 `json:"node"`
+	MgmtIP     string                 `json:"mgmt_ip,omitempty"`
 	Timestamp  time.Time              `json:"timestamp"`
 	Components map[string]interface{} `json:"components"`
 }
@@ -74,6 +75,7 @@ func NewSnapshotManager(cfgFile string) (*SnapshotManager, error) {
 		nodeName: hostname,
 		data: &Snapshot{
 			Node:       hostname,
+			MgmtIP:     utils.GetMgmtIP(),
 			Components: make(map[string]interface{}),
 		},
 	}

@@ -155,6 +155,9 @@ func StructToMetricsMap(v reflect.Value, path, tagPrefix string, metrics map[str
 			if !field.CanInterface() {
 				continue
 			}
+			if fieldType.Tag.Get("metric") == "-" {
+				continue
+			}
 			tag := fieldType.Tag.Get(tagPrefix)
 			if tag == "-" {
 				continue
