@@ -73,7 +73,10 @@ func TestIBPCIETreeWidthChecker_OneLinkDegraded(t *testing.T) {
 	}
 	status, dev, curr, spec := runWidthChecker(t, map[string]collector.IBHardWareInfo{"mlx5_0": hw})
 	assert.Equal(t, consts.StatusAbnormal, status)
-	assert.Contains(t, dev, "mlx5_0(0000:82:00.0, bottleneck@0000:80:01.0->0000:82:00.0)")
+	assert.Contains(t, dev, "mlx5_0(0000:82:00.0 bottleneck@0000:80:01.0->0000:82:00.0)")
+	// A single device string must not contain the comma the exporter uses to
+	// split multiple failed devices apart, otherwise it gets cut into two series.
+	assert.NotContains(t, dev, ",")
 	assert.Equal(t, "8", curr)
 	assert.Equal(t, "16", spec)
 }
