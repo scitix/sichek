@@ -56,6 +56,22 @@ func (a *nodeAnnotation) JSON() (string, error) {
 	return string(data), err
 }
 
+// deepCopy returns an independent copy of the annotation so callers can persist
+// it without racing concurrent mutations of the original. On the (practically
+// impossible) marshal/unmarshal error it returns an empty annotation rather than
+// sharing the original pointer.
+func (a *nodeAnnotation) deepCopy() *nodeAnnotation {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return &nodeAnnotation{}
+	}
+	var cp nodeAnnotation
+	if err := json.Unmarshal(data, &cp); err != nil {
+		return &nodeAnnotation{}
+	}
+	return &cp
+}
+
 func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
 	if item == "" {
 		return nil, fmt.Errorf("input item is empty")
