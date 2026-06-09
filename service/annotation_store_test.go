@@ -119,12 +119,24 @@ func TestAnnotationStore_ReturnsDeepCopy(t *testing.T) {
 	assert.ElementsMatch(t, []string{"ErrA"}, errorNames(next.CPU, consts.LevelCritical))
 }
 
+func TestAnnotationStore_RecordsTransceiverAndLLDP(t *testing.T) {
+	s := NewAnnotationStore()
+
+	_, err := s.Apply(abnormalResult(consts.ComponentNameTransceiver, consts.LevelWarning, "LinkErrors", "TransceiverLinkError", "eth0"))
+	require.NoError(t, err)
+	anno, err := s.Apply(abnormalResult(consts.ComponentNameLLDP, consts.LevelWarning, "LLDPCheck", "LLDPNeighborMissing", "eth1"))
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, []string{"TransceiverLinkError"}, errorNames(anno.Transceiver, consts.LevelWarning))
+	assert.ElementsMatch(t, []string{"LLDPNeighborMissing"}, errorNames(anno.LLDP, consts.LevelWarning))
+}
+
 func TestAnnotationStore_UnsupportedItemTimeoutDoesNotPanic(t *testing.T) {
 	s := NewAnnotationStore()
 
-	// transceiver is not in getAnnotationsByItem's switch; an append (timeout) on it
+	// pcie is not in getAnnotationsByItem's switch; an append (timeout) on it
 	// surfaces an error but must not panic, and must still return a usable annotation.
-	anno, err := s.Apply(abnormalResult(consts.ComponentNameTransceiver, consts.LevelWarning, "HealthCheckTimeout", "Timeout", ""))
+	anno, err := s.Apply(abnormalResult(consts.ComponentNamePCIE, consts.LevelWarning, "HealthCheckTimeout", "Timeout", ""))
 	assert.Error(t, err)
 	assert.NotNil(t, anno)
 }
