@@ -27,16 +27,18 @@ import (
 )
 
 type nodeAnnotation struct {
-	Podlog     map[string][]*annotation `json:"podlog"`
-	Syslog     map[string][]*annotation `json:"syslog"`
-	Hang       map[string][]*annotation `json:"hang"`
-	NVIDIA     map[string][]*annotation `json:"nvidia"`
-	Infiniband map[string][]*annotation `json:"infiniband"`
-	Ethernet   map[string][]*annotation `json:"ethernet"`
-	GPFS       map[string][]*annotation `json:"gpfs"`
-	CPU        map[string][]*annotation `json:"cpu"`
-	Memory     map[string][]*annotation `json:"memory"`
-	Dmesg      map[string][]*annotation `json:"dmesg"`
+	Podlog      map[string][]*annotation `json:"podlog"`
+	Syslog      map[string][]*annotation `json:"syslog"`
+	Hang        map[string][]*annotation `json:"hang"`
+	NVIDIA      map[string][]*annotation `json:"nvidia"`
+	Infiniband  map[string][]*annotation `json:"infiniband"`
+	Ethernet    map[string][]*annotation `json:"ethernet"`
+	GPFS        map[string][]*annotation `json:"gpfs"`
+	CPU         map[string][]*annotation `json:"cpu"`
+	Memory      map[string][]*annotation `json:"memory"`
+	Dmesg       map[string][]*annotation `json:"dmesg"`
+	Transceiver map[string][]*annotation `json:"transceiver"`
+	LLDP        map[string][]*annotation `json:"lldp"`
 }
 
 func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
@@ -54,6 +56,22 @@ func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
 func (a *nodeAnnotation) JSON() (string, error) {
 	data, err := json.Marshal(a)
 	return string(data), err
+}
+
+// deepCopy returns an independent copy of the annotation so callers can persist
+// it without racing concurrent mutations of the original. On the (practically
+// impossible) marshal/unmarshal error it returns an empty annotation rather than
+// sharing the original pointer.
+func (a *nodeAnnotation) deepCopy() *nodeAnnotation {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return &nodeAnnotation{}
+	}
+	var cp nodeAnnotation
+	if err := json.Unmarshal(data, &cp); err != nil {
+		return &nodeAnnotation{}
+	}
+	return &cp
 }
 
 func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
@@ -79,6 +97,10 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 		return a.Syslog, nil
 	case consts.ComponentNameNvidia:
 		return a.NVIDIA, nil
+	case consts.ComponentNameTransceiver:
+		return a.Transceiver, nil
+	case consts.ComponentNameLLDP:
+		return a.LLDP, nil
 	}
 	return nil, fmt.Errorf("input item %s is not supported", item)
 }
@@ -106,6 +128,10 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 		a.Syslog = annotations
 	case consts.ComponentNameNvidia:
 		a.NVIDIA = annotations
+	case consts.ComponentNameTransceiver:
+		a.Transceiver = annotations
+	case consts.ComponentNameLLDP:
+		a.LLDP = annotations
 	}
 	return nil
 }
