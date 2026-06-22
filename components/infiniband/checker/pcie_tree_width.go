@@ -115,7 +115,9 @@ func (c *IBPCIETreeWidthChecker) Check(ctx context.Context, data any) (*common.C
 				continue
 			}
 			result.Status = consts.StatusAbnormal
-			devInfo := fmt.Sprintf("%s(%s, bottleneck@%s->%s)",
+			// No comma inside a single device string: the exporter splits the
+			// joined Device field on "," to emit one series per failed device.
+			devInfo := fmt.Sprintf("%s(%s bottleneck@%s->%s)",
 				hwInfo.IBDev, hwInfo.PCIEBDF, link.ParentBDF, link.ChildBDF)
 			failedDevices = append(failedDevices, devInfo)
 			failedCurr = append(failedCurr, link.CurWidth)
