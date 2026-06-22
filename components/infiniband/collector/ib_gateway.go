@@ -400,10 +400,19 @@ func (gw *IBGateway) CheckIPVersionViaSysfs(interfaceName string) (hasIPv4, hasI
 	if data, err := os.ReadFile(ipv6Path); err == nil {
 		lines := strings.Split(string(data), "\n")
 		for _, line := range lines {
-			if strings.Contains(line, interfaceName) {
-				hasIPv6 = true
-				break
+			// Format: <32-hex addr> <ifindex> <prefixlen> <scope> <flags> <devname>
+			fields := strings.Fields(line)
+			if len(fields) < 6 || fields[len(fields)-1] != interfaceName {
+				continue
 			}
+			// Ignore link-local (fe80::/10): every NIC auto-assigns one, so
+			// counting it flags IPv4-only interfaces as "has IPv6" and wrongly
+			// skips the real IPv4 gateway lookup. Only a global address counts.
+			if strings.HasPrefix(strings.ToLower(fields[0]), "fe80") {
+				continue
+			}
+			hasIPv6 = true
+			break
 		}
 	}
 

@@ -17,13 +17,18 @@ package checker
 
 import (
 	"github.com/scitix/sichek/components/common"
-	"github.com/scitix/sichek/components/infiniband/collector"
 	"github.com/scitix/sichek/components/infiniband/config"
 	"github.com/sirupsen/logrus"
 )
 
-func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec, info *collector.InfinibandInfo) ([]common.Checker, error) {
+func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec) ([]common.Checker, error) {
 
+	// All checkers are registered unconditionally. Checkers that only apply to
+	// a subset of hardware self-gate at Check() time (e.g. RoCEChecker skips
+	// non-Ethernet devices). The link-layer of each HCA is only known after the
+	// collector runs, which happens during HealthCheck — long after this
+	// constructor — so gating registration on collected data here would never
+	// match and silently drop the checker.
 	checkerConstructors := map[string]func(*config.InfinibandSpec) (common.Checker, error){
 		config.CheckIBOFED:      NewIBOFEDChecker,
 		config.CheckIBFW:        NewFirmwareChecker,
@@ -37,21 +42,13 @@ func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec, 
 		config.CheckIBDevs:      NewIBDevsChecker,
 		config.CheckIBDriver:    NewIBDriverChecker,
 		config.CheckIBLost:      NewIBLostChecker,
+		config.CheckRoCE:        NewRoCEChecker,
 		config.CheckPCIETreeSpeed: NewIBPCIETreeSpeedChecker,
 		config.CheckPCIETreeWidth: NewIBPCIETreeWidthChecker,
 		// config.CheckIBNUM:         dependence.NewIOMMUChecker,
 		// config.CheckNetOperstate:  NewNetOperstateChecker,
 		// config.CheckPCIEACS:       NewPCIEACSChecker,
 	}
-	info.RLock()
-	for _, hwinfo := range info.IBHardWareInfo {
-		if hwinfo.LinkLayer == "Ethernet" {
-			checkerConstructors[config.CheckRoCE] = NewRoCEChecker
-			logrus.WithField("component", "infiniband").Infof("RoCE checker enabled for checker: %s", config.CheckRoCE)
-			break
-		}
-	}
-	info.RUnlock()
 
 	ignoredSet := make(map[string]struct{})
 	for _, checker := range cfg.Infiniband.IgnoredCheckers {

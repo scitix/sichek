@@ -44,6 +44,18 @@ func HWInfoKey(IBDev string, port int) string {
 // resolver lets the collector stay free of a config-package import.
 type PortResolver func(IBDev string) []int
 
+// RoCEGatewayStatus is the per-device RoCE gateway connectivity result, filled
+// in by the RoCE checker and embedded in the snapshot. State is one of
+// "reachable", "unreachable", or "skipped" (IPv6-only / no IPv4 gateway).
+type RoCEGatewayStatus struct {
+	IBDev     string `json:"ib_dev" yaml:"ib_dev"`
+	NetDev    string `json:"net_dev,omitempty" yaml:"net_dev,omitempty"`
+	Gateway   string `json:"gateway" yaml:"gateway"`
+	State     string `json:"state" yaml:"state"`
+	LatencyUs int64  `json:"latency_us" yaml:"latency_us"` // probe RTT in microseconds (0 if skipped); local gateways are sub-millisecond
+	Error     string `json:"error,omitempty" yaml:"error,omitempty"`
+}
+
 type InfinibandInfo struct {
 	HCAPCINum       int                       `json:"hca_pci_num" yaml:"hca_pci_num"`
 	IBCapablePCINum int                       `json:"ib_capable_pci_num" yaml:"ib_capable_pci_num"`
@@ -52,11 +64,14 @@ type InfinibandInfo struct {
 	IBHardWareInfo  map[string]IBHardWareInfo `json:"ib_hardware_info" yaml:"ib_hardware_info"`
 	IBSoftWareInfo  IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
 	// PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
-	IBCounters   map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
-	IBNicRole    string                `json:"ib_nic_role" yaml:"ib_nic_role"`
-	Time         time.Time             `json:"time" yaml:"time"`
-	portResolver PortResolver
-	mu           sync.RWMutex
+	IBCounters map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
+	// RoCEConnectivity holds per-device gateway reachability + probe latency,
+	// populated by the RoCE checker (Ethernet/RoCE devices only).
+	RoCEConnectivity map[string]*RoCEGatewayStatus `json:"roce_connectivity,omitempty" yaml:"roce_connectivity,omitempty"`
+	IBNicRole        string                        `json:"ib_nic_role" yaml:"ib_nic_role"`
+	Time             time.Time                     `json:"time" yaml:"time"`
+	portResolver     PortResolver
+	mu               sync.RWMutex
 }
 
 func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {

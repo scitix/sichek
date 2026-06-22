@@ -156,7 +156,7 @@ func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []s
 	component.collector = ibCollector
 
 	// create checkers
-	checkers, err := checker.NewCheckers(cfg, ibSpec, ibCollector)
+	checkers, err := checker.NewCheckers(cfg, ibSpec)
 	if err != nil {
 		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
 		component.initError = fmt.Errorf("failed to create infiniband checkers: %w", err)
@@ -371,6 +371,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		phyStatPrint     string
 		ibStatePrint     string
 		pcieLinkPrint    string
+		roceGwPrint      string
 		// throughPrint        string
 		// latencyPrint     string
 	)
@@ -422,6 +423,22 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			pcieWidth = fmt.Sprintf("%s%s%s", statusColor, common.ExtractAndDeduplicate(result.Curr), consts.Reset)
 		case config.CheckIBDevs:
 			ibControllersPrintColor = statusColor
+		case config.CheckRoCE:
+			// Gateway connectivity is reported in result.Curr by the RoCE
+			// checker (Reachable / Unreachable), independent of the VF checks
+			// folded into the same result. Empty Curr ⇒ no RoCE/Ethernet
+			// device on this node ⇒ leave the line hidden.
+			switch result.Curr {
+			case "Reachable":
+				roceGwPrint = fmt.Sprintf("RoCE Gateway: %sReachable%s", consts.Green, consts.Reset)
+			case "Unreachable":
+				roceGwPrint = fmt.Sprintf("RoCE Gateway: %sUnreachable(%s)%s", consts.Red, result.Device, consts.Reset)
+			case "":
+				// no gateway data (no RoCE/Ethernet device) → keep hidden
+			default:
+				// e.g. "N/A (IPv6)": IPv6-only, not probed
+				roceGwPrint = fmt.Sprintf("RoCE Gateway: %s%s%s", consts.Green, result.Curr, consts.Reset)
+			}
 		}
 	}
 	if pcieGen != "" && pcieWidth != "" {
@@ -459,7 +476,11 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "")          //, PerformancePrint)
 		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "")   //, "Throughput: TBD")
 		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "") //, "Latency: TBD")
-		fmt.Printf("%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, pcieLinkPrint)
+		roceGwLeft := consts.Green + "" + consts.Reset
+		if roceGwPrint != "" {
+			roceGwLeft = roceGwPrint
+		}
+		fmt.Printf("%-*s%-*s\n", printInterval, roceGwLeft, printInterval, pcieLinkPrint)
 	}
 
 	fmt.Println("Errors Events:")
