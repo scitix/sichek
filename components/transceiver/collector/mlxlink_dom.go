@@ -3,12 +3,21 @@ package collector
 import (
 	"context"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
+
+// ansiEscapeRe matches ANSI SGR color/style escape sequences (e.g. "\x1b[31m").
+var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// stripANSI removes ANSI color/style escape sequences and trims surrounding space.
+func stripANSI(s string) string {
+	return strings.TrimSpace(ansiEscapeRe.ReplaceAllString(s, ""))
+}
 
 // CollectMLXLink collects transceiver DOM data via mlxlink.
 // dev can be an IB device name (e.g. "mlx5_0") or a PCIe BDF (e.g. "0000:0e:00.0").
@@ -68,6 +77,10 @@ func (m *ModuleInfo) parseMLXLink(output string) {
 			m.PartNumber = val
 		case key == "Vendor Serial Number":
 			m.SerialNumber = val
+		case key == "Recommendation":
+			// mlxlink colorizes a bad recommendation in red on a terminal;
+			// strip ANSI codes so downstream text matching is reliable.
+			m.Recommendation = stripANSI(val)
 
 		// Temperature [C] : 54 [-5..75]
 		case strings.HasPrefix(key, "Temperature"):

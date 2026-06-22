@@ -20,6 +20,65 @@ Vendor Part Number                 : T-F4GS-BV0
 Vendor Serial Number               : CWJH05025502589
 `
 
+// mlxlinkSampleWithRecommendation mirrors real `mlxlink -d <dev> -m` output:
+// the default "Troubleshooting Info" section (carrying Recommendation) prints
+// alongside the "-m" Module Info section. The recommendation here is wrapped in
+// ANSI red color codes, as mlxlink emits on a terminal ("爆红").
+const mlxlinkSampleWithRecommendation = "\n" +
+	"Module Info\n" +
+	"-----------\n" +
+	"Temperature [C]                    : 54 [-5..75]\n" +
+	"Identifier                         : OSFP\n" +
+	"Vendor Serial Number               : CWJH05025502589\n" +
+	"\n" +
+	"Troubleshooting Info\n" +
+	"--------------------\n" +
+	"Status Opcode                      : 0\n" +
+	"Group Opcode                       : N/A\n" +
+	"Recommendation                     : \x1b[31mBad signal integrity\x1b[0m\n"
+
+const mlxlinkSampleHealthyRecommendation = "\n" +
+	"Troubleshooting Info\n" +
+	"--------------------\n" +
+	"Recommendation                     : No issue was observed\n"
+
+func TestParseMLXLinkRecommendation(t *testing.T) {
+	t.Run("bad signal integrity with ANSI color codes", func(t *testing.T) {
+		m := &ModuleInfo{}
+		m.parseMLXLink(mlxlinkSampleWithRecommendation)
+		assert.Equal(t, "Bad signal integrity", m.Recommendation)
+	})
+
+	t.Run("healthy recommendation", func(t *testing.T) {
+		m := &ModuleInfo{}
+		m.parseMLXLink(mlxlinkSampleHealthyRecommendation)
+		assert.Equal(t, "No issue was observed", m.Recommendation)
+	})
+
+	t.Run("no troubleshooting section leaves recommendation empty", func(t *testing.T) {
+		m := &ModuleInfo{}
+		m.parseMLXLink(mlxlinkSampleOutput)
+		assert.Equal(t, "", m.Recommendation)
+	})
+}
+
+func TestStripANSI(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"\x1b[31mBad signal integrity\x1b[0m", "Bad signal integrity"},
+		{"No issue was observed", "No issue was observed"},
+		{"\x1b[1;33mwarn\x1b[0m", "warn"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			assert.Equal(t, tt.want, stripANSI(tt.input))
+		})
+	}
+}
+
 func TestParseMLXLinkValueWithRange(t *testing.T) {
 	tests := []struct {
 		input         string

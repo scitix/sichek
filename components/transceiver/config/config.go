@@ -11,6 +11,9 @@ const (
 	VendorCheckerName      = "check_vendor"
 	LinkErrorsCheckerName  = "check_link_errors"
 	PresenceCheckerName    = "check_presence"
+	// SignalIntegrityCheckerName flags mlxlink "Bad signal integrity"
+	// recommendations independently of error counters.
+	SignalIntegrityCheckerName = "check_signal_integrity"
 )
 
 type TransceiverUserConfig struct {

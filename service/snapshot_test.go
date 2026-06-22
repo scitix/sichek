@@ -6,7 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/scitix/sichek/consts"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockInfo struct {
@@ -61,4 +64,33 @@ func TestSnapshotManager(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, snapshot.Components, "cpu")
 	assert.Contains(t, snapshot.Components, "nvidia")
+}
+
+func TestSnapshotManager_SetIssues(t *testing.T) {
+	tmpDir := t.TempDir()
+	snapshotPath := filepath.Join(tmpDir, "snapshot.json")
+	cfgFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("snapshot:\n  enable: true\n  path: "+snapshotPath), 0644))
+
+	mgr, err := NewSnapshotManager(cfgFile)
+	require.NoError(t, err)
+
+	// Accumulate an issue via the store, then mirror it into the snapshot.
+	store := NewAnnotationStore()
+	anno, err := store.Apply(abnormalResult(consts.ComponentNameCPU, consts.LevelCritical, "CPUCheck", "ErrA", "cpu0"))
+	require.NoError(t, err)
+	mgr.SetIssues(anno)
+
+	data, err := os.ReadFile(snapshotPath)
+	require.NoError(t, err)
+
+	var snapshot Snapshot
+	require.NoError(t, json.Unmarshal(data, &snapshot))
+
+	// The top-level issues field is present and carries the CPU issue.
+	require.NotNil(t, snapshot.Issues)
+	assert.ElementsMatch(t, []string{"ErrA"}, errorNames(snapshot.Issues.CPU, consts.LevelCritical))
+
+	// The serialized snapshot exposes the top-level "issues" key.
+	assert.Contains(t, string(data), `"issues"`)
 }

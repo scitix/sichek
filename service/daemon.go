@@ -18,7 +18,6 @@ package service
 import (
 	"context"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -47,6 +46,7 @@ type DaemonService struct {
 	node                 string
 	metrics              *metrics.HealthCheckResMetrics
 	notifier             Notifier
+	annoStore            *AnnotationStore
 	snapshotMgr          *SnapshotManager
 	reporter             *Reporter
 }
@@ -96,6 +96,7 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 		componentsStatus: make(map[string]bool),
 		componentResults: make(map[string]<-chan *common.Result),
 		notifier:         notifier,
+		annoStore:        NewAnnotationStore(),
 		metrics:          metrics.GetHealthCheckResMetrics(),
 		node:             hostname,
 		snapshotMgr:      snapshotMgr,
@@ -148,12 +149,25 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			var err error
 			if result != nil {
 				result.Node = d.node
+				// Compute the accumulated issue annotation. On K8s the notifier is
+				// the source of truth (it reads/accumulates/writes the node
+				// annotation) and returns the resulting object; off-K8s the
+				// in-process store accumulates instead. The two paths are mutually
+				// exclusive, so issues are never computed twice.
+				var anno *nodeAnnotation
 				if d.notifier != nil {
-					if len(result.Checkers) > 0 && strings.Contains(result.Checkers[0].Name, "HealthCheckTimeout") && result.Status == consts.StatusAbnormal {
-						err = d.notifier.AppendNodeAnnotation(d.ctx, result)
+					if isHealthCheckTimeout(result) {
+						anno, err = d.notifier.AppendNodeAnnotation(d.ctx, result)
 					} else {
-						err = d.notifier.SetNodeAnnotation(d.ctx, result)
+						anno, err = d.notifier.SetNodeAnnotation(d.ctx, result)
 					}
+				} else if d.annoStore != nil {
+					anno, err = d.annoStore.Apply(result)
+				}
+				// Mirror the issues into the snapshot (best effort: keep the last
+				// good annotation even if this cycle errored).
+				if d.snapshotMgr != nil && anno != nil {
+					d.snapshotMgr.SetIssues(anno)
 				}
 				d.metrics.ExportMetrics(result)
 			}

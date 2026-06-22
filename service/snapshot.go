@@ -43,6 +43,10 @@ type Snapshot struct {
 	MgmtIP     string                 `json:"mgmt_ip,omitempty"`
 	Timestamp  time.Time              `json:"timestamp"`
 	Components map[string]interface{} `json:"components"`
+	// Issues mirrors the K8s node annotation: detected problems grouped by
+	// component then level. It lets the collector consume issues without reading
+	// the K8s annotation, and is populated even on non-K8s nodes.
+	Issues *nodeAnnotation `json:"issues"`
 }
 
 // SnapshotManager manages the aggregation and persistence of component information.
@@ -100,6 +104,25 @@ func (s *SnapshotManager) Update(componentName string, info common.Info) {
 	// common.Info has JSON() method, we can use it or just store the object directly
 	// Marshaling/unmarshaling is a safe way to ensure we have a clean JSON-serializable map
 	s.data.Components[componentName] = info
+
+	if err := s.persist(); err != nil {
+		logrus.WithField("service", "snapshot").Errorf("Failed to persist snapshot: %v", err)
+	}
+}
+
+// SetIssues updates the snapshot's issue list (the mirror of the node annotation)
+// and persists. The issues object is node-global, so it is replaced wholesale on
+// each call rather than merged per component.
+func (s *SnapshotManager) SetIssues(issues *nodeAnnotation) {
+	if !s.enabled {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data.Timestamp = time.Now()
+	s.data.Issues = issues
 
 	if err := s.persist(); err != nil {
 		logrus.WithField("service", "snapshot").Errorf("Failed to persist snapshot: %v", err)

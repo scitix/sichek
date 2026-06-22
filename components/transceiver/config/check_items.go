@@ -94,6 +94,15 @@ var BusinessCheckItems = map[string]common.CheckerResult{
 		ErrorName:   "TransceiverMissing",
 		Suggestion:  "Re-seat or replace the missing transceiver module",
 	},
+	SignalIntegrityCheckerName: {
+		Name:        SignalIntegrityCheckerName,
+		Description: "Check mlxlink Recommendation for physical-layer signal integrity issues (counter-independent)",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "No signal integrity issue reported by mlxlink",
+		ErrorName:   "BadSignalIntegrity",
+		Suggestion:  "物理层信号完整性差，FEC 正在带病工作，请尽快在低峰期隔离节点并清洗/更换光模块与光纤",
+	},
 }
 
 // ManagementCheckItems defines the default CheckerResult template for management network transceivers.
@@ -170,6 +179,15 @@ var ManagementCheckItems = map[string]common.CheckerResult{
 		Detail:      "All transceiver modules are present",
 		ErrorName:   "TransceiverMissing",
 		Suggestion:  "Re-seat or replace the missing transceiver module",
+	},
+	SignalIntegrityCheckerName: {
+		Name:        SignalIntegrityCheckerName,
+		Description: "Check mlxlink Recommendation for physical-layer signal integrity issues (counter-independent)",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelWarning,
+		Detail:      "No signal integrity issue reported by mlxlink",
+		ErrorName:   "BadSignalIntegrity",
+		Suggestion:  "物理层信号完整性差，FEC 正在带病工作，请尽快在低峰期隔离节点并清洗/更换光模块与光纤",
 	},
 }
 

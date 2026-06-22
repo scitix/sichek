@@ -34,6 +34,7 @@ func NewCheckers(cfg *config.TransceiverUserConfig, spec *config.TransceiverSpec
 			prevErrors: make(map[string]map[string]uint64),
 		},
 		&PresenceChecker{spec: spec},
+		&SignalIntegrityChecker{},
 	}
 
 	ignoredMap := make(map[string]bool)

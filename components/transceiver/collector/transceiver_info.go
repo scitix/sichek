@@ -26,6 +26,10 @@ type ModuleInfo struct {
 
 	Present      bool   `json:"present"`
 	ModuleType   string `json:"module_type"`
+	// Recommendation is the mlxlink "Troubleshooting Info → Recommendation"
+	// field (e.g. "Bad signal integrity"). It surfaces physical-layer signal
+	// issues independently of error counters.
+	Recommendation string `json:"recommendation"`
 	Vendor       string `json:"vendor"`
 	PartNumber   string `json:"part_number"`
 	SerialNumber string `json:"serial_number"`
