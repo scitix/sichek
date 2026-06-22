@@ -1,0 +1,97 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "eth0": {
+          "via": "LLDP",
+          "age": "12 days, 19:09:01",
+          "chassis": {
+            "CL-RLF237": {
+              "id": { "type": "mac", "value": "90:74:2e:e7:c7:7b" },
+              "descr": "H3C Comware Platform Software, Software Version 9.1.058, Release 9323\r\nH3C S9827-128DH",
+              "mgmt-ip": "26.9.167.254",
+              "capability": [
+                { "type": "Bridge", "enabled": true },
+                { "type": "Router", "enabled": true }
+              ]
+            }
+          },
+          "port": {
+            "id": { "type": "ifname", "value": "FourHundredGigE1/0/126" },
+            "descr": "To-changliu-g86-016-eth0",
+            "mfs": "9216"
+          },
+          "vlan": { "vlan-id": "52", "pvid": true }
+        }
+      },
+      {
+        "eth0": {
+          "via": "LLDP",
+          "age": "12 days, 19:07:57",
+          "chassis": {
+            "changliu-g86-016": {
+              "id": { "type": "mac", "value": "94:6d:ae:a2:84:80" },
+              "descr": "Ubuntu 22.04.4 LTS Linux 5.15.0-94-generic x86_64",
+              "mgmt-ip": [ "26.9.160.2", "fe80::966d:aeff:fea2:8480" ],
+              "capability": [ { "type": "Router", "enabled": true } ]
+            }
+          },
+          "port": {
+            "id": { "type": "mac", "value": "26:d8:38:e1:b2:94" },
+            "descr": "eth0.4"
+          }
+        }
+      },
+      {
+        "eth0": {
+          "via": "LLDP",
+          "age": "12 days, 19:07:57",
+          "chassis": {
+            "changliu-g86-016": {
+              "id": { "type": "mac", "value": "94:6d:ae:a2:84:80" },
+              "descr": "Ubuntu 22.04.4 LTS Linux 5.15.0-94-generic x86_64",
+              "mgmt-ip": [ "26.9.160.2", "fe80::966d:aeff:fea2:8480" ],
+              "capability": [ { "type": "Router", "enabled": true } ]
+            }
+          },
+          "port": {
+            "id": { "type": "mac", "value": "0a:ef:6f:f5:71:62" },
+            "descr": "eth0.3"
+          }
+        }
+      },
+      {
+        "ens14f0np0": {
+          "via": "LLDP",
+          "age": "12 days, 19:09:01",
+          "chassis": {
+            "CL-A054A": {
+              "id": { "type": "mac", "value": "90:74:2e:aa:bb:cc" },
+              "capability": [ { "type": "Bridge", "enabled": true } ]
+            }
+          },
+          "port": {
+            "id": { "type": "ifname", "value": "Twenty-FiveGigE1/0/5" },
+            "descr": "SDN_LAGG"
+          }
+        }
+      },
+      {
+        "vlanonly0": {
+          "via": "LLDP",
+          "age": "1 day, 00:00:05",
+          "chassis": {
+            "changliu-g86-016": {
+              "id": { "type": "mac", "value": "94:6d:ae:a2:84:80" },
+              "capability": [ { "type": "Router", "enabled": true } ]
+            }
+          },
+          "port": {
+            "id": { "type": "mac", "value": "aa:aa:aa:aa:aa:aa" },
+            "descr": "vlanonly0.7"
+          }
+        }
+      }
+    ]
+  }
+}

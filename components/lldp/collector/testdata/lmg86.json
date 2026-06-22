@@ -1,0 +1,341 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "eth0": {
+          "via": "LLDP",
+          "rid": "3",
+          "age": "108 days, 20:17:22",
+          "chassis": {
+            "p22-128-067.byted.org": {
+              "id": {
+                "type": "mac",
+                "value": "d8:94:24:c6:01:d6"
+              },
+              "descr": "Debian GNU/Linux 10 (buster) Linux 5.10.200.bsk.5-amd64 #5.10.200.bsk.5 SMP Debian 5.10.200.bsk.5 Fri Mar 7 09:01:23 UTC x86_64",
+              "mgmt-ip": [
+                "172.17.0.1",
+                "fdbd:dc41:4f:1::67"
+              ],
+              "mgmt-iface": [
+                "11",
+                "82"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "mac",
+              "value": "96:23:5f:0c:b0:61"
+            },
+            "descr": "eth0_14",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "advertised": [
+                {
+                  "type": "1000Base-X",
+                  "hd": false,
+                  "fd": true
+                },
+                {
+                  "type": "1000Base-T",
+                  "hd": false,
+                  "fd": true
+                }
+              ],
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth1": {
+          "via": "LLDP",
+          "rid": "2",
+          "age": "108 days, 20:17:30",
+          "chassis": {
+            "TJWQHY_D2_401-C-01-47.VEGS0-0-50": {
+              "id": {
+                "type": "mac",
+                "value": "5c:f7:96:ab:07:13"
+              },
+              "descr": "Lambda OS Version v1.2.10, HwSku B5020, Debian 10.13, Kernel 4.19.0-12-2-amd64",
+              "mgmt-ip": [
+                "33.239.145.151",
+                "fdbd:dc41:199:4901::21ef:9197"
+              ],
+              "mgmt-iface": [
+                "6",
+                "6"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "ethernet12a"
+            },
+            "descr": "TO-SERVER-26.208.100.178",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth2": {
+          "via": "LLDP",
+          "rid": "2",
+          "age": "108 days, 20:17:22",
+          "chassis": {
+            "TJWQHY_D2_401-C-01-47.VEGS0-0-50": {
+              "id": {
+                "type": "mac",
+                "value": "5c:f7:96:ab:07:13"
+              },
+              "descr": "Lambda OS Version v1.2.10, HwSku B5020, Debian 10.13, Kernel 4.19.0-12-2-amd64",
+              "mgmt-ip": [
+                "33.239.145.151",
+                "fdbd:dc41:199:4901::21ef:9197"
+              ],
+              "mgmt-iface": [
+                "6",
+                "6"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "ethernet12b"
+            },
+            "descr": "TO-SERVER-26.208.100.186",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth3": {
+          "via": "LLDP",
+          "rid": "1",
+          "age": "108 days, 20:17:30",
+          "chassis": {
+            "TJWQHY_D2_401-C-02-47.VEGS0-0-51": {
+              "id": {
+                "type": "mac",
+                "value": "5c:f7:96:a3:32:aa"
+              },
+              "descr": "Lambda OS Version v1.2.10, HwSku B5020, Debian 10.13, Kernel 4.19.0-12-2-amd64",
+              "mgmt-ip": [
+                "33.239.145.152",
+                "fdbd:dc41:199:4901::21ef:9198"
+              ],
+              "mgmt-iface": [
+                "6",
+                "6"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "ethernet12a"
+            },
+            "descr": "TO-SERVER-26.208.102.178",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth4": {
+          "via": "LLDP",
+          "rid": "1",
+          "age": "108 days, 20:17:30",
+          "chassis": {
+            "TJWQHY_D2_401-C-02-47.VEGS0-0-51": {
+              "id": {
+                "type": "mac",
+                "value": "5c:f7:96:a3:32:aa"
+              },
+              "descr": "Lambda OS Version v1.2.10, HwSku B5020, Debian 10.13, Kernel 4.19.0-12-2-amd64",
+              "mgmt-ip": [
+                "33.239.145.152",
+                "fdbd:dc41:199:4901::21ef:9198"
+              ],
+              "mgmt-iface": [
+                "6",
+                "6"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "ethernet12b"
+            },
+            "descr": "TO-SERVER-26.208.102.186",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth5": {
+          "via": "LLDP",
+          "rid": "3",
+          "age": "108 days, 20:16:50",
+          "chassis": {
+            "p22-128-067.byted.org": {
+              "id": {
+                "type": "mac",
+                "value": "d8:94:24:c6:01:d6"
+              },
+              "descr": "Debian GNU/Linux 10 (buster) Linux 5.10.200.bsk.5-amd64 #5.10.200.bsk.5 SMP Debian 5.10.200.bsk.5 Fri Mar 7 09:01:23 UTC x86_64",
+              "mgmt-ip": [
+                "172.17.0.1",
+                "fdbd:dc41:4f:1::67"
+              ],
+              "mgmt-iface": [
+                "11",
+                "82"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "mac",
+              "value": "52:b5:3a:f5:c2:59"
+            },
+            "descr": "eth0_19",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "advertised": [
+                {
+                  "type": "1000Base-X",
+                  "hd": false,
+                  "fd": true
+                },
+                {
+                  "type": "1000Base-T",
+                  "hd": false,
+                  "fd": true
+                }
+              ],
+              "current": "unknown"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+

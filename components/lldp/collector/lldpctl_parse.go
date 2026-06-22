@@ -59,16 +59,21 @@ type Port struct {
 }
 
 // ParseLldpctlJSON converts the raw `lldpctl -f json` output into a map of
-// local interface name -> Neighbor. The lldpctl output is shaped:
+// local interface name -> all neighbors observed on it. The lldpctl output is
+// shaped:
 //
-//	{"lldp":{"interface":[{"eth0":{...}},{"eth1":{...}}]}}
+//	{"lldp":{"interface":[{"eth0":{...}},{"eth0":{...}},{"eth1":{...}}]}}
 //
-// which is awkward; we flatten it into a map. Empty input (lldpd up but no
-// neighbors) yields an empty map and no error.
-func ParseLldpctlJSON(raw []byte) (map[string]Neighbor, error) {
+// A single local interface can carry MULTIPLE neighbor entries: e.g. a real
+// switch uplink alongside the host's own LLDP frames looped back from VLAN
+// subinterfaces or VF representors. We preserve every neighbor (in encounter
+// order) and leave the "which one is the switch uplink" decision to the
+// collector, which has the hostname needed for that test. Empty input (lldpd
+// up but no neighbors) yields an empty map and no error.
+func ParseLldpctlJSON(raw []byte) (map[string][]Neighbor, error) {
 	trimmed := strings.TrimSpace(string(raw))
 	if trimmed == "" {
-		return map[string]Neighbor{}, nil
+		return map[string][]Neighbor{}, nil
 	}
 
 	var top struct {
@@ -80,7 +85,7 @@ func ParseLldpctlJSON(raw []byte) (map[string]Neighbor, error) {
 		return nil, fmt.Errorf("decode lldpctl top-level: %w", err)
 	}
 	if len(top.LLDP.Interface) == 0 || string(top.LLDP.Interface) == "null" {
-		return map[string]Neighbor{}, nil
+		return map[string][]Neighbor{}, nil
 	}
 
 	// lldpctl emits `interface` as either an array (multiple neighbors) or
@@ -90,14 +95,14 @@ func ParseLldpctlJSON(raw []byte) (map[string]Neighbor, error) {
 		return nil, err
 	}
 
-	out := make(map[string]Neighbor, len(entries))
+	out := make(map[string][]Neighbor, len(entries))
 	for _, entry := range entries {
 		for ifName, rawIface := range entry {
 			n, err := decodeNeighbor(rawIface)
 			if err != nil {
 				return nil, fmt.Errorf("decode iface %s: %w", ifName, err)
 			}
-			out[ifName] = n
+			out[ifName] = append(out[ifName], n)
 		}
 	}
 	return out, nil

@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"sort"
 	"time"
@@ -120,6 +121,8 @@ func (c *Collector) Collect(ctx context.Context) (common.Info, error) {
 		return info, nil
 	}
 
+	hostname, _ := os.Hostname()
+
 	names := make([]string, 0, len(neighbors))
 	for n := range neighbors {
 		names = append(names, n)
@@ -128,10 +131,43 @@ func (c *Collector) Collect(ctx context.Context) (common.Info, error) {
 	for _, n := range names {
 		info.Interfaces = append(info.Interfaces, IfaceInfo{
 			Local:    collectLocalIface(n),
-			Neighbor: neighbors[n],
+			Neighbor: selectUplinkNeighbor(neighbors[n], hostname),
 		})
 	}
 	return info, nil
+}
+
+// IsSwitchNeighbor reports whether an LLDP neighbor is a real switch uplink
+// rather than a self/loopback or host-to-host link. A switch advertises its
+// port by interface name ("ifname"); our own LLDP frames loop back via VF
+// representors or VLAN subinterfaces and identify their port by MAC, and
+// host-to-host links carry the peer host's chassis name (which equals our
+// hostname for self-loopbacks). Both conditions must hold.
+func IsSwitchNeighbor(n Neighbor, hostname string) bool {
+	if n.Port.IDType != "ifname" {
+		return false
+	}
+	if hostname != "" && n.Chassis.Name == hostname {
+		return false
+	}
+	return true
+}
+
+// selectUplinkNeighbor picks the representative neighbor for one local
+// interface out of every neighbor lldpctl reported on it. A switch uplink is
+// preferred so a real uplink is never hidden behind a looped-back self
+// neighbor; if none qualifies, the first neighbor is kept so the snapshot
+// still records the link (the display layer then folds it away).
+func selectUplinkNeighbor(neighbors []Neighbor, hostname string) Neighbor {
+	for _, n := range neighbors {
+		if IsSwitchNeighbor(n, hostname) {
+			return n
+		}
+	}
+	if len(neighbors) > 0 {
+		return neighbors[0]
+	}
+	return Neighbor{}
 }
 
 // lldpctlErrDetail extracts stderr from an ExitError so the snapshot's
