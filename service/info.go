@@ -58,6 +58,20 @@ func (a *nodeAnnotation) JSON() (string, error) {
 	return string(data), err
 }
 
+// parseAnnotationOrEmpty parses the stored annotation JSON, falling back to an
+// empty annotation when the value is missing or unparseable. An annotation that
+// fails to parse (e.g. one written by an incompatible version, or corrupted)
+// must not permanently block updates: bailing out would leave the stale issues
+// in place forever, since each component only ever rewrites its own key.
+func parseAnnotationOrEmpty(jsonStr string) *nodeAnnotation {
+	anno, err := GetAnnotationFromJson(jsonStr)
+	if err != nil {
+		logrus.Errorf("parse existing annotation %q failed: %v; starting from empty", jsonStr, err)
+		return &nodeAnnotation{}
+	}
+	return anno
+}
+
 // deepCopy returns an independent copy of the annotation so callers can persist
 // it without racing concurrent mutations of the original. On the (practically
 // impossible) marshal/unmarshal error it returns an empty annotation rather than

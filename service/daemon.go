@@ -107,6 +107,21 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 }
 
 func (d *DaemonService) Run() {
+	// Clear any annotation left over from a previous run/reboot before the
+	// components start republishing. The node annotation persists on the K8s
+	// node across restarts while the daemon's in-memory state does not, and each
+	// component only ever rewrites its own key when it next ticks — so without
+	// this reset a component that no longer runs (disabled / removed /
+	// init-failed) would leave its pre-restart alert on the node forever. Live
+	// checks repopulate within one query interval.
+	if d.notifier != nil {
+		if anno, err := d.notifier.ResetNodeAnnotation(d.ctx); err != nil {
+			logrus.WithField("daemon", "run").Errorf("reset node annotation on startup failed: %v", err)
+		} else if d.snapshotMgr != nil && anno != nil {
+			d.snapshotMgr.SetIssues(anno)
+		}
+	}
+
 	d.componentsLock.Lock()
 
 	for componentName, component := range d.components {
