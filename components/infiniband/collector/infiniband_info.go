@@ -191,28 +191,13 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 			continue
 		}
 
-		// ?? why need to check if the IB device has net or not? is it a secondary port?
+		// Drop a dual-port HCA's secondary (.1) PCI function only when it has no
+		// netdev of its own (a non-functional/phantom registration). A genuine
+		// independent second port keeps its own IB device + netdev and must be
+		// enumerated regardless of bond membership.
 		bdfList := GetIBDevBDF(IBDev)
-		if len(bdfList) > 0 {
-			bdf := bdfList[0]
-			if len(bdf) > 0 && strings.HasSuffix(bdf, ".1") {
-				netDir := fmt.Sprintf("/sys/bus/pci/devices/%s/net", bdf)
-				files, err := os.ReadDir(netDir)
-				if err != nil {
-					logrus.WithField("component", "infiniband").Errorf("Error reading net dir (driver loaded?): %v", err)
-					continue
-				}
-
-				if len(files) == 0 {
-					logrus.WithField("component", "infiniband").Errorf("No network interface found for this BDF: %s", bdf)
-					continue
-				}
-				masterPath := fmt.Sprintf("/sys/class/net/%s/master", files[0].Name())
-				_, err = os.Lstat(masterPath)
-				if os.IsNotExist(err) {
-					continue
-				}
-			}
+		if len(bdfList) > 0 && shouldSkipSecondaryFunction(bdfList[0]) {
+			continue
 		}
 
 		for _, port := range newInfo.resolvePorts(IBDev) {
@@ -249,6 +234,37 @@ func countHCAPCINum(ibPFDevs map[string]string) int {
 	// }
 
 	// return pciNum
+}
+
+// shouldSkipSecondaryFunction reports whether an IB PF backed by bdf is a
+// secondary PCI function (".1") that should be excluded from enumeration.
+//
+// History: a ".1" function used to be kept only when its netdev was enslaved to
+// a bond. That silently dropped the *independent* second port of a dual-port
+// HCA — e.g. thg1 mlx5_9/ib9 (InfiniBand, ACTIVE, non-bonded) and zy3
+// mlx5_1/s_eth1 (Ethernet/RoCE storage NIC, non-bonded) — removing them from
+// all health checks and metrics. The bond-membership test was the wrong gate:
+// in a real RoCE LAG the bonded second PF does not even expose its own
+// infiniband/ directory (see countHCAPCINum), so it never reaches here.
+//
+// We now keep any ".1" function that exposes a netdev, and skip only a ".1"
+// function with no netdev at all (a non-functional/phantom registration). The
+// primary ".0" function is never skipped here.
+func shouldSkipSecondaryFunction(bdf string) bool {
+	if len(bdf) == 0 || !strings.HasSuffix(bdf, ".1") {
+		return false
+	}
+	netDir := path.Join(PCIPath, bdf, "net")
+	files, err := os.ReadDir(netDir)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("skip secondary function %s: error reading net dir (driver loaded?): %v", bdf, err)
+		return true
+	}
+	if len(files) == 0 {
+		logrus.WithField("component", "infiniband").Errorf("skip secondary function %s: no network interface found", bdf)
+		return true
+	}
+	return false
 }
 
 func ignoreVirtualFunction(ibDev string) bool {
