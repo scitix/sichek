@@ -99,6 +99,108 @@ func GetRDMACapablePCIeDevices() (map[string]string, error) {
 	return foundDevices, nil
 }
 
+// dirExists reports whether path exists and is a directory.
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// hasMlx5RdmaAux reports whether the PCI device directory contains an
+// mlx5_core RDMA auxiliary device (mlx5_core.rdma.*), which indicates the
+// RDMA stack is alive even without a PCI-level infiniband/ directory.
+func hasMlx5RdmaAux(deviceDir string) bool {
+	entries, err := os.ReadDir(deviceDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "mlx5_core.rdma.") {
+			return true
+		}
+	}
+	return false
+}
+
+// GetLostIBPCIeDevices returns Mellanox PCIe functions that look like a
+// crashed/torn-down HCA: vendor 0x15b3, bound to the mlx5_core driver, not a
+// virtual function, with neither an infiniband/ nor a net/ directory, and
+// no mlx5_core.rdma.* auxiliary device. The driver gate excludes
+// Mellanox-vendor PCI bridges (driver "pcieport") and passthrough functions
+// (driver "vfio-pci") that are not HCAs. A healthy management-only Ethernet
+// NIC keeps its net/ directory, so it is not reported here. A live mlx5
+// function using socket-direct/subfunction configs may expose RDMA only via
+// the auxiliary bus, so its presence also excludes the device from being
+// reported as lost. This realises the TODO in GetRDMACapablePCIeDevices
+// about detecting devices that are already missing at startup.
+func GetLostIBPCIeDevices() (map[string]string, error) {
+	lost := make(map[string]string)
+	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
+	}
+	entries, err := os.ReadDir(PCIPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read pci devices directory %s: %w", PCIPath, err)
+	}
+	for _, entry := range entries {
+		pciAddr := entry.Name()
+		deviceDir := filepath.Join(PCIPath, pciAddr)
+
+		isVF, err := IsVirtualFunctionByBDF(pciAddr)
+		if isVF {
+			continue
+		}
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("sysfs %s/%s/physfn is abnormal: %v", PCIPath, pciAddr, err)
+			continue
+		}
+
+		vendorBytes, err := os.ReadFile(filepath.Join(deviceDir, "vendor"))
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("Could not read vendor file for %s, skipping. Error: %v", pciAddr, err)
+			continue
+		}
+		vendorID := strings.TrimSpace(string(vendorBytes))
+		if !slices.Contains(targetVendorID, vendorID) {
+			continue
+		}
+
+		// Only functions bound to the mlx5_core driver can be a lost HCA.
+		// This excludes Mellanox-vendor PCI bridges (driver "pcieport") and
+		// passthrough functions (driver "vfio-pci") that are not HCAs.
+		drv, _ := os.Readlink(filepath.Join(deviceDir, "driver"))
+		if filepath.Base(drv) != "mlx5_core" {
+			continue
+		}
+
+		// A crashed HCA exposes neither an IB device nor a netdev. A
+		// legitimate management Ethernet NIC still has net/, so require both
+		// to be absent before flagging.
+		if dirExists(filepath.Join(deviceDir, "infiniband")) {
+			continue
+		}
+		if dirExists(filepath.Join(deviceDir, "net")) {
+			continue
+		}
+
+		// A live mlx5 function may expose its RDMA device via the auxiliary
+		// bus (mlx5_core.rdma.*) instead of a PCI-level infiniband/ dir
+		// (socket-direct / subfunction configs). Its presence means RDMA is
+		// still up, so this is not a lost card. A torn-down card has no such
+		// auxiliary device.
+		if hasMlx5RdmaAux(deviceDir) {
+			continue
+		}
+
+		deviceID := ""
+		if deviceBytes, err := os.ReadFile(filepath.Join(deviceDir, "device")); err == nil {
+			deviceID = strings.TrimSpace(string(deviceBytes))
+		}
+		lost[pciAddr] = fmt.Sprintf("%s:%s", vendorID, deviceID)
+		logrus.WithField("component", "pci-scanner").Warnf("Detected lost/torn-down HCA at %s (vendor %s, no infiniband/ and no net/)", pciAddr, vendorID)
+	}
+	return lost, nil
+}
+
 func IsVirtualFunctionByBDF(bdf string) (bool, error) {
 	p := filepath.Join(PCIPath, bdf, "physfn")
 

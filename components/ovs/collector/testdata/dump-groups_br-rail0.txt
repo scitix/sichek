@@ -1,0 +1,10 @@
+NXST_GROUP_DESC reply (xid=0x2):
+ group_id=20,type=ff,bucket=bucket_id:0,watch_port:1,actions=output:1,bucket=bucket_id:1,watch_group:10,actions=group:10
+ group_id=21,type=ff,bucket=bucket_id:0,watch_port:2,actions=output:2,bucket=bucket_id:1,watch_group:10,actions=group:10
+ group_id=32,type=ff,bucket=bucket_id:0,watch_port:3,actions=output:3
+ group_id=22,type=ff,bucket=bucket_id:0,watch_port:3,actions=output:3,bucket=bucket_id:1,watch_group:10,actions=group:10
+ group_id=23,type=ff,bucket=bucket_id:0,watch_port:4,actions=output:4,bucket=bucket_id:1,watch_group:10,actions=group:10
+ group_id=10,type=select,selection_method=hash,bucket=bucket_id:0,watch_port:1,actions=output:1,bucket=bucket_id:1,watch_port:2,actions=output:2,bucket=bucket_id:2,watch_port:3,actions=output:3,bucket=bucket_id:3,watch_port:4,actions=output:4
+ group_id=30,type=ff,bucket=bucket_id:0,watch_port:1,actions=output:1
+ group_id=31,type=ff,bucket=bucket_id:0,watch_port:2,actions=output:2
+ group_id=33,type=ff,bucket=bucket_id:0,watch_port:4,actions=output:4

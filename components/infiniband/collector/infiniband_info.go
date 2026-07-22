@@ -61,6 +61,7 @@ type InfinibandInfo struct {
 	IBCapablePCINum int                       `json:"ib_capable_pci_num" yaml:"ib_capable_pci_num"`
 	IBPFDevs        map[string]string         `json:"ib_dev" yaml:"ib_dev"`
 	IBPCIDevs       map[string]string         `json:"hca_pci_dev" yaml:"hca_pci_dev"`
+	IBLostPCIDevs   map[string]string         `json:"ib_lost_pci_dev,omitempty" yaml:"ib_lost_pci_dev,omitempty"`
 	IBHardWareInfo  map[string]IBHardWareInfo `json:"ib_hardware_info" yaml:"ib_hardware_info"`
 	IBSoftWareInfo  IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
 	// PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
@@ -84,15 +85,33 @@ func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
 		mu:         sync.RWMutex{},
 	}
 	i.IBNicRole = i.GetNICRole()
-	var err error
-	// Get PCIe device list at collector initialization
-	i.IBPCIDevs, err = GetRDMACapablePCIeDevices()
-	i.IBCapablePCINum = len(i.IBPCIDevs)
+	// Snapshot PCIe device state for an immediate first view; Collect re-scans
+	// every cycle so the counts are never frozen at startup.
+	i.scanPCIeState()
+
+	return i, nil
+}
+
+// scanPCIeState (re)reads the RDMA-capable and lost-HCA PCIe device sets from
+// sysfs into i. It runs at construction and at the start of every Collect so the
+// counts track the current PCI bus state instead of being frozen at startup.
+// Freezing caused false IBLost after a host reboot: the mlx5 stack binds HCAs
+// asynchronously, so a collector built before every device finished registering
+// would snapshot a too-low IBCapablePCINum (and could flag a still-initializing
+// function as a lost HCA) that never recovered until the daemon restarted.
+func (i *InfinibandInfo) scanPCIeState() {
+	pciDevs, err := GetRDMACapablePCIeDevices()
 	if err != nil {
 		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)
 	}
+	i.IBPCIDevs = pciDevs
+	i.IBCapablePCINum = len(pciDevs)
 
-	return i, nil
+	lost, err := GetLostIBPCIeDevices()
+	if err != nil {
+		logrus.WithField("component", "infiniband").Warnf("Failed to scan for lost IB PCIe devices: %v", err)
+	}
+	i.IBLostPCIDevs = lost
 }
 
 // SetPortResolver installs a port resolver so Collect samples the configured
@@ -152,12 +171,14 @@ func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
 		IBPFDevs:       make(map[string]string),
 		IBCounters:     make(map[string]IBCounters),
 		mu:             sync.RWMutex{},
-		// Copy initialization-time values from the original object
-		IBNicRole:       i.IBNicRole,
-		IBPCIDevs:       i.IBPCIDevs,
-		IBCapablePCINum: i.IBCapablePCINum,
-		portResolver:    i.portResolver,
+		// Carry forward values fixed at construction.
+		IBNicRole:    i.IBNicRole,
+		portResolver: i.portResolver,
 	}
+
+	// Re-scan PCIe state every cycle so IBCapablePCINum / IBLostPCIDevs reflect
+	// the current bus rather than a startup snapshot (see scanPCIeState).
+	newInfo.scanPCIeState()
 
 	newInfo.IBPFDevs = i.GetIBPFdevs()
 	newInfo.HCAPCINum = countHCAPCINum(newInfo.IBPFDevs)

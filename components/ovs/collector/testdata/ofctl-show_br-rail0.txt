@@ -1,0 +1,35 @@
+OFPT_FEATURES_REPLY (xid=0x2): dpid:0000ac3ae2bc34de
+n_tables:254, n_buffers:0
+capabilities: FLOW_STATS TABLE_STATS PORT_STATS QUEUE_STATS ARP_MATCH_IP
+actions: output enqueue set_vlan_vid set_vlan_pcp strip_vlan mod_dl_src mod_dl_dst mod_nw_src mod_nw_dst mod_nw_tos mod_tp_src mod_tp_dst
+ 1(eth_r0_p0): addr:ac:3a:e2:bc:34:de
+     config:     0
+     state:      0
+     current:    AUTO_NEG
+     speed: 0 Mbps now, 0 Mbps max
+ 2(eth_r0_p1): addr:ac:3a:e2:bc:34:df
+     config:     0
+     state:      0
+     current:    AUTO_NEG
+     speed: 0 Mbps now, 0 Mbps max
+ 3(eth_r0_p2): addr:ac:3a:e2:bc:34:e0
+     config:     0
+     state:      0
+     current:    AUTO_NEG
+     speed: 0 Mbps now, 0 Mbps max
+ 4(eth_r0_p3): addr:ac:3a:e2:bc:34:e1
+     config:     0
+     state:      0
+     current:    AUTO_NEG
+     speed: 0 Mbps now, 0 Mbps max
+ 5(eth_vf_rep_r0): addr:c6:42:f0:2b:6d:cf
+     config:     0
+     state:      0
+     current:    AUTO_NEG
+     speed: 0 Mbps now, 0 Mbps max
+ LOCAL(br-rail0): addr:ac:3a:e2:bc:34:de
+     config:     0
+     state:      0
+     current:    10GB-FD COPPER
+     speed: 10000 Mbps now, 0 Mbps max
+OFPT_GET_CONFIG_REPLY (xid=0x4): frags=normal miss_send_len=0

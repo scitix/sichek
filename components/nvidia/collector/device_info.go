@@ -40,6 +40,7 @@ type DeviceInfo struct {
 	Power         PowerInfo       `json:"power_info" yaml:"power_info"`
 	Temperature   TemperatureInfo `json:"temperature_info" yaml:"temperature_info"`
 	Utilization   UtilizationInfo `json:"utilization_info" yaml:"utilization_info"`
+	MemoryUsage   MemoryUsageInfo `json:"memory_usage_info" yaml:"memory_usage_info"`
 	NVLinkStates  NVLinkStates    `json:"nvlink_state" yaml:"nvlink_state"`
 	MemoryErrors  MemoryErrors    `json:"ecc_event" yaml:"ecc_event"`
 	NProcess      int             `json:"nprocess" yaml:"nprocess"`
@@ -149,6 +150,12 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	err2 = deviceInfo.Utilization.Get(device, uuid)
 	if err2 != nil {
 		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get utilization info: %v", err2))
+	}
+
+	// Get MemoryUsage info (VRAM capacity used/free/total)
+	err2 = deviceInfo.MemoryUsage.Get(device, uuid)
+	if err2 != nil {
+		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get memory usage info: %v", err2))
 	}
 
 	// Get MemoryErrors info

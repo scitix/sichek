@@ -18,6 +18,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/scitix/sichek/components/common"
@@ -28,7 +29,9 @@ import (
 )
 
 type IBLostChecker struct {
-	name        string
+	name string
+	// spec is retained to satisfy the shared checker-constructor signature;
+	// the current checks are spec-independent and do not read it.
 	spec        *config.InfinibandSpec
 	description string
 }
@@ -54,39 +57,41 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result.Status = consts.StatusNormal
 
 	infinibandInfo.RLock()
-	nodeEffectiveHCANum := infinibandInfo.HCAPCINum
-	for mlx5Dev := range infinibandInfo.IBPFDevs {
-		// skip mezzanine card in check
-		if strings.Contains(mlx5Dev, "mezz") {
-			nodeEffectiveHCANum--
-		}
-	}
+	defer infinibandInfo.RUnlock()
+
+	lostPCI := infinibandInfo.IBLostPCIDevs
+
 	logrus.WithFields(logrus.Fields{
-		"checker": c.Name(),
-		"HCAPCINum": infinibandInfo.HCAPCINum,
+		"checker":         c.Name(),
+		"HCAPCINum":       infinibandInfo.HCAPCINum,
 		"IBCapablePCINum": infinibandInfo.IBCapablePCINum,
-		"nodeEffectiveHCANum": nodeEffectiveHCANum,
-		"spec_HCANum": c.spec.HCANum,
+		"lostPCINum":      len(lostPCI),
 	}).Infof("Start IB lost check")
 
-	if infinibandInfo.HCAPCINum != infinibandInfo.IBCapablePCINum {
-		logrus.WithFields(logrus.Fields{
-			"checker":   c.Name(),
-			"hca_pci":   infinibandInfo.HCAPCINum,
-			"cap_pci":   infinibandInfo.IBCapablePCINum,
-		}).Errorf("IBLost: HCAPCINum != IBCapablePCINum")
+	var details []string
+	var devices []string
+
+	// Condition 1: a Mellanox PF present on the PCIe bus with neither
+	// infiniband/ nor net/ — a card torn down by a firmware crash or
+	// removed from the fabric.
+	if len(lostPCI) > 0 {
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("IBLost: HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum)
-	} else if len(c.spec.IBPFDevs) > 0 && nodeEffectiveHCANum != c.spec.HCANum && infinibandInfo.HCAPCINum%2 == 1 && infinibandInfo.HCAPCINum != 1 {
-		logrus.WithFields(logrus.Fields{
-			"checker":   c.Name(),
-			"effective": nodeEffectiveHCANum,
-			"spec":      c.spec.HCANum,
-		}).Errorf("IBLost: effective HCANum != spec effective HCANum")
-		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("IBLost: effective HCANum != spec effective HCANum(%d != %d)", nodeEffectiveHCANum, c.spec.HCANum)
+		bdfs := sortedKeys(lostPCI)
+		devices = append(devices, bdfs...)
+		details = append(details, fmt.Sprintf("phantom HCA PCIe function(s) with no infiniband/ and no net/: %s", strings.Join(bdfs, ",")))
 	}
+
+	// Condition 2 (legacy hardware cross-check): PF count vs RDMA-capable
+	// PCIe count. Rarely differs now that the collector aligns them, kept as
+	// a safety net.
+	if infinibandInfo.HCAPCINum != infinibandInfo.IBCapablePCINum {
+		result.Status = consts.StatusAbnormal
+		details = append(details, fmt.Sprintf("HCAPCINum != IBCapablePCINum(%d != %d)", infinibandInfo.HCAPCINum, infinibandInfo.IBCapablePCINum))
+	}
+
 	if result.Status == consts.StatusAbnormal {
+		result.Device = strings.Join(devices, ",")
+		result.Detail = "IBLost: " + strings.Join(details, "; ")
 		result.Detail += "\nIBCapablePCIDevs: "
 		for pciDev := range infinibandInfo.IBPCIDevs {
 			result.Detail += pciDev + ","
@@ -95,7 +100,19 @@ func (c *IBLostChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 		for ibDev := range infinibandInfo.IBPFDevs {
 			result.Detail += ibDev + ","
 		}
+		logrus.WithFields(logrus.Fields{
+			"checker": c.Name(),
+			"detail":  result.Detail,
+		}).Errorf("IBLost detected")
 	}
-	infinibandInfo.RUnlock()
 	return &result, nil
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

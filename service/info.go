@@ -39,6 +39,7 @@ type nodeAnnotation struct {
 	Dmesg       map[string][]*annotation `json:"dmesg"`
 	Transceiver map[string][]*annotation `json:"transceiver"`
 	LLDP        map[string][]*annotation `json:"lldp"`
+	OVS         map[string][]*annotation `json:"ovs"`
 }
 
 func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
@@ -115,6 +116,8 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 		return a.Transceiver, nil
 	case consts.ComponentNameLLDP:
 		return a.LLDP, nil
+	case consts.ComponentNameOVS:
+		return a.OVS, nil
 	}
 	return nil, fmt.Errorf("input item %s is not supported", item)
 }
@@ -146,6 +149,8 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 		a.Transceiver = annotations
 	case consts.ComponentNameLLDP:
 		a.LLDP = annotations
+	case consts.ComponentNameOVS:
+		a.OVS = annotations
 	}
 	return nil
 }

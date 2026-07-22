@@ -96,3 +96,16 @@ transceiver:
 #   cache_size: 5
 #   lldpctl_path: ""        # leave empty to resolve from $PATH
 #   exec_timeout: 10s
+
+sysinfo:
+  enable: true
+  base_url: ""            # empty → derived from SICHEK_SPEC_URL (strip /specs)
+  query_interval: 24h
+  timeout: 60s
+  sources:
+    - name: os_config
+      path: scripts/os/collect-config.sh
+    # future collectors: append entries, e.g.
+    # - name: gpu_config
+    #   path: scripts/gpu/collect-gpu.sh
+    #   interval: 12h

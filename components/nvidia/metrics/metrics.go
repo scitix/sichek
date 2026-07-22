@@ -87,6 +87,7 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 		m.NvidiaDeviceGauge.ExportStruct(device.Power, []string{deviceIdx}, TagPrefix)
 		m.NvidiaDeviceGauge.ExportStruct(device.Temperature, []string{deviceIdx}, TagPrefix)
 		m.NvidiaDeviceGauge.ExportStruct(device.Utilization, []string{deviceIdx}, TagPrefix)
+		m.NvidiaDeviceGauge.ExportStruct(device.MemoryUsage, []string{deviceIdx}, TagPrefix)
 		m.NvidiaDeviceGauge.ExportStruct(device.NVLinkStates, []string{deviceIdx}, TagPrefix)
 		if device.ClockEvents.IsSupported {
 			m.NvidiaDeviceGauge.SetMetric("gpu_idle", []string{deviceIdx}, utils.ParseBoolToFloat(device.ClockEvents.GpuIdle))

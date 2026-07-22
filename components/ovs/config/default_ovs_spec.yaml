@@ -1,0 +1,21 @@
+ovs:
+  bridge_prefix: "br-rail"
+  num_rails: 8
+  ports_per_bridge: 5
+  min_flows: 18
+  expected_group_ids: [10, 20, 21, 22, 23, 30, 31, 32, 33]
+  datapath_type: "netdev"
+  other_config:
+    doca-init: "true"
+    hw-offload: "true"
+    hw-offload-ct-size: "0"
+    max-idle: "300000"
+    doca-eswitch-max: "4"
+  required_packages:
+    - doca-openvswitch-switch
+    - doca-openvswitch-common
+    - collectx-clxapi
+    - libnvhws1
+  coverage_events:
+    - flow_offload_200ms_latency
+    - doca_datapath_drop_upcall_error

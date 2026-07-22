@@ -243,3 +243,113 @@ func TestGetPCIETreeLinksByBDF(t *testing.T) {
 		})
 	}
 }
+
+// writeFile writes content to dir/name, creating parents.
+func writeFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	p := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// symlinkDriver creates <dir>/<bdf>/driver as a symlink to drv. The target
+// need not exist as a real path; the collector only reads the symlink's
+// basename via os.Readlink.
+func symlinkDriver(t *testing.T, dir, bdf, drv string) {
+	t.Helper()
+	devDir := filepath.Join(dir, bdf)
+	if err := os.MkdirAll(devDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(drv, filepath.Join(devDir, "driver")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLostIBPCIeDevices(t *testing.T) {
+	root := t.TempDir()
+	withPCIPath(t, root)
+
+	// Dead HCA: mellanox, driver mlx5_core, no infiniband/, no net/, no aux -> LOST
+	writeFile(t, root, "0000:65:01.0/vendor", "0x15b3\n")
+	writeFile(t, root, "0000:65:01.0/device", "0x1021\n")
+	symlinkDriver(t, root, "0000:65:01.0", "mlx5_core")
+
+	// Healthy IB: mellanox, driver mlx5_core, has infiniband/ -> not lost
+	writeFile(t, root, "0000:67:01.0/vendor", "0x15b3\n")
+	symlinkDriver(t, root, "0000:67:01.0", "mlx5_core")
+	if err := os.MkdirAll(filepath.Join(root, "0000:67:01.0/infiniband/mlx5_2"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Management NIC: mellanox, driver mlx5_core, has net/, no infiniband/ -> not lost
+	writeFile(t, root, "0000:11:00.0/vendor", "0x15b3\n")
+	symlinkDriver(t, root, "0000:11:00.0", "mlx5_core")
+	if err := os.MkdirAll(filepath.Join(root, "0000:11:00.0/net/eth9"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// PCI bridge: mellanox vendor, driver pcieport, no infiniband, no net -> not lost (driver gate)
+	writeFile(t, root, "0000:98:00.0/vendor", "0x15b3\n")
+	symlinkDriver(t, root, "0000:98:00.0", "pcieport")
+
+	// Aux-RDMA function: mellanox, driver mlx5_core, no infiniband, no net,
+	// but has mlx5_core.rdma.* aux device -> not lost (aux gate)
+	writeFile(t, root, "0000:aa:00.0/vendor", "0x15b3\n")
+	symlinkDriver(t, root, "0000:aa:00.0", "mlx5_core")
+	if err := os.MkdirAll(filepath.Join(root, "0000:aa:00.0/mlx5_core.rdma.5"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Non-mellanox, no ib no net -> not lost
+	writeFile(t, root, "0000:22:00.0/vendor", "0x8086\n")
+
+	// Virtual function (has physfn), no ib no net -> skipped
+	writeFile(t, root, "0000:33:00.1/vendor", "0x15b3\n")
+	writeFile(t, root, "0000:33:00.1/physfn", "") // presence => VF
+
+	lost, err := GetLostIBPCIeDevices()
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"0000:65:01.0": "0x15b3:0x1021"}, lost)
+}
+
+// TestScanPCIeState_RescansFromDisk reproduces the reboot false-positive:
+// the collector must (re)derive its PCIe device sets from the current bus
+// state every time it scans, not freeze them at construction. On reboot the
+// mlx5 stack binds HCAs asynchronously, so a function can look "lost" (driver
+// bound, but infiniband/ and net/ not yet created) at the instant the collector
+// is built. A later scan, once the card finishes registering, must clear that.
+func TestScanPCIeState_RescansFromDisk(t *testing.T) {
+	root := t.TempDir()
+	withPCIPath(t, root)
+
+	// A mlx5 HCA mid-registration: vendor + driver bound, but neither
+	// infiniband/ nor net/ nor an mlx5_core.rdma.* aux device exists yet.
+	writeFile(t, root, "0000:65:01.0/vendor", "0x15b3\n")
+	writeFile(t, root, "0000:65:01.0/device", "0x1021\n")
+	symlinkDriver(t, root, "0000:65:01.0", "mlx5_core")
+
+	info := &InfinibandInfo{}
+	info.scanPCIeState()
+
+	// First scan (construction-time view): the half-registered card looks lost
+	// and is not yet RDMA-capable.
+	assert.Contains(t, info.IBLostPCIDevs, "0000:65:01.0", "half-registered HCA should scan as lost initially")
+	assert.Equal(t, 0, info.IBCapablePCINum, "no infiniband/ yet -> not RDMA-capable")
+
+	// The card finishes registering: its infiniband/ directory appears.
+	if err := os.MkdirAll(filepath.Join(root, "0000:65:01.0/infiniband/mlx5_0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// A subsequent scan must reflect the new state, not the frozen one.
+	info.scanPCIeState()
+
+	assert.NotContains(t, info.IBLostPCIDevs, "0000:65:01.0", "re-scan must clear a card that finished registering")
+	assert.Equal(t, 1, info.IBCapablePCINum, "re-scan must count the now RDMA-capable card")
+	assert.Contains(t, info.IBPCIDevs, "0000:65:01.0", "re-scan must refresh IBPCIDevs from disk")
+}
