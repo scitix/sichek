@@ -48,6 +48,7 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 		config.RemmapedRowsFailureCheckerName:       remap.NewRemmapedRowsFailureChecker,
 		config.RemmapedRowsUncorrectableCheckerName: remap.NewRemmapedRowsUncorrectableChecker,
 		config.RemmapedRowsPendingCheckerName:       remap.NewRemmapedRowsPendingChecker,
+		config.GpuRecoveryActionCheckerName:         NewGpuRecoveryActionChecker,
 	}
 
 	ignoredSet := make(map[string]struct{})

@@ -680,6 +680,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	clockEvents := make(map[string]string)
 	eccEvents := make(map[string]string)
 	remmapedRowsEvents := make(map[string]string)
+	recoveryActionEvents := make(map[string]string)
 	// softErrorsEvents   := make(map[string]string)
 	for _, result := range checkerResults {
 		if result.Status == consts.StatusAbnormal {
@@ -841,6 +842,12 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			} else {
 				remmapedRowsEvents[config.RemmapedRowsPendingCheckerName] = fmt.Sprintf("%sRemmaped Rows Pending Found\n%s%s", errColor, result.Detail, consts.Reset)
 			}
+		case config.GpuRecoveryActionCheckerName:
+			if result.Status == consts.StatusNormal {
+				recoveryActionEvents[config.GpuRecoveryActionCheckerName] = fmt.Sprintf("%sNo GPU Reset Required%s", consts.Green, consts.Reset)
+			} else {
+				recoveryActionEvents[config.GpuRecoveryActionCheckerName] = fmt.Sprintf("%sGPU Recovery Action Required\n%s%s", errColor, result.Detail, consts.Reset)
+			}
 		}
 	}
 	if summaryPrint {
@@ -887,6 +894,12 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	fmt.Println("Remapped Rows:")
 	for _, v := range remmapedRowsEvents {
 		fmt.Printf("\t%s\n", v)
+	}
+	if len(recoveryActionEvents) > 0 {
+		fmt.Println("GPU Recovery Action:")
+		for _, v := range recoveryActionEvents {
+			fmt.Printf("\t%s\n", v)
+		}
 	}
 	return checkAllPassed
 }

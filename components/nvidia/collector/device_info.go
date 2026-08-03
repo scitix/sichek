@@ -44,7 +44,10 @@ type DeviceInfo struct {
 	NVLinkStates  NVLinkStates    `json:"nvlink_state" yaml:"nvlink_state"`
 	MemoryErrors  MemoryErrors    `json:"ecc_event" yaml:"ecc_event"`
 	NProcess      int             `json:"nprocess" yaml:"nprocess"`
-	PartialErrors []string        `json:"partial_errors,omitempty" yaml:"partial_errors,omitempty"`
+	// RecoveryAction is the driver-reported "GPU Recovery Action" (e.g. None/Reset/
+	// Reboot/Drain and Reset). Empty when the running driver predates the field.
+	RecoveryAction string   `json:"recovery_action,omitempty" yaml:"recovery_action,omitempty"`
+	PartialErrors  []string `json:"partial_errors,omitempty" yaml:"partial_errors,omitempty"`
 }
 
 func (deviceInfo *DeviceInfo) JSON() ([]byte, error) {
@@ -171,6 +174,12 @@ func (deviceInfo *DeviceInfo) Get(device nvml.Device, index int, driverVersion s
 	if err2 != nil {
 		deviceInfo.PartialErrors = append(deviceInfo.PartialErrors, fmt.Sprintf("failed to get nvlink states: %v", err2))
 	}
+
+	// Get the driver-reported GPU recovery action (reset/reboot required). Parsed
+	// from nvidia-smi because go-nvml lacks a recovery-action API. A missing field
+	// (older drivers) or a probe error yields "" and is treated as healthy, so it
+	// never marks an otherwise-collectable GPU as unavailable.
+	deviceInfo.RecoveryAction = getRecoveryAction(index)
 
 	// Get the number of processes using the GPU
 	processInfo, err := device.GetComputeRunningProcesses()

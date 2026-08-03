@@ -43,6 +43,7 @@ const (
 	NvlsErrorCheckerName                 = "NVLSError"
 	IBGDACheckerName                     = "ibgda"
 	P2PCheckerName                       = "p2p_topo"
+	GpuRecoveryActionCheckerName         = "gpu-recovery-action"
 )
 
 // GPUCheckItems is a map of check items for GPU
@@ -181,6 +182,15 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Detail:      "No pending remapped rows found",
 		ErrorName:   "RemmapedRowsPending",
 		Suggestion:  "Reset the GPU device",
+	},
+	GpuRecoveryActionCheckerName: {
+		Name:        GpuRecoveryActionCheckerName,
+		Description: "Check if any Nvidia GPU is flagged by the driver as needing a recovery action (reset/reboot)",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelCritical,
+		Detail:      "No GPU recovery action required",
+		ErrorName:   "GpuRecoveryActionRequired",
+		Suggestion:  "Cordon the node and reset (or reboot) the flagged GPU; if it recurs, replace the GPU device",
 	},
 	RemmapedRowsFailureCheckerName: {
 		Name:        RemmapedRowsFailureCheckerName,
