@@ -52,9 +52,14 @@ func (c *SignalIntegrityChecker) Check(ctx context.Context, data any) (*common.C
 	result := &common.CheckerResult{
 		Name:        tmpl.Name,
 		Description: tmpl.Description,
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelInfo,
-		Curr:        "OK",
+		// ErrorName is set unconditionally (not only on the abnormal path) so the
+		// Prometheus exporter, which keys reset-then-set on Item+"_"+ErrorName,
+		// clears a previously-set abnormal series once the check recovers. A blank
+		// ErrorName on the healthy path leaves the stale series stuck at 1 forever.
+		ErrorName: tmpl.ErrorName,
+		Status:    consts.StatusNormal,
+		Level:     consts.LevelInfo,
+		Curr:      "OK",
 	}
 
 	var abnormalDevices []string
@@ -72,7 +77,6 @@ func (c *SignalIntegrityChecker) Check(ctx context.Context, data any) (*common.C
 		if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
 			result.Level = itemLevel
 		}
-		result.ErrorName = tmpl.ErrorName
 
 		dev := module.IBDev
 		if dev == "" {

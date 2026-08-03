@@ -43,9 +43,13 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 	result := &common.CheckerResult{
 		Name:        tmpl.Name,
 		Description: tmpl.Description,
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelInfo,
-		Curr:        "OK",
+		// ErrorName is set unconditionally so the Prometheus exporter (which keys
+		// reset-then-set on Item+"_"+ErrorName) can clear a stale abnormal series
+		// once the check recovers; a blank ErrorName leaves it stuck at 1.
+		ErrorName: tmpl.ErrorName,
+		Status:    consts.StatusNormal,
+		Level:     consts.LevelInfo,
+		Curr:      "OK",
 	}
 
 	var abnormalDevices []string
@@ -70,7 +74,6 @@ func (c *VoltageChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
 				result.Level = itemLevel
 			}
-			result.ErrorName = tmpl.ErrorName
 			result.Detail += fmt.Sprintf(
 				"Interface %s voltage %.3f V out of range [%.3f, %.3f] V.\n",
 				module.Interface, volt, low, high,

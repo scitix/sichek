@@ -44,9 +44,13 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 	result := &common.CheckerResult{
 		Name:        tmpl.Name,
 		Description: tmpl.Description,
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelInfo,
-		Curr:        "OK",
+		// ErrorName is set unconditionally so the Prometheus exporter (which keys
+		// reset-then-set on Item+"_"+ErrorName) can clear a stale abnormal series
+		// once the check recovers; a blank ErrorName leaves it stuck at 1.
+		ErrorName: tmpl.ErrorName,
+		Status:    consts.StatusNormal,
+		Level:     consts.LevelInfo,
+		Curr:      "OK",
 	}
 
 	var abnormalDevices []string
@@ -76,7 +80,6 @@ func (c *VendorChecker) Check(ctx context.Context, data any) (*common.CheckerRes
 			if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
 				result.Level = itemLevel
 			}
-			result.ErrorName = tmpl.ErrorName
 			result.Detail += fmt.Sprintf(
 				"Interface %s vendor %q is not in the approved vendors list %v.\n",
 				module.Interface, vendor, netSpec.ApprovedVendors,

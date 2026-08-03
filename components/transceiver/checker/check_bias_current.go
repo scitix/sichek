@@ -44,9 +44,13 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 	result := &common.CheckerResult{
 		Name:        tmpl.Name,
 		Description: tmpl.Description,
-		Status:      consts.StatusNormal,
-		Level:       consts.LevelInfo,
-		Curr:        "OK",
+		// ErrorName is set unconditionally so the Prometheus exporter (which keys
+		// reset-then-set on Item+"_"+ErrorName) can clear a stale abnormal series
+		// once the check recovers; a blank ErrorName leaves it stuck at 1.
+		ErrorName: tmpl.ErrorName,
+		Status:    consts.StatusNormal,
+		Level:     consts.LevelInfo,
+		Curr:      "OK",
 	}
 
 	var abnormalDevices []string
@@ -69,7 +73,6 @@ func (c *BiasCurrentChecker) Check(ctx context.Context, data any) (*common.Check
 				if consts.LevelPriority[itemLevel] > consts.LevelPriority[result.Level] {
 					result.Level = itemLevel
 				}
-				result.ErrorName = tmpl.ErrorName
 				result.Detail += fmt.Sprintf(
 					"Interface %s lane %d bias current %.3f mA is <= 0 (laser may be off or faulty).\n",
 					module.Interface, lane, bias,
