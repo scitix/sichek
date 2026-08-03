@@ -317,6 +317,105 @@ func TestGetLostIBPCIeDevices(t *testing.T) {
 	assert.Equal(t, map[string]string{"0000:65:01.0": "0x15b3:0x1021"}, lost)
 }
 
+// TestGetLostIBPCIeDevices_UnboundHCA reproduces lmg132 (longmen-g86-132),
+// where a BlueField-3 CX7 function was physically present but gone from the
+// RDMA stack and check_ib_lost still reported PASS. Its mlx5_core probe failed
+// during boot ("probe of 0000:69:01.0 failed with error -22"), so the kernel
+// never bound a driver and sysfs has no driver symlink at all — making the
+// driver=="mlx5_core" gate skip the very "already missing at startup" case it
+// was added to catch.
+//
+// An unbound function is only treated as a lost HCA when its PCI class marks
+// it a network controller (0x0200xx Ethernet / 0x0207xx InfiniBand), so
+// unbound non-NIC functions such as bridges or passthrough stubs stay out.
+func TestGetLostIBPCIeDevices_UnboundHCA(t *testing.T) {
+	const bdf = "0000:69:01.0"
+
+	tests := []struct {
+		name string
+		// setup builds the sysfs entry for bdf under root.
+		setup    func(t *testing.T, root string)
+		wantLost bool
+	}{
+		{
+			name: "unbound ethernet-class HCA with no ib and no net is lost",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, bdf+"/vendor", "0x15b3\n")
+				writeFile(t, root, bdf+"/device", "0xa2dc\n")
+				writeFile(t, root, bdf+"/class", "0x020000\n")
+				// no driver symlink: probe failed, nothing ever bound
+			},
+			wantLost: true,
+		},
+		{
+			name: "unbound infiniband-class HCA with no ib and no net is lost",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, bdf+"/vendor", "0x15b3\n")
+				writeFile(t, root, bdf+"/device", "0x1021\n")
+				writeFile(t, root, bdf+"/class", "0x020700\n")
+			},
+			wantLost: true,
+		},
+		{
+			name: "unbound non-network class is not lost",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, bdf+"/vendor", "0x15b3\n")
+				writeFile(t, root, bdf+"/device", "0x1976\n")
+				writeFile(t, root, bdf+"/class", "0x060400\n") // PCI bridge
+			},
+			wantLost: false,
+		},
+		{
+			name: "unbound with unreadable class is not lost",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, bdf+"/vendor", "0x15b3\n")
+				writeFile(t, root, bdf+"/device", "0xa2dc\n")
+				// no class file at all -> cannot prove it is a NIC
+			},
+			wantLost: false,
+		},
+		{
+			name: "unbound ethernet-class function that still has a netdev is not lost",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, bdf+"/vendor", "0x15b3\n")
+				writeFile(t, root, bdf+"/device", "0xa2dc\n")
+				writeFile(t, root, bdf+"/class", "0x020000\n")
+				if err := os.MkdirAll(filepath.Join(root, bdf, "net", "eth7"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantLost: false,
+		},
+		{
+			name: "driver bound to something other than mlx5_core is still not lost",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, bdf+"/vendor", "0x15b3\n")
+				writeFile(t, root, bdf+"/device", "0xa2dc\n")
+				writeFile(t, root, bdf+"/class", "0x020000\n")
+				symlinkDriver(t, root, bdf, "vfio-pci")
+			},
+			wantLost: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			withPCIPath(t, root)
+			tt.setup(t, root)
+
+			lost, err := GetLostIBPCIeDevices()
+			require.NoError(t, err)
+
+			if tt.wantLost {
+				assert.Contains(t, lost, bdf, "unbound HCA must be reported as lost")
+			} else {
+				assert.NotContains(t, lost, bdf, "must not be reported as lost")
+			}
+		})
+	}
+}
+
 // TestScanPCIeState_RescansFromDisk reproduces the reboot false-positive:
 // the collector must (re)derive its PCIe device sets from the current bus
 // state every time it scans, not freeze them at construction. On reboot the

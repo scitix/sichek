@@ -121,12 +121,28 @@ func hasMlx5RdmaAux(deviceDir string) bool {
 	return false
 }
 
+// isNetworkControllerClass reports whether the PCI class code in
+// <deviceDir>/class marks the function as a network controller: 0x0200xx
+// (Ethernet) or 0x0207xx (InfiniBand). It returns false when the class cannot
+// be read, so a function we cannot positively identify as a NIC is never
+// reported as a lost HCA.
+func isNetworkControllerClass(deviceDir string) bool {
+	raw, err := os.ReadFile(filepath.Join(deviceDir, "class"))
+	if err != nil {
+		return false
+	}
+	class := strings.TrimPrefix(strings.TrimSpace(string(raw)), "0x")
+	return strings.HasPrefix(class, "0200") || strings.HasPrefix(class, "0207")
+}
+
 // GetLostIBPCIeDevices returns Mellanox PCIe functions that look like a
-// crashed/torn-down HCA: vendor 0x15b3, bound to the mlx5_core driver, not a
-// virtual function, with neither an infiniband/ nor a net/ directory, and
-// no mlx5_core.rdma.* auxiliary device. The driver gate excludes
-// Mellanox-vendor PCI bridges (driver "pcieport") and passthrough functions
-// (driver "vfio-pci") that are not HCAs. A healthy management-only Ethernet
+// crashed/torn-down HCA: vendor 0x15b3, either bound to the mlx5_core driver
+// or bound to no driver at all, not a virtual function, with neither an
+// infiniband/ nor a net/ directory, and no mlx5_core.rdma.* auxiliary device.
+// The driver gate excludes Mellanox-vendor PCI bridges (driver "pcieport")
+// and passthrough functions (driver "vfio-pci") that are not HCAs; an
+// unbound function has to look like a NIC by PCI class instead, since it has
+// no driver identity to check. A healthy management-only Ethernet
 // NIC keeps its net/ directory, so it is not reported here. A live mlx5
 // function using socket-direct/subfunction configs may expose RDMA only via
 // the auxiliary bus, so its presence also excludes the device from being
@@ -164,11 +180,24 @@ func GetLostIBPCIeDevices() (map[string]string, error) {
 			continue
 		}
 
-		// Only functions bound to the mlx5_core driver can be a lost HCA.
-		// This excludes Mellanox-vendor PCI bridges (driver "pcieport") and
-		// passthrough functions (driver "vfio-pci") that are not HCAs.
-		drv, _ := os.Readlink(filepath.Join(deviceDir, "driver"))
-		if filepath.Base(drv) != "mlx5_core" {
+		// A lost HCA is either still bound to mlx5_core (firmware crash after a
+		// successful probe) or bound to nothing at all — when mlx5_core's probe
+		// fails during boot the kernel never creates the driver symlink, which
+		// is exactly the "already missing at startup" case this function exists
+		// to catch. Any other driver means this is not an HCA we own:
+		// "pcieport" on Mellanox-vendor PCI bridges, "vfio-pci" or
+		// "uio_pci_generic" on passthrough/userspace-owned functions.
+		//
+		// The unbound case carries no driver identity, so it additionally has
+		// to look like a NIC by PCI class before we call it a lost card. That
+		// keeps unbound bridges and passthrough stubs out of the result.
+		drv, drvErr := os.Readlink(filepath.Join(deviceDir, "driver"))
+		switch {
+		case drvErr == nil && filepath.Base(drv) == "mlx5_core":
+			// Bound to our driver — a torn-down HCA.
+		case os.IsNotExist(drvErr) && isNetworkControllerClass(deviceDir):
+			// No driver bound at all — probe never succeeded.
+		default:
 			continue
 		}
 
@@ -196,7 +225,11 @@ func GetLostIBPCIeDevices() (map[string]string, error) {
 			deviceID = strings.TrimSpace(string(deviceBytes))
 		}
 		lost[pciAddr] = fmt.Sprintf("%s:%s", vendorID, deviceID)
-		logrus.WithField("component", "pci-scanner").Warnf("Detected lost/torn-down HCA at %s (vendor %s, no infiniband/ and no net/)", pciAddr, vendorID)
+		driverState := "unbound"
+		if drvErr == nil {
+			driverState = filepath.Base(drv)
+		}
+		logrus.WithField("component", "pci-scanner").Warnf("Detected lost/torn-down HCA at %s (vendor %s, driver %s, no infiniband/ and no net/)", pciAddr, vendorID, driverState)
 	}
 	return lost, nil
 }

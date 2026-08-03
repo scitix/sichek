@@ -41,6 +41,7 @@ const (
 	CheckPCIETreeSpeed = "check_pcie_tree_speed"
 	CheckPCIETreeWidth = "check_pcie_tree_width"
 	CheckIBLost        = "check_ib_lost"
+	CheckIBRailCount   = "check_ib_rail_count"
 )
 
 var InfinibandCheckItems = map[string]common.CheckerResult{
@@ -179,5 +180,13 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Detail:      "No lost IB devices: all mlx5 PCIe functions healthy and HCA counts consistent",
 		ErrorName:   "IBLost",
 		Suggestion:  "Check IB device status",
+	},
+	CheckIBRailCount: {
+		Name:        CheckIBRailCount,
+		Description: "Check if the number of compute-rail HCAs is plausible (even, or a single rail)",
+		Level:       consts.LevelCritical,
+		Detail:      "Compute-rail HCA count is plausible",
+		ErrorName:   "IBRailCountOdd",
+		Suggestion:  "An odd rail count usually means an HCA vanished from the RDMA stack; compare against the node's expected topology and check dmesg for mlx5_core probe failures",
 	},
 }
