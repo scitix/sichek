@@ -36,8 +36,6 @@ const (
 
 	CheckPCIEACS       = "check_pcie_acs"
 	CheckPCIEMRR       = "check_pcie_mrr"
-	CheckPCIESpeed     = "check_pcie_speed"
-	CheckPCIEWidth     = "check_pcie_width"
 	CheckPCIETreeSpeed = "check_pcie_tree_speed"
 	CheckPCIETreeWidth = "check_pcie_tree_width"
 	CheckIBLost        = "check_ib_lost"
@@ -116,22 +114,6 @@ var InfinibandCheckItems = map[string]common.CheckerResult{
 		Detail:      "PCIe MRR is set correctly (4096)",
 		ErrorName:   "PCIEMRRIncorrect",
 		Suggestion:  "Set MRR to 4096 via system config",
-	},
-	CheckPCIESpeed: {
-		Name:        CheckPCIESpeed,
-		Description: "Check if PCIe link speed is optimal",
-		Level:       consts.LevelCritical,
-		Detail:      "PCIe speed matches device spec",
-		ErrorName:   "PCIELinkSpeedDownDegraded",
-		Suggestion:  "Ensure PCIe slot and firmware support correct speed",
-	},
-	CheckPCIEWidth: {
-		Name:        CheckPCIEWidth,
-		Description: "Check if PCIe link width is optimal",
-		Level:       consts.LevelCritical,
-		Detail:      "PCIe width matches device spec",
-		ErrorName:   "PCIELinkWidthIncorrect",
-		Suggestion:  "Verify PCIe lane configuration in BIOS",
 	},
 	CheckPCIETreeSpeed: {
 		Name:        CheckPCIETreeSpeed,

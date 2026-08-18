@@ -375,8 +375,21 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		// throughPrint        string
 		// latencyPrint     string
 	)
-	pcieGen := ""
-	pcieWidth := ""
+	// PCIe current gen/width are informational and read straight from the
+	// collector snapshot. The pass/fail judgment lives in check_pcie_tree_speed
+	// / check_pcie_tree_width, which compare against the real per-link
+	// negotiable ceiling min(parent,child max_link_*) rather than a fixed spec
+	// value — so a card capped by a slower host slot is shown, not flagged.
+	var pcieSpeeds, pcieWidths []string
+	ibInfo.RLock()
+	for _, hw := range ibInfo.IBHardWareInfo {
+		pcieSpeeds = append(pcieSpeeds, hw.PCIESpeed)
+		pcieWidths = append(pcieWidths, hw.PCIEWidth)
+	}
+	ibInfo.RUnlock()
+	pcieGen := common.ExtractAndDeduplicate(strings.Join(pcieSpeeds, ","))
+	pcieWidth := common.ExtractAndDeduplicate(strings.Join(pcieWidths, ","))
+	pcieStatusColor := consts.Green
 
 	infinibandEvents := make(map[string]string)
 	ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", consts.Green, ibInfo.IBSoftWareInfo.OFEDVer, consts.Reset)
@@ -417,10 +430,12 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				ibState = "Not All Active"
 			}
 			ibStatePrint = fmt.Sprintf("IB State: %s%s%s", statusColor, ibState, consts.Reset)
-		case config.CheckPCIESpeed:
-			pcieGen = fmt.Sprintf("%s%s%s", statusColor, common.ExtractAndDeduplicate(result.Curr), consts.Reset)
-		case config.CheckPCIEWidth:
-			pcieWidth = fmt.Sprintf("%s%s%s", statusColor, common.ExtractAndDeduplicate(result.Curr), consts.Reset)
+		case config.CheckPCIETreeSpeed, config.CheckPCIETreeWidth:
+			// Colour the PCIe Link line by the host-aware tree checkers: red
+			// only on a genuine per-link degradation below the negotiable cap.
+			if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
+				pcieStatusColor = consts.LevelColor(result.Level)
+			}
 		case config.CheckIBDevs:
 			ibControllersPrintColor = statusColor
 		case config.CheckRoCE:
@@ -442,7 +457,7 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		}
 	}
 	if pcieGen != "" && pcieWidth != "" {
-		pcieLinkPrint = fmt.Sprintf("PCIe Link: %s%s (x%s)%s", consts.Green, pcieGen, pcieWidth, consts.Reset)
+		pcieLinkPrint = fmt.Sprintf("PCIe Link: %s%s (x%s)%s", pcieStatusColor, pcieGen, pcieWidth, consts.Reset)
 	} else {
 		pcieLinkPrint = fmt.Sprintf("PCIe Link: %sError Detected%s", consts.Red, consts.Reset)
 	}

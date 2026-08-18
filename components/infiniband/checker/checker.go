@@ -36,8 +36,6 @@ func NewCheckers(cfg *config.InfinibandUserConfig, spec *config.InfinibandSpec) 
 		config.CheckIBPhyState:  NewIBPhyStateChecker,
 		config.CheckIBPortSpeed: NewIBPortSpeedChecker,
 		config.CheckPCIEMRR:     NewPCIEMRRChecker,
-		config.CheckPCIESpeed:   NewIBPCIESpeedChecker,
-		config.CheckPCIEWidth:   NewIBPCIEWidthChecker,
 		config.CheckIBKmod:      NewIBKmodChecker,
 		config.CheckIBDevs:      NewIBDevsChecker,
 		config.CheckIBDriver:    NewIBDriverChecker,
