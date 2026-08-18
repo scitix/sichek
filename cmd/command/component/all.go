@@ -29,6 +29,7 @@ import (
 	"github.com/scitix/sichek/components/ethernet"
 	"github.com/scitix/sichek/components/gpfs"
 	gpuevents "github.com/scitix/sichek/components/gpuevents"
+	"github.com/scitix/sichek/components/gpuprobe"
 	"github.com/scitix/sichek/components/infiniband"
 	"github.com/scitix/sichek/components/lldp"
 	"github.com/scitix/sichek/components/nvidia"
@@ -97,7 +98,12 @@ func NewAllCmd() *cobra.Command {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
 					continue
 				}
-				if !slices.Contains(consts.DefaultComponents, componentName) {
+				// Config-driven runs (no -E) are gated to DefaultComponents, which also
+				// leaves pseudo-keys like nccltest/pcie_topo in componentsToCheck for the
+				// after-loop special cases below. An explicit -E list is honored as-is so
+				// opt-in components (e.g. gpuprobe) can run; unknown -E names fail
+				// NewComponent and are skipped.
+				if len(enableComponents) == 0 && !slices.Contains(consts.DefaultComponents, componentName) {
 					continue
 				}
 				wg.Add(1)
@@ -182,6 +188,11 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing Nvidia GPU HealthCheck")
 		}
 		return nvidia.NewComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameGPUProbe:
+		if !utils.IsNvidiaGPUExist() {
+			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing GpuProbe HealthCheck")
+		}
+		return gpuprobe.NewComponent(cfgFile, specFile)
 	case consts.ComponentNamePodlog:
 		if !utils.IsNvidiaGPUExist() {
 			return nil, fmt.Errorf("nvidia GPU is not Exist. Bypassing PodLog HealthCheck")

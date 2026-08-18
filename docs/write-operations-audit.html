@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sichek · 定时监控中的写操作审计</title>
+<style>
+  :root {
+    --paper: #f6f3ec;
+    --card: #fffdf8;
+    --ink: #1b2733;
+    --ink-soft: #4a5a68;
+    --ink-faint: #8294a3;
+    --line: #ddd5c4;
+    --line-soft: #e9e3d5;
+    --navy: #10202f;
+    --navy-2: #16293c;
+    --teal: #0e7c6b;
+    --teal-soft: #e3efeb;
+    --crit: #c2402a;
+    --crit-bg: #faece8;
+    --warn: #a8730b;
+    --warn-bg: #faf2dd;
+    --info: #2563a8;
+    --info-bg: #e8f0f9;
+    --mono: "SFMono-Regular", "JetBrains Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body { font-family: var(--sans); background: var(--paper); color: var(--ink); line-height: 1.7; font-size: 15px; }
+
+  header {
+    background:
+      linear-gradient(rgba(16,32,47,.92), rgba(16,32,47,.96)),
+      repeating-linear-gradient(0deg, transparent 0 39px, rgba(255,255,255,.05) 39px 40px),
+      repeating-linear-gradient(90deg, transparent 0 39px, rgba(255,255,255,.05) 39px 40px),
+      var(--navy);
+    color: #e9eef3;
+    padding: 56px 24px 48px;
+    position: relative; overflow: hidden;
+  }
+  header::after {
+    content: ""; position: absolute; right: -120px; top: -120px;
+    width: 380px; height: 380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(194,64,42,.30), transparent 65%);
+    pointer-events: none;
+  }
+  .hwrap { max-width: 1080px; margin: 0 auto; position: relative; z-index: 1; }
+  .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #e8a692; margin-bottom: 14px; }
+  header h1 { font-size: 30px; font-weight: 700; letter-spacing: .01em; margin-bottom: 12px; }
+  header p.sub { color: #b7c4cf; max-width: 860px; font-size: 14.5px; }
+  .meta { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; font-family: var(--mono); font-size: 12px; }
+  .meta span { border: 1px solid rgba(255,255,255,.22); border-radius: 999px; padding: 3px 12px; color: #cdd8e1; }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 40px 24px 96px; }
+  section { margin-bottom: 56px; }
+  h2 { font-size: 21px; margin-bottom: 6px; padding-top: 8px; }
+  h2 .no { font-family: var(--mono); color: var(--crit); margin-right: 8px; font-size: 17px; }
+  .lede { color: var(--ink-soft); margin-bottom: 20px; max-width: 900px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px; margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(27,39,51,.04);
+  }
+  .card h3 { font-size: 16.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h3 .idx { font-family: var(--mono); color: #fff; background: var(--crit); border-radius: 6px; font-size: 12.5px; padding: 1px 8px; }
+  .card h3 .idx.softidx { background: var(--info); }
+  .card h3 .idx.grayidx { background: var(--ink-faint); }
+  .card .sub { color: var(--ink-faint); font-size: 13px; margin-bottom: 14px; font-family: var(--mono); }
+
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 10px; vertical-align: 1px; }
+  .b-crit { color: var(--crit); background: var(--crit-bg); border: 1px solid #ecc5bb; }
+  .b-warn { color: var(--warn); background: var(--warn-bg); border: 1px solid #e8d5a8; }
+  .b-info { color: var(--info); background: var(--info-bg); border: 1px solid #c3d6ec; }
+  .b-teal { color: var(--teal); background: var(--teal-soft); border: 1px solid #bcd9d1; }
+  .b-gray { color: var(--ink-soft); background: #eef0ee; border: 1px solid #d7dbd7; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 14px 0 6px; background: var(--card); }
+  th, td { border: 1px solid var(--line-soft); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f0ece1; font-size: 12.5px; letter-spacing: .04em; color: var(--ink-soft); white-space: nowrap; }
+  td code, li code, p code { font-family: var(--mono); font-size: 12.5px; background: #f0ece1; border-radius: 4px; padding: 1px 5px; }
+  .tblwrap { overflow-x: auto; }
+
+  pre {
+    font-family: var(--mono); font-size: 12.8px; line-height: 1.6;
+    background: var(--navy-2); color: #d8e4ee; border-radius: 8px;
+    padding: 14px 18px; overflow-x: auto; margin: 12px 0;
+  }
+  pre .c { color: #7d93a6; }
+  pre .hl { color: #f0b8a8; }
+  pre .g { color: #8fd6c5; }
+
+  ul.plain { margin: 10px 0 4px 20px; }
+  ul.plain li { margin-bottom: 7px; }
+  .kv { font-family: var(--mono); font-size: 12.5px; color: var(--ink-faint); }
+
+  .callout { border-left: 4px solid var(--crit); background: var(--crit-bg); border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 16px 0; }
+  .callout.info { border-color: var(--info); background: var(--info-bg); }
+  .callout.warn { border-color: var(--warn); background: var(--warn-bg); }
+  .callout.teal { border-color: var(--teal); background: var(--teal-soft); }
+  .callout b { display: block; margin-bottom: 4px; }
+
+  nav.toc {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; margin-bottom: 42px; font-size: 14px;
+  }
+  nav.toc b { display:block; font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
+  nav.toc a { color: var(--navy); text-decoration: none; }
+  nav.toc a:hover { color: var(--teal); }
+  nav.toc ol { margin-left: 20px; }
+  nav.toc li { margin: 3px 0; }
+
+  .statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 22px 0 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .stat .n { font-size: 30px; font-weight: 700; font-family: var(--mono); line-height: 1.2; }
+  .stat .n.red { color: var(--crit); }
+  .stat .n.blue { color: var(--info); }
+  .stat .n.teal { color: var(--teal); }
+  .stat .n.gray { color: var(--ink-faint); }
+  .stat .t { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+
+  footer { border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; text-align: center; padding: 26px 16px 40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="kicker">SICHEK · WRITE-OPERATIONS AUDIT</div>
+    <h1>定时监控中的写操作审计 —— sichek 到底改了节点什么</h1>
+    <p class="sub">
+      sichek 的设计契约是「只采集 + 判断，不改变被检节点状态」。本页登记全部会改变系统状态的代码路径：
+      哪些是 daemon 每个 tick 都可能自动执行的隐式 autofix，哪些只在用户显式调用时发生，哪些有代码但当前休眠。
+      每一项给出写命令、调用链、触发条件与风险。
+    </p>
+    <div class="meta">
+      <span>审计日期 2026-07-21</span>
+      <span>分支 fix/ib-lost-startup-detection-gb300base</span>
+      <span>范围：非 vendor/ 全部 .go</span>
+      <span>前次审计 2026-07-09（docs/write-operations.md@main）</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<nav class="toc">
+  <b>目录</b>
+  <ol>
+    <li><a href="#summary">总览：写点分布</a></li>
+    <li><a href="#autofix">A 类 · 生产路径自动执行的 autofix（5 类动作 / 6 个代码触发点）</a></li>
+    <li><a href="#user">B 类 · 用户显式触发的写 / 负载注入</a></li>
+    <li><a href="#own">C 类 · daemon 自有状态写（既定职责，但有边界问题）</a></li>
+    <li><a href="#dormant">D 类 · 休眠代码（有写能力、当前无生产 caller）</a></li>
+    <li><a href="#common">共性问题</a></li>
+    <li><a href="#diff">与 2026-07-09 审计的差异（含一处更正）</a></li>
+    <li><a href="#advice">建议</a></li>
+  </ol>
+</nav>
+
+<!-- ==================== 总览 ==================== -->
+<section id="summary">
+  <h2>总览：写点分布</h2>
+  <p class="lede">
+    默认配置（<code>config/default_user_config.yaml</code>）只忽略 <code>app-clocks</code> 与 <code>net_operstate</code> 两个 checker，
+    下表 A 类的全部写点<b>默认启用</b>；nvidia / cpu / infiniband 组件的 <code>query_interval</code> 均为 10s，
+    即 daemon 模式下这些写操作<b>每 10 秒重新评估一次</b>，一旦条件命中立即执行，无开关、无 dry-run、无用户确认。
+  </p>
+
+  <div class="statgrid">
+    <div class="stat"><div class="n red">5</div><div class="t">类自动 autofix 动作（A 类，daemon 每 tick 评估）</div></div>
+    <div class="stat"><div class="n blue">3</div><div class="t">类用户显式触发（B 类：负载注入 / 部署写 / 空闲 GPU 计算自检）</div></div>
+    <div class="stat"><div class="n teal">3</div><div class="t">类 daemon 自有状态写（C 类，含 1 个边界问题）</div></div>
+    <div class="stat"><div class="n gray">3</div><div class="t">处休眠写能力（D 类，无生产 caller）</div></div>
+  </div>
+
+  <div class="tblwrap"><table>
+    <tr><th>#</th><th>动作</th><th>写入目标</th><th>触发组件（tick）</th><th>触发点</th><th>修好后上报</th></tr>
+    <tr>
+      <td>A1</td><td><b>关闭全节点 PCIe ACS</b></td><td>PCIe config space（<code>setpci ecap_acs+6.w=0</code>）</td>
+      <td>nvidia <code>pcie-acs</code> checker（10s）</td>
+      <td><code>check_dependences/pcie_acs.go:56</code></td>
+      <td><span class="badge b-crit">Normal · DisabledOnline</span></td>
+    </tr>
+    <tr>
+      <td>A2</td><td><b>改写 PCIe Max Read Request 寄存器</b></td><td>PCIe config space（<code>setpci 68.w=</code>）</td>
+      <td>infiniband collector <b>与</b> checker（10s）</td>
+      <td><code>pcie_info.go:341</code> + <code>pcie_mrr.go:108</code></td>
+      <td><span class="badge b-warn">仍报 Abnormal，但已写入</span></td>
+    </tr>
+    <tr>
+      <td>A3</td><td><b>CPU governor 强制 performance</b></td><td>sysfs <code>scaling_governor</code>（全部 CPU）</td>
+      <td>cpu <code>cpu_performance</code> checker（10s）</td>
+      <td><code>cpu_performance.go:62 → 167-174</code></td>
+      <td><span class="badge b-crit">Normal（消息拼装有 bug）</span></td>
+    </tr>
+    <tr>
+      <td>A4</td><td><b>在线加载内核模块</b></td><td><code>modprobe nvidia_peermem</code></td>
+      <td>nvidia <code>nvidia_peermem</code> checker（10s）</td>
+      <td><code>nvidia_peermem.go:62</code></td>
+      <td><span class="badge b-crit">Normal · LoadedOnline</span></td>
+    </tr>
+    <tr>
+      <td>A5</td><td><b>拉起 nvidia-persistenced 守护进程</b></td><td>root 进程 + GPU persistence mode</td>
+      <td>nvidia <code>persistenced</code> checker（10s）</td>
+      <td><code>check_gpu_persistence.go:69</code></td>
+      <td><span class="badge b-crit">Normal · EnabledOnline</span></td>
+    </tr>
+    <tr>
+      <td>B1</td><td>NCCL / IB 打流测试（占用全部 GPU / IB 带宽）</td><td>GPU、IB 链路负载</td>
+      <td><code>sichek all</code> / <code>nccltest</code> / <code>ib_perftest</code>（CLI）</td>
+      <td><code>all.go:126</code>、<code>nccl_perftest.go:277</code></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>B2</td><td>systemd 单元安装 / enable / restart</td><td><code>/etc/systemd/system</code> 等</td>
+      <td><code>sichek daemon start|update</code>（CLI）</td>
+      <td><code>daemon/start.go:53</code> 等</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>B3</td><td>在空闲 GPU 上 exec CUDA kernel 做计算自检</td><td>目标 GPU 的计算单元（短时占用）</td>
+      <td><code>sichek gpu_probe</code> / <code>-E gpuprobe</code>（CLI/daemon，默认关）</td>
+      <td><code>components/gpuprobe/collector/runner.go</code></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>C1</td><td>config/spec 下载覆写<b>生产 canonical 路径</b></td><td><code>/var/sichek/config/*</code></td>
+      <td>daemon 与<b>一次性 CLI 均会</b></td>
+      <td><code>common/spec.go</code>、<code>httpclient.go:127,218</code></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>C2</td><td>K8s node annotation <code>scitix.ai/sichek</code></td><td>K8s API</td><td>daemon（既定职责）</td><td>—</td><td>—</td>
+    </tr>
+    <tr>
+      <td>C3</td><td>snapshot / 栈转储 / metrics socket 清理</td><td><code>/var/sichek/data</code>、<code>/tmp</code></td><td>daemon（自有状态）</td><td>—</td><td>—</td>
+    </tr>
+    <tr>
+      <td>D1-3</td><td>EnableACS · CommandFilter 任意命令执行 · sysinfo 脚本执行（仅 main）</td><td>—</td><td>无生产 caller / 不在本分支</td><td>—</td><td>—</td>
+    </tr>
+  </table></div>
+
+  <div class="callout">
+    <b>最重要的一条结论</b>
+    A 类 5 处 autofix 的共同行为是<b>「修好了就报 Normal」</b>——上层（K8s annotation、Prometheus、snapshot）只能看到
+    <code>DisabledOnline / LoadedOnline / EnabledOnline</code> 这类字符串，<b>看不到任何"发生过一次写操作"的事件</b>。
+    换句话说：sichek 每 10 秒可能悄悄改 PCIe 寄存器、内核模块和 CPU 调频策略，且平台侧默认无感知。
+  </div>
+</section>
+
+<!-- ==================== A 类 ==================== -->
+<section id="autofix">
+  <h2>A 类 · 生产路径自动执行的 autofix</h2>
+  <p class="lede">
+    以下 5 类动作全部挂在 collector / checker 上，daemon 每 tick（10s）与每次一次性 <code>HealthCheck</code> 都会重新评估。
+    共同特征：<b>判定即修复</b>，没有开关、没有 spec 守卫、没有 dry-run，全部以 daemon 的 root 权限执行。
+  </p>
+
+  <!-- A1 -->
+  <div class="card">
+    <h3><span class="idx">A1</span> 关闭全节点所有 PCIe 设备的 ACS <span class="badge b-crit">影响面最大</span><span class="badge b-warn">上次审计误判为休眠</span></h3>
+    <div class="sub">components/nvidia/checker/check_dependences/pcie_acs.go · pkg/utils/pcie_inspect.go · 自 2025-03-21 (10ea54f) 起在生产路径</div>
+    <p>
+      nvidia 组件的 <code>pcie-acs</code> checker 每个 tick 扫描 <code>/sys/bus/pci/devices</code> 下的<b>全部 PCIe 设备</b>
+      （不限于 GPU / HCA——包括 PCIe switch、存储 NIC、任何插卡），对每个设备执行
+      <code>setpci -s &lt;BDF&gt; ecap_acs+6.w</code> 读取 ACS Control；只要发现非 <code>0000</code>，立即批量写
+      <code>setpci -v -s &lt;BDF&gt; ecap_acs+6.w=0</code> 关闭该设备 ACS。
+    </p>
+    <pre><span class="c">// pcie_acs.go:48-60（checker 主体）</span>
+enabledACS, err := utils.GetACSEnabledDevices(ctx)   <span class="c">// 扫全部 PCIe 设备</span>
+if len(enabledACS) > 0 {
+    <span class="hl">failedDevices, err := utils.BatchDisableACS(ctx, enabledACS)</span>   <span class="c">// :56 批量写</span>
+    if err == nil && len(failedDevices) == 0 {
+        result.Status = consts.StatusNormal          <span class="c">// 改完寄存器 → 报 Normal</span>
+        result.Curr   = "DisabledOnline"
+    }
+}
+
+<span class="c">// pcie_inspect.go:99（实际写命令，DisableACS 内）</span>
+output, err := ExecCommand(ctx, <span class="g">"setpci", "-v", "-s", BDF, "ecap_acs+6.w=0"</span>)</pre>
+    <p><span class="kv">调用链</span>&nbsp; nvidia HealthCheck / tick → <code>PCIeACSChecker.Check</code>（pcie_acs.go:47）→ <code>GetACSEnabledDevices</code>（pcie_inspect.go:66，逐设备 setpci 读）→ <code>BatchDisableACS</code>（:139）→ <code>DisableACS</code>（:92，写在 :99）</p>
+    <ul class="plain">
+      <li><b>影响面</b>：ACS 控制 PCIe P2P 事务的重定向与隔离。虚拟化 / VFIO 直通环境依赖 ACS 划分 IOMMU group——被 sichek 静默关闭后，设备隔离边界改变；这正是"为裸金属 GPU P2P 调优"与"多租户隔离"互相冲突的开关，不应由健康检查 agent 单方面决定。</li>
+      <li><b>静默</b>：关闭成功即报 <code>Normal / DisabledOnline</code>，只有失败才 Abnormal——即"改了但没告警"。</li>
+      <li><b>读侧噪声</b>：即使无写发生，每 tick 也会对每个 PCIe 设备各 fork 一次 <code>setpci</code> 读（数百进程 / 10s）。</li>
+    </ul>
+  </div>
+
+  <!-- A2 -->
+  <div class="card">
+    <h3><span class="idx">A2</span> 改写 IB 网卡 PCIe Max Read Request 寄存器 <span class="badge b-crit">两个触发点</span><span class="badge b-warn">可能一 tick 写 3 次</span></h3>
+    <div class="sub">components/infiniband/collector/pcie_info.go · components/infiniband/checker/pcie_mrr.go</div>
+    <p>
+      同一个写函数 <code>ModifyPCIeMaxReadRequest</code>（pcie_info.go:460，写命令在 <b>:490</b>）现在有<b>两个独立触发点</b>——
+      上次审计只记录了 collector 一处，checker 触发点为本次新增发现：
+    </p>
+    <pre><span class="c">// 触发点 ① collector：GetPCIEMRR（pcie_info.go:336-345）—— 读到 MRR≠4096 就写</span>
+if strings.Compare(mrr[0], <span class="g">"4096"</span>) != 0 {
+    <span class="hl">ModifyPCIeMaxReadRequest(bdf[0], "68", 5)</span>          <span class="c">// :341</span>
+}
+
+<span class="c">// 触发点 ② checker：PCIEMRRChecker.Check（pcie_mrr.go:101-110）—— 与 spec 不符就写</span>
+if hwInfo.PCIEMRR != hcaSpec.Hardware.PCIEMRR {
+    result.Status = consts.StatusAbnormal
+    <span class="hl">collector.ModifyPCIeMaxReadRequest(hwInfo.PCIEBDF, "68", 5)</span>   <span class="c">// :108 固定写 4096！</span>
+}
+
+<span class="c">// 写实现（pcie_info.go:460-508）：读-改-写-回读，改的是 0x68 (Device Control) 高 4 位</span>
+writeCmd := exec.Command(<span class="g">"setpci", "-s", deviceAddr, offset+".w="+writeValueStr</span>)   <span class="c">// :490</span></pre>
+    <p><span class="kv">调用链</span>&nbsp; IB HealthCheck / tick → <code>IBHardWareInfo.Collect</code> → <code>GetPCIEMRR</code>（<b>ib_hardware_info.go:120 与 :121 被调两次</b>）→ 写①；同一 tick 内 checker 再比对 spec → 写②。</p>
+    <ul class="plain">
+      <li><b>一 tick 最多写 3 次</b>：collector 双调用（:120 判长度、:121 取值）各评估一次 autofix，checker 再来一次。</li>
+      <li><b>checker 触发点与 spec 自相矛盾</b>：判断条件是 <code>curr ≠ spec.PCIEMRR</code>，但写入值硬编码 nibble <code>5</code>（= 4096B）。若某机型 spec 基线不是 4096，将进入<b>永久循环</b>：每 tick 报 Abnormal → 写 4096 → 下 tick 依旧 ≠ spec → 再写。</li>
+      <li><b>改的位比字段宽</b>：函数覆写 bit 15:12，而 MRR 只是 bit 14:12；bit 15 是 Device Control 保留位。当前实参 5（0101）bit15=0 无副作用，若日后传 8–F 会连带改动 bit 15。</li>
+      <li>MRR 影响 PCIe 读事务大小与带宽公平性——运维按存储 / 网卡混插场景调低 MRR 的节点，会被 sichek 每 10s 改回 4096。</li>
+    </ul>
+  </div>
+
+  <!-- A3 -->
+  <div class="card">
+    <h3><span class="idx">A3</span> 把全部 CPU 的 scaling_governor 强制写成 performance</h3>
+    <div class="sub">components/cpu/checker/cpu_performance.go</div>
+    <pre><span class="c">// Check（:61-62）：只要有 CPU 不在 performance 模式就写</span>
+if !cpuPerformanceEnable {
+    <span class="hl">err := setCPUMode("performance")</span>
+}
+
+<span class="c">// setCPUMode（:158-176）：遍历 /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor</span>
+f, err := os.OpenFile(file, os.O_WRONLY, 0644)     <span class="c">// :167</span>
+_, err = f.WriteString(mode)                        <span class="c">// :174</span></pre>
+    <p><span class="kv">调用链</span>&nbsp; cpu HealthCheck / tick（10s）→ <code>CPUPerfChecker.Check</code> → <code>setCPUMode("performance")</code>。</p>
+    <ul class="plain">
+      <li>覆盖运维策略：节点若有意配置 <code>ondemand</code> / <code>powersave</code>（如维修中、功耗受限），每 10s 会被改回。</li>
+      <li><b>顺带的状态 bug</b>（:69-77）：写成功且回读通过的分支里，先赋 <code>StatusNormal</code> 又立刻被 <code>StatusAbnormal</code> + "failed to set" 文案覆盖——上报语义与实际动作相反，说明该路径缺测试。</li>
+    </ul>
+  </div>
+
+  <!-- A4 -->
+  <div class="card">
+    <h3><span class="idx">A4</span> 在线 modprobe nvidia_peermem</h3>
+    <div class="sub">components/nvidia/checker/check_dependences/nvidia_peermem.go</div>
+    <pre><span class="c">// Check（:61-64）：ib_uverbs / ib_core 未持有 nvidia_peermem 就在线加载</span>
+if !usingPeermem {
+    <span class="hl">_, err := utils.ExecCommand(ctx, "modprobe", "nvidia_peermem")</span>   <span class="c">// :62</span>
+    if err == nil { result.Curr = "LoadedOnline"; result.Status = Normal }
+}</pre>
+    <ul class="plain">
+      <li>加载内核模块改变内核状态；若正处于驱动升级 / 卸载窗口，在线 modprobe 可能与运维操作互相干扰。</li>
+      <li>成功即报 Normal；nvidia config 里 <code>check_items.go</code> 中出现的 <code>modprobe</code> / <code>setpci</code> 字符串仅是 Suggestion 文案，不属于执行路径（勿混淆）。</li>
+    </ul>
+  </div>
+
+  <!-- A5 -->
+  <div class="card">
+    <h3><span class="idx">A5</span> 拉起 nvidia-persistenced 守护进程 <span class="badge b-warn">上次审计未记录</span></h3>
+    <div class="sub">components/nvidia/checker/check_gpu_persistence.go</div>
+    <pre><span class="c">// Check（:65-76）：逐 GPU 比对 persistence mode 与 spec，不一致就执行</span>
+for _, device := range nvidiaInfo.DevicesInfo {
+    if device.States.GpuPersistenceM != c.cfg.State.GpuPersistenceM {
+        <span class="hl">_, err := utils.ExecCommand(ctx, "nvidia-persistenced")</span>   <span class="c">// :69</span>
+    }
+}</pre>
+    <ul class="plain">
+      <li>该命令会以 root 启动一个<b>常驻守护进程</b>并使全部 GPU 进入 persistence mode——不是一次性的寄存器写，而是给节点添了一个 sichek 之外无人管理的进程。</li>
+      <li>循环写在 per-GPU 判定里：8 卡节点若全部不达标，会连续 exec 8 次（后 7 次因端口 / socket 已占用而失败，靠失败兜底）。</li>
+      <li>成功报 <code>Normal / EnabledOnline</code>，同样静默。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== B 类 ==================== -->
+<section id="user">
+  <h2>B 类 · 用户显式触发的写 / 负载注入</h2>
+  <p class="lede">这些不在 daemon 定时路径上，只在用户敲命令时发生；列出是因为它们同样改变节点状态（负载或系统文件），使用时需要知情。</p>
+
+  <div class="card">
+    <h3><span class="idx softidx">B1</span> <code>sichek all</code> 默认附带 NCCL 打流；<code>nccltest</code> / <code>ib_perftest</code> 注入负载</h3>
+    <div class="sub">cmd/command/component/all.go:126-134 · nccl_perftest.go · ib_perftest.go · components/infiniband/perftest/</div>
+    <ul class="plain">
+      <li><code>sichek all</code> 在组件检查后会自动跑一轮 <code>all_reduce</code>（buffer 2G，<code>bash</code> 执行 nccl-tests，all.go:128），<b>占用节点全部 GPU</b>。在有训练任务的节点上执行一次性巡检时会与业务抢卡。</li>
+      <li><code>sichek ib_perftest</code> 走 <code>sh -c ib_write_bw/ib_read_bw ...</code>（local_ibtest.go），对 IB 链路打满带宽。</li>
+      <li>daemon 定时路径<b>不会</b>触发这两者（已核实 cmd/command/daemon、service/ 无引用）。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="idx softidx">B2</span> <code>sichek daemon start|update</code> 安装 systemd 资产并 restart</h3>
+    <div class="sub">cmd/command/daemon/start.go:53 · update.go:53 · systemd/systemd.go:49-81 · pkg/systemd/systemd.go:106-151</div>
+    <ul class="plain">
+      <li>写 <code>/etc/systemd/system/sichek.service</code>、env 文件、logrotate 配置；执行 <code>systemctl enable / daemon-reload / restart / stop</code>。</li>
+      <li>属部署意图内的写操作，风险点仅在与 DaemonSet 共存时：节点重启后 initContainer 会用镜像版覆盖手动安装的二进制（现场已多次踩坑）。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="idx softidx">B3</span> <code>gpuprobe</code> 在<b>空闲</b> GPU 上 exec CUDA kernel 做计算自检 <span class="badge b-gray">默认关</span></h3>
+    <div class="sub">components/gpuprobe/collector/runner.go · gating.go · probe/gpu_probe.cu</div>
+    <ul class="plain">
+      <li>不在 <code>consts.DefaultComponents</code> 里，daemon / <code>sichek all</code> 不会自动跑；只有用户显式 <code>sichek gpu_probe</code> 或 <code>-E gpuprobe</code> 才会加载并执行。</li>
+      <li>空闲门控 + 探针自查双防线：collector 先核实目标 GPU 无计算进程、显存空闲率与利用率达标（<code>min_free_mem_pct</code> / <code>max_gpu_util_pct</code>），判定忙的卡直接跳过、绝不 exec；探针自身在 CUDA 层再做一次同类判定，命中忙/OOM 时以 SKIP 退出而不是抢占。忙卡全程不碰。</li>
+      <li>即使命中空闲，也是短时占用（一次 kernel launch + 校验，`probe_timeout_sec` 兜底强杀），不同于 B1 的全带宽打流。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== C 类 ==================== -->
+<section id="own">
+  <h2>C 类 · daemon 自有状态写</h2>
+  <p class="lede">属既定职责、不算违背契约，列出是为了画清信任边界；其中 C1 有一个已在现场造成过事故的边界问题。</p>
+
+  <div class="card">
+    <h3><span class="idx softidx">C1</span> config / spec 下载会覆写生产 canonical 路径 <span class="badge b-warn">一次性 CLI 也会写</span></h3>
+    <div class="sub">components/common/spec.go:299-351,428 · pkg/httpclient/httpclient.go:127,218</div>
+    <ul class="plain">
+      <li><code>EnsureSpecFile</code> 的落盘目标始终是 <code>/var/sichek/config/...</code>：即使跑的是<b>一次性</b> <code>sichek i -s 自定义spec</code>，也会把生产机上的 canonical spec / config 覆写掉（daemon 下个周期的 config-sync 会自愈，但存在窗口）。</li>
+      <li><code>saveSpecURLToConfig</code>（httpclient.go:127）会把探测到的 spec URL 写回 config 文件——读操作（探测）带出了写副作用。</li>
+      <li>现场规避：测试时用 <code>SICHEK_CONFIG_DIR=/tmp/...</code> 隔离。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="idx softidx">C2</span> K8s node annotation <code>scitix.ai/sichek</code></h3>
+    <div class="sub">daemon → K8s API</div>
+    <p>集群集成的核心输出，属设计内写操作。（另有已修的启动对账问题：重启后残留旧告警，branch fix/annotation-stale-after-reboot。）</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="idx softidx">C3</span> 本地运行状态文件</h3>
+    <div class="sub">service/snapshot.go:145-150 · service/signal.go:124-134 · metrics/prometheus.go:147</div>
+    <p>snapshot 原子写 <code>/var/sichek/data/snapshot.json</code>；收到信号时把 goroutine 栈转储写 <code>/tmp/sichek.&lt;pid&gt;.stacks.log</code>；metrics 启动时清理残留 unix socket。均为自有目录 / 临时文件。</p>
+  </div>
+</section>
+
+<!-- ==================== D 类 ==================== -->
+<section id="dormant">
+  <h2>D 类 · 休眠代码（有写能力、当前无生产 caller）</h2>
+
+  <div class="card">
+    <h3><span class="idx grayidx">D1</span> EnableACS / DisableAllACS</h3>
+    <div class="sub">pkg/utils/pcie_inspect.go:111,169</div>
+    <p><code>EnableACS</code>（<code>setpci ecap_acs+6.w=f</code>）仅被测试调用；<code>DisableAllACS</code> 零 caller。注意与 A1 区分：<b>同文件里的 <code>BatchDisableACS</code> 是活的</b>。</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="idx grayidx">D2</span> eventfilter CommandFilter —— 可执行任意配置命令</h3>
+    <div class="sub">components/common/eventfilter/cmdfilter.go:87-106</div>
+    <p>按配置执行任意 <code>exec.Command</code> 并把输出截断写入 <code>/tmp/sichek.&lt;cmd&gt;.log</code>。当前只有测试调用；若日后接入事件规则，等于给配置文件开了命令执行口子，需要按代码变更的严格度评审。</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="idx grayidx">D3</span> sysinfo：下载脚本并以 root 执行（仅 main 分支）</h3>
+    <div class="sub">components/sysinfo/collector/collector.go（main）· 本分支无此组件</div>
+    <p>main 分支的 sysinfo 组件按配置的 URL 列表下载 shell 脚本并 <code>bash</code> 执行（root），已加"仅 https"校验，但无签名 / 校验和——<code>sysinfo.sources</code> 实质是一份 root RCE 信任名单。详见 main 分支 <code>docs/write-operations.md</code> 第 4 节。</p>
+  </div>
+</section>
+
+<!-- ==================== 共性 ==================== -->
+<section id="common">
+  <h2>共性问题</h2>
+  <div class="callout warn">
+    <b>五个 A 类写点的共同模式</b>
+    <ul class="plain">
+      <li><b>判定即修复</b>：把"修复"写进了 collector / checker，没有独立的 remediation 层。</li>
+      <li><b>无任何守卫</b>：没有全局 autofix 开关、没有 per-checker 开关、没有 dry-run、spec 里也没有对应字段。</li>
+      <li><b>修好即静默</b>：成功路径上报 Normal（<code>*Online</code> 后缀是唯一痕迹），annotation / metrics / snapshot 均无"写操作发生"事件。</li>
+      <li><b>高频重试</b>：默认 10s tick，一旦条件持续成立（如 A2 的 spec≠4096 场景）就变成周期性寄存器写。</li>
+      <li><b>root + 全集群</b>：以 DaemonSet 形式跑在每个节点上，任何误判都会被放大到集群规模。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== 差异 ==================== -->
+<section id="diff">
+  <h2>与 2026-07-09 审计的差异</h2>
+  <div class="tblwrap"><table>
+    <tr><th>条目</th><th>前次结论</th><th>本次结论</th></tr>
+    <tr>
+      <td>PCIe ACS 关闭</td>
+      <td>"仅测试调用，生产路径无人触发"（休眠）</td>
+      <td><b>更正：误判。</b><code>PCIeACSChecker</code> 自 2025-03-21 起注册在 nvidia 生产 checker 表（checker.go:31）且默认启用，经 <code>BatchDisableACS</code> 每 tick 可对全节点 PCIe 设备执行 ACS 关闭 → 升级为 A1。前次只查了 <code>DisableACS/DisableAllACS/EnableACS</code> 的 caller，漏掉了 <code>BatchDisableACS</code>。</td>
+    </tr>
+    <tr>
+      <td>PCIe MRR 改写</td>
+      <td>1 个触发点（collector GetPCIEMRR）+ 双调用</td>
+      <td>发现<b>第二个触发点</b>：checker <code>pcie_mrr.go:108</code>（且写入值与 spec 判定条件矛盾）→ A2 扩充。</td>
+    </tr>
+    <tr>
+      <td>nvidia-persistenced</td>
+      <td>未记录</td>
+      <td>新增 A5：<code>check_gpu_persistence.go:69</code> 在线拉起 root 守护进程。</td>
+    </tr>
+    <tr>
+      <td>CPU governor / nvidia_peermem</td>
+      <td>已记录</td>
+      <td>行为不变（行号更新：governor 写点现为 :167-174）。</td>
+    </tr>
+    <tr>
+      <td>sysinfo root 执行脚本</td>
+      <td>已记录（第 4 节）</td>
+      <td>组件不在本分支；main 上仍然存在，维持原结论。</td>
+    </tr>
+  </table></div>
+</section>
+
+<!-- ==================== 建议 ==================== -->
+<section id="advice">
+  <h2>建议（待决策，未实施）</h2>
+  <ul class="plain">
+    <li><b>统一 autofix 开关</b>：为 A1–A5 加全局 + per-checker 的 <code>autofix.enable</code>（默认 false），恢复"只读健康检查"缺省语义；开启时在 CheckerResult 里显式记录 "performed write: &lt;cmd&gt;"，让 annotation / metrics 可见。</li>
+    <li><b>A1 优先处理</b>：ACS 关闭影响面横跨全节点 PCIe 设备，建议先改成"只报不改"（Abnormal + Suggestion），把关 ACS 留给部署 playbook。</li>
+    <li><b>修 A2 的两个逻辑错误</b>：GetPCIEMRR 双调用改为取一次复用；checker 的写入值应取自 spec 而非硬编码 4096（或干脆移除 checker 内的写，只留判定）；<code>ModifyPCIeMaxReadRequest</code> 收窄为只改 bit 14:12。</li>
+    <li><b>修 A3 的状态上报 bug</b>（cpu_performance.go:69-77 覆写分支）。</li>
+    <li><b>B1 解绑</b>：<code>sichek all</code> 默认不跑 nccltest，改为显式 <code>--with-nccltest</code>。</li>
+    <li><b>C1 收敛</b>：一次性 CLI 带 <code>-c/-s</code> 时落盘到临时目录而非 <code>/var/sichek/config</code>。</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  sichek · 写操作审计 · 2026-07-21 · 审计范围：非 vendor/ 全部 Go 源码（分支 fix/ib-lost-startup-detection-gb300base，D3 参照 main）
+</footer>
+
+</body>
+</html>

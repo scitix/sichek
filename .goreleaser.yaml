@@ -110,6 +110,12 @@ nfpms:
         dst: /var/sichek/config/
       - src: ./scripts
         dst: /var/sichek/scripts
+      # gpuprobe active-probe binary (amd64 fatbin: sm_80/90/100/120 + compute_90 PTX).
+      # The Docker image inherits this via `dpkg -i` of the deb, so no separate COPY needed.
+      - src: ./components/gpuprobe/bin/gpu_probe.amd64
+        dst: /var/sichek/bin/gpu_probe
+        file_info:
+          mode: 0755
       - src: ./k8s/sichek/*
         dst: /var/sichek/k8s/sichek
       - src: ./sicl/*

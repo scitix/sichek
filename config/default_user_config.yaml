@@ -109,3 +109,10 @@ sysinfo:
     # - name: gpu_config
     #   path: scripts/gpu/collect-gpu.sh
     #   interval: 12h
+
+# gpuprobe is default-off (not in consts.DefaultComponents); this section only
+# lets it load when explicitly enabled via `-E gpuprobe` or `sichek gpu_probe`.
+gpuprobe:
+  query_interval: 600s
+  cache_size: 5
+  enable_metrics: true

@@ -1,4 +1,4 @@
-.PHONY: docker
+.PHONY: all goreleaser docker docker-ubuntu2004-cuda128 sichek taskguard pkg pkg-cuda130 pkg-cuda128 pkg-centos8 clean
 PROJECT_NAME := sichek
 GO := go
 INSTALL_DIR := /usr/local/bin

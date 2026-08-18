@@ -141,7 +141,10 @@ func NewDaemonRunCmd() *cobra.Command {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
 					continue
 				}
-				if !slices.Contains(consts.DefaultComponents, componentName) {
+				// Config-driven runs (no -E) are gated to DefaultComponents. An explicit
+				// -E list is honored as-is so opt-in components (e.g. gpuprobe) can run;
+				// unknown -E names fail NewComponent and are skipped below.
+				if len(usedComponentStr) == 0 && !slices.Contains(consts.DefaultComponents, componentName) {
 					continue
 				}
 				component, err := component.NewComponent(componentName, cfgFile, specFile, nil)

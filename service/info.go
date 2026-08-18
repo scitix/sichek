@@ -40,6 +40,7 @@ type nodeAnnotation struct {
 	Transceiver map[string][]*annotation `json:"transceiver"`
 	LLDP        map[string][]*annotation `json:"lldp"`
 	OVS         map[string][]*annotation `json:"ovs"`
+	GpuProbe    map[string][]*annotation `json:"gpuprobe"`
 }
 
 func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
@@ -118,6 +119,8 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 		return a.LLDP, nil
 	case consts.ComponentNameOVS:
 		return a.OVS, nil
+	case consts.ComponentNameGPUProbe:
+		return a.GpuProbe, nil
 	}
 	return nil, fmt.Errorf("input item %s is not supported", item)
 }
@@ -151,6 +154,8 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 		a.LLDP = annotations
 	case consts.ComponentNameOVS:
 		a.OVS = annotations
+	case consts.ComponentNameGPUProbe:
+		a.GpuProbe = annotations
 	}
 	return nil
 }
