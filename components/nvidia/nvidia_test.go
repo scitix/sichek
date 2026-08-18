@@ -17,12 +17,65 @@ package nvidia
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/nvidia/collector"
+	"github.com/scitix/sichek/consts"
 )
+
+func TestCheckInitError_Classification(t *testing.T) {
+	tests := []struct {
+		name          string
+		initError     error
+		wantReported  bool
+		wantErrorName string
+	}{
+		{
+			name:         "no init error",
+			initError:    nil,
+			wantReported: false,
+		},
+		{
+			name:          "nvidia-smi probe timeout maps to NvidiaSMITimeout",
+			initError:     fmt.Errorf("failed to create nvidia collector: %w", fmt.Errorf("wrap: %w", collector.ErrSWInfoProbeTimeout)),
+			wantReported:  true,
+			wantErrorName: consts.NvidiaSMITimeoutErrName,
+		},
+		{
+			name:          "generic init failure stays InitError",
+			initError:     fmt.Errorf("spec loading failed: boom"),
+			wantReported:  true,
+			wantErrorName: "InitError",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &component{componentName: consts.ComponentNameNvidia, initError: tt.initError}
+			result, ok := c.checkInitError()
+			if ok != tt.wantReported {
+				t.Fatalf("checkInitError reported=%v, want %v", ok, tt.wantReported)
+			}
+			if !tt.wantReported {
+				return
+			}
+			if len(result.Checkers) != 1 {
+				t.Fatalf("expected 1 checker result, got %d", len(result.Checkers))
+			}
+			cr := result.Checkers[0]
+			if cr.ErrorName != tt.wantErrorName || cr.Name != tt.wantErrorName {
+				t.Fatalf("ErrorName/Name = %q/%q, want %q", cr.ErrorName, cr.Name, tt.wantErrorName)
+			}
+			if cr.Level != consts.LevelCritical {
+				t.Fatalf("Level = %q, want %q", cr.Level, consts.LevelCritical)
+			}
+		})
+	}
+}
 
 func TestHealthCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

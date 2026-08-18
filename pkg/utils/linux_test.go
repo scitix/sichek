@@ -56,6 +56,34 @@ func TestExecCommandWithContext_Timeout(t *testing.T) {
 	}
 }
 
+// TestExecCommandWithContext_TimeoutKillsRunningProcess verifies that a
+// genuinely long-running command is killed when the context deadline fires and
+// that ExecCommand returns close to the deadline rather than waiting for the
+// command to finish on its own. This is the load-bearing property behind the
+// bounded nvidia-smi startup probe: a hung `nvidia-smi -q` must be terminated
+// at the probe timeout instead of blocking daemon startup indefinitely.
+func TestExecCommandWithContext_TimeoutKillsRunningProcess(t *testing.T) {
+	if IsRunningInKubernetes() {
+		t.Skip("skipping: ExecCommand routes through nsenter under Kubernetes")
+	}
+	const deadline = 300 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
+	defer cancel()
+
+	start := time.Now()
+	// `sleep 10` would run far longer than the deadline if not killed.
+	_, err := ExecCommand(ctx, "sleep", "10")
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a timeout error, got nil")
+	}
+	// Must return shortly after the deadline, not after the full sleep.
+	if elapsed > 3*time.Second {
+		t.Fatalf("ExecCommand did not return promptly after deadline: elapsed=%v (want <3s)", elapsed)
+	}
+}
+
 func TestExecCommandWithContext_CommandError(t *testing.T) {
 	ctx := context.Background()
 	command := "false" // `false` command always returns a non-zero exit status

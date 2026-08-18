@@ -343,14 +343,26 @@ func (c *component) checkInitError() (*common.Result, bool) {
 	}
 
 	logrus.WithField("component", "nvidia").Errorf("report initError: %v", c.initError)
+	// Default to the generic InitError identity. When init failed specifically
+	// because the nvidia-smi startup probe hung, report a distinct ErrorName so
+	// recovery automation can act on that condition without colliding with the
+	// actions already keyed to InitError.
+	name := "InitError"
+	description := "Nvidia component initialization failed"
+	suggestion := "Please check the initialization logs and ensure all dependencies are properly configured"
+	if errors.Is(c.initError, collector.ErrSWInfoProbeTimeout) {
+		name = consts.NvidiaSMITimeoutErrName
+		description = "nvidia-smi did not respond within the startup probe timeout; the GPU query path appears hung"
+		suggestion = "nvidia-smi is unresponsive (commonly an NVLink or driver hang). Drain the node and reset the GPUs (nvidia-smi -r) or reboot; if it persists after reset, treat it as hardware."
+	}
 	checkerResult := &common.CheckerResult{
-		Name:        "InitError",
-		Description: "Nvidia component initialization failed",
+		Name:        name,
+		Description: description,
 		Status:      consts.StatusAbnormal,
 		Level:       consts.LevelCritical,
 		Curr:        c.initError.Error(),
-		ErrorName:   "InitError",
-		Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+		ErrorName:   name,
+		Suggestion:  suggestion,
 	}
 	result := &common.Result{
 		Item:     consts.ComponentNameNvidia,

@@ -174,6 +174,24 @@ func LevelColor(level string) string {
 
 const PadLen = len(Green) + len(Reset)
 const CmdTimeout = 30 * time.Second
+
+// NvidiaSWInfoProbeTimeout bounds the `nvidia-smi -q` driver/CUDA-version probe
+// run during NVIDIA collector initialization so a hung nvidia-smi (e.g. an
+// NVLink fault stalling the query path) cannot block daemon startup for the full
+// 30s CmdTimeout. On timeout the NVIDIA component reports a Critical InitError
+// instead of holding the systemd "activating" state open indefinitely. This is a
+// bound, not the loop fix: the DaemonSet keepalive tolerating the "activating"
+// state is what actually prevents the start/kill loop, so this value only needs
+// to keep startup reasonably prompt.
+const NvidiaSWInfoProbeTimeout = 9 * time.Second
+
+// NvidiaSMITimeoutErrName is the CheckerResult Name/ErrorName reported when the
+// nvidia-smi startup probe (SoftwareInfo.Get) exceeds NvidiaSWInfoProbeTimeout.
+// It is kept distinct from the generic "InitError" so recovery automation can
+// key on this specific "nvidia-smi query path is hung" condition (annotation
+// error_name and the sichek_nvidia_<name> metric series both derive from it).
+const NvidiaSMITimeoutErrName = "NvidiaSMITimeout"
+
 const IbPerfTestTimeout = 600 * time.Second
 const AllCmdTimeout = 60 * time.Second
 const DefaultCacheLine int64 = 10000              // Default cache line number for event filter

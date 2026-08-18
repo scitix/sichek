@@ -99,10 +99,18 @@ spec:
           tail -n 100 -F /host/var/sichek/run/current/sichek.log &
           TAIL_PID=$!
           while true; do
-            if ! $HOST systemctl is-active --quiet sichek; then
-              echo "[sichek] service not active, restarting"
-              $HOST sichek d start
-            fi
+            # Only restart when the unit is genuinely down. "activating" (a slow
+            # first start, e.g. nvidia-smi probing GPUs) and "active" are healthy,
+            # so we never kill an in-progress start; systemd TimeoutStartSec=300
+            # is the backstop for a truly stuck start.
+            state=$($HOST systemctl show -p ActiveState --value sichek 2>/dev/null || true)
+            case "$state" in
+              active|activating|reloading) ;;
+              *)
+                echo "[sichek] service state='${state:-unknown}', restarting"
+                $HOST sichek d start
+                ;;
+            esac
             # Optionally restart tail if it dies, but tail -F is robust against recreation/rotation
             sleep 10
           done

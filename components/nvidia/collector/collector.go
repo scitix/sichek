@@ -27,11 +27,19 @@ import (
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/utils"
+	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/k8s"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/sirupsen/logrus"
 )
+
+// ErrSWInfoProbeTimeout marks a NewNvidiaCollector failure caused specifically
+// by the nvidia-smi startup probe exceeding consts.NvidiaSWInfoProbeTimeout
+// (i.e. the nvidia-smi query path is hung, not merely returning an error).
+// Callers use errors.Is to distinguish this from generic init failures so it can
+// be reported under a dedicated ErrorName for recovery automation.
+var ErrSWInfoProbeTimeout = errors.New("nvidia-smi startup probe timed out")
 
 type NvidiaCollector struct {
 	// only collect once as it is collected by `nvidia-smi -q -i 0`
@@ -54,8 +62,16 @@ func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expect
 	}
 	collector := &NvidiaCollector{nvmlInst: nvmlInstPtr, podResourceMapper: podResourceMapper}
 	var err error
+	// Bound the nvidia-smi driver/CUDA-version probe with a short dedicated
+	// timeout. A hung `nvidia-smi -q` (e.g. an NVLink fault stalling the query
+	// path) must not keep daemon startup on the systemd "activating" path longer
+	// than the DaemonSet keepalive tolerates, or it triggers an endless
+	// start/kill loop. On timeout the loop below returns ErrSWInfoProbeTimeout and
+	// the NVIDIA component reports a distinct Critical error instead of blocking.
+	swCtx, swCancel := context.WithTimeout(ctx, consts.NvidiaSWInfoProbeTimeout)
+	defer swCancel()
 	for i := 0; i < expectedDeviceCount; i++ {
-		err = collector.softwareInfo.Get(ctx, i)
+		err = collector.softwareInfo.Get(swCtx, i)
 		if err != nil {
 			logrus.WithField("component", "NVIDIA-Collector-getSWInfo").Errorf("%v", err)
 		} else {
@@ -88,7 +104,13 @@ func NewNvidiaCollector(ctx context.Context, nvmlInstPtr *nvml.Interface, expect
 			return nil, fmt.Errorf("failed to get UUID during collector initialization: %w", err)
 		}
 	} else {
-		return nil, fmt.Errorf("failed to NewNvidiaCollector: %v", err)
+		// A deadline on swCtx means the nvidia-smi probe itself hung rather than
+		// failing fast; surface that as a distinct sentinel so the component can
+		// report it under a dedicated ErrorName instead of the generic InitError.
+		if errors.Is(swCtx.Err(), context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%w (last probe error: %v)", ErrSWInfoProbeTimeout, err)
+		}
+		return nil, fmt.Errorf("failed to NewNvidiaCollector: %w", err)
 	}
 	return collector, nil
 }
