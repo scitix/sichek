@@ -51,6 +51,18 @@ type ModuleInfo struct {
 	VoltageLowAlarm  float64 `json:"voltage_low_alarm_v"`
 
 	LinkErrors map[string]uint64 `json:"link_errors"`
+
+	// Physical-layer counters and BER from `mlxlink -c` (IB / mlx5-BDF path only;
+	// pure-ethtool interfaces leave these zero). All counters are cumulative since
+	// TimeSinceLastClearMin, so downstream consumers must interpret them as deltas.
+	// RawPhysicalBER is pre-FEC (a leading indicator); EffectivePhysicalBER/Errors
+	// are post-FEC (non-zero means FEC can no longer mask the damage).
+	RawPhysicalBER           float64 `json:"raw_physical_ber"`
+	EffectivePhysicalBER     float64 `json:"effective_physical_ber"`
+	EffectivePhysicalErrors  uint64  `json:"effective_physical_errors"`
+	LinkDownCounter          uint64  `json:"link_down_counter"`
+	LinkErrorRecoveryCounter uint64  `json:"link_error_recovery_counter"`
+	TimeSinceLastClearMin    float64 `json:"time_since_last_clear_min"`
 }
 
 type collectTask struct {

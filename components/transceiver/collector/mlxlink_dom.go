@@ -27,7 +27,9 @@ func CollectMLXLink(ctx context.Context, dev string) (ModuleInfo, error) {
 	cmdCtx, cancel := context.WithTimeout(ctx, consts.CmdTimeout)
 	defer cancel()
 
-	output, err := utils.ExecCommand(cmdCtx, "mlxlink", "-d", dev, "-m")
+	// -m: module DOM data; -c: physical counters and BER. Both sections print
+	// in one invocation and are parsed independently below.
+	output, err := utils.ExecCommand(cmdCtx, "mlxlink", "-d", dev, "-m", "-c")
 	if err != nil {
 		outputStr := string(output)
 		if strings.Contains(err.Error(), "No cable") || strings.Contains(outputStr, "No cable") ||
@@ -38,6 +40,7 @@ func CollectMLXLink(ctx context.Context, dev string) (ModuleInfo, error) {
 	}
 
 	module.parseMLXLink(string(output))
+	module.parseMLXLinkCounters(string(output))
 	return module, nil
 }
 
@@ -116,6 +119,67 @@ func (m *ModuleInfo) parseMLXLink(output string) {
 			m.TxPowerHighAlarm = high
 		}
 	}
+}
+
+// parseMLXLinkCounters parses the "Physical Counters and BER Info" section
+// emitted by `mlxlink -c`. Example (values are ANSI-colored on a terminal):
+//
+//	Time Since Last Clear [Min]        : 348349.5
+//	Effective Physical Errors          : 0
+//	Effective Physical BER             : 15E-255
+//	Link Down Counter                  : 0
+//	Link Error Recovery Counter        : 0
+//	Raw Physical BER                   : 2E-9
+//
+// Keys are matched exactly so "Effective Physical BER" does not collide with
+// "Effective Physical Errors", nor "Raw Physical BER" with "Raw Physical
+// Errors Per Lane" (the per-lane array is intentionally not collected).
+func (m *ModuleInfo) parseMLXLinkCounters(output string) {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		kv := strings.SplitN(line, ":", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(kv[0])
+		val := stripANSI(kv[1])
+
+		switch key {
+		case "Raw Physical BER":
+			m.RawPhysicalBER = parseMLXLinkBER(val)
+		case "Effective Physical BER":
+			m.EffectivePhysicalBER = parseMLXLinkBER(val)
+		case "Effective Physical Errors":
+			m.EffectivePhysicalErrors = parseMLXLinkUint(val)
+		case "Link Down Counter":
+			m.LinkDownCounter = parseMLXLinkUint(val)
+		case "Link Error Recovery Counter":
+			m.LinkErrorRecoveryCounter = parseMLXLinkUint(val)
+		case "Time Since Last Clear [Min]":
+			m.TimeSinceLastClearMin = parseMLXLinkBER(val)
+		}
+	}
+}
+
+// parseMLXLinkBER parses a possibly scientific-notation float such as "2E-9" or
+// "15E-255". The regex-based parseFloat helper stops at the exponent, so BER and
+// time values must go through strconv directly. Returns 0 on failure (e.g. "N/A").
+func parseMLXLinkBER(s string) float64 {
+	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+// parseMLXLinkUint parses a decimal counter, returning 0 on failure (e.g. "N/A").
+func parseMLXLinkUint(s string) uint64 {
+	v, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return v
 }
 
 // parseMLXLinkValueWithRange parses "54 [-5..75]" → value=54, low=-5, high=75

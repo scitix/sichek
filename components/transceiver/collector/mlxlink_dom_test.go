@@ -42,6 +42,104 @@ const mlxlinkSampleHealthyRecommendation = "\n" +
 	"--------------------\n" +
 	"Recommendation                     : No issue was observed\n"
 
+// mlxlinkCountersSample mirrors the "Physical Counters and BER Info" section
+// emitted by `mlxlink -d <dev> -c` on a healthy 400G link (captured on clnet36
+// mlx5_1). mlxlink colorizes the values green on a terminal, so the BER values
+// carry ANSI codes here to exercise the stripANSI path.
+const mlxlinkCountersSample = "\n" +
+	"Physical Counters and BER Info\n" +
+	"------------------------------\n" +
+	"Time Since Last Clear [Min]        : 348349.5\n" +
+	"Effective Physical Errors          : 0\n" +
+	"Effective Physical BER             : \x1b[32m15E-255\x1b[0m\n" +
+	"Raw Physical Errors Per Lane       : 3946476397,5120336064,7692183445,3026261414\n" +
+	"Link Down Counter                  : 0\n" +
+	"Link Error Recovery Counter        : 0\n" +
+	"Raw Physical BER                   : \x1b[32m2E-9\x1b[0m\n"
+
+// mlxlinkCountersDegradedSample is a synthetic degraded link: FEC no longer
+// masks all errors (non-zero Effective errors/BER) and the link has flapped.
+const mlxlinkCountersDegradedSample = "\n" +
+	"Physical Counters and BER Info\n" +
+	"------------------------------\n" +
+	"Time Since Last Clear [Min]        : 120.0\n" +
+	"Effective Physical Errors          : 42\n" +
+	"Effective Physical BER             : 1E-12\n" +
+	"Link Down Counter                  : 3\n" +
+	"Link Error Recovery Counter        : 7\n" +
+	"Raw Physical BER                   : 5E-8\n"
+
+func TestParseMLXLinkCounters(t *testing.T) {
+	t.Run("healthy counters with ANSI-colored BER", func(t *testing.T) {
+		m := &ModuleInfo{}
+		m.parseMLXLinkCounters(mlxlinkCountersSample)
+		assert.Equal(t, uint64(0), m.EffectivePhysicalErrors)
+		assert.Equal(t, uint64(0), m.LinkDownCounter)
+		assert.Equal(t, uint64(0), m.LinkErrorRecoveryCounter)
+		assert.InDelta(t, 2e-9, m.RawPhysicalBER, 1e-18)
+		assert.InDelta(t, 348349.5, m.TimeSinceLastClearMin, 1e-6)
+		// 15E-255 ≈ 0 (FEC nulls it out) but is representable in float64.
+		assert.GreaterOrEqual(t, m.EffectivePhysicalBER, 0.0)
+		assert.Less(t, m.EffectivePhysicalBER, 1e-100)
+	})
+
+	t.Run("degraded counters parse non-zero", func(t *testing.T) {
+		m := &ModuleInfo{}
+		m.parseMLXLinkCounters(mlxlinkCountersDegradedSample)
+		assert.Equal(t, uint64(42), m.EffectivePhysicalErrors)
+		assert.Equal(t, uint64(3), m.LinkDownCounter)
+		assert.Equal(t, uint64(7), m.LinkErrorRecoveryCounter)
+		assert.InDelta(t, 1e-12, m.EffectivePhysicalBER, 1e-20)
+		assert.InDelta(t, 5e-8, m.RawPhysicalBER, 1e-16)
+		assert.InDelta(t, 120.0, m.TimeSinceLastClearMin, 1e-6)
+	})
+
+	t.Run("DOM-only output leaves counters zero", func(t *testing.T) {
+		m := &ModuleInfo{}
+		m.parseMLXLinkCounters(mlxlinkSampleOutput)
+		assert.Equal(t, uint64(0), m.EffectivePhysicalErrors)
+		assert.Equal(t, uint64(0), m.LinkDownCounter)
+		assert.InDelta(t, 0.0, m.RawPhysicalBER, 1e-18)
+	})
+}
+
+func TestParseMLXLinkBER(t *testing.T) {
+	tests := []struct {
+		input string
+		want  float64
+	}{
+		{"2E-9", 2e-9},
+		{"15E-255", 15e-255},
+		{"1E-12", 1e-12},
+		{"0", 0},
+		{"N/A", 0},
+		{"", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.InDelta(t, tt.want, parseMLXLinkBER(tt.input), tt.want*1e-6+1e-300)
+		})
+	}
+}
+
+func TestParseMLXLinkUint(t *testing.T) {
+	tests := []struct {
+		input string
+		want  uint64
+	}{
+		{"0", 0},
+		{"42", 42},
+		{"3946476397", 3946476397},
+		{"N/A", 0},
+		{"", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.Equal(t, tt.want, parseMLXLinkUint(tt.input))
+		})
+	}
+}
+
 func TestParseMLXLinkRecommendation(t *testing.T) {
 	t.Run("bad signal integrity with ANSI color codes", func(t *testing.T) {
 		m := &ModuleInfo{}
