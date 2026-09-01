@@ -6,6 +6,34 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestIsMezzanine(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		// Netdev and IB spellings seen in the field: "mezz0"/"mezz_0" on a
+		// multi-plane B300 host, "mezz_0" for both netdev and IB device on thg1.
+		{name: "mezz0", want: true},
+		{name: "mezz3", want: true},
+		{name: "mezz_0", want: true},
+		{name: "mezz_3", want: true},
+		// Substring match, matching how the other packages exclude mezzanine cards.
+		{name: "bond_mezz0", want: true},
+		// Real transceiver-bearing interfaces must not be caught.
+		{name: "eth_r0_p0", want: false},
+		{name: "roce_r0", want: false},
+		{name: "mlx5_0", want: false},
+		{name: "ib0", want: false},
+		{name: "mgmt0", want: false},
+		{name: "eth0", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isMezzanine(tt.name))
+		})
+	}
+}
+
 func newTestClassifier() *NetworkClassifier {
 	return NewNetworkClassifier(
 		map[string][]string{

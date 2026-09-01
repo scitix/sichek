@@ -176,6 +176,18 @@ func LevelColor(level string) string {
 const PadLen = len(Green) + len(Reset)
 const CmdTimeout = 30 * time.Second
 
+// TransceiverCmdTimeout bounds a one-shot `sichek transceiver` run. It is larger
+// than CmdTimeout because DOM data comes from mlxlink, which costs roughly a
+// second per port and serializes on an MFT-wide lock, so the sweep scales with
+// port count rather than running concurrently. A multi-plane node exposes each
+// rail NIC as four PCIe functions: measured end to end at ~48s for 34 ports
+// while the daemon was sweeping the same devices, which does not fit in 30s and
+// used to surface as a bogus "transceiver: FAIL" with no data at all.
+//
+// It is deliberately a separate constant rather than a bump to CmdTimeout, which
+// every other component shares and none of them need widened.
+const TransceiverCmdTimeout = 120 * time.Second
+
 // NvidiaSWInfoProbeTimeout bounds the `nvidia-smi -q` driver/CUDA-version probe
 // run during NVIDIA collector initialization so a hung nvidia-smi (e.g. an
 // NVLink fault stalling the query path) cannot block daemon startup for the full

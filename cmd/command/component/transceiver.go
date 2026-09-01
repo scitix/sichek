@@ -39,17 +39,10 @@ func NewTransceiverCmd() *cobra.Command {
 		Aliases: []string{"tr"},
 		Short:   "Perform Transceiver HealthCheck",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithTimeout(context.Background(), consts.CmdTimeout)
-
 			if !verbose {
 				logrus.SetLevel(logrus.ErrorLevel)
-				defer cancel()
 			} else {
 				logrus.SetLevel(logrus.DebugLevel)
-				defer func() {
-					logrus.WithField("component", "transceiver").Info("Run transceiver Cmd context canceled")
-					cancel()
-				}()
 			}
 
 			resolvedCfgFile, err := spec.EnsureCfgFile(cfgFile)
@@ -75,8 +68,23 @@ func NewTransceiverCmd() *cobra.Command {
 				logrus.WithField("component", "transceiver").Error(err)
 				return
 			}
+			// Start the health-check budget only now that config, spec and the
+			// component are resolved. Those steps fetch from OSS, and on a node with
+			// no route to it each attempt blocks until its own timeout — roughly 14s
+			// in total when measured. Counting that against the collection budget
+			// left the collector ~16s of its 30s and made it time out with no data.
+			ctx, cancel := context.WithTimeout(context.Background(), consts.TransceiverCmdTimeout)
+			if verbose {
+				defer func() {
+					logrus.WithField("component", "transceiver").Info("Run transceiver Cmd context canceled")
+					cancel()
+				}()
+			} else {
+				defer cancel()
+			}
+
 			logrus.WithField("component", "transceiver").Infof("Run Transceiver component check: %s", component.Name())
-			result, err := RunComponentCheck(ctx, component, consts.CmdTimeout)
+			result, err := RunComponentCheck(ctx, component, consts.TransceiverCmdTimeout)
 			if err != nil {
 				return
 			}

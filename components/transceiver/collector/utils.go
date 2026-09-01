@@ -17,6 +17,22 @@ type InterfaceEntry struct {
 	PcieBDF  string // PCIe BDF address for mlxlink -d
 }
 
+// isMezzanine reports whether a name belongs to a mezzanine card. The naming
+// differs per platform — netdev "mezz0" and IB device "mezz_0" on one, "mezz_0"
+// for both on another — so this matches the substring, consistent with how the
+// infiniband, hca and perftest packages already exclude these devices.
+//
+// Mezzanine ports are board-level InfiniBand links with no pluggable optics, so
+// there is no transceiver to read: their netdev is IPoIB, where `ethtool -m`
+// returns "Operation not supported", and `mlxlink -m` either reports every module
+// field as N/A, fails on a firmware ICMD error, or segfaults outright depending
+// on the board. Collecting them yields nothing but empty module rows — which look
+// like a module with no vendor and 0 °C to the checkers — while costing one slow
+// mlxlink invocation per port.
+func isMezzanine(name string) bool {
+	return strings.Contains(name, "mezz")
+}
+
 func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 	var entries []InterfaceEntry
 
@@ -31,6 +47,10 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 		if name == "lo" || name == "bonding_masters" ||
 			strings.HasPrefix(name, "veth") || strings.HasPrefix(name, "docker") ||
 			strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "virbr") {
+			continue
+		}
+		// Skip mezzanine ports — no pluggable transceiver to read.
+		if isMezzanine(name) {
 			continue
 		}
 		// Skip VLAN sub-interfaces (e.g. eth0.10, eth1.2)
@@ -78,6 +98,11 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 	}
 	for _, e := range ibEntries {
 		ibDev := e.Name()
+		// Skip mezzanine ports here too: they are enumerated as IB devices
+		// ("mezz_0"), which is the path that would otherwise reach mlxlink.
+		if isMezzanine(ibDev) {
+			continue
+		}
 		physfn := filepath.Join(ibDir, ibDev, "device", "physfn")
 		if _, err := os.Stat(physfn); err == nil {
 			continue
