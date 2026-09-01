@@ -1,0 +1,40 @@
+# HELP rdma_env_pre_knob_verdict config knob consistency verdict
+# TYPE rdma_env_pre_knob_verdict gauge
+rdma_env_pre_knob_verdict{host="gpu-node-07",device="0000:19:00.0",knob="qos.ipg",fabric="compute",verdict="converged",severity="major",reboot_required="false"} 1
+rdma_env_pre_knob_verdict{host="gpu-node-07",device="0000:ef:00.3",knob="qos.ipg",fabric="compute",verdict="drift",severity="major",reboot_required="false"} 1
+rdma_env_pre_knob_verdict{host="gpu-node-07",device="eth_r0_p0",knob="qos.trust",fabric="compute",verdict="converged",severity="critical",reboot_required="false"} 1
+rdma_env_pre_knob_verdict{host="gpu-node-07",device="0000:19:00.0",knob="firmware.NUM_OF_VFS",fabric="storage",verdict="pending_reboot",severity="minor",reboot_required="true"} 1
+# HELP rdma_env_pre_host_compliance host compliance state
+# TYPE rdma_env_pre_host_compliance gauge
+rdma_env_pre_host_compliance{host="gpu-node-07",state="drift"} 1
+# HELP rdma_env_pre_host_knob_count count of knobs per verdict
+# TYPE rdma_env_pre_host_knob_count gauge
+rdma_env_pre_host_knob_count{host="gpu-node-07",verdict="converged"} 2
+rdma_env_pre_host_knob_count{host="gpu-node-07",verdict="drift"} 1
+rdma_env_pre_host_knob_count{host="gpu-node-07",verdict="pending_reboot"} 1
+# HELP rdma_env_pre_observe observe-only knob inventory
+# TYPE rdma_env_pre_observe gauge
+rdma_env_pre_observe{host="gpu-node-07",device="0000:19:00.0",knob="pcie.link_width"} 16
+# HELP rdma_env_pre_knob_desired_value desired value of a numeric config knob
+# TYPE rdma_env_pre_knob_desired_value gauge
+rdma_env_pre_knob_desired_value{host="gpu-node-07",device="0000:19:00.0",knob="qos.ipg",fabric="compute"} 25
+rdma_env_pre_knob_desired_value{host="gpu-node-07",device="0000:ef:00.3",knob="qos.ipg",fabric="compute"} 25
+rdma_env_pre_knob_desired_value{host="gpu-node-07",device="0000:19:00.0",knob="firmware.NUM_OF_VFS",fabric="storage"} 16
+# HELP rdma_env_pre_knob_observed_value observed value of a numeric config knob
+# TYPE rdma_env_pre_knob_observed_value gauge
+rdma_env_pre_knob_observed_value{host="gpu-node-07",device="0000:19:00.0",knob="qos.ipg",fabric="compute"} 25
+rdma_env_pre_knob_observed_value{host="gpu-node-07",device="0000:ef:00.3",knob="qos.ipg",fabric="compute"} 3
+rdma_env_pre_knob_observed_value{host="gpu-node-07",device="0000:19:00.0",knob="firmware.NUM_OF_VFS",fabric="storage"} 8
+# HELP rdma_env_pre_knob_info desired/observed value of a non-numeric config knob
+# TYPE rdma_env_pre_knob_info gauge
+rdma_env_pre_knob_info{host="gpu-node-07",device="eth_r0_p0",knob="qos.trust",fabric="compute",desired="dscp",observed="dscp"} 1
+# HELP rdma_env_pre_agent_up 1 while the exporter is serving.
+# TYPE rdma_env_pre_agent_up gauge
+rdma_env_pre_agent_up 1
+# HELP rdma_env_pre_build_info The running rdma-env-pre version (value always 1).
+# TYPE rdma_env_pre_build_info gauge
+rdma_env_pre_build_info{version="1.9.1-knobtest"} 1
+# a non-prefixed series that must be filtered out
+other_exporter_metric{foo="bar"} 42
+# a malformed line that must be skipped
+rdma_env_pre_broken_line{host="x" not_a_value

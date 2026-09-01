@@ -51,6 +51,7 @@ const (
 	ComponentNameOVS          = "ovs"
 	ComponentNameSysinfo      = "sysinfo"
 	ComponentNameGPUProbe     = "gpuprobe"
+	ComponentNameRdmaEnv      = "rdmaenv"
 
 	/*----------------------checker id------------------------*/
 	CheckerIDInfinibandFW            = "4001"

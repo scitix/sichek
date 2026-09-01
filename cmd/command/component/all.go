@@ -36,6 +36,7 @@ import (
 	"github.com/scitix/sichek/components/ovs"
 	"github.com/scitix/sichek/components/pcie/topotest"
 	"github.com/scitix/sichek/components/podlog"
+	"github.com/scitix/sichek/components/rdmaenv"
 	"github.com/scitix/sichek/components/sysinfo"
 	"github.com/scitix/sichek/components/syslog"
 	"github.com/scitix/sichek/components/transceiver"
@@ -208,6 +209,8 @@ func NewComponent(componentName string, cfgFile string, specFile string, ignored
 		return transceiver.NewComponent(cfgFile, specFile, ignoredCheckers)
 	case consts.ComponentNameOVS:
 		return ovs.NewComponent(cfgFile, specFile, ignoredCheckers)
+	case consts.ComponentNameRdmaEnv:
+		return rdmaenv.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameLLDP:
 		return lldp.NewComponent(cfgFile, specFile)
 	case consts.ComponentNameSysinfo:

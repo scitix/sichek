@@ -83,6 +83,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(component.NewLldpCmd())
 	rootCmd.AddCommand(component.NewSysinfoCmd())
 	rootCmd.AddCommand(component.NewGpuProbeCmd())
+	rootCmd.AddCommand(component.NewRdmaEnvCmd())
 	rootCmd.AddCommand(NewConfigCmd())
 	return rootCmd
 }

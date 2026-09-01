@@ -116,3 +116,13 @@ gpuprobe:
   query_interval: 600s
   cache_size: 5
   enable_metrics: true
+
+# rdmaenv is default-off (not in consts.DefaultComponents); this section only
+# lets it load when explicitly enabled via `-E rdmaenv` or `sichek rdmaenv`.
+# It scrapes the co-located rdma-env-pre exporter and passes its metrics through.
+rdmaenv:
+  query_interval: 10m
+  endpoint: "http://127.0.0.1:19099/metrics"
+  timeout: 10s
+  metric_prefix: "rdma_env_pre_"
+  enable_metrics: true

@@ -1,0 +1,6 @@
+rdmaenv:
+  query_interval: 10m
+  endpoint: "http://127.0.0.1:19099/metrics"
+  timeout: 10s
+  metric_prefix: "rdma_env_pre_"
+  enable_metrics: true
