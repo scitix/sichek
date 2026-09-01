@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -10,6 +11,20 @@ import (
 	"github.com/scitix/sichek/consts"
 	"github.com/scitix/sichek/pkg/utils"
 )
+
+// finiteOrZero returns 0 when v is not a finite number. strconv.ParseFloat
+// accepts "inf"/"-inf"/"nan" (case-insensitive) as valid input, so a DOM power
+// reading of "-inf dBm" (a dark / unconnected lane) or a non-finite BER parses
+// to a non-finite float64. Such a value later makes encoding/json reject the
+// entire snapshot ("json: unsupported value: -Inf"), which silently freezes
+// snapshot.json on every node with an unlit lane. Normalizing to 0 keeps the
+// data JSON-serializable; 0 is a harmless sentinel for "no signal".
+func finiteOrZero(v float64) float64 {
+	if math.IsInf(v, 0) || math.IsNaN(v) {
+		return 0
+	}
+	return v
+}
 
 // ansiEscapeRe matches ANSI SGR color/style escape sequences (e.g. "\x1b[31m").
 var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -170,7 +185,7 @@ func parseMLXLinkBER(s string) float64 {
 	if err != nil {
 		return 0
 	}
-	return v
+	return finiteOrZero(v)
 }
 
 // parseMLXLinkUint parses a decimal counter, returning 0 on failure (e.g. "N/A").
@@ -229,7 +244,7 @@ func parseMLXLinkMultiLane(s string) []float64 {
 		if err != nil {
 			continue
 		}
-		values = append(values, v)
+		values = append(values, finiteOrZero(v))
 	}
 	return values
 }

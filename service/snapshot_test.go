@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,17 @@ type MockInfo struct {
 }
 
 func (m *MockInfo) JSON() (string, error) {
+	data, err := json.Marshal(m)
+	return string(data), err
+}
+
+// nonFiniteInfo mimics a component (e.g. transceiver) whose Info carries a
+// non-finite float such as "-inf dBm", which encoding/json refuses to marshal.
+type nonFiniteInfo struct {
+	Power float64 `json:"power"`
+}
+
+func (m *nonFiniteInfo) JSON() (string, error) {
 	data, err := json.Marshal(m)
 	return string(data), err
 }
@@ -64,6 +76,44 @@ func TestSnapshotManager(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, snapshot.Components, "cpu")
 	assert.Contains(t, snapshot.Components, "nvidia")
+}
+
+// TestSnapshotManager_NonFiniteFloatIsolated verifies that a single component
+// carrying a non-finite float (Inf/NaN) can no longer freeze the whole snapshot:
+// the offending component is replaced by a placeholder while node identity,
+// uptime, and every healthy component still persist.
+func TestSnapshotManager_NonFiniteFloatIsolated(t *testing.T) {
+	tmpDir := t.TempDir()
+	snapshotPath := filepath.Join(tmpDir, "snapshot.json")
+	cfgFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("snapshot:\n  enable: true\n  path: "+snapshotPath), 0644))
+
+	mgr, err := NewSnapshotManager(cfgFile)
+	require.NoError(t, err)
+
+	mgr.Update("cpu", &MockInfo{Value: "cpu-data"})
+	mgr.Update("transceiver", &nonFiniteInfo{Power: math.Inf(-1)})
+
+	data, err := os.ReadFile(snapshotPath)
+	require.NoError(t, err)
+
+	var snapshot Snapshot
+	require.NoError(t, json.Unmarshal(data, &snapshot))
+
+	// Healthy component survives intact.
+	require.Contains(t, snapshot.Components, "cpu")
+	cpuMap := snapshot.Components["cpu"].(map[string]interface{})
+	assert.Equal(t, "cpu-data", cpuMap["value"])
+
+	// Offending component is present but reduced to an error placeholder.
+	require.Contains(t, snapshot.Components, "transceiver")
+	trMap := snapshot.Components["transceiver"].(map[string]interface{})
+	assert.Contains(t, trMap, "_snapshot_error")
+
+	// Node identity and uptime are preserved.
+	assert.NotEmpty(t, snapshot.Node)
+	assert.False(t, snapshot.BootTime.IsZero())
+	assert.Greater(t, snapshot.UptimeSeconds, float64(0))
 }
 
 func TestSnapshotManager_SetIssues(t *testing.T) {

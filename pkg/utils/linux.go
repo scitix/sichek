@@ -54,6 +54,42 @@ func GetMgmtIP() string {
 	return ""
 }
 
+// parseUptime extracts the seconds-since-boot value (the first field) from the
+// contents of /proc/uptime. The file holds two space-separated floats: uptime
+// and idle time; we only need the first.
+func parseUptime(content string) (float64, error) {
+	fields := strings.Fields(content)
+	if len(fields) == 0 {
+		return 0, fmt.Errorf("empty /proc/uptime content")
+	}
+	secs, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse uptime %q: %w", fields[0], err)
+	}
+	return secs, nil
+}
+
+// GetUptime returns the node's uptime in seconds by reading /proc/uptime.
+// /proc/uptime is not isolated by the PID namespace, so a container reads the
+// host's value directly — no nsenter required. Returns (0, err) on failure.
+func GetUptime() (float64, error) {
+	data, err := os.ReadFile("/proc/uptime")
+	if err != nil {
+		return 0, fmt.Errorf("read /proc/uptime: %w", err)
+	}
+	return parseUptime(string(data))
+}
+
+// GetBootTime returns the node's boot instant, computed as now - uptime.
+// Returns a zero time.Time (and the error) when the uptime cannot be read.
+func GetBootTime() (time.Time, error) {
+	uptime, err := GetUptime()
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Now().Add(-time.Duration(uptime * float64(time.Second))), nil
+}
+
 func IsRoot() bool {
 	return os.Geteuid() == 0
 }
@@ -197,4 +233,3 @@ func IsLowSpeedIBBond(ibDev string) bool {
 	}
 	return false
 }
-

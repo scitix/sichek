@@ -124,8 +124,7 @@ func parseDBM(s string) float64 {
 			part = strings.TrimSpace(part[slashIdx+1:])
 		}
 		val, _ := strconv.ParseFloat(strings.TrimSpace(part), 64)
-		return val
+		return finiteOrZero(val)
 	}
 	return parseFloat(s)
 }
-

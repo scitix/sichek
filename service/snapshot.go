@@ -39,10 +39,16 @@ type SnapshotConfig struct {
 
 // Snapshot represents the aggregated data from all components.
 type Snapshot struct {
-	Node       string                 `json:"node"`
-	MgmtIP     string                 `json:"mgmt_ip,omitempty"`
-	Timestamp  time.Time              `json:"timestamp"`
-	Components map[string]interface{} `json:"components"`
+	Node   string `json:"node"`
+	MgmtIP string `json:"mgmt_ip,omitempty"`
+	// BootTime is the node's boot instant. It is stable for the life of the
+	// process, so it is computed once at startup.
+	BootTime time.Time `json:"boot_time,omitempty"`
+	// UptimeSeconds is the node's uptime in seconds, refreshed to the current
+	// value on every persist.
+	UptimeSeconds float64                `json:"uptime_seconds,omitempty"`
+	Timestamp     time.Time              `json:"timestamp"`
+	Components    map[string]interface{} `json:"components"`
 	// Issues mirrors the K8s node annotation: detected problems grouped by
 	// component then level. It lets the collector consume issues without reading
 	// the K8s annotation, and is populated even on non-K8s nodes.
@@ -73,6 +79,10 @@ func NewSnapshotManager(cfgFile string) (*SnapshotManager, error) {
 	}
 
 	hostname, _ := os.Hostname()
+	bootTime, err := utils.GetBootTime()
+	if err != nil {
+		logrus.WithField("service", "snapshot").Warnf("Failed to read boot time: %v", err)
+	}
 	mgr := &SnapshotManager{
 		path:     config.Snapshot.Path,
 		enabled:  config.Snapshot.Enable,
@@ -80,6 +90,7 @@ func NewSnapshotManager(cfgFile string) (*SnapshotManager, error) {
 		data: &Snapshot{
 			Node:       hostname,
 			MgmtIP:     utils.GetMgmtIP(),
+			BootTime:   bootTime,
 			Components: make(map[string]interface{}),
 		},
 	}
@@ -130,10 +141,30 @@ func (s *SnapshotManager) SetIssues(issues *nodeAnnotation) {
 }
 
 // persist writes the current snapshot to the local JSON file atomically.
+// It refreshes UptimeSeconds to the current value before marshaling; a read
+// failure leaves the previous value untouched rather than blocking the write.
 func (s *SnapshotManager) persist() error {
+	if uptime, err := utils.GetUptime(); err != nil {
+		logrus.WithField("service", "snapshot").Warnf("Failed to read uptime: %v", err)
+	} else {
+		s.data.UptimeSeconds = uptime
+	}
+
 	data, err := json.MarshalIndent(s.data, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal snapshot failed: %w", err)
+		// A component's Info may contain a non-finite float (Inf/NaN) — e.g. a
+		// transceiver lane reporting "-inf dBm" — which encoding/json rejects
+		// atomically, failing the marshal of the whole snapshot. Without a
+		// fallback this freezes snapshot.json indefinitely: every subsequent
+		// persist hits the same value and the file keeps its last-good content.
+		// Re-encode with each component marshaled independently so the offending
+		// one is replaced by a placeholder while node identity, uptime, issues,
+		// and every healthy component still persist.
+		logrus.WithField("service", "snapshot").Warnf("marshal snapshot failed (%v); retrying with per-component isolation", err)
+		data, err = s.marshalIsolatingBadComponents()
+		if err != nil {
+			return fmt.Errorf("marshal snapshot failed: %w", err)
+		}
 	}
 
 	dir := filepath.Dir(s.path)
@@ -152,4 +183,35 @@ func (s *SnapshotManager) persist() error {
 	}
 
 	return nil
+}
+
+// marshalIsolatingBadComponents re-encodes the snapshot when a whole-snapshot
+// marshal failed. Each component is marshaled on its own; any that fails (e.g.
+// because it holds a non-finite float) is swapped for an error placeholder so
+// that a single bad component can no longer block the entire snapshot. All
+// other top-level fields (node, mgmt_ip, boot_time, uptime_seconds, timestamp,
+// issues) are preserved by embedding the original snapshot and shadowing only
+// its Components field.
+func (s *SnapshotManager) marshalIsolatingBadComponents() ([]byte, error) {
+	safeComponents := make(map[string]json.RawMessage, len(s.data.Components))
+	for name, info := range s.data.Components {
+		raw, err := json.Marshal(info)
+		if err != nil {
+			logrus.WithField("service", "snapshot").Warnf("component %q not JSON-serializable (%v); storing placeholder", name, err)
+			raw, _ = json.Marshal(map[string]string{"_snapshot_error": err.Error()})
+		}
+		safeComponents[name] = raw
+	}
+
+	// alias drops Snapshot's methods so the embedded value is marshaled as plain
+	// data; the outer Components field (depth 0) shadows the embedded one.
+	type alias Snapshot
+	envelope := struct {
+		*alias
+		Components map[string]json.RawMessage `json:"components"`
+	}{
+		alias:      (*alias)(s.data),
+		Components: safeComponents,
+	}
+	return json.MarshalIndent(envelope, "", "  ")
 }

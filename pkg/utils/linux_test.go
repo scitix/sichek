@@ -132,3 +132,66 @@ func TestExecCommandWithContext_OfedInfo(t *testing.T) {
 // 		}
 // 	}
 // }
+
+func TestParseUptime(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    float64
+		wantErr bool
+	}{
+		{name: "normal", content: "12345.67 98765.43\n", want: 12345.67},
+		{name: "single field", content: "42.0", want: 42.0},
+		{name: "leading spaces", content: "   7.5   1.2\n", want: 7.5},
+		{name: "empty", content: "", wantErr: true},
+		{name: "whitespace only", content: "   \n", wantErr: true},
+		{name: "non-numeric", content: "abc def", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseUptime(tt.content)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil (value %v)", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("parseUptime(%q) = %v, want %v", tt.content, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetUptime(t *testing.T) {
+	uptime, err := GetUptime()
+	if err != nil {
+		t.Fatalf("GetUptime() error: %v", err)
+	}
+	if uptime <= 0 {
+		t.Fatalf("GetUptime() = %v, want > 0", uptime)
+	}
+}
+
+func TestGetBootTime(t *testing.T) {
+	before := time.Now()
+	boot, err := GetBootTime()
+	if err != nil {
+		t.Fatalf("GetBootTime() error: %v", err)
+	}
+	if !boot.Before(before) {
+		t.Fatalf("GetBootTime() = %v, want a time in the past (before %v)", boot, before)
+	}
+	// boot ≈ now - uptime; cross-check against a fresh uptime read within a few seconds.
+	uptime, err := GetUptime()
+	if err != nil {
+		t.Fatalf("GetUptime() error: %v", err)
+	}
+	expected := time.Now().Add(-time.Duration(uptime * float64(time.Second)))
+	if diff := boot.Sub(expected); diff > 5*time.Second || diff < -5*time.Second {
+		t.Fatalf("GetBootTime() = %v, want ≈ %v (diff %v)", boot, expected, diff)
+	}
+}
