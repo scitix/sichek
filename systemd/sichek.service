@@ -1,8 +1,33 @@
 [Unit]
 Description=sichek
 
-Wants=network-pre.target
-After=network-pre.target NetworkManager.service systemd-resolved.service
+Wants=network-pre.target network-online.target
+# Ordered after the units that finish bringing the NIC up, so the IB checkers do
+# not read a half-initialized stack and misreport it. Each target fixes a class
+# of boot-race false positive:
+#   - openibd.service       : the mlx5 driver populates /sys/class/infiniband here.
+#                             Before it, the IB collector sees zero devices and every
+#                             IB checker reports NOIBFOUND; mid-probe a PF is on the
+#                             PCI bus with no infiniband/ or net/ yet and IBLost flags
+#                             it as a phantom card.
+#   - rdma-env-pre.service  : does eswitch/vf-config/interface-naming/roce-ar, i.e.
+#                             brings ports to LinkUp and enumerates all PFs/VFs. Before
+#                             it, phys_state is still Polling (PhyState "NOT LinkUp")
+#                             and the device/rail count is short (odd rail count ->
+#                             Critical). It is itself After=openibd and waits for the
+#                             IB devices, so ordering after it also covers the driver.
+#   - network-online.target : bond0 is up with an IP here, for the ethernet/L3/RoCE
+#                             connectivity checks.
+# openibd/rdma-env-pre are PURE ordering (no Wants/Requires): sichek ships fleet-wide,
+# and on a host without them an After= on an absent unit is simply ignored. This only
+# fixes the BOOT race; the resident daemon's periodic re-checks still need in-checker
+# readiness gating to tell "not ready yet" from "broken".
+#
+# It also keeps sichek off init's back while init runs: rdma-env-pre.service is
+# Type=oneshot+RemainAfterExit=yes, so this After= holds sichek until init reaches
+# active(exited) or failed -- never forever -- and sichek's per-NIC mlxlink/mlxreg
+# fleet stops contending with init's mlxconfig/MFT tools.
+After=network-pre.target NetworkManager.service systemd-resolved.service openibd.service rdma-env-pre.service network-online.target
 
 [Service]
 Slice=runtime.slice

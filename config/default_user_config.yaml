@@ -7,7 +7,7 @@ snapshot:
 
 reporter:
   enable: false  # master switch; flip to true after deploying sichek-collector
-  endpoint: "http://sichek-collector.monitoring.svc:38080/api/v1/snapshots"
+  endpoint: "http://10.155.30.38:38080/api/v1/snapshots"
   interval: 60s
   timeout: 30s
   retry_max: 3
@@ -86,16 +86,16 @@ nccltest:
 #   enable_metrics: true
 
 transceiver:
-  query_interval: 30s
+  query_interval: 300s
   cache_size: 5
   ignored_checkers: []
   enable_metrics: true
 
-# lldp:
-#   query_interval: 5m
-#   cache_size: 5
-#   lldpctl_path: ""        # leave empty to resolve from $PATH
-#   exec_timeout: 10s
+lldp:
+  query_interval: 5m
+  cache_size: 5
+  lldpctl_path: ""        # leave empty to resolve from $PATH
+  exec_timeout: 10s
 
 sysinfo:
   enable: true
