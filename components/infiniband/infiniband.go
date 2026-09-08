@@ -177,7 +177,18 @@ func (c *component) Name() string {
 
 func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 	if c.initError != nil {
-		return c.reportInitErrorResult(), nil
+		// The mezz naming check is spec-free by design: run it even here so a
+		// mezz card whose board_id has no HCA spec (which is what drove the
+		// component into initError) still gets its naming validated instead of
+		// being silently skipped along with every other checker. Only surface it
+		// when it actually failed: the initError-path PrintInfo renders every
+		// appended checker as a red error, so a passing/no-mezz result would read
+		// as a spurious failure.
+		result := c.reportInitErrorResult()
+		if mezz := checker.MezzNamingResult(); mezz.Status == consts.StatusAbnormal {
+			result.Checkers = append(result.Checkers, mezz)
+		}
+		return result, nil
 	}
 
 	info, err := c.collector.Collect(ctx)
