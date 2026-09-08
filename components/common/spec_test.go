@@ -137,6 +137,60 @@ func TestEnsureSpecFile_DownloadAndBackup(t *testing.T) {
 	}
 }
 
+// TestDownloadSpecFile_BadBodyPreservesExisting verifies that a 200-with-empty
+// body (as object storage briefly serves for an object mid-delete before it
+// settles to 404), a whitespace-only body, or a non-200 status all leave the
+// pre-existing canonical file untouched instead of clobbering it to garbage.
+func TestDownloadSpecFile_BadBodyPreservesExisting(t *testing.T) {
+	cases := []struct {
+		name    string
+		status  int
+		body    string
+		wantErr bool
+	}{
+		{name: "empty_200", status: http.StatusOK, body: "", wantErr: true},
+		{name: "whitespace_200", status: http.StatusOK, body: "   \n\t\n", wantErr: true},
+		{name: "not_found", status: http.StatusNotFound, body: "", wantErr: true},
+		{name: "good_200", status: http.StatusOK, body: "name: remote\nversion: v2\n", wantErr: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				fmt.Fprint(w, tc.body)
+			}))
+			defer srv.Close()
+
+			dir := t.TempDir()
+			destPath := filepath.Join(dir, "some_spec.yaml")
+			writeTmpYAMLTo(t, destPath, itemSpec{Name: "original"})
+
+			err := DownloadSpecFile(srv.URL+"/some_spec.yaml", destPath, "test")
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			var got itemSpec
+			if err := LoadSpec(destPath, &got); err != nil {
+				t.Fatalf("canonical file unreadable after download: %v", err)
+			}
+			if tc.wantErr {
+				// The good original must survive a rejected download.
+				if got.Name != "original" {
+					t.Errorf("existing spec was clobbered: got %+v", got)
+				}
+			} else {
+				if got.Name != "remote" {
+					t.Errorf("good download not applied: got %+v", got)
+				}
+			}
+		})
+	}
+}
+
 // ─── FilterSpec ──────────────────────────────────────────────────────────────
 
 func filterItem(c *multiItemSpec, id string) (*itemSpec, bool) {

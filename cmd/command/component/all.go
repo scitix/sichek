@@ -93,18 +93,20 @@ func NewAllCmd() *cobra.Command {
 			}
 
 			componentsToCheck := DetermineComponentsToCheck(enableComponents, ignoreComponents, resolvedCfgFile, "all")
+			enabledOptIn := EnabledOptInComponents(resolvedCfgFile)
 			checkResults := make([]*CheckResults, len(componentsToCheck))
 			var wg sync.WaitGroup
 			for idx, componentName := range componentsToCheck {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
 					continue
 				}
-				// Config-driven runs (no -E) are gated to DefaultComponents, which also
-				// leaves pseudo-keys like nccltest/pcie_topo in componentsToCheck for the
-				// after-loop special cases below. An explicit -E list is honored as-is so
-				// opt-in components (e.g. gpuprobe) can run; unknown -E names fail
-				// NewComponent and are skipped.
-				if len(enableComponents) == 0 && !slices.Contains(consts.DefaultComponents, componentName) {
+				// Config-driven runs (no -E) run DefaultComponents plus any component
+				// whose config section is enabled:true. This leaves pseudo-keys like
+				// nccltest/pcie_topo in componentsToCheck for the after-loop special
+				// cases below (they are not selected here). An explicit -E list is
+				// honored as-is so opt-in components (e.g. gpuprobe) can run; unknown
+				// -E names fail NewComponent and are skipped.
+				if len(enableComponents) == 0 && !SelectedInConfigMode(componentName, enabledOptIn) {
 					continue
 				}
 				wg.Add(1)

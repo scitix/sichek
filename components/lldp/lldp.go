@@ -18,7 +18,6 @@ package lldp
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -217,29 +216,18 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		return true
 	}
 
-	hostname, _ := os.Hostname()
-
-	// Separate real switch uplinks from self/loopback and host neighbors.
-	// A switch advertises its port as an "ifname"; OVS VF representors loop
-	// back to our own hostname and host-to-host neighbors identify their port
-	// by MAC. The latter are not switch uplinks, so they are folded away.
-	var uplinks []collector.IfaceInfo
-	var folded []string
-	for _, iface := range lldpInfo.Interfaces {
-		if isSwitchUplink(iface, hostname) {
-			uplinks = append(uplinks, iface)
-		} else {
-			folded = append(folded, iface.Local.Name)
-		}
-	}
-
-	fmt.Printf("%sLLDP neighbors: %d switch uplink(s)%s\n", consts.Green, len(uplinks), consts.Reset)
+	// List every LLDP neighbor lldpctl reported, one row per local interface.
+	// No folding: self/loopback and host-to-host neighbors are shown too, since
+	// the previous "switch uplink only" filter also hid real rail-switch uplinks
+	// on OVS/multi-plane nodes (switches that advertise their port as "local"
+	// rather than "ifname").
+	fmt.Printf("%sLLDP neighbors: %d%s\n", consts.Green, len(lldpInfo.Interfaces), consts.Reset)
 	fmt.Printf(lldpRowFmt, "Local Port", "Link", "Local IP", "MTU", "Neighbor Switch",
 		"Chassis ID", "Mgmt IP", "Remote Port", "VLAN", "Capability", "MFS", "Age")
 	fmt.Printf(lldpRowFmt, dashes(20), dashes(5), dashes(19), dashes(6), dashes(16),
 		dashes(18), dashes(16), dashes(22), dashes(6), dashes(14), dashes(6), dashes(9))
 
-	for _, iface := range uplinks {
+	for _, iface := range lldpInfo.Interfaces {
 		l := iface.Local
 		n := iface.Neighbor
 		local := l.Name
@@ -261,19 +249,8 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			fmtAge(n.AgeSeconds),
 		)
 	}
-
-	if len(folded) > 0 {
-		fmt.Printf("\n%d local/loopback or host neighbor(s) hidden: %s\n",
-			len(folded), strings.Join(folded, ", "))
-	}
 	fmt.Println()
 	return true
-}
-
-// isSwitchUplink reports whether an LLDP neighbor is a real switch uplink
-// (as opposed to a self VF-representor loopback or a host-to-host link).
-func isSwitchUplink(iface collector.IfaceInfo, hostname string) bool {
-	return collector.IsSwitchNeighbor(iface.Neighbor, hostname)
 }
 
 func dashes(n int) string { return strings.Repeat("-", n) }

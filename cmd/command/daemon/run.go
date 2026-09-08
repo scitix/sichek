@@ -19,7 +19,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"slices"
 	"time"
 
 	"github.com/scitix/sichek/cmd/command/component"
@@ -137,14 +136,17 @@ func NewDaemonRunCmd() *cobra.Command {
 			components := make(map[string]common.Component)
 
 			componentsToCheck := component.DetermineComponentsToCheck(usedComponentStr, ignoreComponentStr, cfgFile, "daemon")
+			enabledOptIn := component.EnabledOptInComponents(cfgFile)
 			for _, componentName := range componentsToCheck {
 				if componentName == consts.ComponentNameInfiniband && !utils.IsInfinibandExist() {
 					continue
 				}
-				// Config-driven runs (no -E) are gated to DefaultComponents. An explicit
-				// -E list is honored as-is so opt-in components (e.g. gpuprobe) can run;
-				// unknown -E names fail NewComponent and are skipped below.
-				if len(usedComponentStr) == 0 && !slices.Contains(consts.DefaultComponents, componentName) {
+				// Config-driven runs (no -E) run DefaultComponents plus any component
+				// whose config section is enabled:true, letting a node opt in an
+				// otherwise-default-off component (e.g. rdmaenv, gpuprobe) via config
+				// alone. An explicit -E list is honored as-is; unknown -E names fail
+				// NewComponent and are skipped below.
+				if len(usedComponentStr) == 0 && !component.SelectedInConfigMode(componentName, enabledOptIn) {
 					continue
 				}
 				component, err := component.NewComponent(componentName, cfgFile, specFile, nil)

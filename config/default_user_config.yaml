@@ -6,7 +6,7 @@ snapshot:
   path: "/var/sichek/data/snapshot.json"
 
 reporter:
-  enable: false  # master switch; flip to true after deploying sichek-collector
+  enable: true  # master switch; flip to true after deploying sichek-collector
   endpoint: "http://10.155.30.38:38080/api/v1/snapshots"
   interval: 60s
   timeout: 30s
@@ -110,17 +110,22 @@ sysinfo:
     #   path: scripts/gpu/collect-gpu.sh
     #   interval: 12h
 
-# gpuprobe is default-off (not in consts.DefaultComponents); this section only
-# lets it load when explicitly enabled via `-E gpuprobe` or `sichek gpu_probe`.
+# gpuprobe is default-off (not in consts.DefaultComponents). Set `enable: true`
+# here to run it on a config-driven daemon (no -E needed), or run it ad hoc via
+# `-E gpuprobe` / `sichek gpu_probe`.
 gpuprobe:
+  enable: true
   query_interval: 600s
   cache_size: 5
   enable_metrics: true
 
-# rdmaenv is default-off (not in consts.DefaultComponents); this section only
-# lets it load when explicitly enabled via `-E rdmaenv` or `sichek rdmaenv`.
-# It scrapes the co-located rdma-env-pre exporter and passes its metrics through.
+# rdmaenv is default-off (not in consts.DefaultComponents). Set `enable: true`
+# here to run it on a config-driven daemon (no -E needed), or run it ad hoc via
+# `-E rdmaenv` / `sichek rdmaenv`. It scrapes the co-located rdma-env-pre exporter
+# and passes its metrics through; `enable_metrics` must stay true to re-export
+# them on sichek's own /metrics.
 rdmaenv:
+  enable: true
   query_interval: 10m
   endpoint: "http://127.0.0.1:19099/metrics"
   timeout: 10s

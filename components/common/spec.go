@@ -23,6 +23,7 @@ limitations under the License.
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -424,6 +425,17 @@ func httpDownload(fileURL, destPath string) error {
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("read body from %s: %w", fileURL, err)
+	}
+	// Guard against a 200 response with an empty/whitespace-only body. Object
+	// storage can briefly serve a zero-length 200 for an object that is being
+	// deleted or is mid-PUT (eventual consistency) before it settles to 404.
+	// Without this check os.WriteFile would faithfully install a 0-byte spec and
+	// the caller (DownloadSpecFile → EnsureSpecFile) would treat the download as
+	// successful, silently clobbering the previously-good canonical spec that
+	// every component shares. Returning an error here leaves the existing file
+	// untouched so EnsureSpecFile falls back to it.
+	if len(bytes.TrimSpace(data)) == 0 {
+		return fmt.Errorf("GET %s: empty response body (%d bytes), refusing to overwrite %s", fileURL, len(data), destPath)
 	}
 	return os.WriteFile(destPath, data, 0644)
 }

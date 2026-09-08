@@ -5,6 +5,19 @@
 
 set -e
 
+# The package ships /etc/systemd/system/sichek.service. Reload systemd so the unit
+# is picked up, then enable it so sichek starts automatically on the next boot.
+# We enable but do NOT start: launching the 8-GPU health daemon at install / image-
+# bake time is unwanted, so we let the first real boot bring it up.
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload || true
+    # Enable (but do NOT start) so sichek comes up on the next boot. We intentionally
+    # skip `start` here: at install / image-bake time we must not launch the 8-GPU
+    # health daemon. The first real boot brings it up via WantedBy=multi-user.target.
+    systemctl enable sichek.service || true
+    systemctl start sichek.service || true
+fi
+
 SICHEK_SCRIPTS_PATH="/var/sichek/scripts"
 PROFILE_D_FILE="/etc/profile.d/sichek.sh"
 

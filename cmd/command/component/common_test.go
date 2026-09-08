@@ -433,3 +433,62 @@ func TestDetermineComponentsToCheck_EdgeCases(t *testing.T) {
 		}
 	}
 }
+
+// TestEnabledOptInComponents verifies that only config sections with a boolean
+// `enable: true` are reported as opt-in enabled. The field is `enable` to match
+// the existing convention (sysinfo config, and the config-sync that writes
+// `rdmaenv: {enable: true}` on real nodes).
+func TestEnabledOptInComponents(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "cfg.yaml")
+	const cfg = `
+metrics:
+  port: 19091
+nvidia:
+  query_interval: 10s
+rdmaenv:
+  enable: true
+  endpoint: "http://127.0.0.1:19099/metrics"
+gpuprobe:
+  enable: false
+  query_interval: 600s
+`
+	if err := os.WriteFile(f, []byte(cfg), 0o644); err != nil {
+		t.Fatalf("write cfg: %v", err)
+	}
+
+	got := EnabledOptInComponents(f)
+	if !got["rdmaenv"] {
+		t.Errorf("rdmaenv (enable: true) should be opt-in enabled, got %v", got)
+	}
+	if got["gpuprobe"] {
+		t.Errorf("gpuprobe (enable: false) must not be opt-in enabled, got %v", got)
+	}
+	if got["nvidia"] {
+		t.Errorf("nvidia (no enable field) must not be in the opt-in set, got %v", got)
+	}
+}
+
+// TestSelectedInConfigMode verifies the config-driven (no -E) selection gate:
+// default components always run, opt-in components run only when enabled, and
+// pseudo-keys stay unselected (so the NewComponent loop skips them while they
+// remain available to after-loop special cases).
+func TestSelectedInConfigMode(t *testing.T) {
+	enabledOptIn := map[string]bool{"rdmaenv": true}
+	cases := []struct {
+		name string
+		comp string
+		want bool
+	}{
+		{"default component always selected", "nvidia", true},
+		{"opt-in with enabled:true selected", "rdmaenv", true},
+		{"opt-in without enable not selected", "gpuprobe", false},
+		{"pseudo-key nccltest not selected", "nccltest", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := SelectedInConfigMode(c.comp, enabledOptIn); got != c.want {
+				t.Errorf("SelectedInConfigMode(%q) = %v, want %v", c.comp, got, c.want)
+			}
+		})
+	}
+}

@@ -16,3 +16,4 @@ specs_download/
 /local
 *.md
 .claude
+*.html
