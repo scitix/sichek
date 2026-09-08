@@ -63,7 +63,7 @@ func TestIsSwitchUplink(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.want, isSwitchUplink(c.iface, hostname))
+			assert.Equal(t, c.want, collector.IsSwitchNeighbor(c.iface.Neighbor, hostname))
 		})
 	}
 }

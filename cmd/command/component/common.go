@@ -91,6 +91,41 @@ func GetComponentsFromConfig(cfgFile string) ([]string, error) {
 	return components, nil
 }
 
+// EnabledOptInComponents returns the set of component config sections explicitly
+// turned on with `enable: true`. It lets a node opt a default-off component
+// (e.g. rdmaenv, gpuprobe) into a config-driven run without re-listing every
+// default via -E. The field is `enable` to match the existing convention
+// (sysinfo config, and the config-sync that writes `rdmaenv: {enable: true}` on
+// real nodes). Sections without a boolean `enable: true` are omitted; a load
+// error yields an empty set (no opt-in components), preserving default behavior.
+func EnabledOptInComponents(cfgFile string) map[string]bool {
+	var raw map[string]interface{}
+	if err := common.LoadUserConfig(cfgFile, &raw); err != nil {
+		return nil
+	}
+	out := make(map[string]bool)
+	for name, v := range raw {
+		section, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if enable, ok := section["enable"].(bool); ok && enable {
+			out[name] = true
+		}
+	}
+	return out
+}
+
+// SelectedInConfigMode reports whether a config-listed component should be
+// instantiated on a config-driven run (no -E flag): default components always
+// run, plus any component whose config section is `enabled: true`. Non-default,
+// non-enabled entries (including pseudo-keys like nccltest/pcie_topo) return
+// false so the NewComponent loop skips them, while they remain in the
+// component list for any after-loop special-case handling.
+func SelectedInConfigMode(name string, enabledOptIn map[string]bool) bool {
+	return slices.Contains(consts.DefaultComponents, name) || enabledOptIn[name]
+}
+
 // DetermineComponentsToCheck determines which components to check based on enable-components flag,
 // ignore-components flag, and the configuration file.
 // Parameters:

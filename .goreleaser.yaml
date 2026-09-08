@@ -82,6 +82,12 @@ nfpms:
       preremove: ./scripts/preuninstall.sh
 
     contents:
+      # systemd unit shipped on disk so `systemctl enable/start/status
+      # sichek.service` works right after install (postinstall runs
+      # `systemctl daemon-reload`). The service is NOT auto-enabled or started
+      # by the package — that stays an explicit operator choice.
+      - src: ./systemd/sichek.service
+        dst: /etc/systemd/system/sichek.service
       - src: ./components/cpu/config/*.yaml
         dst: /var/sichek/config/cpu/
       - src: ./components/dmesg/config/*.yaml

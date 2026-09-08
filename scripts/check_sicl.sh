@@ -22,10 +22,11 @@ if [ -f "$SICL_PACKAGED_PATH" ]; then
     chmod +x "$SICL_PACKAGED_PATH"
     
     echo "[sichek postinstall] Running packaged installer..."
-    bash "$SICL_PACKAGED_PATH"
-    
-    if [ $? -eq 0 ]; then
+    if bash "$SICL_PACKAGED_PATH"; then
         echo "[sichek postinstall] SICL installed successfully from packaged installer."
+        # Remove the bundled installer (hundreds of MB) to reclaim disk space.
+        echo "[sichek postinstall] Cleaning up packaged installer at $SICL_PACKAGED_PATH..."
+        rm -f "$SICL_PACKAGED_PATH"
         exit 0
     else
         echo "[sichek postinstall] Packaged installer failed, trying network download..."
@@ -42,12 +43,7 @@ fi
 chmod +x "$SICL_INSTALLER_LOCAL"
 
 echo "[sichek postinstall] Running installer..."
-bash "$SICL_INSTALLER_LOCAL"
-
-echo "[check_sicl] Cleaning up installer..."
-rm -f "$SICL_INSTALLER_LOCAL"
-
-if [ $? -ne 0 ]; then
+if ! bash "$SICL_INSTALLER_LOCAL"; then
     echo "[sichek postinstall] SICL ${SICL_PKG_NAME} installation failed."
     exit 1
 fi
