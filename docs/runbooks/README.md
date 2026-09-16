@@ -37,4 +37,20 @@
 
 | checker 名 | ErrorName | 级别 | 条目 |
 |---|---|---|---|
-| _(Task 3 填入 17 行)_ | | | |
+| check_ib_phy_state | IBPhyStateNotLinkUp | Critical | [跳转](infiniband.md#check_ib_phy_state--ibphystatenotlinkup-critical) |
+| check_ib_state | IBStateNotActive | Critical | [跳转](infiniband.md#check_ib_state--ibstatenotactive-critical) |
+| check_ib_port_speed | IBPortSpeedNotMax | Critical | [跳转](infiniband.md#check_ib_port_speed--ibportspeednotmax-critical) |
+| check_ib_lost | IBLost | Critical | [跳转](infiniband.md#check_ib_lost--iblost-critical) |
+| check_net_operstate | IBNetOperStateNotUP | Critical | [跳转](infiniband.md#check_net_operstate--ibnetoperstatenotup-critical) |
+| check_ib_num | IBDeviceCountMismatch | Critical | [跳转](infiniband.md#check_ib_num--ibdevicecountmismatch-critical) |
+| check_pcie_tree_speed | PCIETreeSpeedDownDegraded | Critical | [跳转](infiniband.md#check_pcie_tree_speed--pcietreespeeddowndegraded-critical) |
+| check_pcie_tree_width | PCIETreeWidthIncorrect | Critical | [跳转](infiniband.md#check_pcie_tree_width--pcietreewidthincorrect-critical) |
+| check_pcie_acs | PCIEACSNotDisabled | Critical | [跳转](infiniband.md#check_pcie_acs--pcieacsnotdisabled-critical) |
+| check_ib_kmod | IBKernelModulesNotAllInstalled | Critical | [跳转](infiniband.md#check_ib_kmod--ibkernelmodulesnotallinstalled-critical) |
+| check_ib_rail_count | IBRailCountOdd | Critical | [跳转](infiniband.md#check_ib_rail_count--ibrailcountodd-critical) |
+| check_ib_mezz_name | IBMezzNameMismatch | Critical | [跳转](infiniband.md#check_ib_mezz_name--ibmezznamemismatch-critical) |
+| check_ib_ofed | OFEDVersionMismatch | Warning | [跳转](infiniband.md#check_ib_ofed--ofedversionmismatch-warning) |
+| check_ib_fw | IBFirmwareVersionMismatch | Warning | [跳转](infiniband.md#check_ib_fw--ibfirmwareversionmismatch-warning) |
+| check_ib_devs | IBDeviceNameMismatch | Warning | [跳转](infiniband.md#check_ib_devs--ibdevicenamemismatch-warning) |
+| check_roce | RoCENotEnabled | Warning | [跳转](infiniband.md#check_roce--rocenotenabled-warning) |
+| check_pcie_mrr | PCIEMRRIncorrect | Info | [跳转](infiniband.md#check_pcie_mrr--pciemrrincorrect-info) |
