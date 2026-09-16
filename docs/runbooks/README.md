@@ -25,13 +25,13 @@
 |---|---|---|
 | infiniband | [infiniband.md](infiniband.md) | 已填满 |
 | nvidia / gpu | [nvidia.md](nvidia.md) | 已填满 |
-| pcie / pcie_topo_check | [pcie.md](pcie.md) | 待填 |
-| nccl / nccltest | [nccl.md](nccl.md) | 待填 |
-| ethernet | [ethernet.md](ethernet.md) | 待填 |
-| cpu | [cpu.md](cpu.md) | 待填 |
-| gpfs | [gpfs.md](gpfs.md) | 待填 |
-| hang | [hang.md](hang.md) | 待填 |
-| transceiver | [transceiver.md](transceiver.md) | 待填 |
+| pcie / pcie_topo_check | [pcie.md](pcie.md) | 已填满 |
+| nccl / nccltest | [nccl.md](nccl.md) | 已填满 |
+| ethernet | [ethernet.md](ethernet.md) | 已填满 |
+| cpu | [cpu.md](cpu.md) | 已填满 |
+| gpfs | [gpfs.md](gpfs.md) | 已填满 |
+| hang | [hang.md](hang.md) | 已填满 |
+| transceiver | [transceiver.md](transceiver.md) | 已填满 |
 
 ## InfiniBand checker 索引
 
