@@ -24,7 +24,7 @@
 | 组件(`component=`) | 文件 | 状态 |
 |---|---|---|
 | infiniband | [infiniband.md](infiniband.md) | 已填满 |
-| nvidia / gpu | [nvidia.md](nvidia.md) | 待填 |
+| nvidia / gpu | [nvidia.md](nvidia.md) | 已填满 |
 | pcie / pcie_topo_check | [pcie.md](pcie.md) | 待填 |
 | nccl / nccltest | [nccl.md](nccl.md) | 待填 |
 | ethernet | [ethernet.md](ethernet.md) | 待填 |
