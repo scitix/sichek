@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/scitix/sichek/components/common"
@@ -59,6 +61,12 @@ type LocalIface struct {
 	IPv4      []string `json:"ipv4,omitempty"`
 	Master    string   `json:"master,omitempty"`
 	VlanID    int      `json:"vlan_id,omitempty"`
+	// BoardID is the firmware board id / PSID of the RDMA card backing this
+	// interface (read from /sys/class/net/<name>/device/infiniband/<ibdev>/board_id).
+	// Empty for non-RDMA netdevs or when the attribute cannot be read. It groups
+	// interfaces by physical NIC model so the rail checker can judge each fabric
+	// (compute/storage/mgmt HCAs have distinct board ids) independently.
+	BoardID string `json:"board_id,omitempty"`
 }
 
 // Collector implements common.Collector for the lldp component.
@@ -213,5 +221,24 @@ func collectLocalIface(name string) LocalIface {
 			}
 		}
 	}
+
+	li.BoardID = readNetdevBoardID(name)
 	return li
+}
+
+// readNetdevBoardID resolves the firmware board id (PSID) of the RDMA card
+// backing a netdev, via /sys/class/net/<name>/device/infiniband/<ibdev>/board_id.
+// It returns "" for non-RDMA interfaces (no infiniband subdir) or any read
+// error — an empty board id simply excludes the interface from rail grouping.
+func readNetdevBoardID(name string) string {
+	ibDir := filepath.Join("/sys/class/net", name, "device", "infiniband")
+	entries, err := os.ReadDir(ibDir)
+	if err != nil || len(entries) == 0 {
+		return ""
+	}
+	b, err := os.ReadFile(filepath.Join(ibDir, entries[0].Name(), "board_id"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
