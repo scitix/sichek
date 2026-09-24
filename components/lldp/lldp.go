@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/lldp/checker"
 	"github.com/scitix/sichek/components/lldp/collector"
 	"github.com/scitix/sichek/components/lldp/config"
 	"github.com/scitix/sichek/consts"
@@ -41,6 +42,7 @@ type component struct {
 	cfgMutex sync.Mutex
 
 	collector common.Collector
+	checkers  []common.Checker
 
 	cacheMtx    sync.RWMutex
 	cacheBuffer []*common.Result
@@ -92,11 +94,17 @@ func newComponent(cfgFile string) (comp *component, err error) {
 
 	collectorPointer := collector.NewCollector(cfg.LLDP.LldpctlPath, cfg.LLDP.ExecTimeout.Duration)
 
+	railChecker, err := checker.NewRailChecker()
+	if err != nil {
+		return nil, fmt.Errorf("create lldp rail checker failed: %w", err)
+	}
+
 	comp = &component{
 		ctx:           ctx,
 		cancel:        cancel,
 		componentName: consts.ComponentNameLLDP,
 		collector:     collectorPointer,
+		checkers:      []common.Checker{railChecker},
 		cfg:           cfg,
 		cacheBuffer:   make([]*common.Result, cfg.LLDP.CacheSize),
 		cacheInfo:     make([]common.Info, cfg.LLDP.CacheSize),
@@ -115,15 +123,9 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		return nil, err
 	}
 
-	// lldp has no health semantics for now — it is purely informational.
-	// A future revision can add checkers (e.g. "production NIC has no
-	// neighbor") by replacing this stub with common.Check(...).
-	result := &common.Result{
-		Item:   c.componentName,
-		Status: consts.StatusNormal,
-		Level:  consts.LevelInfo,
-		Time:   time.Now(),
-	}
+	// Run the rail-consistency checker over the snapshot. common.Check rolls the
+	// per-checker results up into an overall Status/Level (Info when all pass).
+	result := common.Check(ctx, c.componentName, info, c.checkers)
 
 	c.cacheMtx.Lock()
 	c.cacheInfo[c.currIndex] = info
@@ -209,11 +211,11 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 
 	if !lldpInfo.LldpdAvailable {
 		fmt.Printf("%slldpd not available%s: %s\n\n", consts.Yellow, consts.Reset, lldpInfo.Reason)
-		return true
+		return checkPassed(result)
 	}
 	if len(lldpInfo.Interfaces) == 0 {
 		fmt.Printf("%sno LLDP neighbors detected%s\n\n", consts.Yellow, consts.Reset)
-		return true
+		return checkPassed(result)
 	}
 
 	// List every LLDP neighbor lldpctl reported, one row per local interface.
@@ -250,7 +252,34 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		)
 	}
 	fmt.Println()
-	return true
+
+	// Surface each checker's verdict below the table and roll them up into the
+	// CLI pass/fail. An abnormal checker (e.g. a rail inconsistency) is printed
+	// in its level colour with the offending detail so the operator sees why.
+	allPassed := true
+	for _, cr := range result.Checkers {
+		if cr == nil {
+			continue
+		}
+		if cr.Status == consts.StatusNormal {
+			fmt.Printf("%s%s: PASS%s\n", consts.Green, cr.Name, consts.Reset)
+			continue
+		}
+		allPassed = false
+		fmt.Printf("%s%s: %s%s — %s\n", consts.LevelColor(cr.Level), cr.Name,
+			strings.ToUpper(cr.Level), consts.Reset, cr.Detail)
+	}
+	if len(result.Checkers) > 0 {
+		fmt.Println()
+	}
+	return allPassed
+}
+
+// checkPassed reports whether the rolled-up result is non-abnormal. Used on the
+// early-return paths (lldpd down / no neighbors) where there is no table to
+// annotate but the CLI pass/fail must still track the checker outcome.
+func checkPassed(result *common.Result) bool {
+	return result == nil || result.Status != consts.StatusAbnormal
 }
 
 func dashes(n int) string { return strings.Repeat("-", n) }

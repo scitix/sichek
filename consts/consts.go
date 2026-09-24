@@ -72,6 +72,7 @@ const (
 	CheckerIDDmesg                   = "4200"
 	CheckerIDPodLog                  = "4300"
 	CheckerIDHang                    = "4400"
+	CheckerIDLLDPRail                = "4500"
 
 	// CPU extended checker IDs
 	CheckerIDClockSyncService  = "1300"
