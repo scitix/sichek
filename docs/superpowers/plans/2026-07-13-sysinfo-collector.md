@@ -52,7 +52,7 @@ const (
 	DefaultSysinfoScriptPath    = "scripts/os/collect-config.sh"
 	// DomesticScriptBaseURL is the last-resort base when SICHEK_SPEC_URL is
 	// unavailable; it is DomesticSpecURL with the trailing "/specs" stripped.
-	DomesticScriptBaseURL = "https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh"
+	DomesticScriptBaseURL = "https://oss-cn-shanghai-2.<internal-oss>/hisys:hisys-sichek-sh"
 )
 ```
 

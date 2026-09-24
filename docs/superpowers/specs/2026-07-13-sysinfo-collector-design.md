@@ -34,7 +34,7 @@ are expected to follow:
 - Dotted-namespace keys, unique by design.
 
 First script URL (base auto-resolved by region — see §5):
-`https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/scripts/os/collect-config.sh`
+`https://oss-cn-shanghai-2.<internal-oss>/hisys:hisys-sichek-sh/scripts/os/collect-config.sh`
 
 ## 2. Confirmed decisions
 
@@ -109,7 +109,7 @@ Resulting `snapshot.json` (unchanged `SnapshotManager`, no schema edit):
       "sources": {
         "os_config": {
           "raw": { "kernel.release": "5.15.0-...", "ulimit.open_files.hard": "1048576", "apt.source.fingerprint": "…", "...": "..." },
-          "source": "https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/scripts/os/collect-config.sh",
+          "source": "https://oss-cn-shanghai-2.<internal-oss>/hisys:hisys-sichek-sh/scripts/os/collect-config.sh",
           "status": "ok",
           "key_count": 312,
           "collected_at": "2026-07-13T09:00:00Z"
