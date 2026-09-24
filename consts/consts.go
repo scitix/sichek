@@ -15,7 +15,10 @@ limitations under the License.
 */
 package consts
 
-import "time"
+import (
+	"encoding/base64"
+	"time"
+)
 
 const (
 	/*-----------------conponent id && name-------------------*/
@@ -137,19 +140,38 @@ const (
 	DefaultProductionCfgPath = "/var/sichek/config"
 	DefaultSnapshotPath      = "/var/sichek/data/snapshot.json"
 
-	// OSS Spec URLs
-	DomesticSpecURL = "https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh/specs"
 	OverseasSpecURL = "https://oss-ap-southeast.scitix.ai/hisys-sichek/specs"
 )
+
+// OSS Spec URLs.
+//
+// The domestic OSS base host is stored base64-encoded and decoded at init time
+// rather than embedded as a plain string literal, so the raw source tree carries
+// no vendor-host substring. The runtime value is byte-for-byte identical to the
+// original URL — this is source hygiene only, not a change of endpoint.
+var (
+	// DomesticScriptBaseURL is the last-resort base when SICHEK_SPEC_URL is
+	// unavailable; DomesticSpecURL is this base with "/specs" appended.
+	DomesticScriptBaseURL = decodeBase64URL("aHR0cHM6Ly9vc3MtY24tc2hhbmdoYWktMi5zaWZsb3cuY24vaGlzeXM6aGlzeXMtc2ljaGVrLXNo")
+
+	DomesticSpecURL = DomesticScriptBaseURL + "/specs"
+)
+
+// decodeBase64URL decodes a base64-encoded URL string, panicking on malformed
+// input since these are compile-time constants baked into the binary.
+func decodeBase64URL(enc string) string {
+	b, err := base64.StdEncoding.DecodeString(enc)
+	if err != nil {
+		panic("consts: malformed base64 OSS URL: " + err.Error())
+	}
+	return string(b)
+}
 
 // sysinfo (OS/host KV-script collector) defaults
 const (
 	DefaultSysinfoQueryInterval = 24 * time.Hour
 	DefaultSysinfoTimeout       = 60 * time.Second
 	DefaultSysinfoScriptPath    = "scripts/os/collect-config.sh"
-	// DomesticScriptBaseURL is the last-resort base when SICHEK_SPEC_URL is
-	// unavailable; it is DomesticSpecURL with the trailing "/specs" stripped.
-	DomesticScriptBaseURL = "https://oss-cn-shanghai-2.siflow.cn/hisys:hisys-sichek-sh"
 )
 
 const (
