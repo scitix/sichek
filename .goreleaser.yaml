@@ -37,6 +37,9 @@ snapshot:
 release:
   prerelease: auto
   draft: false
+  # Re-running the release job re-uploads the same asset names; replace them
+  # instead of failing with 422 already_exists.
+  replace_existing_artifacts: true
 
 # -----------------------------
 # Build
