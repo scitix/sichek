@@ -1,0 +1,29 @@
+cpu:  
+  kernel_panic:
+    name: "kernel_panic"
+    description: "kernel panic are alerted"
+    log_file: "/var/log/syslog"
+    regexp: "kernel panic"
+    level: critical
+    suggestion: "restart node"
+  cpu_overheating:
+    name: "cpu_overheating"
+    description: "CPU Core temperature is above threshold, cpu clock is throttled"
+    log_file: "/var/log/syslog"
+    regexp: "temperature above threshold"
+    level: warning
+    suggestion: ""
+  cpu_lockup:
+    name: "cpu_lockup"
+    description: "CPU lockup occurs indicating the CPU cannot execute scheduled tasks due to software or hardware issues"
+    log_file: "/var/log/syslog"
+    regexp: "(soft lockup)|(hard LOCKUP)"
+    level: warning
+    suggestion: ""
+  mce_error:
+    name: "mce_error"
+    description: "Machine Check Exception detected in kernel log"
+    log_file: "/var/log/syslog"
+    regexp: "(Machine check|MCE|mce:)"
+    level: critical
+    suggestion: "Check CPU/memory hardware health. Run mcelog or rasdaemon for details"

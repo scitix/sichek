@@ -1,0 +1,15 @@
+# tmp files & logs
+*~
+\#*\#
+*.log
+out/
+out_*
+*.swp
+bin/
+
+# editor
+.vscode/
+
+# generated files
+deploy/**/deploy.yaml
+script/load-image*.sh

@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# ================================================================
+# Full RoCE QoS configuration check script
+# - Check DCBX / QoS trust / PFC / DSCP mapping / default prio / tc / MTU / buffer
+# - Only allow PFC enabled for prio=5, other priorities must be disabled
+# ================================================================
+
+EXPECTED_MTU=9000
+CHECK_PRIO=5
+VERBOSE=false
+HAS_ERROR=0
+FAILED_IFACES=()
+ALL_IFACES=()
+
+# -------------------------------
+# Parameter parsing
+# -------------------------------
+for arg in "$@"; do
+    case $arg in
+        --verbose)
+            VERBOSE=true
+            ;;
+        --prio=*)
+            CHECK_PRIO="${arg#*=}"
+            ;;
+        --mtu=*)
+            EXPECTED_MTU="${arg#*=}"
+            ;;
+    esac
+done
+
+# -------------------------------
+# Utility functions
+# -------------------------------
+fail() {
+    echo "❌ $1"
+    HAS_ERROR=1
+}
+pass() {
+    $VERBOSE && echo "✅ $1"
+}
+
+# -------------------------------
+# Main check loop
+# -------------------------------
+for iface in $(ls /sys/class/net/ | grep -E '^eth[0-9]+$'); do
+    ALL_IFACES+=("$iface")
+    iface_failed=0
+
+    qos_out=$(mlnx_qos -i "$iface" 2>/dev/null)
+    if [ -z "$qos_out" ]; then
+        fail "$iface: mlnx_qos output is empty"
+        iface_failed=1
+        FAILED_IFACES+=("$iface")
+        continue
+    fi
+
+    # 1️⃣ DCBX mode
+    dcbx=$(echo "$qos_out" | grep "DCBX mode" | awk '{print tolower($3)}' || true)
+    if [ "$dcbx" == "os" ]; then
+        pass "$iface DCBX mode = os controlled"
+    else
+        fail "$iface DCBX mode is $dcbx (expected: os controlled)"
+        iface_failed=1
+    fi
+
+    # 2️⃣ QoS trust check
+    trust=$(echo "$qos_out" | grep -i "Priority trust state" | awk '{print tolower($NF)}' || true)
+    if [ "$trust" == "dscp" ]; then
+        pass "$iface QoS trust state = dscp"
+    else
+        fail "$iface QoS trust state is $trust (expected: dscp)"
+        iface_failed=1
+    fi
+
+    # 3️⃣ PFC check: only allow prio=5 enabled, other priorities must be disabled
+    enabled_line=$(printf '%s\n' "$qos_out" | awk 'tolower($1)=="enabled"{print}' || true)
+    if [ -z "$enabled_line" ]; then
+        fail "$iface PFC enabled line not found"
+        iface_failed=1
+    else
+        read -r -a fields <<< "$enabled_line"
+        pfc=( "${fields[@]:1:8}" )
+        wrong=()
+        # prio=5 must be 1
+        if [ "${pfc[5]}" != "1" ]; then
+            wrong+=( "5(expected 1, got ${pfc[5]})" )
+        fi
+        # other must be 0
+        for prio in 0 1 2 3 4 6 7; do
+            [ "${pfc[$prio]}" != "0" ] && wrong+=( "$prio(expected 0, got ${pfc[$prio]})" )
+        done
+
+        if [ ${#wrong[@]} -eq 0 ]; then
+            pass "$iface PFC configuration correct (only queue 5 enabled)"
+        else
+            fail "$iface PFC invalid: ${wrong[*]}"
+            iface_failed=1
+        fi
+    fi
+
+    # 4️⃣ DSCP → prio mapping
+    mapping=$(echo "$qos_out" | grep "prio:$CHECK_PRIO dscp:" || true)
+    if [ -n "$mapping" ]; then
+        pass "$iface DSCP→prio mapping found: $mapping"
+    else
+        fail "$iface DSCP not mapped to prio=$CHECK_PRIO"
+        iface_failed=1
+    fi
+
+    # 5️⃣ default priority
+    default_prio=$(echo "$qos_out" | awk '/default priority/{print $3}' || true)
+    if [ "$default_prio" != "$CHECK_PRIO" ]; then
+        pass "$iface default priority = $default_prio"
+    else
+        fail "$iface default priority is $CHECK_PRIO (should NOT be same as CHECK_PRIO)"
+        iface_failed=1
+    fi
+
+    # 6️⃣ tc mapping
+    tc_map=$(echo "$qos_out" | grep -A1 "tc: $CHECK_PRIO" | grep "priority:" | awk '{print $2}' || true)
+    if [ "$tc_map" == "$CHECK_PRIO" ]; then
+        pass "$iface prio=$CHECK_PRIO mapped to tc=$CHECK_PRIO"
+    else
+        fail "$iface prio=$CHECK_PRIO not mapped to tc=$CHECK_PRIO (got tc=$tc_map)"
+        iface_failed=1
+    fi
+
+    # 7️⃣ MTU check
+    mtu=$(cat /sys/class/net/$iface/mtu 2>/dev/null || echo 0)
+    if [ "$mtu" -eq "$EXPECTED_MTU" ]; then
+        pass "$iface MTU = $mtu"
+    else
+        fail "$iface MTU=$mtu (expected $EXPECTED_MTU)"
+        iface_failed=1
+    fi
+
+    # 8️⃣ buffer check (prio=5)
+    buf_line=$(echo "$qos_out" | awk 'tolower($1)=="buffer"{print}' || true)
+    if [ -z "$buf_line" ]; then
+        fail "$iface buffer line not found"
+        iface_failed=1
+    else
+        read -r -a buf_fields <<< "$buf_line"
+        buf=("${buf_fields[@]:1:8}")
+        if [ "${buf[5]}" == "1" ]; then
+            pass "$iface buffer for prio=5 = 1"
+        else
+            fail "$iface buffer for prio=5 is ${buf[5]} (expected 1)"
+            iface_failed=1
+        fi
+    fi
+
+    # if the interface check failed, record it
+    if [ "$iface_failed" -eq 1 ]; then
+        FAILED_IFACES+=("$iface")
+    fi
+done
+
+# -------------------------------
+# Summary output
+# -------------------------------
+if [ "$HAS_ERROR" -eq 0 ]; then
+    echo "✅ All interfaces (${ALL_IFACES[*]}) checked passed"
+else
+    echo "❌ Some interfaces have configuration inconsistencies: ${FAILED_IFACES[*]}"
+fi
+
+exit $HAS_ERROR

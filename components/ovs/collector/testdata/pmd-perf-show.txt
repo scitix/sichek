@@ -1,0 +1,96 @@
+
+Time: 12:07:01.271
+Measurement duration: 426314.250 s
+
+pmd thread numa_id 0 core_id 21:
+
+  Iterations:         998623813864  (0.43 us/it)
+  - Used TSC cycles:  1023115689822570  (100.0 % of total cycles)
+  - idle iterations:  998623801194  (100.0 % of used cycles)
+  - busy iterations:         12670  (  0.0 % of used cycles)
+  - sleep iterations:            0  (  0.0 % of iterations)
+  Sleep time (us):               0  (  0 us/iteration avg.)
+  Rx packets:                35839  (0 Kpps, 9401 cycles/pkt)
+  Datapath passes:           35839  (1.00 passes/pkt)
+  - PHWOL hits:                  0  (  0.0 %)
+  - MFEX Opt hits:               0  (  0.0 %)
+  - Simple Match hits:       15720  ( 43.9 %)
+  - EMC hits:                 2052  (  5.7 %)
+  - SMC hits:                    0  (  0.0 %)
+  - Megaflow hits:           16268  ( 45.4 %, 3.28 subtbl lookups/hit)
+  - Upcalls:                  1799  (  5.0 %, 0.0 us/upcall)
+  - Lost upcalls:                0  (  0.0 %)
+  Tx packets:                37403  (0 Kpps)
+  Tx batches:                19402  (1.93 pkts/batch)
+
+Time: 12:07:01.271
+Measurement duration: 426314.244 s
+
+pmd thread numa_id 2 core_id 88:
+
+  Iterations:         996520677557  (0.43 us/it)
+  - Used TSC cycles:  1023130817898334  (100.0 % of total cycles)
+  - idle iterations:  996520666536  (100.0 % of used cycles)
+  - busy iterations:         11021  (  0.0 % of used cycles)
+  - sleep iterations:            0  (  0.0 % of iterations)
+  Sleep time (us):               0  (  0 us/iteration avg.)
+  Rx packets:                69333  (0 Kpps, 5769 cycles/pkt)
+  Datapath passes:           69333  (1.00 passes/pkt)
+  - PHWOL hits:                  0  (  0.0 %)
+  - MFEX Opt hits:               0  (  0.0 %)
+  - Simple Match hits:        8602  ( 12.4 %)
+  - EMC hits:                14052  ( 20.3 %)
+  - SMC hits:                    0  (  0.0 %)
+  - Megaflow hits:           44913  ( 64.8 %, 1.95 subtbl lookups/hit)
+  - Upcalls:                  1766  (  2.5 %, 0.0 us/upcall)
+  - Lost upcalls:                0  (  0.0 %)
+  Tx packets:                70917  (0 Kpps)
+  Tx batches:                16172  (4.39 pkts/batch)
+
+Time: 12:07:01.271
+Measurement duration: 426314.255 s
+
+pmd thread numa_id 1 core_id 182:
+
+  Iterations:         1011391973343  (0.42 us/it)
+  - Used TSC cycles:  1023124487387880  (100.0 % of total cycles)
+  - idle iterations:  1011391961146  (100.0 % of used cycles)
+  - busy iterations:         12197  (  0.0 % of used cycles)
+  - sleep iterations:            0  (  0.0 % of iterations)
+  Sleep time (us):               0  (  0 us/iteration avg.)
+  Rx packets:                79570  (0 Kpps, 3921 cycles/pkt)
+  Datapath passes:           79570  (1.00 passes/pkt)
+  - PHWOL hits:                  0  (  0.0 %)
+  - MFEX Opt hits:               0  (  0.0 %)
+  - Simple Match hits:       12615  ( 15.9 %)
+  - EMC hits:                16761  ( 21.1 %)
+  - SMC hits:                    0  (  0.0 %)
+  - Megaflow hits:           48399  ( 60.8 %, 2.12 subtbl lookups/hit)
+  - Upcalls:                  1794  (  2.3 %, 0.0 us/upcall)
+  - Lost upcalls:                1  (  0.0 %)
+  Tx packets:                81184  (0 Kpps)
+  Tx batches:                18178  (4.47 pkts/batch)
+
+Time: 12:07:01.271
+Measurement duration: 426314.240 s
+
+pmd thread numa_id 3 core_id 239:
+
+  Iterations:         991341529423  (0.43 us/it)
+  - Used TSC cycles:  1023122146705008  (100.0 % of total cycles)
+  - idle iterations:  991341519246  (100.0 % of used cycles)
+  - busy iterations:         10177  (  0.0 % of used cycles)
+  - sleep iterations:            0  (  0.0 % of iterations)
+  Sleep time (us):               0  (  0 us/iteration avg.)
+  Rx packets:                69035  (0 Kpps, 4712 cycles/pkt)
+  Datapath passes:           69035  (1.00 passes/pkt)
+  - PHWOL hits:                  0  (  0.0 %)
+  - MFEX Opt hits:               0  (  0.0 %)
+  - Simple Match hits:        8797  ( 12.7 %)
+  - EMC hits:                16133  ( 23.4 %)
+  - SMC hits:                    0  (  0.0 %)
+  - Megaflow hits:           42346  ( 61.3 %, 1.91 subtbl lookups/hit)
+  - Upcalls:                  1759  (  2.5 %, 0.0 us/upcall)
+  - Lost upcalls:                0  (  0.0 %)
+  Tx packets:                70586  (0 Kpps)
+  Tx batches:                15506  (4.55 pkts/batch)

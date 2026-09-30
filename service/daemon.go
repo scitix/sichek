@@ -1,0 +1,235 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package service
+
+import (
+	"context"
+	"os"
+	"sync"
+	"time"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/metrics"
+
+	"github.com/sirupsen/logrus"
+)
+
+type Service interface {
+	Run()
+	Status() (interface{}, error)
+	Metrics(ctx context.Context, since time.Time) (interface{}, error)
+	Stop() error
+}
+
+type DaemonService struct {
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	components           map[string]common.Component
+	componentsLock       sync.RWMutex
+	componentsStatus     map[string]bool
+	componentsStatusLock sync.RWMutex
+	componentResults     map[string]<-chan *common.Result
+	node                 string
+	metrics              *metrics.HealthCheckResMetrics
+	notifier             Notifier
+	annoStore            *AnnotationStore
+	snapshotMgr          *SnapshotManager
+	reporter             *Reporter
+}
+
+func NewService(components map[string]common.Component, annoKey string, cfgFile string, metricsPort int, metricsSocket string) (s Service, err error) {
+	go metrics.InitPrometheus(cfgFile, metricsPort, metricsSocket)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		if err != nil {
+			logrus.WithField("daemon", "new").Errorf("new daemon service cancel: %v", err)
+			cancel()
+		}
+	}()
+	notifier, err := NewNotifier(annoKey)
+	if err != nil {
+		logrus.WithField("daemon", "new").Warnf("create notifier failed (non-K8s environment?): %v, continuing without K8s annotation support", err)
+		notifier = nil
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.WithField("daemon", "new").Errorf("get node name failed: %v", err)
+	}
+	snapshotMgr, err := NewSnapshotManager(cfgFile)
+	if err != nil {
+		logrus.WithField("daemon", "new").Errorf("create snapshot manager failed: %v", err)
+	}
+
+	// Reporter: periodically POST snapshot.json to sichek-collector.
+	reporterCfg, err := LoadReporterConfig(cfgFile)
+	if err != nil {
+		logrus.WithField("daemon", "new").Warnf("load reporter config failed: %v", err)
+		reporterCfg = defaultReporterConfig()
+	}
+	var reporter *Reporter
+	if reporterCfg.Enable {
+		snapPath := consts.DefaultSnapshotPath
+		if snapshotMgr != nil && snapshotMgr.path != "" {
+			snapPath = snapshotMgr.path
+		}
+		reporter = NewReporter(reporterCfg, snapPath, ResolveNodeName())
+	}
+
+	daemonService := &DaemonService{
+		ctx:              ctx,
+		cancel:           cancel,
+		components:       components,
+		componentsStatus: make(map[string]bool),
+		componentResults: make(map[string]<-chan *common.Result),
+		notifier:         notifier,
+		annoStore:        NewAnnotationStore(),
+		metrics:          metrics.GetHealthCheckResMetrics(),
+		node:             hostname,
+		snapshotMgr:      snapshotMgr,
+		reporter:         reporter,
+	}
+
+	return daemonService, nil
+}
+
+func (d *DaemonService) Run() {
+	// Clear any annotation left over from a previous run/reboot before the
+	// components start republishing. The node annotation persists on the K8s
+	// node across restarts while the daemon's in-memory state does not, and each
+	// component only ever rewrites its own key when it next ticks — so without
+	// this reset a component that no longer runs (disabled / removed /
+	// init-failed) would leave its pre-restart alert on the node forever. Live
+	// checks repopulate within one query interval.
+	if d.notifier != nil {
+		if anno, err := d.notifier.ResetNodeAnnotation(d.ctx); err != nil {
+			logrus.WithField("daemon", "run").Errorf("reset node annotation on startup failed: %v", err)
+		} else if d.snapshotMgr != nil && anno != nil {
+			d.snapshotMgr.SetIssues(anno)
+		}
+	}
+
+	d.componentsLock.Lock()
+
+	for componentName, component := range d.components {
+		resultChan := component.Start()
+		d.componentResults[componentName] = resultChan
+	}
+	d.componentsLock.Unlock()
+
+	if d.reporter != nil {
+		go d.reporter.Run(d.ctx)
+	}
+
+	for componentName, resultChan := range d.componentResults {
+		go d.monitorComponent(componentName, resultChan)
+	}
+}
+
+func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan *common.Result) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.WithField("daemon", "run").Errorf("monitorComponent %s panic,err is %v\n", componentName, err)
+		}
+	}()
+	d.componentsStatusLock.Lock()
+	d.componentsStatus[componentName] = d.components[componentName].Status()
+	d.componentsStatusLock.Unlock()
+	for {
+		logrus.WithField("daemon", "run").Infof("start to listen component %s result channel", componentName)
+		select {
+		case <-d.ctx.Done():
+			logrus.WithField("daemon", "run").Warnf("component %s stop listen as d.ctx.Done()", componentName)
+			return
+		case result, ok := <-resultChan:
+			if !ok {
+				logrus.WithField("daemon", "run").Infof("component %s result channel has closed", componentName)
+				return
+			} else {
+				logrus.WithField("daemon", "run").Infof("Get component %s result", componentName)
+			}
+			var err error
+			if result != nil {
+				result.Node = d.node
+				// Compute the accumulated issue annotation. On K8s the notifier is
+				// the source of truth (it reads/accumulates/writes the node
+				// annotation) and returns the resulting object; off-K8s the
+				// in-process store accumulates instead. The two paths are mutually
+				// exclusive, so issues are never computed twice.
+				var anno *nodeAnnotation
+				if d.notifier != nil {
+					if isHealthCheckTimeout(result) {
+						anno, err = d.notifier.AppendNodeAnnotation(d.ctx, result)
+					} else {
+						anno, err = d.notifier.SetNodeAnnotation(d.ctx, result)
+					}
+				} else if d.annoStore != nil {
+					anno, err = d.annoStore.Apply(result)
+				}
+				// Mirror the issues into the snapshot (best effort: keep the last
+				// good annotation even if this cycle errored).
+				if d.snapshotMgr != nil && anno != nil {
+					d.snapshotMgr.SetIssues(anno)
+				}
+				d.metrics.ExportMetrics(result)
+			}
+
+			if d.snapshotMgr != nil {
+				info, err := d.components[componentName].LastInfo()
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"daemon":    "run",
+						"component": componentName,
+					}).Errorf("LastInfo failed: %v", err)
+				} else {
+					if info == nil {
+						logrus.WithFields(logrus.Fields{
+							"daemon":    "run",
+							"component": componentName,
+						}).Warnf("LastInfo returned nil")
+					}
+					d.snapshotMgr.Update(componentName, info)
+				}
+			}
+
+			if err != nil {
+				logrus.WithField("daemon", "run").Errorf("set node annotation failed: %v", err)
+			}
+		}
+	}
+}
+
+func (d *DaemonService) Status() (interface{}, error) {
+	return d.componentsStatus, nil
+}
+
+func (d *DaemonService) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
+	return nil, nil
+}
+
+func (d *DaemonService) Stop() error {
+	var err error
+	for _, component := range d.components {
+		go func() {
+			err = component.Stop()
+			if err != nil {
+				logrus.WithField("daemon", "stop").Errorf("component %s stop failed: %v", component.Name(), err)
+			}
+		}()
+	}
+	d.cancel()
+	return err
+}

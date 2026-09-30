@@ -1,0 +1,67 @@
+pcie_topo:  
+  "0x233010de":  # Temporarily use GPU ID to replace machine id NVIDIA H100 80GB HBM3
+    numa_config:  
+      - node_id: 0            # NUMA‑0  
+        gpu_count: 4
+        ib_count: 2
+
+      - node_id: 1            # NUMA‑1  
+        gpu_count: 4
+        ib_count: 2
+
+    pci_switches:
+      - gpu: 2
+        ib: 1
+        count: 4
+      - gpu: 1
+        ib: 1
+        count: 4
+
+  "0x26b510de":  # NVIDIA L40
+    numa_config:  
+      - node_id: 0            # NUMA‑0  
+        gpu_count: 4
+        ib_count: 1
+
+      - node_id: 1            # NUMA‑1  
+        gpu_count: 4
+        ib_count: 1
+    
+    pci_switches:
+      - gpu: 4
+        ib: 1
+        count: 2
+
+
+  "0x20f310de": #NVIDIA A800-SXM4-80GB
+    numa_config:  
+      - node_id: 0            # NUMA‑0  
+        gpu_count: 4
+        ib_count: 1
+
+      - node_id: 1            # NUMA‑1  
+        gpu_count: 4
+        ib_count: 1  
+
+    pci_switches:
+      - gpu: 2
+        ib: 0
+        count: 2
+      - gpu: 2
+        ib: 1
+        count: 2  
+
+  "0x233510de": # NVIDIA H200 141GB HBM3e
+    numa_config:
+      - node_id: 0            # NUMA0
+        gpu_count: 4
+        ib_count: 4
+
+      - node_id: 1            # NUMA1
+        gpu_count: 4
+        ib_count: 5
+
+    pci_switches:
+      - gpu: 1
+        ib: 1
+        count: 8

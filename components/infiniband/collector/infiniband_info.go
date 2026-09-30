@@ -1,0 +1,367 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package collector
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/pkg/utils"
+
+	"github.com/sirupsen/logrus"
+)
+
+// HWInfoKey returns the canonical map key used for per-port hardware info
+// and counter records: "<ibdev>/p<port>". Single-port cards still use
+// "<ibdev>/p1" for uniformity.
+func HWInfoKey(IBDev string, port int) string {
+	return fmt.Sprintf("%s/p%d", IBDev, port)
+}
+
+// PortResolver returns the list of port numbers to sample under
+// /sys/class/infiniband/<IBDev>/ports/.  Wiring the spec.PortsFor as a
+// resolver lets the collector stay free of a config-package import.
+type PortResolver func(IBDev string) []int
+
+// RoCEGatewayStatus is the per-device RoCE gateway connectivity result, filled
+// in by the RoCE checker and embedded in the snapshot. State is one of
+// "reachable", "unreachable", or "skipped" (IPv6-only / no IPv4 gateway).
+type RoCEGatewayStatus struct {
+	IBDev     string `json:"ib_dev" yaml:"ib_dev"`
+	NetDev    string `json:"net_dev,omitempty" yaml:"net_dev,omitempty"`
+	Gateway   string `json:"gateway" yaml:"gateway"`
+	State     string `json:"state" yaml:"state"`
+	LatencyUs int64  `json:"latency_us" yaml:"latency_us"` // probe RTT in microseconds (0 if skipped); local gateways are sub-millisecond
+	Error     string `json:"error,omitempty" yaml:"error,omitempty"`
+}
+
+type InfinibandInfo struct {
+	HCAPCINum       int                       `json:"hca_pci_num" yaml:"hca_pci_num"`
+	IBCapablePCINum int                       `json:"ib_capable_pci_num" yaml:"ib_capable_pci_num"`
+	IBPFDevs        map[string]string         `json:"ib_dev" yaml:"ib_dev"`
+	IBPCIDevs       map[string]string         `json:"hca_pci_dev" yaml:"hca_pci_dev"`
+	IBLostPCIDevs   map[string]string         `json:"ib_lost_pci_dev,omitempty" yaml:"ib_lost_pci_dev,omitempty"`
+	IBHardWareInfo  map[string]IBHardWareInfo `json:"ib_hardware_info" yaml:"ib_hardware_info"`
+	IBSoftWareInfo  IBSoftWareInfo            `json:"ib_software_info" yaml:"ib_software_info"`
+	// PCIETreeInfo   map[string]PCIETreeInfo   `json:"pcie_tree_info" yaml:"pcie_tree_info"`
+	IBCounters map[string]IBCounters `json:"ib_counters" yaml:"ib_counters"`
+	// RoCEConnectivity holds per-device gateway reachability + probe latency,
+	// populated by the RoCE checker (Ethernet/RoCE devices only).
+	RoCEConnectivity map[string]*RoCEGatewayStatus `json:"roce_connectivity,omitempty" yaml:"roce_connectivity,omitempty"`
+	IBNicRole        string                        `json:"ib_nic_role" yaml:"ib_nic_role"`
+	Time             time.Time                     `json:"time" yaml:"time"`
+	portResolver     PortResolver
+	mu               sync.RWMutex
+}
+
+func NewIBCollector(ctx context.Context) (*InfinibandInfo, error) {
+	i := &InfinibandInfo{
+		IBHardWareInfo: make(map[string]IBHardWareInfo),
+		IBSoftWareInfo: IBSoftWareInfo{},
+		// PCIETreeInfo:   make(map[string]PCIETreeInfo),
+		IBPFDevs:   make(map[string]string),
+		IBCounters: make(map[string]IBCounters),
+		mu:         sync.RWMutex{},
+	}
+	i.IBNicRole = i.GetNICRole()
+	// Snapshot PCIe device state for an immediate first view; Collect re-scans
+	// every cycle so the counts are never frozen at startup.
+	i.scanPCIeState()
+
+	return i, nil
+}
+
+// scanPCIeState (re)reads the RDMA-capable and lost-HCA PCIe device sets from
+// sysfs into i. It runs at construction and at the start of every Collect so the
+// counts track the current PCI bus state instead of being frozen at startup.
+// Freezing caused false IBLost after a host reboot: the mlx5 stack binds HCAs
+// asynchronously, so a collector built before every device finished registering
+// would snapshot a too-low IBCapablePCINum (and could flag a still-initializing
+// function as a lost HCA) that never recovered until the daemon restarted.
+func (i *InfinibandInfo) scanPCIeState() {
+	pciDevs, err := GetRDMACapablePCIeDevices()
+	if err != nil {
+		logrus.WithField("component", "infiniband").Warnf("Failed to find PCI devices: %v", err)
+	}
+	i.IBPCIDevs = pciDevs
+	i.IBCapablePCINum = len(pciDevs)
+
+	lost, err := GetLostIBPCIeDevices()
+	if err != nil {
+		logrus.WithField("component", "infiniband").Warnf("Failed to scan for lost IB PCIe devices: %v", err)
+	}
+	i.IBLostPCIDevs = lost
+}
+
+// SetPortResolver installs a port resolver so Collect samples the configured
+// ports for each device.  Pass nil (or never call this) to fall back to
+// reading port 1 only — preserving legacy single-port behaviour.
+func (i *InfinibandInfo) SetPortResolver(r PortResolver) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.portResolver = r
+}
+
+func (i *InfinibandInfo) resolvePorts(IBDev string) []int {
+	if i.portResolver != nil {
+		if ports := i.portResolver(IBDev); len(ports) > 0 {
+			return ports
+		}
+	}
+	return []int{1}
+}
+
+func (i *InfinibandInfo) JSON() (string, error) {
+	data, err := json.Marshal(i)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (i *InfinibandInfo) Name() string {
+	return "IBcollector"
+}
+
+func (i *InfinibandInfo) RLock() {
+	i.mu.RLock()
+}
+
+func (i *InfinibandInfo) RUnlock() {
+	i.mu.RUnlock()
+}
+
+func (i *InfinibandInfo) Lock() {
+	i.mu.Lock()
+}
+
+func (i *InfinibandInfo) Unlock() {
+	i.mu.Unlock()
+}
+
+func (i *InfinibandInfo) Collect(ctx context.Context) (common.Info, error) {
+	// Refresh the rdma-link cache once per collection cycle so per-port
+	// netdev mapping reflects the current kernel state.
+	resetRDMALinkCache()
+	// Create a new InfinibandInfo object to avoid retaining historical data
+	newInfo := &InfinibandInfo{
+		IBHardWareInfo: make(map[string]IBHardWareInfo),
+		IBSoftWareInfo: IBSoftWareInfo{},
+		IBPFDevs:       make(map[string]string),
+		IBCounters:     make(map[string]IBCounters),
+		mu:             sync.RWMutex{},
+		// Carry forward values fixed at construction.
+		IBNicRole:    i.IBNicRole,
+		portResolver: i.portResolver,
+	}
+
+	// Re-scan PCIe state every cycle so IBCapablePCINum / IBLostPCIDevs reflect
+	// the current bus rather than a startup snapshot (see scanPCIeState).
+	newInfo.scanPCIeState()
+
+	newInfo.IBPFDevs = i.GetIBPFdevs()
+	newInfo.HCAPCINum = countHCAPCINum(newInfo.IBPFDevs)
+	// Trim IBPCIDevs to only the BDFs that back retained IB PFs so
+	// IBCapablePCINum stays aligned with HCAPCINum regardless of
+	// whether /sys/class/net is fully visible in this namespace.
+	if len(newInfo.IBPCIDevs) > 0 {
+		keptBDFs := make(map[string]struct{})
+		for IBDev := range newInfo.IBPFDevs {
+			for _, bdf := range GetIBDevBDF(IBDev) {
+				if bdf != "" {
+					keptBDFs[bdf] = struct{}{}
+				}
+			}
+		}
+		trimmed := make(map[string]string, len(keptBDFs))
+		for bdf, v := range newInfo.IBPCIDevs {
+			if _, ok := keptBDFs[bdf]; ok {
+				trimmed[bdf] = v
+			}
+		}
+		newInfo.IBPCIDevs = trimmed
+		newInfo.IBCapablePCINum = len(trimmed)
+	}
+	newInfo.IBSoftWareInfo.Collect(ctx)
+
+	// // IBPFDevs is the list of IB PF devices, ignoring cx4 and virtual functions and bond devices
+	for IBDev := range newInfo.IBPFDevs {
+		// skip mezzanine card
+		if strings.Contains(IBDev, "mezz") {
+			continue
+		}
+
+		// Drop a dual-port HCA's secondary (.1) PCI function only when it has no
+		// netdev of its own (a non-functional/phantom registration). A genuine
+		// independent second port keeps its own IB device + netdev and must be
+		// enumerated regardless of bond membership.
+		bdfList := GetIBDevBDF(IBDev)
+		if len(bdfList) > 0 && shouldSkipSecondaryFunction(bdfList[0]) {
+			continue
+		}
+
+		for _, port := range newInfo.resolvePorts(IBDev) {
+			var hwInfo IBHardWareInfo
+			hwInfo.Collect(ctx, IBDev, port, newInfo.IBNicRole)
+			key := HWInfoKey(IBDev, port)
+			newInfo.IBHardWareInfo[key] = hwInfo
+
+			counters := make(IBCounters)
+			counters.Collect(IBDev, port)
+			newInfo.IBCounters[key] = counters
+		}
+	}
+
+	newInfo.Time = time.Now()
+	return newInfo, nil
+}
+
+// countHCAPCINum counts the number of HCA PCI devices
+// Note: When RDMA bonding (mlx5 bonding) is enabled, the IB core registers a single logical IB device.
+// Therefore, only one PCI function contains the infiniband/ directory,
+// while the other functions do not expose independent IB devices.
+// ref. [RoCE LAG]: https://docs.nvidia.com/networking/display/nvidia-mlnx-ofed-documentation-v24-10-1-1-4-0-105-lts.105%20LTS.pdf
+func countHCAPCINum(ibPFDevs map[string]string) int {
+	return len(ibPFDevs)
+	// pciNum := 0
+	// for ibDev := range ibPFDevs {
+	// 	_, isBond := GetIBdev2NetDev(ibDev)
+	// 	if isBond {
+	// 		pciNum += 2
+	// 	} else {
+	// 		pciNum += 1
+	// 	}
+	// }
+
+	// return pciNum
+}
+
+// shouldSkipSecondaryFunction reports whether an IB PF backed by bdf is a
+// secondary PCI function (".1") that should be excluded from enumeration.
+//
+// History: a ".1" function used to be kept only when its netdev was enslaved to
+// a bond. That silently dropped the *independent* second port of a dual-port
+// HCA — e.g. thg1 mlx5_9/ib9 (InfiniBand, ACTIVE, non-bonded) and zy3
+// mlx5_1/s_eth1 (Ethernet/RoCE storage NIC, non-bonded) — removing them from
+// all health checks and metrics. The bond-membership test was the wrong gate:
+// in a real RoCE LAG the bonded second PF does not even expose its own
+// infiniband/ directory (see countHCAPCINum), so it never reaches here.
+//
+// We now keep any ".1" function that exposes a netdev, and skip only a ".1"
+// function with no netdev at all (a non-functional/phantom registration). The
+// primary ".0" function is never skipped here.
+func shouldSkipSecondaryFunction(bdf string) bool {
+	if len(bdf) == 0 || !strings.HasSuffix(bdf, ".1") {
+		return false
+	}
+	netDir := path.Join(PCIPath, bdf, "net")
+	files, err := os.ReadDir(netDir)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("skip secondary function %s: error reading net dir (driver loaded?): %v", bdf, err)
+		return true
+	}
+	if len(files) == 0 {
+		logrus.WithField("component", "infiniband").Errorf("skip secondary function %s: no network interface found", bdf)
+		return true
+	}
+	return false
+}
+
+func ignoreVirtualFunction(ibDev string) bool {
+	vfPath := path.Join(IBSYSPathPre, ibDev, "device", "physfn")
+	if _, err := os.Stat(vfPath); err == nil {
+		logrus.WithField("component", "infiniband").
+			Infof("ignoring virtual function IBDev: %s", ibDev)
+		return true
+	}
+	return false
+}
+
+func (i *InfinibandInfo) GetPFDevs(IBDevs []string) []string {
+	PFDevs := make([]string, 0)
+	for _, IBDev := range IBDevs {
+
+		// // ignore cx4 interface: why???
+		// shouldIgnore := ignoreByHCATYPE(IBDev)
+		// if shouldIgnore {
+		// 	continue
+		// }
+
+		// ignore virtual functions
+		shouldIgnore := ignoreVirtualFunction(IBDev)
+		if shouldIgnore {
+			continue
+		}
+
+		PFDevs = append(PFDevs, IBDev)
+	}
+	return PFDevs
+}
+
+// GetIBPFdevs Get IB PF devices igoring virtual functions and bond devices
+func (i *InfinibandInfo) GetIBPFdevs() map[string]string {
+	allIBDevs, err := GetFileCnt(IBSYSPathPre)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to read IB devices directory: %v", err)
+		return make(map[string]string)
+	}
+	PFDevs := i.GetPFDevs(allIBDevs)
+
+	IBPFDevs := make(map[string]string)
+	for _, IBDev := range PFDevs {
+		// Skip bond IB devices that look like management aggregations
+		// (port rate <= 100 Gb/sec). Business bonds (RoCE LAG / IB
+		// bond over high-speed HCAs) are kept.
+		if utils.IsLowSpeedIBBond(IBDev) {
+			logrus.WithField("component", "infiniband").Debugf("skip low-speed bond %s in IBPFDevs enumeration", IBDev)
+			continue
+		}
+		ibNetDev, _ := GetIBdev2NetDev(IBDev)
+		IBPFDevs[IBDev] = ibNetDev
+	}
+	logrus.WithField("component", "infiniband").Debugf("get the IB and net map: %v", IBPFDevs)
+
+	return IBPFDevs
+}
+
+func (i *InfinibandInfo) GetNICRole() string {
+	var nodeState string
+
+	cmd := exec.Command("rdma", "system")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "ErrNode"
+	}
+	outputStr := string(output)
+	if strings.Contains(outputStr, "exclusive") {
+		nodeState = "sriovNode"
+	}
+
+	if strings.Contains(outputStr, "share") {
+		nodeState = "macvlanNode"
+	}
+
+	return nodeState
+}

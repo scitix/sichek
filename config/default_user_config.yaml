@@ -1,0 +1,133 @@
+metrics:
+  port: 19091
+
+snapshot:
+  enable: true
+  path: "/var/sichek/data/snapshot.json"
+
+reporter:
+  enable: true  # master switch; flip to true after deploying sichek-collector
+  endpoint: "http://10.155.30.38:38080/api/v1/snapshots"
+  interval: 60s
+  timeout: 30s
+  retry_max: 3
+  gzip: true     # keep true unless gzip cannot be decoded upstream
+
+nvidia:
+  query_interval: 10s
+  cache_size: 5
+  enable_metrics: true
+  ignored_checkers:
+    - "app-clocks"
+
+infiniband:
+  query_interval: 10s
+  cache_size: 5
+  enable_metrics: true
+  ignored_checkers:
+    - "net_operstate"
+
+gpfs:
+  query_interval: 10s
+  cache_size: 5
+  ignored_checkers: []
+
+cpu:
+  query_interval: 10s
+  cache_size: 5
+  enable_metrics: true
+
+gpuevents:
+  query_interval: 10s
+  cache_size: 5
+  nvsmi: false
+  mock: false
+  enable_metrics: true
+  ignore_namespaces: []
+  ignored_checkers: []
+
+podlog:
+  query_interval: 10s
+  cache_size: 5
+  skip_percent: 100
+  ignore_namespaces:
+    - "kube-system"
+    - "monitoring"
+    - "fluent"
+    - "pingmesh"
+    - "rdma-doctor-system"
+    - "roce-operator-system"
+    - "scitix-system"
+    - "stream-mirror"
+    - "volcano-system"
+    - "default"
+
+dmesg:
+  query_interval: 10s
+  cache_size: 5
+  skip_percent: 100
+
+syslog:
+  query_interval: 10s
+  cache_size: 5
+  skip_percent: 100
+
+
+nccltest:
+  enable: true
+
+# pcie_topo:
+#   enable: true
+
+# ethernet:
+#   query_interval: 10s
+#   cache_size: 5
+#   ignored_checkers: []
+#   enable_metrics: true
+
+transceiver:
+  query_interval: 300s
+  cache_size: 5
+  ignored_checkers: []
+  enable_metrics: true
+
+lldp:
+  query_interval: 5m
+  cache_size: 5
+  lldpctl_path: ""        # leave empty to resolve from $PATH
+  exec_timeout: 10s
+
+sysinfo:
+  enable: true
+  base_url: ""            # empty → derived from SICHEK_SPEC_URL (strip /specs)
+  query_interval: 24h
+  timeout: 60s
+  sources:
+    - name: os_config
+      path: scripts/os/collect-config.sh
+    # future collectors: append entries, e.g.
+    # - name: gpu_config
+    #   path: scripts/gpu/collect-gpu.sh
+    #   interval: 12h
+
+# gpuprobe is default-off (not in consts.DefaultComponents). Set `enable: true`
+# here to run it on a config-driven daemon (no -E needed), or run it ad hoc via
+# `-E gpuprobe` / `sichek gpu_probe`.
+gpuprobe:
+  enable: true
+  query_interval: 600s
+  cache_size: 5
+  enable_metrics: true
+
+# rdmaenv is default-off (not in consts.DefaultComponents). Set `enable: true`
+# here to run it on a config-driven daemon (no -E needed), or run it ad hoc via
+# `-E rdmaenv` / `sichek rdmaenv`. It scrapes the co-located rdma-env-pre exporter
+# and passes its metrics through; `enable_metrics` must stay true to re-export
+# them on sichek's own /metrics.
+rdmaenv:
+  enable: true
+  query_interval: 10m
+  endpoint: "http://127.0.0.1:19099/metrics"
+  timeout: 10s
+  metric_prefix: "rdma_env_pre_"
+  enable_metrics: true

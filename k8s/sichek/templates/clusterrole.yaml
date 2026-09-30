@@ -1,0 +1,12 @@
+{{- if eq .Values.mode "daemon" }}
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.clusterRole.name }}
+rules:
+  - apiGroups: ["kubeflow.org", ""]
+    resources: ["nodes", "pods", "pytorchjobs"]
+    verbs: ["get", "list", "patch", "update", "watch"]
+{{- end }}
+{{- end }}

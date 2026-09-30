@@ -1,0 +1,174 @@
+{{- if eq .Values.mode "pytorchjob" }}
+apiVersion: kubeflow.org/v1
+kind: PyTorchJob
+metadata:
+  name: {{ .Values.pytorchjob.name }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        {{- if eq .Values.roceSharedMode "macvlan" }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+        {{- end }}
+        {{- if eq .Values.roceSharedMode "volcengine" }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.volcengine.com/pod-networks: |
+              [
+                {
+                  "cniConf":{
+                     "name":"rdma"
+                   }
+                }
+              ]
+        {{- end }}
+        spec: &job-spec
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.pytorchjob.nodeAffinityHosts }}
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          {{- range .Values.pytorchjob.nodeAffinityHosts }}
+                          - {{ . }}
+                          {{- end }}
+          {{- end }}
+          containers:
+          - name: pytorch
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command: [ "/usr/bin/env", "bash", "-c" ]
+            args:
+            - |-
+              {{ .Values.pytorchjob.cmd }}
+            env:
+            - name: SICHEK_SPEC_URL
+              value: {{ .Values.sichekSpecUrl }}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            {{- if eq .Values.roceSharedMode "vf" }}
+            - name: NCCL_IB_GID_INDEX
+              value: "3"
+            {{- else if eq .Values.roceSharedMode "lingjun" }}
+            - name: NCCL_IB_ADDR_RANGE
+              value: "fd03:4511:1080::/41"
+            - name: NCCL_IB_ADDR_FAMILY
+              value: "AF_INET6"
+            {{- end }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PYTHONCACHEPREFIX
+              value: "/dev/shm/.pycache"
+            resources:
+              limits:
+                nvidia.com/gpu: "8"
+                {{- if eq .Values.roceSharedMode "macvlan" }}
+                {{- range $i := until 8 }}
+                nvidia.com/rdma{{ $i }}: "1"
+                {{- end }}
+                {{- else if eq .Values.roceSharedMode "volcengine" }}
+                vke.volcengine.com/rdma_host: "1"
+                {{- else }}
+                rdma/hca_shared_devices_all: "1"
+                {{- end }}
+              requests:
+                nvidia.com/gpu: "8"
+                {{- if eq .Values.roceSharedMode "macvlan" }}
+                {{- range $i := until 8 }}
+                nvidia.com/rdma{{ $i }}: "1"
+                {{- end }}
+                {{- else if eq .Values.roceSharedMode "volcengine" }}
+                vke.volcengine.com/rdma_host: "1"
+                {{- else }}
+                rdma/hca_shared_devices_all: "1"
+                {{- end }}
+            securityContext:
+              privileged: true
+            volumeMounts:
+            - mountPath: /dev/shm
+              name: shm
+            {{- if or (eq .Values.roceSharedMode "volcengine") (eq .Values.roceSharedMode "lingjun") }}
+            - name: nccl-topo
+              mountPath: /var/run/nvidia-topologyd
+            {{- end }}
+            {{- if .Values.pytorchjob.hostDir }}
+            - name: host-dir
+              mountPath: {{ .Values.pytorchjob.hostDir }}
+            {{- end }}
+          {{- if and (ne .Values.roceSharedMode "macvlan") .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
+          volumes:
+          - name: shm
+            emptyDir:
+              medium: Memory
+          {{- if eq .Values.roceSharedMode "volcengine" }}
+          - name: nccl-topo
+            hostPath:
+              path: /var/run/nvidia-topologyd
+          {{- end }}
+          {{- if eq .Values.roceSharedMode "lingjun" }}
+          - name: nccl-topo
+            hostPath:
+              path: /var/run/sys-topology
+          {{- end }}
+          {{- if .Values.pytorchjob.hostDir }}
+          - name: host-dir
+            hostPath:
+              path: {{ .Values.pytorchjob.hostDir }}
+              type: DirectoryOrCreate
+          {{- end }}
+          tolerations:
+          - key: node.kubernetes.io/unschedulable
+            operator: Exists
+            effect: NoSchedule
+          - key: scitix.ai/nodecheck
+            operator: Exists
+            effect: NoSchedule
+    Worker:
+      replicas: {{ add .Values.pytorchjob.numWorkers -1 }}
+      restartPolicy: Never
+      template:
+        {{- if eq .Values.roceSharedMode "macvlan" }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.v1.cni.cncf.io/networks: kube-system/rdma0,kube-system/rdma1,kube-system/rdma2,kube-system/rdma3,kube-system/rdma4,kube-system/rdma5,kube-system/rdma6,kube-system/rdma7
+        {{- end }}
+        {{- if eq .Values.roceSharedMode "volcengine" }}
+        metadata:
+          annotations:
+            roce/gid-injection: '{"envName": "NCCL_IB_GID_INDEX"}'
+            k8s.volcengine.com/pod-networks: |
+              [
+                {
+                  "cniConf":{
+                     "name":"rdma"
+                   }
+                }
+              ]
+        {{- end }}
+        spec:
+          <<: *job-spec
+{{- end }}

@@ -1,0 +1,159 @@
+#!/bin/bash
+
+set -euo pipefail
+
+source "$(dirname "$0")/common.sh"
+
+SCRIPTS_DIR=$(dirname "$(realpath "$0")")
+SICHEK_ROOTDIR=$(realpath "$SCRIPTS_DIR/..")
+SICHEK_HELM_DIR="$SICHEK_ROOTDIR/k8s/sichek"
+
+USAGE="Usage: $0 [OPTIONS]
+Options:
+  --namespace NAMESPACE          Kubernetes namespace (default: hi-sys-monitor)
+  --image-repo REPO              Container image repository
+  --image-tag TAG                Container image tag (default: latest)
+  --default-spec SPEC            Default spec file (default: default_spec.yaml)
+  --hostfile FILE                File containing hostnames, one per line
+  --host HOSTS                   Comma-separated hostnames
+  --operating-system OS          Operating system: ubuntu or centos (default: ubuntu)
+  -h, --help                     Show this help message
+
+Configuration:
+  Values can be set in ~/.sichek/config.yaml:
+    namespace: hi-sys-monitor
+    image_repo: registry-us-east.scitix.ai/hisys/sichek
+    image_tag: latest
+    default_spec: default_spec.yaml
+    operating_system: ubuntu
+
+Note: Number of workers will be automatically derived from hostfile or host parameter.
+"
+
+# Initialize variables
+NAMESPACE=""
+IMAGE_REPO=""
+IMAGE_TAG=""
+DEFAULT_SPEC=""
+HOSTFILE="None"
+HOST="None"
+OPERATING_SYSTEM=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --namespace)
+      NAMESPACE="$2"
+      shift 2
+      ;;
+    --image-repo)
+      IMAGE_REPO="$2"
+      shift 2
+      ;;
+    --image-tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
+    --default-spec)
+      DEFAULT_SPEC="$2"
+      shift 2
+      ;;
+    --hostfile)
+      HOSTFILE="$2"
+      shift 2
+      ;;
+    --host)
+      HOST="$2"
+      shift 2
+      ;;
+    --operating-system)
+      OPERATING_SYSTEM="$2"
+      shift 2
+      ;;
+    -h|--help)
+      echo "$USAGE"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "$USAGE"
+      exit 1
+      ;;
+  esac
+done
+
+# Load user config
+load_user_config
+
+# Pick values with priority: CLI > config > default
+NAMESPACE=$(pick_value "$NAMESPACE" "namespace" "default")
+IMAGE_REPO=$(pick_value "$IMAGE_REPO" "image_repo" "registry-us-east.scitix.ai/hisys/sichek")
+IMAGE_TAG=$(pick_value "$IMAGE_TAG" "image_tag" "latest")
+DEFAULT_SPEC=$(pick_value "$DEFAULT_SPEC" "default_spec" "pisces_spec.yaml")
+OPERATING_SYSTEM=$(pick_value "$OPERATING_SYSTEM" "operating_system" "ubuntu")
+
+# Parse hostnames from hostfile/host
+parse_hostnames "$HOSTFILE" "$HOST"
+
+# Derive worker count from parsed hostnames
+NUM_WORKERS=${#HOSTNAMES[@]}
+if [ $NUM_WORKERS -eq 0 ]; then
+  echo_warn "No hostnames provided, exiting..."
+  exit 1
+fi
+
+echo "========================================================================="
+echo_info "Starting sichek install with the following configuration:"
+echo "  Namespace: $NAMESPACE"
+echo "  Number of Workers: $NUM_WORKERS (auto-derived from hostnames)"
+echo "  Image Repository: $IMAGE_REPO"
+echo "  Image Tag: $IMAGE_TAG"
+echo "  Default Spec: $DEFAULT_SPEC"
+echo "  Hostfile: $HOSTFILE"
+echo "  Host: $HOST"
+if [ $NUM_WORKERS -gt 0 ]; then
+  echo "  Target Nodes: ${HOSTNAMES[*]}"
+fi
+echo "========================================================================="
+
+# Build helm command arguments
+HELM_ARGS=(
+  "upgrade" "--install" "install-all" "/var/sichek/k8s/sichek/"
+  "--atomic"
+  "--set" "mode=install-all"
+  "--set" "image.repository=$IMAGE_REPO"
+  "--set" "image.tag=$IMAGE_TAG"
+  "--set" "batchjob.parallelism=$NUM_WORKERS"
+  "--set" "batchjob.completions=$NUM_WORKERS"
+  "--set" "defaultSpec=$DEFAULT_SPEC"
+  "--set" "namespace=$NAMESPACE"
+  "--set" "batchjob.nodeAffinityHosts={$(IFS=,; echo "${HOSTNAMES[*]}")}"
+  "--set" "os=$OPERATING_SYSTEM"
+)
+# Cleanup function to handle script exit
+cleanup() {
+  echo_info "Cleaning up sichek install..."
+  exit 0
+}
+trap cleanup EXIT        # Call on script exit
+trap cleanup INT         # Ctrl+C interrupt
+trap cleanup TERM        # When killed
+trap cleanup ERR         # Also cleanup on script error (optional)
+
+echo_info "Running helm command: helm ${HELM_ARGS[*]}"
+
+# Execute helm install
+if helm "${HELM_ARGS[@]}"; then
+  echo "========================================================================="
+  echo_info "✅ sichek install completed successfully!"
+  echo "========================================================================="
+else
+  echo "========================================================================="
+  echo_warn "❌ sichek install failed!"
+  echo "========================================================================="
+  exit 1
+fi
+
+echo "========================================================================="
+echo_info "🎉 sichek install process completed!"
+echo "========================================================================="

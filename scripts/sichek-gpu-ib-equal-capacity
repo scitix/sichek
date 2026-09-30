@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Default minimum remaining count (can be overridden by parameters)
+MIN_FREE_GPU=8
+MIN_FREE_IB=32
+
+# Parse parameters
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --gpu)
+      MIN_FREE_GPU="$2"
+      shift 2
+      ;;
+    --ib)
+      MIN_FREE_IB="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown parameter: $1"
+      echo "Usage: $0 [--gpu <minimum remaining GPU count>] [--ib <minimum remaining IB count>]"
+      exit 1
+      ;;
+  esac
+done
+
+# Check if jq is installed
+if ! command -v jq &>/dev/null; then
+  echo "❌ jq needs to be installed to run this script"
+  echo "   Ubuntu/Debian: sudo apt-get install -y jq"
+  echo "   CentOS/RHEL:   sudo yum install -y jq"
+  echo "   MacOS:         brew install jq"
+  exit 1
+fi
+
+GPU_RES="nvidia.com/gpu"
+IB_RES="rdma/hca_shared_devices_all"
+
+echo "🔍 Finding nodes where GPU remaining (allocatable - allocated) ≥ ${MIN_FREE_GPU} and IB remaining ≥ ${MIN_FREE_IB}..."
+echo
+
+printf "%-30s | %-10s %-10s %-10s | %-10s %-10s %-10s\n" \
+  "NODE" "GPU_CAP" "GPU_ALLOC" "GPU_FREE" "IB_CAP" "IB_ALLOC" "IB_FREE"
+echo "------------------------------------------------------------------------------------------------------"
+
+matched_node=0
+for node in $(kubectl get nodes -o json | jq -r '.items[] | select(.status.allocatable["nvidia.com/gpu"]) | .metadata.name'); do
+  # GPU capacity & allocatable
+  gpu_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.capacity[$res] // 0')
+  gpu_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$GPU_RES" '.status.allocatable[$res] // 0')
+  # GPU allocated
+  gpu_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
+    -o json | jq "[.items[].spec.containers[].resources.requests[\"$GPU_RES\"] | (tonumber? // 0)] | add // 0")
+  gpu_free=$((gpu_allocatable - gpu_allocated))
+
+  # IB capacity & allocatable
+  ib_capacity=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.capacity[$res] // 0')
+  ib_allocatable=$(kubectl get node "$node" -o json | jq -r --arg res "$IB_RES" '.status.allocatable[$res] // 0')
+  # IB allocated
+  ib_allocated=$(kubectl get pods -A --field-selector spec.nodeName="$node",status.phase=Running \
+    -o json | jq "[.items[].spec.containers[].resources.requests[\"$IB_RES\"] | (tonumber? // 0)] | add // 0")
+  ib_free=$((ib_allocatable - ib_allocated))
+
+  # Condition: remaining resources ≥ specified value
+  if [[ "$gpu_free" -ge "$MIN_FREE_GPU" && "$ib_free" -ge "$MIN_FREE_IB" ]]; then
+    printf "%-30s | %-10s %-10s %-10s | %-10s %-10s %-10s\n" \
+      "$node" "$gpu_capacity" "$gpu_allocatable" "$gpu_free" \
+      "$ib_capacity" "$ib_allocatable" "$ib_free"
+    matched_node=$((matched_node + 1))
+  fi
+done
+
+echo "------------------------------------------------------------------------------------------------------"
+if [[ $matched_node -eq 0 ]]; then
+  echo "❌ No nodes found matching the criteria."
+else
+  echo "✅ Found $matched_node nodes matching the criteria."
+fi
+echo "------------------------------------------------------------------------------------------------------"

@@ -1,0 +1,125 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "ens122f0": {
+          "via": "LLDP",
+          "rid": "1",
+          "age": "11 days, 18:19:29",
+          "chassis": {
+            "E12-U32-NSS5932-Inband-ACC-01": {
+              "id": {
+                "type": "mac",
+                "value": "4c:c8:44:01:6d:8f"
+              },
+              "descr": "MyPower (R) Operating System Software\nCopyright (C) 2025 Maipu Communication Technology Co.,Ltd.All Rights Reserved.",
+              "mgmt-ip": "10.41.6.3",
+              "mgmt-iface": "63488",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "25ge0/1"
+            },
+            "descr": "25ge0/1",
+            "ttl": "120",
+            "mfs": "9216",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": false,
+              "current": "10G1GbasePRXU1 - One single-mode fiber asymmetric-rate EPON ONU, low power budget (PRX10)"
+            },
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PD",
+              "pairs": "unknown",
+              "class": "unknown"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1740",
+            "pvid": true,
+            "value": "VLAN1740"
+          },
+          "ppvid": {
+            "supported": true,
+            "enabled": false
+          }
+        }
+      },
+      {
+        "ens122f1": {
+          "via": "LLDP",
+          "rid": "2",
+          "age": "11 days, 18:19:28",
+          "chassis": {
+            "E13-U32-NSS5932-Inband-ACC-02": {
+              "id": {
+                "type": "mac",
+                "value": "4c:c8:44:01:82:4b"
+              },
+              "descr": "MyPower (R) Operating System Software\nCopyright (C) 2025 Maipu Communication Technology Co.,Ltd.All Rights Reserved.",
+              "mgmt-ip": "10.41.6.4",
+              "mgmt-iface": "63488",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "25ge0/1"
+            },
+            "descr": "25ge0/1",
+            "ttl": "120",
+            "mfs": "9216",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": false,
+              "current": "10G1GbasePRXU1 - One single-mode fiber asymmetric-rate EPON ONU, low power budget (PRX10)"
+            },
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PD",
+              "pairs": "unknown",
+              "class": "unknown"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1740",
+            "pvid": true,
+            "value": "VLAN1740"
+          },
+          "ppvid": {
+            "supported": true,
+            "enabled": false
+          }
+        }
+      }
+    ]
+  }
+}
+

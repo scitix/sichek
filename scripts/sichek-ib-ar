@@ -1,0 +1,38 @@
+#!/bin/bash
+set -e
+
+OUTDIR=/tmp/ibdiagnet_report
+LOGFILE=$OUTDIR/ibdiagnet2.log
+
+# Check if ibdiagnet exists
+if ! command -v ibdiagnet >/dev/null 2>&1; then
+    echo "❌ ibdiagnet not found, please install ibutils2 / MLNX_OFED package first"
+    exit 1
+fi
+
+# Execute ibdiagnet
+ibdiagnet -r -o $OUTDIR > /dev/null 2>&1
+
+# Verify log file exists
+if [ ! -f "$LOGFILE" ]; then
+    echo "❌ $LOGFILE not found, please check if ibdiagnet executed successfully"
+    exit 1
+fi
+
+# Extract total switch count
+total_switches=$(grep "IB Switches" "$LOGFILE" | awk '{print $4}')
+
+# Extract count of switches with AR enabled
+ar_enabled=$(grep "Adaptive Routing is enabled on" "$LOGFILE" | awk '{print $6}' | tr -dc '0-9')
+
+# Output results
+if [ -n "$total_switches" ] && [ -n "$ar_enabled" ]; then
+    rate=$(awk "BEGIN {printf \"%.2f\", ($ar_enabled/$total_switches)*100}")
+    if [ "$rate" != "100.00" ]; then
+        echo "🚨 Critical Warning: AR enabled switches: $ar_enabled / Total switches: $total_switches (Enable rate: $rate%)"
+    else
+        echo "✅ AR enabled switches: $ar_enabled / Total switches: $total_switches (Enable rate: $rate%)"
+    fi
+else
+    echo "⚠️ Failed to parse switch information, please check $LOGFILE content"
+fi

@@ -1,0 +1,20 @@
+build
+.vscode
+dist/
+cmd/cmd
+cmd/sichek
+vendor/
+.idea/workspace.xml
+goreleaser*
+sicl
+/sichek
+/main
+*__pycache__
+*.pyc
+
+specs_download/
+/doc
+/local
+# *.md  # 放开文档追踪：README.md 与 docs/ 需要入库
+.claude
+# *.html  # 放开：docs/ 下审计报告需入库

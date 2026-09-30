@@ -1,0 +1,5 @@
+ovs:
+  query_interval: 60s
+  cache_size: 5
+  enable_metrics: true
+  ignored_checkers: []

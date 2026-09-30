@@ -1,0 +1,621 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import re
+import argparse
+from collections import defaultdict
+import subprocess
+import sys
+import tempfile
+
+def parse_iblinkinfo(file_path: str):
+    """
+    Parse iblinkinfo output file, return switches/hosts dict
+    """
+
+    switches = {}
+    hosts = {}
+
+    sw_re = re.compile(r'^Switch:\s+(\S+)\s+(.*):$')
+    port_re = re.compile(
+        r'^\s*(\d+)\s+(\d+)\[.*?\]\s+==\(\s*(.*?)\s*\)==>\s*(\S*)\s*(\d*)\[.*?\]\s+"(.*?)"\s*\(.*\)'
+    )
+
+    current_sw = None
+
+    with open(file_path, "r") as f:
+        for line in f:
+            line = line.rstrip()
+
+            # Switch start line
+            m = sw_re.match(line)
+            if m:
+                sw_guid, sw_name = m.groups()
+                current_sw = {
+                    "guid": sw_guid,
+                    "name": sw_name,
+                    "lid": None,  # LID will be set when parsing the first port
+                    "ports": [],
+                    "total_ports": 0,  # Total port count
+                    "up_ports": 0,     # Active port count
+                    "down_ports": 0,   # Inactive port count
+                }
+                switches[sw_guid] = current_sw
+                continue
+
+            # Port line
+            m = port_re.match(line)
+            if m and current_sw:
+                lid, port, state, peer_lid, peer_port, peer_name = m.groups()
+
+                # Set switch LID (only need to set once)
+                if current_sw["lid"] is None:
+                    current_sw["lid"] = int(lid)
+
+                peer_type = "unknown"
+                name_lower = peer_name.lower()
+                if "switch" in name_lower:
+                    peer_type = "switch"
+                elif "mlx5" in name_lower or "connectx" in name_lower:
+                    peer_type = "hca"
+
+                port_info = {
+                    "port": int(port),
+                    "state": state.strip(),
+                    "peer": {
+                        "lid": int(peer_lid) if peer_lid else None,
+                        "port": int(peer_port) if peer_port else None,
+                        "name": peer_name.strip(),
+                        "type": peer_type,
+                    } if peer_name else None
+                }
+                current_sw["ports"].append(port_info)
+
+                # If it's an HCA, record the host
+                if peer_type == "hca":
+                    # Separate node name and HCA name
+                    peer_parts = peer_name.split()
+                    host_id = peer_parts[0]  # Hostname
+                    hca_name = peer_parts[1] if len(peer_parts) > 1 else "unknown"  # HCA name
+
+                    if host_id not in hosts:
+                        hosts[host_id] = {
+                            "id": host_id,
+                            "ports": []
+                        }
+                    hosts[host_id]["ports"].append({
+                        "switch": current_sw["guid"],
+                        "switch_port": int(port),
+                        "state": state.strip(),
+                        "node_name": host_id,  # Node name
+                        "hca_name": hca_name,  # HCA name
+                        "full_name": peer_name  # Full name (for backward compatibility)
+                    })
+
+    # Calculate port statistics for each switch
+    for sw_id, sw in switches.items():
+        total = len(sw["ports"])
+        up = sum(1 for p in sw["ports"] if "LinkUp" in p["state"])
+        down = total - up
+
+        sw["total_ports"] = total
+        sw["up_ports"] = up
+        sw["down_ports"] = down
+
+    return switches, hosts
+
+
+def summarize_switch_health(switches: dict, switch_types: list = None):
+    """
+    Output health summary table for specified switch types: Up/Down/Total/Health%
+    """
+    summary = []
+    for sw_id, sw in switches.items():
+        if switch_types and sw.get("type") not in switch_types:
+            continue
+        summary.append({
+            "switch": sw["name"],
+            "guid": sw_id,
+            "lid": sw["lid"],
+            "type": sw.get("type", "unknown"),
+            "total_ports": sw["total_ports"],
+            "up_ports": sw["up_ports"],
+            "down_ports": sw["down_ports"],
+            "health_percent": round((sw["up_ports"] / sw["total_ports"] * 100) if sw["total_ports"] else 0, 2),
+            "down_port_list": [p["port"] for p in sw["ports"] if "LinkUp" not in p["state"]]
+        })
+    return summary
+
+def classify_topology(switches: dict, hosts: dict):
+    """
+    Classify topology structure: Leaf / Spine / Superspine / Interconnect + nodes
+    Corrected classification logic:
+    - Leaf Switch: Switches connected to HCA devices
+    - Spine Switch: Switches connected to Leaf Switches
+    - Superspine Switch: Switches connected to Spine Switches
+    - Interconnect Switch: Switches that only connect to other switches, not connected to HCA, and not directly connected to Leaf or Spine switches
+    """
+    leaf_sw, spine_sw, superspine_sw, interconnect_sw = [], [], [], []
+
+    # Step 1: Identify Leaf Switches (switches connected to HCA)
+    for sw_id, sw in switches.items():
+        hca_ports = [p for p in sw["ports"] if p.get("peer") and p.get("peer").get("type") == "hca"]
+        if hca_ports:
+            sw["type"] = "leaf_sw"
+            leaf_sw.append(sw)
+
+    # Step 2: Identify switches connected to Leaf Switches (these are Spine Switches)
+    leaf_names = {sw["name"] for sw in leaf_sw}
+    for sw_id, sw in switches.items():
+        if sw.get("type") == "leaf_sw":
+            continue
+
+        # Check if connected to Leaf Switch
+        connected_to_leaf = False
+        for p in sw["ports"]:
+            if p.get("peer") and p["peer"].get("name") in leaf_names:
+                connected_to_leaf = True
+                break
+
+        if connected_to_leaf:
+            sw["type"] = "spine_sw"
+            spine_sw.append(sw)
+
+    # Step 3: Identify Superspine Switches (switches connected to Spine Switches)
+    spine_names = {sw["name"] for sw in spine_sw}
+    for sw_id, sw in switches.items():
+        if sw.get("type") in ["leaf_sw", "spine_sw"]:
+            continue
+
+        # Check if connected to Spine Switch
+        connected_to_spine = False
+        for p in sw["ports"]:
+            if p.get("peer") and p["peer"].get("name") in spine_names:
+                connected_to_spine = True
+                break
+
+        if connected_to_spine:
+            sw["type"] = "superspine_sw"
+            superspine_sw.append(sw)
+
+    # Step 4: Identify Interconnect Switches (only connect to switches, not HCA, and not directly connected to Leaf or Spine)
+    for sw_id, sw in switches.items():
+        if sw.get("type") in ["leaf_sw", "spine_sw", "superspine_sw"]:
+            continue
+
+        # Check if only connected to switches (not HCA)
+        has_hca = any(p.get("peer") and p["peer"].get("type") == "hca" for p in sw["ports"])
+        if not has_hca:
+            sw["type"] = "interconnect_sw"
+            interconnect_sw.append(sw)
+
+    # Node classification (simple example, extensible)
+    node_categories = defaultdict(list)
+    for host_id, host in hosts.items():
+        if "gpu" in host_id.lower():
+            node_categories["gpu_nodes"].append(host)
+        elif "cpu" in host_id.lower():
+            node_categories["cpu_nodes"].append(host)
+        else:
+            node_categories["unknown_nodes"].append(host)
+
+    return {
+        "leaf_sw": leaf_sw,
+        "spine_sw": spine_sw,
+        "superspine_sw": superspine_sw,
+        "interconnect_sw": interconnect_sw,
+        **node_categories
+    }
+
+def summarize_nodes(hosts: dict):
+    """
+    Output node statistics: how many GPU/CPU/storage nodes, etc.
+    Fix: Classify based on actual node naming patterns
+    """
+    summary = defaultdict(int)
+    for host_id in hosts:
+        hid = host_id.lower()
+
+        # Check various node type patterns
+        if "gpu" in hid or "g88" in hid:  # cetus-g88-xxx format
+            summary["gpu_nodes"] += 1
+        elif "cpu" in hid or (hid.startswith("cetus-c-")):  # cetus-c-xxx format
+            summary["cpu_nodes"] += 1
+        elif "storage" in hid or "gpfs" in hid:
+            summary["storage_nodes"] += 1
+        elif "meta" in hid or "master" in hid or "worker" in hid:
+            summary["management_nodes"] += 1
+        elif "controlplane" in hid or "registry" in hid:
+            summary["control_nodes"] += 1
+        else:
+            summary["unknown_nodes"] += 1
+    return dict(summary)
+
+
+def group_leaf_switches_by_hosts(switches: dict, verbose: bool = False):
+    """
+    Group Leaf Switches by connected hosts
+    If multiple Leaf Switches are connected to all network cards of the same group of hosts, they are grouped together
+    """
+    leaf_switches = [sw for sw in switches.values() if sw.get("type") == "leaf_sw"]
+
+    # Collect host set for each Leaf Switch
+    leaf_hosts = {}
+    for sw in leaf_switches:
+        hosts = set()
+        for p in sw["ports"]:
+            peer = p.get("peer")
+            if peer and peer.get("type") == "hca":
+                if "Mellanox Technologies" in peer["name"]:
+                    continue
+                host = peer["name"].split()[0]  # Hostname
+                hosts.add(host)
+        leaf_hosts[sw["guid"]] = hosts
+
+    # Group by host set
+    groups = defaultdict(list)
+    for sw_guid, hosts in leaf_hosts.items():
+        # Convert host set to sorted tuple for comparison
+        host_key = tuple(sorted(hosts))
+        groups[host_key].append(sw_guid)
+
+    # Filter out empty groups (Leaf Switches not connected to hosts)
+    groups = {k: v for k, v in groups.items() if k}  # Remove empty groups
+
+    # Sort by host_key (tuple of sorted hostnames) so group numbering is stable across runs
+    groups = dict(sorted(groups.items(), key=lambda x: x[0]))
+
+    # Summary
+    total_groups = len(groups)
+    total_leafs = len(leaf_switches)
+    print(f"Leaf Switch grouping statistics: {total_groups} groups, {total_leafs} Leaf Switches")
+
+    # Build table
+    rows = []
+    for i, (hosts, sw_guids) in enumerate(groups.items(), 1):
+        host_count = len(hosts)
+        leaf_count = len(sw_guids)
+
+        sorted_hosts = sorted(hosts)
+        if not verbose and host_count > 3:
+            host_display = ", ".join(sorted_hosts[:3]) + f"... (total {host_count})"
+        else:
+            host_display = ", ".join(sorted_hosts)
+
+        rows.append([
+            i,
+            leaf_count,
+            host_count,
+            host_display,
+            ", ".join(sw_guids)  # Print all
+        ])
+
+    # Print table
+    header = ["Group", "Leaf Count", "Host Count", "Hosts", "Leaf GUIDs"]
+    col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+    print("| " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+    print("|-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+    for row in rows:
+        print("| " + " | ".join(f"{str(row[i]):<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    return groups
+
+def check_leaf_hca_consistency_by_group(switches: dict, groups: dict, verbose: bool = False):
+    """
+    Check HCA consistency by Leaf Switch group:
+    - Whether HCA models connected within each Leaf Switch are consistent
+    """
+    issues = []
+    passed_groups = 0
+    total_groups = len(groups)
+    rows = []
+
+    for group_id, (hosts, sw_guids) in enumerate(groups.items(), 1):
+        group_passed = True
+
+        for sw_guid in sw_guids:
+            sw = switches[sw_guid]
+            hca_map = {}  # hca_name -> set(hosts)
+
+            for p in sw["ports"]:
+                peer = p.get("peer")
+                if peer and peer.get("type") == "hca":
+                    # Skip Mellanox Technologies entries
+                    if "Mellanox Technologies" in peer["name"]:
+                        continue
+                    hca_name = peer["name"].split()[-1]  # e.g. mlx5_7
+                    host = peer["name"].split()[0]      # e.g. cetus-g88-061
+                    hca_map.setdefault(hca_name, set()).add(host)
+
+            status = "✅"
+            if len(hca_map) > 1:
+                status = "❌"
+                group_passed = False
+                issues.append({
+                    "group_id": group_id,
+                    "sw_guid": sw_guid,
+                    "hca_names": list(hca_map.keys()),
+                    "connected_hosts": {k: list(v) for k, v in hca_map.items()},
+                })
+
+            # Format HCA mapping output
+            hca_summary = []
+            for hca, hosts_set in hca_map.items():
+                hosts_list = sorted(list(hosts_set))
+                if len(hosts_list) > 3:
+                    hosts_display = ", ".join(hosts_list[:3]) + "..."
+                else:
+                    hosts_display = ", ".join(hosts_list)
+                hca_summary.append(f"{hca}: {hosts_display}")
+            hca_summary_str = " | ".join(hca_summary) if hca_summary else "-"
+
+            rows.append([
+                f"{status} {group_id}",
+                sw_guid,
+                ",".join(sorted(hca_map.keys())) if hca_map else "-",
+                sum(len(v) for v in hca_map.values()),
+                hca_summary_str
+            ])
+
+        if group_passed:
+            passed_groups += 1
+
+    # Print results
+    overall_status = "✅" if passed_groups == total_groups else "❌"
+    print(f"HCA consistency check: {passed_groups}/{total_groups} groups passed {overall_status}")
+
+    header = ["Group", "Leaf GUID", "HCA Models", "Host Count", "HCA→Hosts"]
+    col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+    # Print table header
+    print("| " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+    print("|-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+    # Print table rows
+    for row in rows:
+        print("| " + " | ".join(f"{row[i]:<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    return issues
+
+
+
+def check_leaf_to_spine_links_by_group(
+    switches: dict, groups: dict, expected_spine_count: int = 32, verbose: bool = False
+):
+    """
+    Check connection distribution from each leaf switch to spine by group:
+    - Expected to connect to {expected_spine_count} different Spine Switches
+    - Only count ports in LinkUp state
+    - Also collect and print the list of spine GUIDs connected to each group
+    """
+    issues = []
+    total_groups = len(groups)
+    passed_groups = 0
+    rows = []
+    group_spines = {}  # group_id -> sorted list of spine GUIDs (connected to any leaf in group)
+
+    for group_id, (hosts, sw_guids) in enumerate(groups.items(), 1):
+        group_passed = True
+        group_spine_set = set()
+        for sw_guid in sw_guids:
+            sw = switches[sw_guid]
+            spine_links = defaultdict(list)  # spine_name -> [port list]
+
+            for p in sw["ports"]:
+                if "LinkUp" not in p["state"]:
+                    continue
+                peer = p.get("peer")
+                if peer and peer.get("type") == "switch":
+                    # Match peer by LID (unique per switch), not by name (multiple spines can share same model name)
+                    peer_lid = peer.get("lid")
+                    peer_sw_id = None
+                    for other_sw_id, other_sw in switches.items():
+                        if other_sw.get("type") == "spine_sw" and other_sw.get("lid") == peer_lid:
+                            peer_sw_id = other_sw_id
+                            break
+                    if peer_sw_id:
+                        spine_links[peer_sw_id].append(p["port"])
+                        group_spine_set.add(peer_sw_id)
+
+            actual_spine_count = len(spine_links)
+            down_ports = [p["port"] for p in sw["ports"] if "LinkUp" not in p["state"]]
+
+            status = "✅" if actual_spine_count == expected_spine_count else "❌"
+            if actual_spine_count != expected_spine_count:
+                group_passed = False
+                issues.append({
+                    "group_id": group_id,
+                    "leaf_guid": sw_guid,
+                    "actual_spine_count": actual_spine_count,
+                    "expected_spine_count": expected_spine_count,
+                    "down_ports": down_ports,
+                })
+
+            rows.append([
+                f"{status} {group_id}",
+                sw_guid,
+                f"{actual_spine_count}/{expected_spine_count}",
+                str(down_ports),
+            ])
+
+        group_spines[group_id] = sorted(group_spine_set)
+        if group_passed:
+            passed_groups += 1
+
+    # Print results
+    overall_status = "✅" if passed_groups == total_groups else "❌"
+    print(f"Leaf-Spine connection distribution check: {passed_groups}/{total_groups} groups passed {overall_status}")
+
+    header = ["Group", "Leaf GUID", "Spine (Actual/Expected)", "Down Ports"]
+    col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+    # Print table header
+    print("| " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+    print("|-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+    # Print table rows
+    for row in rows:
+        print("| " + " | ".join(f"{row[i]:<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    # Print spine GUIDs per group (for leafsw_group etc.)
+    print("\nSpine switches connected to each leaf group (spine GUIDs):")
+    for group_id in sorted(group_spines.keys()):
+        spines = group_spines[group_id]
+        print(f"  Group {group_id} ({len(spines)} spines): " + ", ".join(spines))
+
+    return issues
+
+
+def check_switch_health(switches: dict, switch_types: list = None, verbose: bool = False):
+    """
+    Check health status of specified switch types and output problematic switches in a table
+    """
+    if switch_types is None:
+        switch_types = ["leaf_sw", "spine_sw"]
+
+    health_summary = summarize_switch_health(switches, switch_types)
+    if not health_summary:
+        print("No switches of specified types found")
+        return
+
+    # Calculate switch-level health
+    total_switches = len(health_summary)
+    healthy_switches = sum(1 for s in health_summary if s["health_percent"] == 100.0)
+    warning_switches = sum(1 for s in health_summary if 80.0 <= s["health_percent"] < 100.0)
+    critical_switches = sum(1 for s in health_summary if s["health_percent"] < 80.0)
+
+    # Calculate port-level health
+    total_ports = sum(s["total_ports"] for s in health_summary)
+    up_ports = sum(s["up_ports"] for s in health_summary)
+    port_health_rate = (up_ports / total_ports * 100) if total_ports else 0.0
+
+    print(f"Switch health check ({', '.join(switch_types)}):")
+    print(f"  Total switches: {total_switches}   Port health rate: {up_ports}/{total_ports} ({port_health_rate:.2f}%)")
+    print(f"  ✅ Healthy (100%): {healthy_switches}   ⚠️ Warning (80-99%): {warning_switches}   ❌ Critical (<80%): {critical_switches}")
+
+    # Tabulate problematic switches
+    problem_switches = [s for s in health_summary if s["health_percent"] < 100.0]
+    if problem_switches:
+        # Sort by health rate in ascending order
+        problem_switches.sort(key=lambda x: x["health_percent"])  # Sort by health rate ascending
+
+        # Print problematic switch list
+        print("\n  Problematic switch list:")
+        header = ["Type", "GUID", "Port Health", "Health Rate", "Status", "Down Ports"]
+        rows = []
+        for s in problem_switches:
+            if s["health_percent"] < 80.0:
+                status_icon = "❌"
+            else:
+                status_icon = "⚠️"
+            rows.append([
+                s["type"],
+                s["guid"],
+                f"{s['up_ports']}/{s['total_ports']}",
+                f"{s['health_percent']:.2f}%",
+                status_icon,
+                ",".join(map(str, s["down_port_list"])) if s["down_port_list"] else "-"
+            ])
+
+        # Calculate column widths
+        col_widths = [max(len(str(row[i])) for row in [header] + rows) for i in range(len(header))]
+
+        # Print table header
+        print("  | " + " | ".join(f"{header[i]:<{col_widths[i]}}" for i in range(len(header))) + " |")
+        print("  |-" + "-|-".join("-" * col_widths[i] for i in range(len(header))) + "-|")
+
+        # Print rows
+        for row in rows:
+            print("  | " + " | ".join(f"{str(row[i]):<{col_widths[i]}}" for i in range(len(row))) + " |")
+
+    if verbose:
+        print("\nSwitch health check details:")
+        for s in sorted(health_summary, key=lambda x: x["health_percent"]):
+            status_icon = "✅" if s["health_percent"] == 100.0 else "⚠️" if s["health_percent"] >= 80.0 else "❌"
+            print(f"  {status_icon} {s['type']} ({s['guid']}): "
+                  f"{s['up_ports']}/{s['total_ports']} ports active ({s['health_percent']}%)")
+            if s["down_port_list"]:
+                print(f"      Down ports: {s['down_port_list']}")
+
+    return health_summary
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='InfiniBand topology analysis tool')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output mode')
+    parser.add_argument('--expected-spine-count', type=int, default=32, help='Expected Spine connection count (default: 32)')
+    parser.add_argument('--output-dir', type=str, help='Specify output directory (if not specified, use temporary directory and delete at end)')
+    args = parser.parse_args()
+
+    # Check if iblinkinfo exists
+    if subprocess.run("command -v iblinkinfo", shell=True,
+                      stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode != 0:
+        print("❌ iblinkinfo not found, please install: apt-get install infiniband-diags -y")
+        sys.exit(1)
+
+    # Process output directory
+    if args.output_dir:
+        output_dir = args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        cleanup_output = False
+    else:
+        tmp_dir = tempfile.TemporaryDirectory(prefix="ib_topo_analyze_")
+        output_dir = tmp_dir.name
+        cleanup_output = True
+
+    # Place topo file in output_dir
+    topo_file_path = os.path.join(output_dir, "iblinkinfo.txt")
+
+    print("Generating IB topology file...")
+    with open(topo_file_path, 'w') as file:
+        subprocess.run(['iblinkinfo --switches-only'], shell=True,
+                       stdout=file, stderr=subprocess.PIPE)
+
+    print("Starting IB topology analysis...")
+    switches, hosts = parse_iblinkinfo(topo_file_path)
+
+    # Save JSON file
+    with open(os.path.join(output_dir, 'switches.json'), 'w') as f:
+        json.dump(switches, f, indent=2)
+
+    with open(os.path.join(output_dir, 'hosts.json'), 'w') as f:
+        json.dump(hosts, f, indent=2)
+
+    # Classify topology
+    topo = classify_topology(switches, hosts)
+    print("Leaf Switches:", len(topo["leaf_sw"]))
+    print("Spine Switches:", len(topo["spine_sw"]))
+    print("Superspine Switches:", len(topo["superspine_sw"]))
+    print("Interconnect Switches:", len(topo["interconnect_sw"]))
+
+    # Node statistics
+    node_summary = summarize_nodes(hosts)
+    print("Node statistics:", node_summary)
+    print()
+
+    # Health check
+    check_switch_health(switches, ["leaf_sw", "spine_sw"], verbose=args.verbose)
+    print()
+
+    # Leaf Switch grouping
+    groups = group_leaf_switches_by_hosts(switches, verbose=args.verbose)
+    print()
+
+    # HCA consistency check (by group)
+    print("HCA consistency check:")
+    check_leaf_hca_consistency_by_group(switches, groups, verbose=args.verbose)
+    print()
+
+    # Leaf-Spine connection distribution check
+    check_leaf_to_spine_links_by_group(switches, groups,
+                                       expected_spine_count=args.expected_spine_count,
+                                       verbose=args.verbose)
+
+    # If it's a temporary directory, clean it up at the end
+    if cleanup_output:
+        tmp_dir.cleanup()
+        print(f"Cleaned up temporary output directory: {output_dir}")
+    else:
+        print(f"Output files saved to: {output_dir}")

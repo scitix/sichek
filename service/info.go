@@ -1,0 +1,261 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package service
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/metrics"
+
+	"github.com/sirupsen/logrus"
+)
+
+type nodeAnnotation struct {
+	Podlog      map[string][]*annotation `json:"podlog"`
+	Syslog      map[string][]*annotation `json:"syslog"`
+	Hang        map[string][]*annotation `json:"hang"`
+	NVIDIA      map[string][]*annotation `json:"nvidia"`
+	Infiniband  map[string][]*annotation `json:"infiniband"`
+	Ethernet    map[string][]*annotation `json:"ethernet"`
+	GPFS        map[string][]*annotation `json:"gpfs"`
+	CPU         map[string][]*annotation `json:"cpu"`
+	Memory      map[string][]*annotation `json:"memory"`
+	Dmesg       map[string][]*annotation `json:"dmesg"`
+	Transceiver map[string][]*annotation `json:"transceiver"`
+	LLDP        map[string][]*annotation `json:"lldp"`
+	OVS         map[string][]*annotation `json:"ovs"`
+	GpuProbe    map[string][]*annotation `json:"gpuprobe"`
+}
+
+func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
+	var anno nodeAnnotation
+	if len(jsonStr) == 0 {
+		return &anno, nil
+	}
+	err := json.Unmarshal([]byte(jsonStr), &anno)
+	if err != nil {
+		return nil, err
+	}
+	return &anno, nil
+}
+
+func (a *nodeAnnotation) JSON() (string, error) {
+	data, err := json.Marshal(a)
+	return string(data), err
+}
+
+// parseAnnotationOrEmpty parses the stored annotation JSON, falling back to an
+// empty annotation when the value is missing or unparseable. An annotation that
+// fails to parse (e.g. one written by an incompatible version, or corrupted)
+// must not permanently block updates: bailing out would leave the stale issues
+// in place forever, since each component only ever rewrites its own key.
+func parseAnnotationOrEmpty(jsonStr string) *nodeAnnotation {
+	anno, err := GetAnnotationFromJson(jsonStr)
+	if err != nil {
+		logrus.Errorf("parse existing annotation %q failed: %v; starting from empty", jsonStr, err)
+		return &nodeAnnotation{}
+	}
+	return anno
+}
+
+// deepCopy returns an independent copy of the annotation so callers can persist
+// it without racing concurrent mutations of the original. On the (practically
+// impossible) marshal/unmarshal error it returns an empty annotation rather than
+// sharing the original pointer.
+func (a *nodeAnnotation) deepCopy() *nodeAnnotation {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return &nodeAnnotation{}
+	}
+	var cp nodeAnnotation
+	if err := json.Unmarshal(data, &cp); err != nil {
+		return &nodeAnnotation{}
+	}
+	return &cp
+}
+
+func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annotation, error) {
+	if item == "" {
+		return nil, fmt.Errorf("input item is empty")
+	}
+	switch item {
+	case consts.ComponentNameCPU:
+		return a.CPU, nil
+	case consts.ComponentNameDmesg:
+		return a.Dmesg, nil
+	case consts.ComponentNameEthernet:
+		return a.Ethernet, nil
+	case consts.ComponentNameGpfs:
+		return a.GPFS, nil
+	case consts.ComponentNameGpuEvents:
+		return a.Hang, nil
+	case consts.ComponentNameInfiniband:
+		return a.Infiniband, nil
+	case consts.ComponentNamePodlog:
+		return a.Podlog, nil
+	case consts.ComponentNameSyslog:
+		return a.Syslog, nil
+	case consts.ComponentNameNvidia:
+		return a.NVIDIA, nil
+	case consts.ComponentNameTransceiver:
+		return a.Transceiver, nil
+	case consts.ComponentNameLLDP:
+		return a.LLDP, nil
+	case consts.ComponentNameOVS:
+		return a.OVS, nil
+	case consts.ComponentNameGPUProbe:
+		return a.GpuProbe, nil
+	}
+	return nil, fmt.Errorf("input item %s is not supported", item)
+}
+
+func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[string][]*annotation) error {
+	if item == "" {
+		return fmt.Errorf("input item is empty")
+	}
+	switch item {
+	case consts.ComponentNameCPU:
+		a.CPU = annotations
+	case consts.ComponentNameDmesg:
+		a.Dmesg = annotations
+	case consts.ComponentNameEthernet:
+		a.Ethernet = annotations
+	case consts.ComponentNameGpfs:
+		a.GPFS = annotations
+	case consts.ComponentNameGpuEvents:
+		a.Hang = annotations
+	case consts.ComponentNameInfiniband:
+		a.Infiniband = annotations
+	case consts.ComponentNamePodlog:
+		a.Podlog = annotations
+	case consts.ComponentNameSyslog:
+		a.Syslog = annotations
+	case consts.ComponentNameNvidia:
+		a.NVIDIA = annotations
+	case consts.ComponentNameTransceiver:
+		a.Transceiver = annotations
+	case consts.ComponentNameLLDP:
+		a.LLDP = annotations
+	case consts.ComponentNameOVS:
+		a.OVS = annotations
+	case consts.ComponentNameGPUProbe:
+		a.GpuProbe = annotations
+	}
+	return nil
+}
+
+func (a *nodeAnnotation) updateAnnotations(annotations map[string][]*annotation, result *common.Result) error {
+	if result == nil {
+		return fmt.Errorf("input result is empty")
+	}
+	preAnnoStr, err := a.JSON()
+	if err != nil {
+		return fmt.Errorf("error marshaling pre_anno_str: %v", err)
+	}
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("error marshaling result: %v", err)
+	}
+
+	deduplicatedAnnotation := make(map[string]map[string]*annotation)
+	// existed annotation
+	for level, annos := range annotations {
+		for _, item := range annos {
+			if deduplicatedAnnotation[level] == nil {
+				deduplicatedAnnotation[level] = make(map[string]*annotation)
+			}
+			deduplicatedAnnotation[level][item.ErrorName] = item
+		}
+	}
+	// new annotation
+	if result.Status == consts.StatusAbnormal && result.Level != consts.LevelInfo {
+		for _, checkResult := range result.Checkers {
+			if checkResult.Status == consts.StatusAbnormal && checkResult.Level != consts.LevelInfo {
+				if deduplicatedAnnotation[checkResult.Level] == nil {
+					deduplicatedAnnotation[checkResult.Level] = make(map[string]*annotation)
+				}
+				deduplicatedAnnotation[checkResult.Level][checkResult.ErrorName] = &annotation{
+					ErrorName: checkResult.ErrorName,
+					Device:    checkResult.Device,
+				}
+			}
+		}
+	}
+
+	newAnnotation := make(map[string][]*annotation)
+	for level, annoMap := range deduplicatedAnnotation {
+		for _, anno := range annoMap {
+			_, exist := newAnnotation[level]
+			if !exist {
+				newAnnotation[level] = make([]*annotation, 0)
+			}
+			newAnnotation[level] = append(newAnnotation[level], anno)
+
+		}
+	}
+
+	err = a.setAnnotationsByItem(result.Item, newAnnotation)
+	if err != nil {
+		return fmt.Errorf("error setting annotations by item %v: %v", result.Item, err)
+	}
+	annoStr, err := a.JSON()
+	if err != nil {
+		return fmt.Errorf("error marshaling updated annotation: %v", err)
+	}
+	m := metrics.GetHealthCheckResMetrics()
+	m.ExportAnnotationMetrics(annoStr)
+	if result.Status == consts.StatusAbnormal && (result.Level == consts.LevelCritical || result.Level == consts.LevelFatal) {
+		logrus.Infof("set node annotation for check result %s", jsonData)
+		logrus.Infof("update node annotataion from %s to %s", preAnnoStr, annoStr)
+	}
+
+	return nil
+
+}
+
+func (a *nodeAnnotation) ParseFromResult(result *common.Result) error {
+	annotations := make(map[string][]*annotation)
+	err := a.updateAnnotations(annotations, result)
+	if err != nil {
+		return fmt.Errorf("error updating annotations: %v", err)
+	}
+	return nil
+}
+
+func (a *nodeAnnotation) AppendFromResult(result *common.Result) error {
+	annotations, err := a.getAnnotationsByItem(result.Item)
+	if err != nil {
+		return fmt.Errorf("error getting annotations by item %v: %v", result.Item, err)
+	}
+	err = a.updateAnnotations(annotations, result)
+	if err != nil {
+		return fmt.Errorf("error updating annotations: %v", err)
+	}
+	return nil
+}
+
+type annotation struct {
+	ErrorName string `json:"error_name"`
+	Device    string `json:"device"`
+}
+
+func (a *annotation) JSON() (string, error) {
+	data, err := json.Marshal(a)
+	return string(data), err
+}

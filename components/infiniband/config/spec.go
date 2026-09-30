@@ -1,0 +1,179 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package config
+
+import (
+	"fmt"
+
+	"github.com/scitix/sichek/components/common"
+	hcaConfig "github.com/scitix/sichek/components/hca/config"
+	"github.com/scitix/sichek/components/infiniband/collector"
+	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
+)
+
+type InfinibandSpecs struct {
+	Specs map[string]*InfinibandSpec `json:"infiniband" yaml:"infiniband"`
+}
+
+type InfinibandSpec struct {
+	// as IBPFDevs may be trimmed on conditions, the HCANum will store the original number of HCA devices in spec
+	HCANum         int                       `json:"hca_num,omitempty" yaml:"hca_num,omitempty"`
+	IBPFDevs       map[string]string         `json:"ib_devs" yaml:"ib_devs"`
+	IBSoftWareInfo *collector.IBSoftWareInfo `json:"sw_deps" yaml:"sw_deps"`
+	PCIeACS        string                    `json:"pcie_acs" yaml:"pcie_acs"`
+
+	// DevicePorts maps an IB device name (key in IBPFDevs) to the list of
+	// port numbers under /sys/class/infiniband/<dev>/ports/ that should be
+	// sampled and health-checked. Used for multi-plane HCAs (e.g. CX8 4P
+	// RoCE) where the data path lives on ports other than 1.
+	DevicePorts map[string][]int `json:"device_ports,omitempty" yaml:"device_ports,omitempty"`
+	// DefaultPorts is the fallback port list applied to any IBPFDevs entry
+	// not present in DevicePorts. When both are empty, the collector keeps
+	// legacy behavior and reads only port 1.
+	DefaultPorts []int `json:"default_ports,omitempty" yaml:"default_ports,omitempty"`
+
+	// HCAs is for in-memory use only (full specs)
+	HCAs map[string]*hcaConfig.HCASpec `json:"-" yaml:"-"`
+	// HCAStubs is for persistence only (board ID references)
+	HCAStubs map[string]interface{} `json:"hca_specs,omitempty" yaml:"hca_specs,omitempty"`
+}
+
+// PortsFor returns the port numbers that should be sampled for the given IB
+// device. Resolution order: DevicePorts entry → DefaultPorts → []int{1}.
+// The returned slice is always non-empty so callers can range over it
+// unconditionally.
+func (s *InfinibandSpec) PortsFor(ibDev string) []int {
+	if s != nil {
+		if ports, ok := s.DevicePorts[ibDev]; ok && len(ports) > 0 {
+			return ports
+		}
+		if len(s.DefaultPorts) > 0 {
+			return s.DefaultPorts
+		}
+	}
+	return []int{1}
+}
+
+// LoadSpec loads infiniband spec from the given file path using the common YAML loader.
+// The file path is expected to be already resolved by the command layer (e.g. via spec.EnsureSpecFile).
+func LoadSpec(file string) (*InfinibandSpec, error) {
+	if file == "" {
+		return nil, fmt.Errorf("infiniband spec file path is empty")
+	}
+	s := &InfinibandSpecs{}
+	if err := common.LoadSpec(file, s); err != nil {
+		return nil, fmt.Errorf("failed to load infiniband spec from %s: %w", file, err)
+	}
+	if s.Specs == nil {
+		return nil, fmt.Errorf("YAML file %s loaded but contains no infiniband section", file)
+	}
+	logrus.WithField("component", "infiniband").Infof("loaded infiniband spec from %s", file)
+	return FilterSpec(s, file)
+}
+
+// FilterSpec retrieves the InfiniBand specification for the current cluster.
+// If no specific cluster specification is found, it falls back to the default specification from SICHEK_SPEC_URL.
+// If no default specification is found, it returns an error.
+// It also loads the HCA specifications based on the hardware available on the node.
+// If the HCA specifications cannot be loaded, it logs an error and returns the error.
+// If the specification is nil, it returns an error indicating that the specification file is missing.
+func FilterSpec(specs *InfinibandSpecs, file string) (*InfinibandSpec, error) {
+	var ibSpec *InfinibandSpec
+	if specs != nil && specs.Specs != nil {
+		clusterName := utils.ExtractClusterName()
+		if spec, ok := specs.Specs[clusterName]; ok {
+			logrus.WithField("infiniband", "spec").Warnf("using specific infiniband spec for cluster %s", clusterName)
+			ibSpec = spec
+		} else if spec, ok := specs.Specs["default"]; ok {
+			logrus.WithField("infiniband", "spec").Infof("no spec for cluster %s, using default", clusterName)
+			ibSpec = spec
+		} else {
+			return nil, fmt.Errorf("no infiniband specification for cluster %s and no default in %s", clusterName, file)
+		}
+		// Get the board IDs of the IB devices in the host
+		devBoardIDMap, ibDevs, err := hcaConfig.GetIBPFBoardIDs()
+		if err != nil {
+			return nil, err
+		}
+		specKeys := make([]string, 0, len(ibSpec.IBPFDevs))
+		for k := range ibSpec.IBPFDevs {
+			specKeys = append(specKeys, k)
+		}
+		currKeys := make([]string, 0, len(devBoardIDMap))
+		for k := range devBoardIDMap {
+			currKeys = append(currKeys, k)
+		}
+		changed := TrimMapByList(devBoardIDMap, ibSpec.IBPFDevs)
+		if changed {
+			logrus.WithField("component", "infiniband").
+				Warnf("IB devices in the spec [%v] are not consistent with the current hardware[%v], trimming the spec to match the current hardware", specKeys, currKeys)
+		}
+		ibSpec.HCANum = len(ibSpec.IBPFDevs)
+
+		// Load HCA specs from provided file and merge with default specs
+		// This will load from the provided file, merge with built-in specs (provided file has higher priority),
+		// and load missing specs from remote URL for all board IDs on the host
+		// todo
+		hcaSpecs, err := hcaConfig.LoadSpec(file)
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("failed to load HCA spec: %v", err)
+			return nil, err
+		}
+
+		ibSpec.HCAs = make(map[string]*hcaConfig.HCASpec)
+
+		// Check each board ID and fill in missing specs from hcaSpecs
+		var missingBoardIDs []string
+		for _, boardID := range ibDevs {
+			if hcaSpec, ok := hcaSpecs.Specs[boardID]; ok {
+				ibSpec.HCAs[boardID] = hcaSpec
+				logrus.WithField("component", "infiniband").
+					Infof("loaded HCA spec for hardware board ID %s", boardID)
+			} else {
+				logrus.WithField("component", "infiniband").
+					Warnf("spec for board ID %s not found", boardID)
+				missingBoardIDs = append(missingBoardIDs, boardID)
+			}
+		}
+
+		// Return error if any board IDs are missing specs
+		if len(missingBoardIDs) > 0 {
+			return ibSpec, fmt.Errorf("spec not found for board IDs: %v, please check the HCA configuration", missingBoardIDs)
+		}
+
+		// Do not persist runtime-derived spec back to file. The yaml is
+		// the source of truth maintained by humans; writing a trimmed
+		// snapshot has been observed to fossilise startup-time
+		// enumeration gaps (e.g. ib_devs losing entries and hca_num
+		// shrinking) and corrupt the baseline.
+		return ibSpec, nil
+	}
+	return nil, fmt.Errorf("infiniband specification is nil, please check the spec file %s", file)
+}
+
+// TrimMapByList removes keys from the map `b` that are not present in the map `a`.
+// Returns true if any key was removed from b.
+func TrimMapByList(a map[string]string, b map[string]string) bool {
+	changed := false
+	for key := range b {
+		if _, ok := a[key]; !ok {
+			delete(b, key)
+			changed = true
+		}
+	}
+	return changed
+}

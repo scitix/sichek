@@ -1,0 +1,2905 @@
+{
+  "lldp": {
+    "interface": [
+      {
+        "enp100s0f0np0": {
+          "via": "LLDP",
+          "rid": "2",
+          "age": "23 days, 23:10:32",
+          "chassis": {
+            "KL-A001A": {
+              "id": {
+                "type": "mac",
+                "value": "d8:d7:f3:43:88:f6"
+              },
+              "descr": "H3C Comware Platform Software, Software Version 7.1.070, Release 6715\r\nH3C S9850-32H\r\nCopyright (c) 2004-2024 New H3C Technologies Co., Ltd. All rights reserved.",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "HundredGigE1/0/1"
+            },
+            "descr": "manual_LAGG",
+            "ttl": "121",
+            "mfs": "9416",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "100GbaseLR4 - 100GBASE-R PCS/PMA over 4 WDM lane single mode fiber, long reach"
+            },
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PD",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "2047",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "03,00,00,08,67"
+            }
+          }
+        }
+      },
+      {
+        "enp100s0f1np1": {
+          "via": "LLDP",
+          "rid": "1",
+          "age": "23 days, 23:03:06",
+          "chassis": {
+            "KL-A001B": {
+              "id": {
+                "type": "mac",
+                "value": "d8:d7:f3:44:0d:da"
+              },
+              "descr": "H3C Comware Platform Software, Software Version 7.1.070, Release 6715\r\nH3C S9850-32H\r\nCopyright (c) 2004-2024 New H3C Technologies Co., Ltd. All rights reserved.",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "HundredGigE1/0/1"
+            },
+            "descr": "manual_LAGG",
+            "ttl": "121",
+            "mfs": "9416",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "100GbaseLR4 - 100GBASE-R PCS/PMA over 4 WDM lane single mode fiber, long reach"
+            },
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PD",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "2047",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "03,00,00,08,67"
+            }
+          }
+        }
+      },
+      {
+        "eth_r0_p0": {
+          "via": "LLDP",
+          "rid": "170",
+          "age": "16 days, 00:19:28",
+          "chassis": {
+            "KL-R0LF01": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:44:80"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r0_p1": {
+          "via": "LLDP",
+          "rid": "184",
+          "age": "15 days, 23:19:55",
+          "chassis": {
+            "KL-R1LF01": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:53:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r0_p2": {
+          "via": "LLDP",
+          "rid": "201",
+          "age": "15 days, 22:25:43",
+          "chassis": {
+            "KL-R2LF01": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:4a:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r0_p3": {
+          "via": "LLDP",
+          "rid": "228",
+          "age": "9 days, 17:14:08",
+          "chassis": {
+            "KL-R3LF01": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:59:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r1_p0": {
+          "via": "LLDP",
+          "rid": "172",
+          "age": "16 days, 00:18:57",
+          "chassis": {
+            "KL-R0LF02": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:10:80"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r1_p1": {
+          "via": "LLDP",
+          "rid": "189",
+          "age": "15 days, 23:18:46",
+          "chassis": {
+            "KL-R1LF02": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:5f:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r1_p2": {
+          "via": "LLDP",
+          "rid": "200",
+          "age": "15 days, 22:26:05",
+          "chassis": {
+            "KL-R2LF02": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:30:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r1_p3": {
+          "via": "LLDP",
+          "rid": "206",
+          "age": "15 days, 21:19:05",
+          "chassis": {
+            "KL-R3LF02": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:58:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.0.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r2_p0": {
+          "via": "LLDP",
+          "rid": "169",
+          "age": "16 days, 00:19:55",
+          "chassis": {
+            "KL-R0LF03": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:65:80"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r2_p1": {
+          "via": "LLDP",
+          "rid": "187",
+          "age": "15 days, 23:19:09",
+          "chassis": {
+            "KL-R1LF03": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:3c:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r2_p2": {
+          "via": "LLDP",
+          "rid": "202",
+          "age": "15 days, 22:25:39",
+          "chassis": {
+            "KL-R2LF03": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:61:80"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r2_p3": {
+          "via": "LLDP",
+          "rid": "214",
+          "age": "15 days, 21:17:31",
+          "chassis": {
+            "KL-R3LF03": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:44:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r3_p0": {
+          "via": "LLDP",
+          "rid": "171",
+          "age": "16 days, 00:19:24",
+          "chassis": {
+            "KL-R0LF04": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:18:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r3_p1": {
+          "via": "LLDP",
+          "rid": "185",
+          "age": "15 days, 23:19:31",
+          "chassis": {
+            "KL-R1LF04": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:51:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r3_p2": {
+          "via": "LLDP",
+          "rid": "199",
+          "age": "15 days, 22:26:12",
+          "chassis": {
+            "KL-R2LF04": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:5f:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r3_p3": {
+          "via": "LLDP",
+          "rid": "209",
+          "age": "15 days, 21:18:10",
+          "chassis": {
+            "KL-R3LF04": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:44:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.1.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r4_p0": {
+          "via": "LLDP",
+          "rid": "167",
+          "age": "16 days, 00:19:59",
+          "chassis": {
+            "KL-R0LF05": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:64:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r4_p1": {
+          "via": "LLDP",
+          "rid": "188",
+          "age": "15 days, 23:19:01",
+          "chassis": {
+            "KL-R1LF05": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:40:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r4_p2": {
+          "via": "LLDP",
+          "rid": "203",
+          "age": "15 days, 22:25:31",
+          "chassis": {
+            "KL-R2LF05": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:71:80"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r4_p3": {
+          "via": "LLDP",
+          "rid": "207",
+          "age": "15 days, 21:18:43",
+          "chassis": {
+            "KL-R3LF05": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:05:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r5_p0": {
+          "via": "LLDP",
+          "rid": "158",
+          "age": "16 days, 00:23:49",
+          "chassis": {
+            "KL-R0LF06": {
+              "id": {
+                "type": "mac",
+                "value": "d4:25:de:0b:c3:60"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r5_p1": {
+          "via": "LLDP",
+          "rid": "183",
+          "age": "15 days, 23:19:55",
+          "chassis": {
+            "KL-R1LF06": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:52:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r5_p2": {
+          "via": "LLDP",
+          "rid": "198",
+          "age": "15 days, 22:26:23",
+          "chassis": {
+            "KL-R2LF06": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:52:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r5_p3": {
+          "via": "LLDP",
+          "rid": "210",
+          "age": "15 days, 21:18:06",
+          "chassis": {
+            "KL-R3LF06": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:07:80"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.2.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r6_p0": {
+          "via": "LLDP",
+          "rid": "168",
+          "age": "16 days, 00:19:55",
+          "chassis": {
+            "KL-R0LF07": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:10:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r6_p1": {
+          "via": "LLDP",
+          "rid": "186",
+          "age": "15 days, 23:19:22",
+          "chassis": {
+            "KL-R1LF07": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:3f:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r6_p2": {
+          "via": "LLDP",
+          "rid": "204",
+          "age": "15 days, 22:25:23",
+          "chassis": {
+            "KL-R2LF07": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:4a:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r6_p3": {
+          "via": "LLDP",
+          "rid": "213",
+          "age": "15 days, 21:17:48",
+          "chassis": {
+            "KL-R3LF07": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:07:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.127.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r7_p0": {
+          "via": "LLDP",
+          "rid": "163",
+          "age": "16 days, 00:22:32",
+          "chassis": {
+            "KL-R0LF08": {
+              "id": {
+                "type": "mac",
+                "value": "d4:25:de:0b:ca:e0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r7_p1": {
+          "via": "LLDP",
+          "rid": "182",
+          "age": "15 days, 23:20:31",
+          "chassis": {
+            "KL-R1LF08": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:3f:40"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r7_p2": {
+          "via": "LLDP",
+          "rid": "205",
+          "age": "15 days, 22:25:11",
+          "chassis": {
+            "KL-R2LF08": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:38:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_r7_p3": {
+          "via": "LLDP",
+          "rid": "211",
+          "age": "15 days, 21:17:58",
+          "chassis": {
+            "KL-R3LF08": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:61:c0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "27.3.255.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "1001",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "s_eth0": {
+          "via": "LLDP",
+          "rid": "221",
+          "age": "12 days, 23:33:39",
+          "chassis": {
+            "KL-SLF01": {
+              "id": {
+                "type": "mac",
+                "value": "d4:25:de:0b:c1:e0"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "26.14.15.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "101",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "s_eth1": {
+          "via": "LLDP",
+          "rid": "220",
+          "age": "12 days, 23:33:39",
+          "chassis": {
+            "KL-SLF02": {
+              "id": {
+                "type": "mac",
+                "value": "60:15:9f:50:3b:00"
+              },
+              "descr": "Yillion Deepcompute DensiveloOS Software, Software Version 9.1.094, Release 9106\r\nDensivelo S9867-128DH\r\nCopyright (c) 2025-2026 Beijing Yillion Deepcompute Technology Co., Ltd. All rights reserved.",
+              "mgmt-ip": "26.14.15.254",
+              "mgmt-iface": "65541",
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": true
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "TwoHundredGigE1/0/1:1"
+            },
+            "descr": "to-server",
+            "ttl": "121",
+            "mfs": "9216",
+            "power": {
+              "supported": false,
+              "enabled": false,
+              "paircontrol": false,
+              "device-type": "PSE",
+              "pairs": "signal",
+              "class": "class 0"
+            }
+          },
+          "vlan": {
+            "vlan-id": "101",
+            "pvid": true
+          },
+          "unknown-tlvs": {
+            "unknown-tlv": {
+              "oui": "00,80,C2",
+              "subtype": "7",
+              "len": "5",
+              "value": "01,00,00,00,00"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r0": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r0"
+            },
+            "descr": "eth_r0",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r1": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r1"
+            },
+            "descr": "eth_r1",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r2": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r2"
+            },
+            "descr": "eth_r2",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r3": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r3"
+            },
+            "descr": "eth_r3",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r4": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r4"
+            },
+            "descr": "eth_r4",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r5": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r5"
+            },
+            "descr": "eth_r5",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r6": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r6"
+            },
+            "descr": "eth_r6",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_vf_rep_r7": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_r7"
+            },
+            "descr": "eth_r7",
+            "ttl": "120",
+            "auto-negotiation": {
+              "supported": true,
+              "enabled": true,
+              "current": "unknown"
+            }
+          }
+        }
+      },
+      {
+        "eth_r0": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r0"
+            },
+            "descr": "eth_vf_rep_r0",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r1": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r1"
+            },
+            "descr": "eth_vf_rep_r1",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r2": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r2"
+            },
+            "descr": "eth_vf_rep_r2",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r3": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r3"
+            },
+            "descr": "eth_vf_rep_r3",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r4": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r4"
+            },
+            "descr": "eth_vf_rep_r4",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r5": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r5"
+            },
+            "descr": "eth_vf_rep_r5",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r6": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r6"
+            },
+            "descr": "eth_vf_rep_r6",
+            "ttl": "120"
+          }
+        }
+      },
+      {
+        "eth_r7": {
+          "via": "LLDP",
+          "rid": "230",
+          "age": "8 days, 19:03:59",
+          "chassis": {
+            "hydra-gpu-214-171-47-1": {
+              "id": {
+                "type": "mac",
+                "value": "5c:6f:69:d3:e2:30"
+              },
+              "descr": "Ubuntu 24.04.4 LTS Linux 6.8.0-501-generic #501-Ubuntu-SiOS SMP PREEMPT_DYNAMIC Thu Apr 23 14:38:11 CST 202 x86_64",
+              "mgmt-ip": [
+                "214.171.47.1",
+                "fe80::5e6f:69ff:fed3:e230"
+              ],
+              "mgmt-iface": [
+                "49",
+                "49"
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                },
+                {
+                  "type": "Wlan",
+                  "enabled": false
+                },
+                {
+                  "type": "Station",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "port": {
+            "id": {
+              "type": "ifname",
+              "value": "eth_vf_rep_r7"
+            },
+            "descr": "eth_vf_rep_r7",
+            "ttl": "120"
+          }
+        }
+      }
+    ]
+  }
+}
+

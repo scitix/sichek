@@ -1,0 +1,525 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package infiniband
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/infiniband/checker"
+	"github.com/scitix/sichek/components/infiniband/collector"
+	"github.com/scitix/sichek/components/infiniband/config"
+	"github.com/scitix/sichek/components/infiniband/metrics"
+	"github.com/scitix/sichek/pkg/utils"
+
+	"github.com/scitix/sichek/consts"
+	"github.com/sirupsen/logrus"
+)
+
+var (
+	infinibandComponent     *component
+	infinibandComponentOnce sync.Once
+)
+
+type component struct {
+	ctx           context.Context
+	cancel        context.CancelFunc
+	spec          *config.InfinibandSpec
+	info          common.Info
+	componentName string
+	cfg           *config.InfinibandUserConfig
+	cfgMutex      sync.RWMutex
+	collector     common.Collector
+	checkers      []common.Checker
+	cacheMtx      sync.RWMutex
+	cacheBuffer   []*common.Result
+	cacheInfo     []common.Info
+	currIndex     int64
+	cacheSize     int64
+
+	service *common.CommonService
+	metrics *metrics.IBMetrics
+
+	initError error // Track initialization errors with detailed information
+}
+
+func NewInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (common.Component, error) {
+	var err error
+	infinibandComponentOnce.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("panic occurred when create component infiniband: %v", r)
+			}
+		}()
+		infinibandComponent, err = newInfinibandComponent(cfgFile, specFile, ignoredCheckers)
+	})
+	return infinibandComponent, err
+}
+
+func newInfinibandComponent(cfgFile string, specFile string, ignoredCheckers []string) (comp *component, err error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	component := &component{
+		ctx:           ctx,
+		cancel:        cancel,
+		componentName: consts.ComponentNameInfiniband,
+	}
+
+	// load user config first (needed for service creation even if spec fails)
+	cfg := &config.InfinibandUserConfig{}
+	err = common.LoadUserConfig(cfgFile, cfg)
+	if err != nil || cfg.Infiniband == nil {
+		logrus.WithField("component", "infiniband").Errorf("NewComponent get config failed or user config is nil, err: %v", err)
+		component.initError = fmt.Errorf("get user confgig failed: %w", err)
+		// Even if config loading fails, create service with a default config
+		// so the daemon can keep running and report the init error.  The
+		// caches must be sized here too — otherwise LastInfo()/LastResult()
+		// dereference a nil slice with index -1 and panic on the first
+		// CLI-style invocation that has no IB hardware or no spec on disk.
+		defaultCfg := &config.InfinibandUserConfig{
+			Infiniband: &config.InfinibandConfig{
+				QueryInterval: common.Duration{Duration: 10 * time.Second},
+				CacheSize:     5,
+			},
+		}
+		component.cfg = defaultCfg
+		component.cacheSize = defaultCfg.Infiniband.CacheSize
+		component.cacheBuffer = make([]*common.Result, component.cacheSize)
+		component.cacheInfo = make([]common.Info, component.cacheSize)
+		component.service = common.NewCommonService(ctx, defaultCfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
+	}
+	if len(ignoredCheckers) > 0 {
+		cfg.Infiniband.IgnoredCheckers = ignoredCheckers
+	}
+	component.cfg = cfg
+
+	cacheSize := cfg.Infiniband.CacheSize
+	if cacheSize <= 0 {
+		cacheSize = 5
+	}
+	component.cacheBuffer = make([]*common.Result, cacheSize)
+	component.cacheInfo = make([]common.Info, cacheSize)
+	component.currIndex = 0
+	component.cacheSize = cacheSize
+
+	// load spec file
+	ibSpec, err := config.LoadSpec(specFile)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("load spec config failed: %v", err)
+		component.initError = fmt.Errorf("spec loading failed: %v", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
+	}
+	component.spec = ibSpec
+
+	specJSON, jsonErr := json.MarshalIndent(ibSpec, "", "  ")
+	if jsonErr != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to marshal spec to JSON: %v", jsonErr)
+	} else {
+		logrus.WithField("component", "infiniband").Infof("Infiniband Spec loaded (JSON):\n%s", string(specJSON))
+	}
+
+	// initialize metrics if enabled
+	if cfg.Infiniband.EnableMetrics {
+		component.metrics = metrics.NewInfinibandMetrics()
+	}
+
+	// create collector
+	ibCollector, err := collector.NewIBCollector(ctx)
+	if err != nil {
+		logrus.WithField("component", "infiniband").WithError(err).Error("failed to create infiniband collector")
+		component.initError = fmt.Errorf("failed to create infiniband collector: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
+	}
+	// Wire spec port resolution into the collector so multi-plane HCAs are
+	// sampled per port instead of the legacy port-1 hard-coding.
+	ibCollector.SetPortResolver(ibSpec.PortsFor)
+	component.collector = ibCollector
+
+	// create checkers
+	checkers, err := checker.NewCheckers(cfg, ibSpec)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("NewCheckers failed: %v", err)
+		component.initError = fmt.Errorf("failed to create infiniband checkers: %w", err)
+		component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+		return component, nil
+	}
+	component.checkers = checkers
+
+	// create common service
+	component.service = common.NewCommonService(ctx, cfg, component.componentName, component.GetTimeout(), component.HealthCheck)
+
+	return component, nil
+}
+
+func (c *component) Name() string {
+	return c.componentName
+}
+
+func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
+	if c.initError != nil {
+		// The mezz naming check is spec-free by design: run it even here so a
+		// mezz card whose board_id has no HCA spec (which is what drove the
+		// component into initError) still gets its naming validated instead of
+		// being silently skipped along with every other checker. Only surface it
+		// when it actually failed: the initError-path PrintInfo renders every
+		// appended checker as a red error, so a passing/no-mezz result would read
+		// as a spurious failure.
+		result := c.reportInitErrorResult()
+		if mezz := checker.MezzNamingResult(); mezz.Status == consts.StatusAbnormal {
+			result.Checkers = append(result.Checkers, mezz)
+		}
+		return result, nil
+	}
+
+	info, err := c.collector.Collect(ctx)
+	if err != nil {
+		logrus.WithField("component", "Infiniband").Errorf("failed to collect Infiniband info: %v", err)
+		return nil, err
+	}
+
+	InfinibandInfo, ok := info.(*collector.InfinibandInfo)
+	if !ok {
+		return nil, fmt.Errorf("expected c.info to be of type *collector.InfinibandInfo, got %T", c.info)
+	}
+
+	if c.cfg.Infiniband.EnableMetrics {
+		c.metrics.ExportMetrics(InfinibandInfo)
+	}
+
+	result := common.Check(ctx, c.componentName, InfinibandInfo, c.checkers)
+	// WARNING:
+	// When there is no intersection between `ibSpec.IBPFDevs` and `devBoardIDMap` discovered,
+	// the trimming operation in spec.gomay result in an empty `ibSpec.IBPFDevs`.
+	// This is considered an abnormal state and should trigger an alert,
+	// as it likely indicates a serious inconsistency in device discovery or spec synchronization.
+	if len(c.spec.IBPFDevs) == 0 {
+		result.Status = consts.StatusAbnormal
+		result.Checkers = append(result.Checkers, c.buildSpecEmptyErrorResult())
+	}
+
+	// result.RawData = infoJson
+	c.cacheMtx.Lock()
+	c.cacheInfo[c.currIndex] = InfinibandInfo
+	c.cacheBuffer[c.currIndex] = result
+	c.currIndex = (c.currIndex + 1) % c.cacheSize
+	c.cacheMtx.Unlock()
+
+	if result.Status == consts.StatusAbnormal && result.Level != consts.LevelInfo {
+		logrus.WithField("component", "Infiniband").Errorf("Health Check Failed")
+	} else {
+		logrus.WithField("component", "Infiniband").Infof("Health Check PASSED")
+	}
+
+	return result, nil
+}
+
+func (c *component) CacheResults() ([]*common.Result, error) {
+	c.cacheMtx.RLock()
+	defer c.cacheMtx.RUnlock()
+
+	return c.cacheBuffer, nil
+}
+
+func (c *component) LastResult() (*common.Result, error) {
+	c.cacheMtx.RLock()
+	defer c.cacheMtx.RUnlock()
+	var result *common.Result
+	if c.currIndex == 0 {
+		result = c.cacheBuffer[c.cacheSize-1]
+	} else {
+		result = c.cacheBuffer[c.currIndex-1]
+	}
+	return result, nil
+}
+
+func (c *component) CacheInfos() ([]common.Info, error) {
+	c.cacheMtx.RLock()
+	defer c.cacheMtx.RUnlock()
+	return c.cacheInfo, nil
+}
+
+func (c *component) LastInfo() (common.Info, error) {
+	c.cacheMtx.RLock()
+	defer c.cacheMtx.RUnlock()
+	var info common.Info
+	if c.currIndex == 0 {
+		info = c.cacheInfo[c.cacheSize-1]
+	} else {
+		info = c.cacheInfo[c.currIndex-1]
+	}
+	return info, nil
+}
+
+func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {
+	return nil, nil
+}
+
+// Update component configuration information and update service at the same time
+func (c *component) Update(cfg common.ComponentUserConfig) error {
+	c.cfgMutex.Lock()
+	config, ok := cfg.(*config.InfinibandUserConfig)
+	if !ok {
+		return fmt.Errorf("update wrong config type for infiniband")
+	}
+	c.cfg = config
+	c.cfgMutex.Unlock()
+	return c.service.Update(cfg)
+}
+
+// Start method is used for systemd startup, periodically executes HealthCheck function to get data and sends results to resultChannel
+func (c *component) Start() <-chan *common.Result {
+	return c.service.Start()
+}
+
+// Return the running status of the component
+func (c *component) Status() bool {
+	return c.service.Status()
+}
+
+// Used for systemd stop
+func (c *component) Stop() error {
+	return c.service.Stop()
+
+}
+
+func (c *component) GetTimeout() time.Duration {
+	c.cfgMutex.RLock()
+	defer c.cfgMutex.RUnlock()
+	return c.cfg.GetQueryInterval().Duration
+}
+
+func (c *component) reportInitErrorResult() *common.Result {
+	logrus.WithField("component", "infiniband").Errorf("report initError: %v", c.initError)
+	checkerResult := &common.CheckerResult{
+		Name:        "InitError",
+		Description: "Infiniband component initialization failed",
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		Curr:        c.initError.Error(),
+		ErrorName:   "InitError",
+		Suggestion:  "Please check the initialization logs and ensure all dependencies are properly configured",
+	}
+	result := &common.Result{
+		Item:     consts.ComponentNameInfiniband,
+		Status:   consts.StatusAbnormal,
+		Checkers: []*common.CheckerResult{checkerResult},
+		Time:     time.Now(),
+	}
+	return result
+}
+
+func (c *component) buildSpecEmptyErrorResult() *common.CheckerResult {
+	logrus.WithField("component", "infiniband").Errorf("report specEmptyError")
+	checkerResult := &common.CheckerResult{
+		Name:        "SpecEmptyError",
+		Description: "No IB devices specified in spec",
+		Status:      consts.StatusAbnormal,
+		Level:       consts.LevelCritical,
+		ErrorName:   "SpecEmptyError",
+		Suggestion:  "Please check the spec and ensure all dependencies are properly configured",
+	}
+	return checkerResult
+}
+
+func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
+	checkAllPassed := true
+
+	// info==nil happens on the init-error path: spec missing, no IB
+	// hardware, or user config failed to load.  Print whatever the
+	// HealthCheck-time result captured so the operator sees the actual
+	// reason instead of an opaque "invalid data type" line.
+	if info == nil {
+		fmt.Println("Errors Events:")
+		if result == nil || len(result.Checkers) == 0 {
+			fmt.Printf("\t%sInfiniband component initialization failed (no detail)%s\n", consts.Red, consts.Reset)
+		} else {
+			for _, cr := range result.Checkers {
+				detail := cr.Detail
+				if detail == "" {
+					detail = cr.Curr
+				}
+				fmt.Printf("\t%s[%s] %s%s\n", consts.Red, cr.ErrorName, detail, consts.Reset)
+			}
+		}
+		return false
+	}
+
+	ibInfo, ok := info.(*collector.InfinibandInfo)
+	if !ok {
+		logrus.WithField("component", "infiniband").Errorf("invalid data type, expected InfinibandInfo")
+		return false
+	}
+
+	checkerResults := result.Checkers
+	ibControllersPrintColor := consts.Green
+	// PerformancePrint := "Performance: "
+
+	var (
+		ibKmodPrint      string
+		ofedVersionPrint string
+		fwVersionPrint   string
+		ibPortSpeedPrint string
+		phyStatPrint     string
+		ibStatePrint     string
+		pcieLinkPrint    string
+		roceGwPrint      string
+		// throughPrint        string
+		// latencyPrint     string
+	)
+	// PCIe current gen/width are informational and read straight from the
+	// collector snapshot. The pass/fail judgment lives in check_pcie_tree_speed
+	// / check_pcie_tree_width, which compare against the real per-link
+	// negotiable ceiling min(parent,child max_link_*) rather than a fixed spec
+	// value — so a card capped by a slower host slot is shown, not flagged.
+	var pcieSpeeds, pcieWidths []string
+	ibInfo.RLock()
+	for _, hw := range ibInfo.IBHardWareInfo {
+		pcieSpeeds = append(pcieSpeeds, hw.PCIESpeed)
+		pcieWidths = append(pcieWidths, hw.PCIEWidth)
+	}
+	ibInfo.RUnlock()
+	pcieGen := common.ExtractAndDeduplicate(strings.Join(pcieSpeeds, ","))
+	pcieWidth := common.ExtractAndDeduplicate(strings.Join(pcieWidths, ","))
+	pcieStatusColor := consts.Green
+
+	infinibandEvents := make(map[string]string)
+	ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", consts.Green, ibInfo.IBSoftWareInfo.OFEDVer, consts.Reset)
+
+	logrus.Infof("checkerResults: %v", common.ToString(checkerResults))
+
+	for _, result := range checkerResults {
+		statusColor := consts.Green
+		if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
+			statusColor = consts.LevelColor(result.Level)
+			infinibandEvents[result.Name] = fmt.Sprintf("%s%s%s", statusColor, result.Detail, consts.Reset)
+			checkAllPassed = false
+		}
+
+		switch result.Name {
+		case config.CheckIBOFED:
+			ofedVersionPrint = fmt.Sprintf("OFED Version: %s%s%s", statusColor, result.Curr, consts.Reset)
+		case config.CheckIBKmod:
+			ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Loaded", consts.Reset)
+			if result.Status != consts.StatusNormal {
+				ibKmodPrint = fmt.Sprintf("Infiniband Kmod: %s%s%s", statusColor, "Not Loaded Correctly", consts.Reset)
+			}
+		case config.CheckIBFW:
+			fwVersion := common.ExtractAndDeduplicate(result.Curr)
+			fwVersionPrint = fmt.Sprintf("FW Version: %s%s%s", statusColor, fwVersion, consts.Reset)
+		case config.CheckIBPortSpeed:
+			portSpeed := common.ExtractAndDeduplicate(result.Curr)
+			ibPortSpeedPrint = fmt.Sprintf("IB Port Speed: %s%s%s", statusColor, portSpeed, consts.Reset)
+		case config.CheckIBPhyState:
+			phyState := "LinkUp"
+			if result.Status != consts.StatusNormal {
+				phyState = "Not All LinkUp"
+			}
+			phyStatPrint = fmt.Sprintf("Phy State: %s%s%s", statusColor, phyState, consts.Reset)
+		case config.CheckIBState:
+			ibState := "Active"
+			if result.Status != consts.StatusNormal {
+				ibState = "Not All Active"
+			}
+			ibStatePrint = fmt.Sprintf("IB State: %s%s%s", statusColor, ibState, consts.Reset)
+		case config.CheckPCIETreeSpeed, config.CheckPCIETreeWidth:
+			// Colour the PCIe Link line by the host-aware tree checkers: red
+			// only on a genuine per-link degradation below the negotiable cap.
+			if result.Status != consts.StatusNormal && result.Level != consts.LevelInfo {
+				pcieStatusColor = consts.LevelColor(result.Level)
+			}
+		case config.CheckIBDevs:
+			ibControllersPrintColor = statusColor
+		case config.CheckRoCE:
+			// Gateway connectivity is reported in result.Curr by the RoCE
+			// checker (Reachable / Unreachable), independent of the VF checks
+			// folded into the same result. Empty Curr ⇒ no RoCE/Ethernet
+			// device on this node ⇒ leave the line hidden.
+			switch result.Curr {
+			case "Reachable":
+				roceGwPrint = fmt.Sprintf("RoCE Gateway: %sReachable%s", consts.Green, consts.Reset)
+			case "Unreachable":
+				roceGwPrint = fmt.Sprintf("RoCE Gateway: %sUnreachable(%s)%s", consts.Red, result.Device, consts.Reset)
+			case "":
+				// no gateway data (no RoCE/Ethernet device) → keep hidden
+			default:
+				// e.g. "N/A (IPv6)": IPv6-only, not probed
+				roceGwPrint = fmt.Sprintf("RoCE Gateway: %s%s%s", consts.Green, result.Curr, consts.Reset)
+			}
+		}
+	}
+	if pcieGen != "" && pcieWidth != "" {
+		pcieLinkPrint = fmt.Sprintf("PCIe Link: %s%s (x%s)%s", pcieStatusColor, pcieGen, pcieWidth, consts.Reset)
+	} else {
+		pcieLinkPrint = fmt.Sprintf("PCIe Link: %sError Detected%s", consts.Red, consts.Reset)
+	}
+
+	ibControllersPrint := fmt.Sprintf("Host Channel Adaptor: %s", ibControllersPrintColor)
+	ibInfo.RLock()
+	for _, hwInfo := range ibInfo.IBHardWareInfo {
+		// Multi-plane HCAs: show port suffix so operators can tell them apart.
+		if hwInfo.Port > 0 {
+			ibControllersPrint += fmt.Sprintf("%s/p%d(%s), ", hwInfo.IBDev, hwInfo.Port, hwInfo.NetDev)
+		} else {
+			ibControllersPrint += fmt.Sprintf("%s(%s), ", hwInfo.IBDev, hwInfo.NetDev)
+		}
+	}
+	ibInfo.RUnlock()
+
+	ibControllersPrint = strings.TrimSuffix(ibControllersPrint, ", ")
+	ibControllersPrint += consts.Reset
+
+	if summaryPrint {
+		utils.PrintTitle("infiniband", "-")
+		termWidth, err := utils.GetTerminalWidth()
+		printInterval := 60
+		if err == nil {
+			printInterval = termWidth / 3
+		}
+		if printInterval < len(ofedVersionPrint) {
+			printInterval = len(ofedVersionPrint) + 2
+		}
+		fmt.Printf("%-*s\n", printInterval, ibControllersPrint)
+		fmt.Printf("%-*s%-*s%-*s\n", printInterval, ibKmodPrint, printInterval, phyStatPrint, printInterval, "")          //, PerformancePrint)
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, ofedVersionPrint, printInterval, ibStatePrint, printInterval, "")   //, "Throughput: TBD")
+		fmt.Printf("%-*s%-*s\t%-*s\n", printInterval, fwVersionPrint, printInterval, ibPortSpeedPrint, printInterval, "") //, "Latency: TBD")
+		roceGwLeft := consts.Green + "" + consts.Reset
+		if roceGwPrint != "" {
+			roceGwLeft = roceGwPrint
+		}
+		fmt.Printf("%-*s%-*s\n", printInterval, roceGwLeft, printInterval, pcieLinkPrint)
+	}
+
+	fmt.Println("Errors Events:")
+
+	if len(infinibandEvents) == 0 {
+		fmt.Printf("\t%sNo Infiniband Events Detected%s\n", consts.Green, consts.Reset)
+	} else {
+		for _, event := range infinibandEvents {
+			fmt.Printf("\t%s\n", event)
+		}
+	}
+	logrus.Infof("ibInfo.IBCapablePCINum: %d, ibInfo.HCAPCINum: %d", ibInfo.IBCapablePCINum, ibInfo.HCAPCINum)
+	logrus.Infof("ibInfo.IBPCIDevs: %v", ibInfo.IBPCIDevs)
+	logrus.Infof("ibInfo.IBPFDevs: %v", ibInfo.IBPFDevs)
+	return checkAllPassed
+}

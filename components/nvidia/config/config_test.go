@@ -1,0 +1,420 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package config
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/scitix/sichek/components/common"
+	nvutils "github.com/scitix/sichek/components/nvidia/utils"
+	"github.com/scitix/sichek/consts"
+	"github.com/scitix/sichek/pkg/httpclient"
+	"github.com/scitix/sichek/pkg/utils"
+)
+
+func TestLoadSpecFromYaml(t *testing.T) {
+	// Create temporary files for testing
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
+
+	// Write sample data to the temporary files
+	specData := `
+nvidia:
+  "0x233010de":
+    name: "NVIDIA H100 80GB HBM3"
+    gpu_nums: 8
+    gpu_memory: 80
+    pcie:
+      pci_gen: 5
+      pci_width: 16
+    software:
+      driver_version: "535.129.03"
+      cuda_version: "12.0"
+      vbios_version: "96.00.89.00.01"
+      nvidiafabric_manager: "535.129.03"
+    dependence:
+      pcie-acs: disable
+      iommu: disable
+      nv-peermem: enable
+      nv_fabricmanager: active
+      cpu_performance: enable
+    MaxClock:
+      Graphics: 1410 # MHz
+      Memory: 1593 # MHz
+      SM: 1410 # MHz
+    nvlink:
+      nvlink_supported: true
+      active_nvlink_num: 12
+      total_replay_errors: 0
+      total_recovery_errors: 0
+      total_crc_errors: 0
+    state:
+      persistence: enable
+      pstate: 0
+    memory_errors_threshold:
+      remapped_uncorrectable_errors: 512
+      sram_volatile_uncorrectable_errors: 0
+      sram_aggregate_uncorrectable_errors: 4
+      sram_volatile_correctable_errors: 10000000
+      sram_aggregate_correctable_errors: 10000000
+    temperature_threshold:
+      gpu: 75
+      memory: 95
+  "0x233010f7":
+    name: "NVIDIA H100 80GB HBM3"
+    gpu_nums: 8
+    gpu_memory: 80
+    pcie:
+      pci_gen: 5
+      pci_width: 16
+    software:
+      driver_version: "535.129.03"
+      cuda_version: "12.2"
+      vbios_version: 96.00.89.00.01
+      nvidiafabric_manager: "535.129.03"
+    dependence:
+      pcie-acs: disable
+      iommu: disable
+      nv-peermem: enable
+      nv_fabricmanager: active
+      cpu_performance: enable
+    MaxClock:
+      Graphics: 1410 # MHz
+      Memory: 1593 # MHz
+      SM: 1410 # MHz
+    nvlink:
+      nvlink_supported: true
+      active_nvlink_num: 12
+      total_replay_errors: 0
+      total_recovery_errors: 0
+      total_crc_errors: 0
+    state:
+      persistence: enable
+      pstate: 0
+    memory_errors_threshold:
+      remapped_uncorrectable_errors: 512
+      sram_volatile_uncorrectable_errors: 0
+      sram_aggregate_uncorrectable_errors: 4
+      sram_volatile_correctable_errors: 10000000
+      sram_aggregate_correctable_errors: 10000000
+    temperature_threshold:
+      gpu: 75
+      memory: 95
+infiniband:
+  tbd: tbd
+`
+	// specData = strings.ReplaceAll(specData, "\t", "  ")
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}
+	specs := &NvidiaSpecs{}
+	if err := utils.LoadFromYaml(specFile.Name(), specs); err != nil {
+		t.Fatalf("LoadFromYaml() returned an error: %v", err)
+	}
+	if specs.Specs == nil {
+		t.Fatal("loaded spec has no nvidia section")
+	}
+
+	// Convert the config struct to a pretty-printed JSON string and print it
+	jsonData, err := json.MarshalIndent(specs, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config to JSON: %v", err)
+	}
+	t.Logf("spec JSON:\n%s\n", string(jsonData))
+
+	// Validate the returned spec
+	if len(specs.Specs) != 2 {
+		t.Fatalf("Expected spec at least have 2 entry, got %d", len(specs.Specs))
+	}
+	if _, ok := specs.Specs["0x233010de"]; !ok {
+		t.Fatalf("Expected spec to have key '0x233010de', it doesn't exist")
+	}
+	if specs.Specs["0x233010de"].Name != "NVIDIA H100 80GB HBM3" {
+		t.Fatalf("Expected Spec.Name to be 'NVIDIA H100 80GB HBM3', got '%s'", specs.Specs["0x233010de"].Name)
+	}
+	if specs.Specs["0x233010de"].Software.CUDAVersion != "12.0" {
+		t.Fatalf("Expected Software.CUDAVersion to be '12.0', got '%s'", specs.Specs["0x233010de"].Software.CUDAVersion)
+	}
+}
+
+func TestLoadSpecFromDefaultYaml(t *testing.T) {
+	// Load from default_spec.yaml if present (e.g. config/default_spec.yaml or repo root)
+	for _, p := range []string{"config/default_spec.yaml", "default_spec.yaml"} {
+		if _, err := os.Stat(p); err != nil {
+			continue
+		}
+		specs := &NvidiaSpecs{}
+		if err := utils.LoadFromYaml(p, specs); err != nil {
+			t.Skipf("LoadFromYaml(%s): %v", p, err)
+		}
+		if specs.Specs == nil || len(specs.Specs) < 1 {
+			t.Fatalf("Expected spec to have at least 1 entry, got %d", len(specs.Specs))
+		}
+		jsonData, err := json.MarshalIndent(specs, "", "  ")
+		if err != nil {
+			t.Fatalf("Failed to marshal config to JSON: %v", err)
+		}
+		t.Logf("spec JSON:\n%s\n", string(jsonData))
+		// default_spec.yaml may contain 0x233510de (H200) or other GPU ids
+		return
+	}
+	t.Skip("config/default_spec.yaml or default_spec.yaml not found")
+}
+
+func TestNvidiaConfig(t *testing.T) {
+	// Create temporary files for testing
+	specFile, err := os.CreateTemp("", "spec_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp spec file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp spec file: %v", err)
+		}
+	}(specFile.Name())
+
+	userConfigFile, err := os.CreateTemp("", "user_config_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp user config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp user config file: %v", err)
+		}
+	}(userConfigFile.Name())
+
+	// Write sample data to the temporary files
+	specData := `
+nvidia:
+  "0x233010de":
+    name: NVIDIA H100 80GB HBM3
+    gpu_nums: 8
+    gpu_memory: 80
+    pcie:
+      pci_gen: 5
+      pci_width: 16
+    software:
+      driver_version: "535.129.03"
+      cuda_version: "12.0"
+      vbios_version: "96.00.89.00.01"
+      nvidiafabric_manager: "535.129.03"
+    dependence:
+      pcie-acs: disable
+      iommu: disable
+      nv-peermem: enable
+      nv_fabricmanager: active
+      cpu_performance: enable
+    MaxClock:
+      Graphics: 1410 # MHz
+      Memory: 1593 # MHz
+      SM: 1410 # MHz
+    nvlink:
+      nvlink_supported: true
+      active_nvlink_num: 12
+      total_replay_errors: 0
+      total_recovery_errors: 0
+      total_crc_errors: 0
+    state:
+      persistence: enable
+      pstate: 0
+    memory_errors_threshold:
+      remapped_uncorrectable_errors: 512
+      sram_volatile_uncorrectable_errors: 0
+      sram_aggregate_uncorrectable_errors: 4
+      sram_volatile_correctable_errors: 10000000
+      sram_aggregate_correctable_errors: 10000000
+    temperature_threshold:
+      gpu: 75
+      memory: 95
+`
+	if _, err := specFile.Write([]byte(specData)); err != nil {
+		t.Fatalf("Failed to write to temp spec file: %v", err)
+	}
+
+	userConfigData := `
+nvidia:
+  name: "nvidia"
+  query_interval: 30s
+  cache_size: 5
+  ignored_checkers: ["cpu_performance"]
+`
+	if _, err := userConfigFile.Write([]byte(userConfigData)); err != nil {
+		t.Fatalf("Failed to write to temp user config file: %v", err)
+	}
+
+	// Test the NvidiaConfig function
+	cfg := &NvidiaUserConfig{}
+	err = common.LoadUserConfig(userConfigFile.Name(), cfg)
+	if err != nil || cfg.Nvidia == nil {
+		t.Fatalf("Failed to load user config: %v", err)
+	}
+	testDeviceId, err := nvutils.GetDeviceID()
+	var spec *NvidiaSpec
+	if err == nil && testDeviceId == "0x233010de" {
+		spec, err = LoadSpec(specFile.Name())
+		if err != nil {
+			t.Fatalf("LoadSpec() returned an error: %v", err)
+		}
+	} else {
+		t.Skip("Skipping test: 0x233010de gpu not found")
+	}
+	// Convert the config struct to a pretty-printed JSON string and print it
+	jsonData, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config to JSON: %v", err)
+	}
+	t.Logf("Config JSON:\n%s\n", string(jsonData))
+
+	// Validate the returned NvidiaConfig
+	if spec.Name != "NVIDIA H100 80GB HBM3" {
+		t.Errorf("Expected Spec.Name to be 'NVIDIA H100 80GB HBM3', got '%s'", spec.Name)
+	}
+
+	if cfg.Nvidia.QueryInterval.Duration != 30*time.Second {
+		t.Errorf("Expected ComponentConfig.Nvidia.UpdateInterval to be 1, got %d", cfg.Nvidia.QueryInterval)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected ComponentConfig.Nvidia.CacheSize to be 10, got %d", cfg.Nvidia.CacheSize)
+	}
+	if len(cfg.Nvidia.IgnoredCheckers) != 1 {
+		t.Errorf("Expected 1 ignored checkers, got %d", len(cfg.Nvidia.IgnoredCheckers))
+	}
+}
+
+func TestLoadComponentUserConfig_WithValidFile(t *testing.T) {
+	// Create a temporary user config file
+	userConfigFile, err := os.CreateTemp("", "user_config_*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp user config file: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Errorf("Failed to remove temp user config file: %v", err)
+		}
+	}(userConfigFile.Name())
+
+	// Write sample data to the temporary file
+	userConfigData := `
+nvidia:
+  query_interval: 1m
+  cache_size: 5
+  enable_metrics: true
+  ignored_checkers: ["cpu_performance"]
+
+memory:
+  query_interval: 30s
+  cache_size: 5
+  enable_metrics: false
+`
+	if _, err := userConfigFile.Write([]byte(userConfigData)); err != nil {
+		t.Fatalf("Failed to write to temp user config file: %v", err)
+	}
+
+	// Test the LoadUserConfig function
+	cfg := &NvidiaUserConfig{}
+	err = common.LoadUserConfig(userConfigFile.Name(), cfg)
+	if err != nil {
+		t.Fatalf("LoadUserConfig() returned an error: %v", err)
+	}
+
+	// Validate the loaded configuration
+	if cfg.Nvidia == nil {
+		t.Fatalf("Expected Nvidia config to be non-nil")
+	}
+	if cfg.Nvidia.QueryInterval.Duration != 60*time.Second {
+		t.Errorf("Expected QueryInterval to be 1m, got %s", cfg.Nvidia.QueryInterval.Duration)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
+	}
+	if len(cfg.Nvidia.IgnoredCheckers) != 1 || cfg.Nvidia.IgnoredCheckers[0] != "cpu_performance" {
+		t.Errorf("Expected IgnoredCheckers to contain 'cpu_performance', got %v", cfg.Nvidia.IgnoredCheckers)
+	}
+}
+
+func TestLoadComponentUserConfig_WithInvalidFile(t *testing.T) {
+	// Test with an invalid file path; LoadUserConfig may fall back to default path
+	cfg := &NvidiaUserConfig{}
+	err := common.LoadUserConfig("invalid_file_path.yaml", cfg)
+	if err != nil {
+		t.Fatalf("LoadUserConfig(invalid path) returned error: %v", err)
+	}
+	if cfg.Nvidia == nil {
+		t.Fatalf("Expected Nvidia config to be non-nil")
+	}
+	if cfg.Nvidia.QueryInterval.Duration != 10*time.Second {
+		t.Errorf("Expected QueryInterval to be 10s, got %v", cfg.Nvidia.QueryInterval.Duration)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
+	}
+}
+
+func TestLoadComponentUserConfig_WithDefaultConfig(t *testing.T) {
+	// Empty path loads default config (e.g. default_user_config.yaml)
+	cfg := &NvidiaUserConfig{}
+	err := common.LoadUserConfig("", cfg)
+	if err != nil {
+		t.Fatalf("LoadUserConfig() returned an error: %v", err)
+	}
+	if cfg.Nvidia == nil {
+		t.Fatalf("Expected Nvidia config to be non-nil")
+	}
+	if cfg.Nvidia.QueryInterval.Duration != 10*time.Second {
+		t.Errorf("Expected QueryInterval to be 10s, got %v", cfg.Nvidia.QueryInterval.Duration)
+	}
+	if cfg.Nvidia.CacheSize != 5 {
+		t.Errorf("Expected CacheSize to be 5, got %d", cfg.Nvidia.CacheSize)
+	}
+}
+
+func TestLoadSpecFromRemoteURL(t *testing.T) {
+	specURL := httpclient.GetSichekSpecURL()
+	if specURL == "" {
+		t.Skip("SICHEK_SPEC_URL environment variable is not set, skipping remote URL test")
+	}
+	nvidiaSpec := &NvidiaSpecs{}
+	gpuId := "test"
+	url := fmt.Sprintf("%s/%s/%s.yaml", specURL, consts.ComponentNameNvidia, gpuId)
+	err := httpclient.LoadSpecFromURL(url, nvidiaSpec)
+	if err != nil {
+		t.Fatalf("LoadSpecFromURL() returned an error: %v", err)
+	}
+	if len(nvidiaSpec.Specs) == 0 {
+		t.Fatalf("Expected nvidiaSpec to be loaded, got empty map")
+	}
+	if _, ok := nvidiaSpec.Specs[gpuId]; !ok {
+		t.Fatalf("Expected hardware key '%s', not found", gpuId)
+	}
+	if nvidiaSpec.Specs[gpuId].Name != gpuId {
+		t.Fatalf("Expected BoardID '%s', got '%s'", gpuId, nvidiaSpec.Specs[gpuId].Name)
+	}
+}

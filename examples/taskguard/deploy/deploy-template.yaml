@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: scitix
+  name: taskguard
+  labels:
+    project: scitix
+    scitix.ai/taskguard: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskguard
+      project: scitix
+  template:
+    metadata:
+      labels:
+        app: taskguard
+        project: scitix
+    spec:
+      serviceAccountName: scitix-sa-taskguard
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/scitix-system
+                    operator: Exists
+              weight: 1
+      containers:
+        - name: main
+          image: "registry-ap-southeast.scitix.ai/taskguard:test"
+          imagePullPolicy: Always
+          command:
+            - "./taskguard"
+          workingDir: /opt/taskguard
+          env:
+            - name: TZ
+              value: CST-8
+          resources:
+            limits:
+              cpu: "8"
+              memory: 16Gi
+            requests:
+              cpu: "2"
+              memory: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskguard
+  namespace: scitix
+  labels:
+    project: scitix
+    app: taskguard
+spec:
+  type: ClusterIP
+  selector:
+    app: taskguard
+    project: scitix
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http

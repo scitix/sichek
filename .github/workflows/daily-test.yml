@@ -1,0 +1,82 @@
+name: daily-test
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天 02:00 UTC
+  workflow_dispatch:
+  push:
+    branches:
+      - '**'
+jobs:
+  checks:
+    name: Daily checks (tests + goreleaser snapshot)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          sudo docker system prune -af || true
+          df -h
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.modcache
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      # - name: Run unit tests
+      #   run: go test ./... -v
+
+      - name: Run goreleaser snapshot with sicl (no publish)
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INCLUDE_SICL: "true"
+          SICL_PKG_VERSION: v0.2.1
+          SICL_PKG_NAME: sicl-nccl2.29.2-1-cuda12.9-ompi4.1.8-ubuntu22.04-20260128.run
+
+      - name: List goreleaser artifacts with sicl
+        run: |
+          echo "=== dist directory ==="
+          ls -lah dist
+          echo
+          echo "=== tree dist ==="
+          find dist -maxdepth 2 -type f
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/sichek:ci-${{ github.run_id }}
+
+      - name: List Docker images
+        run: |
+          docker images

@@ -1,0 +1,548 @@
+/*
+Copyright 2024 The Scitix Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package collector
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/scitix/sichek/pkg/utils"
+	"github.com/sirupsen/logrus"
+)
+
+// PCIPath is the root of the PCI sysfs tree. It is a var (not a const) so
+// tests can redirect it to a t.TempDir() before exercising the collector.
+var PCIPath = "/sys/bus/pci/devices"
+
+var (
+	targetVendorID = []string{
+		"0x15b3", // Mellanox Technologies
+	}
+)
+
+// FindIBPCIDevices finds RDMA-capable PCI devices by checking infiniband sysfs, and ignore virtual functions
+func GetRDMACapablePCIeDevices() (map[string]string, error) {
+	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
+	}
+
+	entries, err := os.ReadDir(PCIPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read pci devices directory %s: %w", PCIPath, err)
+	}
+
+	foundDevices := make(map[string]string)
+
+	for _, entry := range entries {
+		pciAddr := entry.Name()
+		deviceDir := filepath.Join(PCIPath, pciAddr)
+		isVirtualFunction, err := IsVirtualFunctionByBDF(pciAddr)
+		if isVirtualFunction {
+			continue
+		}
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("sysfs %s/%s/physfn is abnormal, the node may be unhealthy. Error: %v", PCIPath, pciAddr, err)
+			continue
+		}
+		// Read vendor ID (optional, but strongly recommended to keep)
+		vendorBytes, err := os.ReadFile(filepath.Join(deviceDir, "vendor"))
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("Could not read vendor file for %s, skipping. Error: %v", pciAddr, err)
+			continue
+		}
+		currentVendorID := strings.TrimSpace(string(vendorBytes))
+
+		if !slices.Contains(targetVendorID, currentVendorID) {
+			// logrus.WithField("component", "pci-scanner").Debugf("Skipping device %s: vendor %s not in target list", pciAddr, currentVendorID)
+			continue
+		}
+
+		// device ID is only kept for information (not involved in the determination)
+		deviceID := ""
+		if deviceBytes, err := os.ReadFile(filepath.Join(deviceDir, "device")); err == nil {
+			deviceID = strings.TrimSpace(string(deviceBytes))
+		}
+
+		// Check if the device has infiniband directory (core RDMA criterion)
+		infinibandPath := filepath.Join(deviceDir, "infiniband")
+		if _, err := os.Stat(infinibandPath); os.IsNotExist(err) {
+			logrus.WithField("component", "pci-scanner").Warnf("Skipping device %s: no infiniband directory found (Maybe a management Ethernet card or IBLost)", pciAddr)
+			// TODO: Fix device loss detection failure when devices are already missing at startup.
+			continue
+		}
+
+		foundDevices[pciAddr] = fmt.Sprintf("%s:%s", currentVendorID, deviceID)
+	}
+
+	logrus.WithField("component", "infiniband").Infof("Finished PCI scan. Found %d RDMA-capable devices.", len(foundDevices))
+	return foundDevices, nil
+}
+
+// dirExists reports whether path exists and is a directory.
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// hasMlx5RdmaAux reports whether the PCI device directory contains an
+// mlx5_core RDMA auxiliary device (mlx5_core.rdma.*), which indicates the
+// RDMA stack is alive even without a PCI-level infiniband/ directory.
+func hasMlx5RdmaAux(deviceDir string) bool {
+	entries, err := os.ReadDir(deviceDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "mlx5_core.rdma.") {
+			return true
+		}
+	}
+	return false
+}
+
+// isNetworkControllerClass reports whether the PCI class code in
+// <deviceDir>/class marks the function as a network controller: 0x0200xx
+// (Ethernet) or 0x0207xx (InfiniBand). It returns false when the class cannot
+// be read, so a function we cannot positively identify as a NIC is never
+// reported as a lost HCA.
+func isNetworkControllerClass(deviceDir string) bool {
+	raw, err := os.ReadFile(filepath.Join(deviceDir, "class"))
+	if err != nil {
+		return false
+	}
+	class := strings.TrimPrefix(strings.TrimSpace(string(raw)), "0x")
+	return strings.HasPrefix(class, "0200") || strings.HasPrefix(class, "0207")
+}
+
+// GetLostIBPCIeDevices returns Mellanox PCIe functions that look like a
+// crashed/torn-down HCA: vendor 0x15b3, either bound to the mlx5_core driver
+// or bound to no driver at all, not a virtual function, with neither an
+// infiniband/ nor a net/ directory, and no mlx5_core.rdma.* auxiliary device.
+// The driver gate excludes Mellanox-vendor PCI bridges (driver "pcieport")
+// and passthrough functions (driver "vfio-pci") that are not HCAs; an
+// unbound function has to look like a NIC by PCI class instead, since it has
+// no driver identity to check. A healthy management-only Ethernet
+// NIC keeps its net/ directory, so it is not reported here. A live mlx5
+// function using socket-direct/subfunction configs may expose RDMA only via
+// the auxiliary bus, so its presence also excludes the device from being
+// reported as lost. This realises the TODO in GetRDMACapablePCIeDevices
+// about detecting devices that are already missing at startup.
+func GetLostIBPCIeDevices() (map[string]string, error) {
+	lost := make(map[string]string)
+	if _, err := os.Stat(PCIPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("pci devices directory not found at %s: %w", PCIPath, err)
+	}
+	entries, err := os.ReadDir(PCIPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read pci devices directory %s: %w", PCIPath, err)
+	}
+	for _, entry := range entries {
+		pciAddr := entry.Name()
+		deviceDir := filepath.Join(PCIPath, pciAddr)
+
+		isVF, err := IsVirtualFunctionByBDF(pciAddr)
+		if isVF {
+			continue
+		}
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("sysfs %s/%s/physfn is abnormal: %v", PCIPath, pciAddr, err)
+			continue
+		}
+
+		vendorBytes, err := os.ReadFile(filepath.Join(deviceDir, "vendor"))
+		if err != nil {
+			logrus.WithField("component", "pci-scanner").Warnf("Could not read vendor file for %s, skipping. Error: %v", pciAddr, err)
+			continue
+		}
+		vendorID := strings.TrimSpace(string(vendorBytes))
+		if !slices.Contains(targetVendorID, vendorID) {
+			continue
+		}
+
+		// A lost HCA is either still bound to mlx5_core (firmware crash after a
+		// successful probe) or bound to nothing at all — when mlx5_core's probe
+		// fails during boot the kernel never creates the driver symlink, which
+		// is exactly the "already missing at startup" case this function exists
+		// to catch. Any other driver means this is not an HCA we own:
+		// "pcieport" on Mellanox-vendor PCI bridges, "vfio-pci" or
+		// "uio_pci_generic" on passthrough/userspace-owned functions.
+		//
+		// The unbound case carries no driver identity, so it additionally has
+		// to look like a NIC by PCI class before we call it a lost card. That
+		// keeps unbound bridges and passthrough stubs out of the result.
+		drv, drvErr := os.Readlink(filepath.Join(deviceDir, "driver"))
+		switch {
+		case drvErr == nil && filepath.Base(drv) == "mlx5_core":
+			// Bound to our driver — a torn-down HCA.
+		case os.IsNotExist(drvErr) && isNetworkControllerClass(deviceDir):
+			// No driver bound at all — probe never succeeded.
+		default:
+			continue
+		}
+
+		// A crashed HCA exposes neither an IB device nor a netdev. A
+		// legitimate management Ethernet NIC still has net/, so require both
+		// to be absent before flagging.
+		if dirExists(filepath.Join(deviceDir, "infiniband")) {
+			continue
+		}
+		if dirExists(filepath.Join(deviceDir, "net")) {
+			continue
+		}
+
+		// A live mlx5 function may expose its RDMA device via the auxiliary
+		// bus (mlx5_core.rdma.*) instead of a PCI-level infiniband/ dir
+		// (socket-direct / subfunction configs). Its presence means RDMA is
+		// still up, so this is not a lost card. A torn-down card has no such
+		// auxiliary device.
+		if hasMlx5RdmaAux(deviceDir) {
+			continue
+		}
+
+		deviceID := ""
+		if deviceBytes, err := os.ReadFile(filepath.Join(deviceDir, "device")); err == nil {
+			deviceID = strings.TrimSpace(string(deviceBytes))
+		}
+		lost[pciAddr] = fmt.Sprintf("%s:%s", vendorID, deviceID)
+		driverState := "unbound"
+		if drvErr == nil {
+			driverState = filepath.Base(drv)
+		}
+		logrus.WithField("component", "pci-scanner").Warnf("Detected lost/torn-down HCA at %s (vendor %s, driver %s, no infiniband/ and no net/)", pciAddr, vendorID, driverState)
+	}
+	return lost, nil
+}
+
+func IsVirtualFunctionByBDF(bdf string) (bool, error) {
+	p := filepath.Join(PCIPath, bdf, "physfn")
+
+	_, err := os.Lstat(p)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+type PCIETreeInfo struct {
+	PCIETreeSpeed []PCIETreeSpeedInfo `json:"pcie_tree_speed" yaml:"pcie_tree_speed"`
+	PCIETreeWidth []PCIETreeWidthInfo `json:"pcie_tree_width" yaml:"pcie_tree_width"`
+}
+
+type PCIETreeSpeedInfo struct {
+	BDF   string `json:"bdf" yaml:"bdf"`
+	Speed string `json:"speed" yaml:"speed"`
+}
+
+type PCIETreeWidthInfo struct {
+	BDF   string `json:"bdf" yaml:"bdf"`
+	Width string `json:"width" yaml:"width"`
+}
+
+// PCIETreeLink represents a single PCIe link on the upstream path from an
+// IB device to the root complex. Each adjacent (parent, child) BDF pair in
+// the readlink path is one link. Speed/width strings keep their sysfs raw
+// form (e.g. "32.0 GT/s PCIe" or "16") so downstream comparisons can choose
+// how to parse them.
+type PCIETreeLink struct {
+	ParentBDF      string `json:"parent_bdf" yaml:"parent_bdf"`
+	ChildBDF       string `json:"child_bdf" yaml:"child_bdf"`
+	CurSpeed       string `json:"cur_speed" yaml:"cur_speed"`
+	CurWidth       string `json:"cur_width" yaml:"cur_width"`
+	ParentMaxSpeed string `json:"parent_max_speed" yaml:"parent_max_speed"`
+	ChildMaxSpeed  string `json:"child_max_speed" yaml:"child_max_speed"`
+	ParentMaxWidth string `json:"parent_max_width" yaml:"parent_max_width"`
+	ChildMaxWidth  string `json:"child_max_width" yaml:"child_max_width"`
+}
+
+// Collect collects PCIe tree information for a given IB device
+func (pcie *PCIETreeInfo) Collect(IBDev string) {
+	pcie.PCIETreeSpeed = GetPCIETreeSpeed(IBDev)
+	pcie.PCIETreeWidth = pcie.GetPCIETreeWidth(IBDev)
+}
+
+// GetPCIETreeWidth gets PCIe tree width information
+func (c *PCIETreeInfo) GetPCIETreeWidth(IBDev string) []PCIETreeWidthInfo {
+	bdf := GetIBDevBDF(IBDev)
+	if len(bdf) == 0 {
+		return nil
+	}
+	devicePath := filepath.Join(PCIPath, bdf[0])
+	cmd := exec.Command("readlink", devicePath)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	bdfRegexPattern := `\b[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]\b`
+	re := regexp.MustCompile(bdfRegexPattern)
+	bdfs := re.FindAllString(string(output), -1)
+	allTreeWidth := make([]PCIETreeWidthInfo, 0, len(bdfs))
+
+	for _, bdf := range bdfs {
+		var perTreeWidth PCIETreeWidthInfo
+		width, err := GetFileCnt(filepath.Join(PCIPath, bdf, "current_link_width"))
+		if err != nil || len(width) == 0 {
+			logrus.WithField("component", "infiniband").Warnf("Failed to read PCIe width for BDF %s: %v", bdf, err)
+			continue
+		}
+		logrus.WithField("component", "infiniband").Infof("get the pcie tree width, ib:%s bdf:%s width:%s", IBDev, bdf, width[0])
+		perTreeWidth.BDF = bdf
+		perTreeWidth.Width = width[0]
+		allTreeWidth = append(allTreeWidth, perTreeWidth)
+	}
+	return allTreeWidth
+}
+
+// GetPCIECLinkSpeed gets PCIe current link speed
+func GetPCIECLinkSpeed(IBDev string) string {
+	result, err := ReadIBDevSysfileLines(IBDev, "device/current_link_speed")
+	if err != nil || len(result) == 0 {
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("Failed to read PCIe link speed for %s: %v", IBDev, err)
+		}
+		return ""
+	}
+	return result[0]
+}
+
+// GetPCIECLinkWidth gets PCIe current link width
+func GetPCIECLinkWidth(IBDev string) string {
+	result, err := ReadIBDevSysfileLines(IBDev, "device/current_link_width")
+	if err != nil || len(result) == 0 {
+		if err != nil {
+			logrus.WithField("component", "infiniband").Errorf("Failed to read PCIe link width for %s: %v", IBDev, err)
+		}
+		return ""
+	}
+	return result[0]
+}
+
+// GetPCIEMRR gets PCIe Max Read Request
+func GetPCIEMRR(ctx context.Context, IBDev string) []string {
+	bdf := GetIBDevBDF(IBDev)
+	if len(bdf) == 0 {
+		return nil
+	}
+
+	// lspciCmd := exec.Command("lspci", "-s", bdf[0], "-vvv")
+	lspciOutput, err := utils.ExecCommand(ctx, "lspci", "-s", bdf[0], "-vvv")
+	if err != nil {
+		return nil
+	}
+
+	grepCmd := exec.Command("grep", "MaxReadReq")
+	grepCmd.Stdin = bytes.NewBuffer(lspciOutput)
+	grepOutput, err := grepCmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	parts := strings.Split(string(grepOutput), "MaxReadReq ")
+	var mrr []string
+	if len(parts) > 1 {
+		mrr = strings.Fields(parts[1])
+		// autofix
+		if strings.Compare(mrr[0], "4096") != 0 {
+			// get BDF
+			bdf := GetIBDevBDF(IBDev)
+			if len(bdf) > 0 {
+				// autofix
+				if err := ModifyPCIeMaxReadRequest(bdf[0], "68", 5); err != nil {
+					logrus.WithField("component", "infiniband").Errorf("Failed to modify PCIe Max Read Request for %s: %v", bdf[0], err)
+				}
+			}
+		}
+	}
+
+	return mrr
+}
+
+// GetPCIETreeLinks enumerates every PCIe link on the upstream path of an IB
+// device. Each adjacent (parent, child) BDF pair in the readlink path becomes
+// one link, with current_link_{speed,width} and max_link_{speed,width} read
+// from both endpoints.  Direct-to-CPU devices (<2 BDFs in path) return nil.
+//
+// This is the spec-free replacement for GetPCIETreeMin: the checker compares
+// link.CurSpeed against min(ParentMaxSpeed, ChildMaxSpeed) per link, so no
+// HCA yaml expected value is needed.
+func GetPCIETreeLinks(IBDev string) []PCIETreeLink {
+	bdfList := GetIBDevBDF(IBDev)
+	if len(bdfList) == 0 {
+		logrus.WithField("component", "infiniband").Warnf("Could not get BDF for IB device %s", IBDev)
+		return nil
+	}
+	return getPCIETreeLinksByBDF(bdfList[0])
+}
+
+// getPCIETreeLinksByBDF is the testable core of GetPCIETreeLinks. It does
+// the readlink + per-link sysfs walk for a single NIC BDF.  Sysfs failures
+// on individual files leave the corresponding fields blank rather than
+// dropping the entire link, so the checker can still emit a useful message.
+func getPCIETreeLinksByBDF(nicBDF string) []PCIETreeLink {
+	devicePath := filepath.Join(PCIPath, nicBDF)
+	linkPath, err := os.Readlink(devicePath)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to resolve symlink for %s: %v", devicePath, err)
+		return nil
+	}
+
+	bdfRegexPattern := `\b[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]\b`
+	re := regexp.MustCompile(bdfRegexPattern)
+	allBdfs := re.FindAllString(linkPath, -1)
+	if len(allBdfs) < 2 {
+		logrus.WithField("component", "infiniband").Infof("No upstream PCIe link for %s (path has <2 BDFs), skipping.", nicBDF)
+		return nil
+	}
+
+	links := make([]PCIETreeLink, 0, len(allBdfs)-1)
+	for i := 1; i < len(allBdfs); i++ {
+		parent := allBdfs[i-1]
+		child := allBdfs[i]
+		link := PCIETreeLink{ParentBDF: parent, ChildBDF: child}
+		link.CurSpeed = readSysfsString(filepath.Join(PCIPath, child, "current_link_speed"))
+		if link.CurSpeed == "" {
+			// Fall back to parent's report; the two endpoints share the link.
+			link.CurSpeed = readSysfsString(filepath.Join(PCIPath, parent, "current_link_speed"))
+		}
+		link.CurWidth = readSysfsString(filepath.Join(PCIPath, child, "current_link_width"))
+		if link.CurWidth == "" {
+			link.CurWidth = readSysfsString(filepath.Join(PCIPath, parent, "current_link_width"))
+		}
+		link.ParentMaxSpeed = readSysfsString(filepath.Join(PCIPath, parent, "max_link_speed"))
+		link.ChildMaxSpeed = readSysfsString(filepath.Join(PCIPath, child, "max_link_speed"))
+		link.ParentMaxWidth = readSysfsString(filepath.Join(PCIPath, parent, "max_link_width"))
+		link.ChildMaxWidth = readSysfsString(filepath.Join(PCIPath, child, "max_link_width"))
+		links = append(links, link)
+	}
+	return links
+}
+
+// readSysfsString reads a single-line sysfs file and trims trailing whitespace.
+// Returns "" on any read error; callers downgrade gracefully.
+func readSysfsString(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Debugf("readSysfsString: %s: %v", path, err)
+		return ""
+	}
+	return strings.TrimRight(string(data), "\n\r\t ")
+}
+
+// GetPCIETreeSpeed gets PCIe tree speed information
+func GetPCIETreeSpeed(IBDev string) []PCIETreeSpeedInfo {
+	bdf := GetIBDevBDF(IBDev)
+	if len(bdf) == 0 {
+		return nil
+	}
+	devicePath := filepath.Join(PCIPath, bdf[0])
+	cmd := exec.Command("readlink", devicePath)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	bdfRegexPattern := `\b[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]\b`
+	re := regexp.MustCompile(bdfRegexPattern)
+	bdfs := re.FindAllString(string(output), -1)
+	allTreeSpeed := make([]PCIETreeSpeedInfo, 0, len(bdfs))
+	logrus.WithField("component", "infiniband").Infof("get the pcie tree speed, ib:%s bdfs:%v", IBDev, bdfs)
+
+	for _, bdf := range bdfs {
+		var perTreeSpeed PCIETreeSpeedInfo
+		speed, err := GetFileCnt(filepath.Join(PCIPath, bdf, "current_link_speed"))
+		if err != nil || len(speed) == 0 {
+			logrus.WithField("component", "infiniband").Warnf("Failed to read PCIe speed for BDF %s: %v", bdf, err)
+			continue
+		}
+		logrus.WithField("component", "infiniband").Infof("get the pcie tree speed, ib:%s bdf:%s speed:%s", IBDev, bdf, speed[0])
+		perTreeSpeed.BDF = bdf
+		perTreeSpeed.Speed = speed[0]
+		allTreeSpeed = append(allTreeSpeed, perTreeSpeed)
+	}
+	return allTreeSpeed
+}
+
+// ModifyPCIeMaxReadRequest modifies the Max Read Request Size of a PCIe device
+// deviceAddr: PCI device address, e.g., "80:00.0"
+// offset: Register offset address, e.g., "68"
+// newHighNibble: New high nibble value (0-F)
+func ModifyPCIeMaxReadRequest(deviceAddr string, offset string, newHighNibble int) error {
+	// Validate input parameters
+	if newHighNibble < 0 || newHighNibble > 0xF {
+		return fmt.Errorf("new high nibble value must be between 0-F")
+	}
+
+	// Read current value
+	readCmd := exec.Command("setpci", "-s", deviceAddr, offset+".w")
+	output, err := readCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to read PCI register: %v", err)
+	}
+
+	// Parse the returned hexadecimal value
+	currentValueStr := strings.TrimSpace(string(output))
+	currentValue, err := strconv.ParseUint(currentValueStr, 16, 16)
+	if err != nil {
+		return fmt.Errorf("failed to parse hex value: %v", err)
+	}
+
+	// Modify the high nibble
+	// Clear the top 4 bits (0x0FFF mask)
+	newValue := currentValue & 0x0FFF
+	// Set the new high nibble
+	newValue |= uint64(newHighNibble) << 12
+
+	logrus.WithField("component", "infiniband").Infof("Modifying PCIe Max Read Request for device %s at offset %s: current value 0x%04X, new value 0x%04X", deviceAddr, offset, currentValue, newValue)
+
+	// Write back the new value
+	writeValueStr := fmt.Sprintf("%04x", newValue)
+	writeCmd := exec.Command("setpci", "-s", deviceAddr, offset+".w="+writeValueStr)
+	err = writeCmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to write PCI register: %v", err)
+	}
+
+	// Verify the write was successful
+	verifyCmd := exec.Command("setpci", "-s", deviceAddr, offset+".w")
+	verifyOutput, err := verifyCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to verify write result: %v", err)
+	}
+
+	verifiedValueStr := strings.TrimSpace(string(verifyOutput))
+	verifiedValue, err := strconv.ParseUint(verifiedValueStr, 16, 16)
+	if err != nil {
+		return fmt.Errorf("failed to parse verification value: %v", err)
+	}
+
+	if verifiedValue != newValue {
+		return fmt.Errorf("write verification failed: expected 0x%04X, got 0x%04X", newValue, verifiedValue)
+	}
+
+	fmt.Printf("Successfully modified! Verified value: 0x%04X\n", verifiedValue)
+	return nil
+}

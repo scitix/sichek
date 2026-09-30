@@ -1,0 +1,8 @@
+syslog:
+  NVLSError:
+    name: "NVLSError"
+    log_file: "/var/log/fabricmanager.log"
+    regexp: "failed to find the member GPU handle .* in the multicast team setup request id .*"
+    description: "NVLS error detected"
+    level: "error"
+    suggestion: "Check NVLS status"
