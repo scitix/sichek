@@ -35,6 +35,7 @@ type CPUOutput struct {
 	Uptime      string      `json:"uptime"`
 	PTPInfo     PTPInfo     `json:"ptp_info"`
 	MCEInfo     MCEInfo     `json:"mce_info"`
+	UncoreInfo  UncoreInfo  `json:"uncore_info"`
 }
 
 func (o *CPUOutput) JSON() (string, error) {
@@ -85,6 +86,7 @@ func (c *Collector) Collect(ctx context.Context) (common.Info, error) {
 
 	cpuOutput.PTPInfo.Get()
 	cpuOutput.MCEInfo.Get()
+	cpuOutput.UncoreInfo.Get()
 
 	return cpuOutput, nil
 }

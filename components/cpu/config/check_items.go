@@ -72,4 +72,14 @@ var CPUCheckItems = map[string]common.CheckerResult{
 		ErrorName:   "CPUMCECorrectedHigh",
 		Suggestion:  "High corrected MCE count detected; monitor for increasing errors and schedule preventive maintenance",
 	},
+	"cpu-uncore-freq": {
+		Name:        "cpu-uncore-freq",
+		Description: "Check if the Intel uncore (L3/LLC, memory controller, mesh) frequency band is pinned to its ceiling",
+		Spec:        "min_freq == max_freq == initial_max_freq on every uncore domain",
+		Status:      "",
+		Level:       consts.LevelWarning,
+		Detail:      "",
+		ErrorName:   "CPUUncoreFreqNotPinned",
+		Suggestion:  "Load intel_uncore_frequency(_tpmi) and pin every domain: write initial_max_freq_khz into min_freq_khz and max_freq_khz",
+	},
 }

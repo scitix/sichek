@@ -53,5 +53,11 @@ func NewCheckers() ([]common.Checker, error) {
 	}
 	checkers = append(checkers, mceCorrected)
 
+	uncoreFreq, err := NewCPUUncoreFreqChecker()
+	if err != nil {
+		return nil, fmt.Errorf("create cpu uncore freq checker failed: %v", err)
+	}
+	checkers = append(checkers, uncoreFreq)
+
 	return checkers, nil
 }
