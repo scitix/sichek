@@ -63,10 +63,6 @@ func (c *SoftwareChecker) Check(ctx context.Context, data any) (*common.CheckerR
 		info += fmt.Sprintf("CUDA version is %s, expected version is %s\n", nvidiaInfo.SoftwareInfo.CUDAVersion, c.cfg.Software.CUDAVersion)
 		result.Status = consts.StatusAbnormal
 	}
-	// if nvidiaInfo.SoftwareInfo.VBIOSVersion != c.cfg.Software.VBIOSVersion {
-	// 	info += fmt.Sprintf("Driver version is %s, expected version is %s\n", nvidiaInfo.SoftwareInfo.VBIOSVersion, c.cfg.Software.VBIOSVersion)
-	// 	result.Status = commonCfg.StatusAbnormal
-	// }
 	// if nvidiaInfo.SoftwareInfo.FabricManagerVersion != c.cfg.Software.FabricManagerVersion {
 	// 	info += fmt.Sprintf("Driver version is %s, expected version is %s\n", nvidiaInfo.SoftwareInfo.FabricManagerVersion, c.cfg.Software.FabricManagerVersion)
 	// 	result.Status = commonCfg.StatusAbnormal

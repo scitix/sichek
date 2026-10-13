@@ -12,6 +12,8 @@ import (
 const (
 	MetricPrefix = "sichek_nvidia"
 	TagPrefix    = "json"
+
+	vbiosVersionMetric = "vbios_version"
 )
 
 type NvidiaMetrics struct {
@@ -19,6 +21,7 @@ type NvidiaMetrics struct {
 	NvidiaSoftwareInfoGauge   *common.GaugeVecMetricExporter
 	NvidiaCudaVerionGauge     *common.GaugeVecMetricExporter
 	NvidiaDevUUIDGauge        *common.GaugeVecMetricExporter
+	NvidiaVBIOSGauge          *common.GaugeVecMetricExporter
 	NvidiaDeviceGauge         *common.GaugeVecMetricExporter
 	NvidiaDeviceClkEventGauge *common.GaugeVecMetricExporter
 	NvidiaIBGDAStatusGauge    *common.GaugeVecMetricExporter
@@ -29,6 +32,7 @@ func NewNvidiaMetrics() *NvidiaMetrics {
 	NvidiaDevCntGauge := common.NewGaugeVecMetricExporter(MetricPrefix, nil)
 	NvidiaSoftwareInfoGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"metric_name"})
 	NvidiaDevUUIDGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "uuid"})
+	NvidiaVBIOSGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "vbios_version"})
 	NvidiaDeviceGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index"})
 	NvidiaDeviceClkEventGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"index", "clock_event_reason_id"})
 	NvidiaIBGDAStatusGauge := common.NewGaugeVecMetricExporter(MetricPrefix, []string{"status"})
@@ -37,6 +41,7 @@ func NewNvidiaMetrics() *NvidiaMetrics {
 		NvidiaDevCntGauge:         NvidiaDevCntGauge,
 		NvidiaSoftwareInfoGauge:   NvidiaSoftwareInfoGauge,
 		NvidiaDevUUIDGauge:        NvidiaDevUUIDGauge,
+		NvidiaVBIOSGauge:          NvidiaVBIOSGauge,
 		NvidiaDeviceGauge:         NvidiaDeviceGauge,
 		NvidiaDeviceClkEventGauge: NvidiaDeviceClkEventGauge,
 		NvidiaIBGDAStatusGauge:    NvidiaIBGDAStatusGauge,
@@ -79,8 +84,13 @@ func (m *NvidiaMetrics) ExportMetrics(metrics *collector.NvidiaInfo) {
 	// Current logic maintains 1.0 default unless a failure is found in the matrix.
 	m.NvidiaP2PStatusGauge.SetMetric("p2p_global_connected", []string{"connected"}, p2pGlobalStatus)
 
+	// VBIOS version is an info-style series (value 1); reset first so a reflashed GPU drops its old version label.
+	m.NvidiaVBIOSGauge.ResetMetric(vbiosVersionMetric)
 	for _, device := range metrics.DevicesInfo {
 		deviceIdx := fmt.Sprintf("%d", device.Index)
+		if device.VBIOSVersion != "" {
+			m.NvidiaVBIOSGauge.SetMetric(vbiosVersionMetric, []string{deviceIdx, device.VBIOSVersion}, 1)
+		}
 		m.NvidiaDeviceGauge.ExportStruct(device.PCIeInfo, []string{deviceIdx}, TagPrefix)
 		m.NvidiaDeviceGauge.ExportStruct(device.States, []string{deviceIdx}, TagPrefix)
 		m.NvidiaDeviceGauge.ExportStruct(device.Clock, []string{deviceIdx}, TagPrefix)
