@@ -35,11 +35,8 @@ func NewCheckers() ([]common.Checker, error) {
 	}
 	checkers = append(checkers, clockSyncSvc)
 
-	clockSyncOffset, err := NewClockSyncOffsetChecker(1.0, 10.0)
-	if err != nil {
-		return nil, fmt.Errorf("create clock sync offset checker failed: %v", err)
-	}
-	checkers = append(checkers, clockSyncOffset)
+	// clock-sync-offset (ClockSyncOffsetHigh) is disabled; NewClockSyncOffsetChecker
+	// is kept so it can be re-registered here.
 
 	mceUncorrected, err := NewCPUMCEUncorrectedChecker()
 	if err != nil {
