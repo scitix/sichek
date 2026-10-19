@@ -258,6 +258,8 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 	taskPrint := fmt.Sprintf("Tasks: %d, %s%d%s thr; %d running", cpuInfo.UsageInfo.SystemProcessesTotal, consts.Green, cpuInfo.UsageInfo.TotalThreadCount, consts.Reset, cpuInfo.UsageInfo.RunnableTaskCount)
 	loadAvgPrint := fmt.Sprintf("Load average: %s%.2f %.2f %.2f%s", consts.Green, cpuInfo.UsageInfo.CpuLoadAvg1m, cpuInfo.UsageInfo.CpuLoadAvg5m, cpuInfo.UsageInfo.CpuLoadAvg15m, consts.Reset)
 	var performanceModePrint string
+	var uncorePrint string
+	var uncoreDetail string
 	checkerResults := result.Checkers
 	for _, result := range checkerResults {
 		statusColor := consts.Green
@@ -268,6 +270,15 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		switch result.Name {
 		case checker.CPUPerfCheckerName:
 			performanceModePrint = fmt.Sprintf("PerformanceMode: %s%s%s", statusColor, result.Curr, consts.Reset)
+		case checker.CPUUncoreFreqCheckerName:
+			uncoreState := "Pinned"
+			if result.Curr == "N/A" {
+				uncoreState = "N/A"
+			} else if result.Status != consts.StatusNormal {
+				uncoreState = "NotPinned"
+				uncoreDetail = fmt.Sprintf("%s%s%s", statusColor, result.Detail, consts.Reset)
+			}
+			uncorePrint = fmt.Sprintf("UncoreFreq: %s%s%s", statusColor, uncoreState, consts.Reset)
 		}
 	}
 	if summaryPrint {
@@ -290,7 +301,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 			fmt.Printf("%-*s%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, consts.Green+""+consts.Reset, printInterval, loadAvgPrint)
 		}
 		// TODO: more numa node
-		fmt.Printf("%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, performanceModePrint)
+		fmt.Printf("%-*s%-*s%-*s\n", printInterval, consts.Green+""+consts.Reset, printInterval, performanceModePrint, printInterval, uncorePrint)
+		if uncoreDetail != "" {
+			fmt.Printf("\t%s\n", uncoreDetail)
+		}
 		fmt.Println()
 	}
 	return checkAllPassed
