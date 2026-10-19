@@ -780,6 +780,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				cudaVersionPrint = fmt.Sprintf("CUDA Version: %s%s%s", errColor, nvidiaInfo.SoftwareInfo.CUDAVersion, consts.Reset)
 				gpuStatus[config.SoftwareCheckerName] = fmt.Sprintf("%s%s%s", errColor, result.Detail, consts.Reset)
 			}
+		case config.VBIOSCheckerName:
+			if result.Status != consts.StatusNormal {
+				gpuStatus[config.VBIOSCheckerName] = fmt.Sprintf("%s%s%s", errColor, result.Detail, consts.Reset)
+			}
 		case config.GpuPersistencedCheckerName:
 			if result.Status == consts.StatusNormal {
 				persistencePrint = fmt.Sprintf("Persistence Mode: %s%s%s", consts.Green, result.Curr, consts.Reset)

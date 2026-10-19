@@ -38,7 +38,7 @@ type NvidiaSpec struct {
 	GpuMemoryBandwidth   int                    `json:"gpu_memory_bandwidth,omitempty" yaml:"gpu_memory_bandwidth,omitempty"`
 	PCIe                 collector.PCIeInfo     `json:"pcie,omitempty" yaml:"pcie,omitempty"`
 	Dependence           Dependence             `json:"dependence" yaml:"dependence"`
-	Software             collector.SoftwareInfo `json:"software" yaml:"software"`
+	Software             SoftwareSpec           `json:"software" yaml:"software"`
 	Nvlink               collector.NVLinkStates `json:"nvlink" yaml:"nvlink"`
 	State                collector.StatesInfo   `json:"state" yaml:"state"`
 	MemoryErrorThreshold MemoryErrorThreshold   `json:"memory_errors_threshold" yaml:"memory_errors_threshold"`
@@ -49,6 +49,16 @@ type NvidiaSpec struct {
 
 type NvidiaSpecs struct {
 	Specs map[string]*NvidiaSpec `json:"nvidia" yaml:"nvidia"`
+}
+
+// SoftwareSpec holds the expected software/firmware versions. It is kept separate from
+// collector.SoftwareInfo so spec-only fields (e.g. vbios_version) are not exported as metrics.
+type SoftwareSpec struct {
+	DriverVersion string `json:"driver_version" yaml:"driver_version"`
+	CUDAVersion   string `json:"cuda_version,omitempty" yaml:"cuda_version,omitempty"`
+	// VBIOSVersion is the expected per-GPU VBIOS version (exact, case-insensitive match).
+	// Empty disables the vbios check; the collected version is still exported as a metric.
+	VBIOSVersion string `json:"vbios_version,omitempty" yaml:"vbios_version,omitempty"`
 }
 
 type Dependence struct {

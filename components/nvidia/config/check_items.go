@@ -44,6 +44,7 @@ const (
 	IBGDACheckerName                     = "ibgda"
 	P2PCheckerName                       = "p2p_topo"
 	GpuRecoveryActionCheckerName         = "gpu-recovery-action"
+	VBIOSCheckerName                     = "vbios"
 )
 
 // GPUCheckItems is a map of check items for GPU
@@ -101,6 +102,15 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Detail:      "Driver and CUDA versions match expected configuration",
 		ErrorName:   "SoftwareVersionIncorrect",
 		Suggestion:  "Update the software to the expected version",
+	},
+	VBIOSCheckerName: {
+		Name:        VBIOSCheckerName,
+		Description: "Check if the VBIOS version of every GPU matches the spec",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelWarning,
+		Detail:      "VBIOS versions match expected configuration",
+		ErrorName:   "VBIOSVersionMismatch",
+		Suggestion:  "Flash the GPU VBIOS to the expected version",
 	},
 	GpuTemperatureCheckerName: {
 		Name:        GpuTemperatureCheckerName,

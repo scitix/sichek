@@ -6,7 +6,7 @@ nvidia:
     software:
       driver_version: ">=570.133.20"
       cuda_version: ">=12.8"
-      vbios_version: "96.00.89.00.01"
+      vbios_version: ""
       fabricmanager_version: "570.133.20"
     dependence:
       pcie_acs: disable
