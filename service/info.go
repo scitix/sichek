@@ -41,6 +41,7 @@ type nodeAnnotation struct {
 	LLDP        map[string][]*annotation `json:"lldp"`
 	OVS         map[string][]*annotation `json:"ovs"`
 	GpuProbe    map[string][]*annotation `json:"gpuprobe"`
+	RdmaEnv     map[string][]*annotation `json:"rdmaenv"`
 }
 
 func GetAnnotationFromJson(jsonStr string) (*nodeAnnotation, error) {
@@ -121,6 +122,8 @@ func (a *nodeAnnotation) getAnnotationsByItem(item string) (map[string][]*annota
 		return a.OVS, nil
 	case consts.ComponentNameGPUProbe:
 		return a.GpuProbe, nil
+	case consts.ComponentNameRdmaEnv:
+		return a.RdmaEnv, nil
 	}
 	return nil, fmt.Errorf("input item %s is not supported", item)
 }
@@ -156,6 +159,8 @@ func (a *nodeAnnotation) setAnnotationsByItem(item string, annotations map[strin
 		a.OVS = annotations
 	case consts.ComponentNameGPUProbe:
 		a.GpuProbe = annotations
+	case consts.ComponentNameRdmaEnv:
+		a.RdmaEnv = annotations
 	}
 	return nil
 }
