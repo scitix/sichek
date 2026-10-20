@@ -1,0 +1,11 @@
+Type=oneshot
+Result=success
+NRestarts=0
+ExecMainStartTimestamp=Sun 2026-09-27 13:50:08 UTC
+ExecMainExitTimestamp=Sun 2026-09-27 13:51:50 UTC
+ExecMainStatus=0
+Description=RDMA NIC initialization, resumed across reboots (rdma-env-pre init)
+LoadState=loaded
+ActiveState=active
+SubState=exited
+UnitFileState=enabled

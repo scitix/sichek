@@ -34,10 +34,12 @@ type Collector struct {
 	endpoint string
 	timeout  time.Duration
 	prefix   string
+	unit     string
 }
 
-// NewCollector builds a Collector, filling in defaults for empty/zero fields.
-func NewCollector(endpoint string, timeout time.Duration, prefix string) *Collector {
+// NewCollector builds a Collector, filling in defaults for empty/zero fields. unit is
+// the systemd unit whose state is reported alongside the scrape.
+func NewCollector(endpoint string, timeout time.Duration, prefix string, unit string) *Collector {
 	if endpoint == "" {
 		endpoint = defaultEndpoint
 	}
@@ -47,17 +49,23 @@ func NewCollector(endpoint string, timeout time.Duration, prefix string) *Collec
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
-	return &Collector{endpoint: endpoint, timeout: timeout, prefix: prefix}
+	if unit == "" {
+		unit = DefaultServiceUnit
+	}
+	return &Collector{endpoint: endpoint, timeout: timeout, prefix: prefix, unit: unit}
 }
 
 // Collect scrapes once and returns an Info. A scrape failure is NOT surfaced as a Go
 // error: it is recorded in Info (Available=false, Error set) so the daemon does not
 // treat a missing/absent exporter as a component fault. The error return is always nil.
+// The systemd unit state is collected first and regardless of the scrape outcome: the
+// exporter being down must not hide a failed init.
 func (c *Collector) Collect(ctx context.Context) (*Info, error) {
 	info := &Info{
 		Endpoint:  c.endpoint,
 		ScrapedAt: time.Now(),
 		Summary:   Summary{VerdictCounts: map[string]int{}},
+		Service:   CollectServiceStatus(ctx, c.unit, c.timeout),
 	}
 
 	body, err := scrape(ctx, c.endpoint, c.timeout)

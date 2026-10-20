@@ -69,6 +69,9 @@ type Info struct {
 	Error     string              `json:"error,omitempty"`
 	Series    map[string][]Series `json:"-"`
 	Summary   Summary             `json:"summary"`
+	// Service is the systemd state of the rdma-env-pre init unit. It is collected
+	// independently of the scrape, so it is set even when the exporter is down.
+	Service *ServiceStatus `json:"service,omitempty"`
 }
 
 // JSON implements common.Info.

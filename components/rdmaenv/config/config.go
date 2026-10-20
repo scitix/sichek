@@ -36,6 +36,9 @@ type RdmaEnvConfig struct {
 	MetricPrefix string `json:"metric_prefix" yaml:"metric_prefix"`
 	// EnableMetrics toggles re-exporting the scraped series on sichek's own /metrics.
 	EnableMetrics bool `json:"enable_metrics" yaml:"enable_metrics"`
+	// ServiceUnit is the systemd unit checked by check_rdma_env_service. Empty means
+	// rdma-env-pre.service.
+	ServiceUnit string `json:"service_unit,omitempty" yaml:"service_unit,omitempty"`
 }
 
 func (c *RdmaEnvUserConfig) GetQueryInterval() common.Duration {
