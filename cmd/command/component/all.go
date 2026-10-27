@@ -53,6 +53,7 @@ import (
 // Flags:
 // - verbos: Enable verbose output (default: false)
 // - eventonly: Print events output only (default: false)
+// - skip-nccltest: Skip the NCCL performance test (default: false)
 func NewAllCmd() *cobra.Command {
 	var (
 		cfgFile          string
@@ -62,6 +63,7 @@ func NewAllCmd() *cobra.Command {
 		ignoredCheckers  string
 		verbos           bool
 		eventonly        bool
+		skipNcclTest     bool
 	)
 	allCmd := &cobra.Command{
 		Use:   "all",
@@ -132,7 +134,7 @@ func NewAllCmd() *cobra.Command {
 			if utils.IsNvidiaGPUExist() {
 
 				// check nccl perf test
-				if slices.Contains(componentsToCheck, "nccltest") {
+				if !skipNcclTest && slices.Contains(componentsToCheck, "nccltest") {
 					ncclCmd := NewNcclPerftestCmd()
 					args := []string{"--begin", "2g", "--end", "2g"}
 					ncclCmd.SetArgs(args)
@@ -162,6 +164,7 @@ func NewAllCmd() *cobra.Command {
 	allCmd.Flags().StringVarP(&enableComponents, "enable-components", "E", "", "Enabled components, joined by ','")
 	allCmd.Flags().StringVarP(&ignoreComponents, "ignore-components", "I", "podlog,gpuevents,syslog,sysinfo", "Ignored components")
 	allCmd.Flags().StringVarP(&ignoredCheckers, "ignored-checkers", "i", "", "Ignored checkers")
+	allCmd.Flags().BoolVar(&skipNcclTest, "skip-nccltest", false, "Skip the NCCL performance test")
 
 	return allCmd
 }
