@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package rdmaenv is a passthrough component: it scrapes the co-located rdma-env-pre
-// exporter (:19099/metrics), re-exports its series verbatim on sichek's /metrics, and
-// records a per-knob desired/observed digest in the snapshot. It does no health
-// judgment: HealthCheck runs no checkers and always reports normal.
+// Package rdmaenv scrapes the co-located rdma-env-pre exporter (:19099/metrics),
+// re-exports its series verbatim on sichek's /metrics, and records a per-knob
+// desired/observed digest in the snapshot. The knobs are passthrough and never judged;
+// the only health judgment is check_rdma_env_service, which reads the systemd state of
+// the rdma-env-pre init unit.
 package rdmaenv
 
 import (
@@ -27,6 +28,7 @@ import (
 	"time"
 
 	"github.com/scitix/sichek/components/common"
+	"github.com/scitix/sichek/components/rdmaenv/checker"
 	"github.com/scitix/sichek/components/rdmaenv/collector"
 	"github.com/scitix/sichek/components/rdmaenv/config"
 	rmetrics "github.com/scitix/sichek/components/rdmaenv/metrics"
@@ -43,6 +45,7 @@ type component struct {
 	cfg           *config.RdmaEnvUserConfig
 	cfgMutex      sync.Mutex
 	collector     *collector.Collector
+	checkers      []common.Checker
 	metrics       *rmetrics.RdmaEnvMetrics
 
 	cacheMtx    sync.RWMutex
@@ -94,7 +97,12 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		}
 	}
 
-	collectorInst := collector.NewCollector(cfg.RdmaEnv.Endpoint, cfg.RdmaEnv.Timeout.Duration, cfg.RdmaEnv.MetricPrefix)
+	collectorInst := collector.NewCollector(cfg.RdmaEnv.Endpoint, cfg.RdmaEnv.Timeout.Duration, cfg.RdmaEnv.MetricPrefix, cfg.RdmaEnv.ServiceUnit)
+
+	checkers, err := checker.NewCheckers()
+	if err != nil {
+		return nil, err
+	}
 
 	const cacheSize = 5
 	comp = &component{
@@ -103,6 +111,7 @@ func newComponent(cfgFile string) (comp *component, err error) {
 		componentName: consts.ComponentNameRdmaEnv,
 		cfg:           cfg,
 		collector:     collectorInst,
+		checkers:      checkers,
 		metrics:       rmetrics.NewRdmaEnvMetrics(),
 		cacheBuffer:   make([]*common.Result, cacheSize),
 		cacheInfo:     make([]common.Info, cacheSize),
@@ -126,9 +135,7 @@ func (c *component) HealthCheck(ctx context.Context) (*common.Result, error) {
 		c.metrics.ExportMetrics(info)
 	}
 
-	// No checkers: passthrough never judges. Check with a nil checker set yields a
-	// normal, info-level result.
-	result := common.Check(ctx, c.componentName, info, nil)
+	result := common.Check(ctx, c.componentName, info, c.checkers)
 
 	c.cacheMtx.Lock()
 	c.cacheBuffer[c.currIndex] = result
@@ -203,21 +210,37 @@ func (c *component) GetTimeout() time.Duration {
 	return c.cfg.GetQueryInterval().Duration
 }
 
-// PrintInfo prints the passthrough digest. It always returns true: passthrough does not
-// participate in pass/fail.
+// PrintInfo prints the unit state and the passthrough digest. Pass/fail is decided by
+// the checker results alone (the service check); the knob digest is informational.
 func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPrint bool) bool {
 	utils.PrintTitle("RdmaEnv", "-")
+	passed := resultPassed(result)
 
 	rInfo, ok := info.(*collector.Info)
 	if !ok || rInfo == nil {
 		fmt.Println("No rdmaenv info available")
-		return true
+		return passed
+	}
+
+	if svc := rInfo.Service; svc != nil {
+		fmt.Printf("Service: %s  state=%s  (%s/%s result=%s exit=%s unit-file=%s)\n",
+			svc.Unit, svc.State, svc.ActiveState, svc.SubState, svc.Result, svc.ExecMainStatus, svc.UnitFileState)
+	}
+	if result != nil {
+		for _, r := range result.Checkers {
+			if r.Status != consts.StatusNormal {
+				fmt.Printf("%s: %s [%s] %s\n", r.Name, r.Status, r.Level, r.Detail)
+				if r.Suggestion != "" {
+					fmt.Printf("  suggestion: %s\n", r.Suggestion)
+				}
+			}
+		}
 	}
 
 	fmt.Printf("Endpoint: %s\n", rInfo.Endpoint)
 	if !rInfo.Available {
 		fmt.Printf("Available: false  (%s)\n", rInfo.Error)
-		return true
+		return passed
 	}
 
 	fmt.Printf("Available: true   Series: %d   HostCompliance: %s\n",
@@ -242,5 +265,17 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 		fmt.Printf("\nAll knobs converged\n")
 	}
 	fmt.Println()
+	return passed
+}
+
+func resultPassed(result *common.Result) bool {
+	if result == nil {
+		return true
+	}
+	for _, r := range result.Checkers {
+		if r.Status != consts.StatusNormal {
+			return false
+		}
+	}
 	return true
 }

@@ -1,0 +1,11 @@
+Type=oneshot
+Result=success
+NRestarts=0
+ExecMainStartTimestamp=
+ExecMainExitTimestamp=
+ExecMainStatus=
+Description=does-not-exist.service
+LoadState=not-found
+ActiveState=inactive
+SubState=dead
+UnitFileState=

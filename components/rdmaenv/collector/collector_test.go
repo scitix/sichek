@@ -39,7 +39,7 @@ func TestCollectSuccess(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewCollector(srv.URL, 5*time.Second, "rdma_env_pre_")
+	c := NewCollector(srv.URL, 5*time.Second, "rdma_env_pre_", "")
 	info, err := c.Collect(context.Background())
 	require.NoError(t, err)
 	assert.True(t, info.Available)
@@ -54,13 +54,16 @@ func TestCollectConnRefusedDegrades(t *testing.T) {
 	url := srv.URL
 	srv.Close() // now nothing is listening
 
-	c := NewCollector(url, 1*time.Second, "rdma_env_pre_")
+	c := NewCollector(url, 1*time.Second, "rdma_env_pre_", "")
 	info, err := c.Collect(context.Background())
 	require.NoError(t, err) // failure must NOT be a component fault
 	assert.False(t, info.Available)
 	assert.NotEmpty(t, info.Error)
 	assert.Empty(t, info.Series)
 	assert.Equal(t, url, info.Endpoint)
+	// The unit state is collected independently: a dead exporter must not hide it.
+	require.NotNil(t, info.Service)
+	assert.Equal(t, DefaultServiceUnit, info.Service.Unit)
 }
 
 func TestCollectNon2xxDegrades(t *testing.T) {
@@ -69,7 +72,7 @@ func TestCollectNon2xxDegrades(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewCollector(srv.URL, 1*time.Second, "rdma_env_pre_")
+	c := NewCollector(srv.URL, 1*time.Second, "rdma_env_pre_", "")
 	info, err := c.Collect(context.Background())
 	require.NoError(t, err)
 	assert.False(t, info.Available)

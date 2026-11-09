@@ -4,3 +4,4 @@ rdmaenv:
   timeout: 10s
   metric_prefix: "rdma_env_pre_"
   enable_metrics: true
+  service_unit: "rdma-env-pre.service"
