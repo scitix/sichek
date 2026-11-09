@@ -22,45 +22,75 @@ import (
 	"strings"
 )
 
-const mceSysfsPath = "/sys/devices/system/cpu/machinecheck"
+// edacMCPath is where the kernel EDAC driver (e.g. i10nm_edac, skx_edac,
+// amd64_edac) exposes one mcN directory per memory controller, each carrying
+// cumulative ce_count / ue_count since boot. The machinecheck sysfs tree has no
+// error counters (only bank/config knobs), so EDAC is the counter source.
+const edacMCPath = "/sys/devices/system/edac/mc"
 
-// MCEInfo holds Machine Check Exception counters.
+// MCEInfo holds memory-controller Machine Check error counters from EDAC.
 type MCEInfo struct {
 	CorrectedCount   int64 `json:"corrected_count"`
 	UncorrectedCount int64 `json:"uncorrected_count"`
 	Available        bool  `json:"available"`
 }
 
-// Get populates MCEInfo from the default sysfs path.
+// Get populates MCEInfo from the default EDAC sysfs path.
 func (m *MCEInfo) Get() {
-	m.getFromDir(mceSysfsPath)
+	m.getFromDir(edacMCPath)
 }
 
-// getFromDir reads machinecheck directories under the given path
-// and sums corrected_count and uncorrected_count files.
+// getFromDir sums ce_count and ue_count across the mcN directories under dir.
+// Available is true only when at least one controller's counters were actually
+// read, so a node without a loaded EDAC driver reports "not available" instead
+// of a misleading zero.
 func (m *MCEInfo) getFromDir(dir string) {
+	*m = MCEInfo{}
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		m.Available = false
 		return
 	}
 
-	found := false
 	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "machinecheck") {
+		if !entry.IsDir() || !isEDACMCDir(entry.Name()) {
 			continue
 		}
-		found = true
 		mcDir := filepath.Join(dir, entry.Name())
 
-		corrected := readIntFile(filepath.Join(mcDir, "corrected_count"))
+		corrected, err := readCountFile(filepath.Join(mcDir, "ce_count"))
+		if err != nil {
+			continue
+		}
+		uncorrected, err := readCountFile(filepath.Join(mcDir, "ue_count"))
+		if err != nil {
+			continue
+		}
 		m.CorrectedCount += corrected
-
-		uncorrected := readIntFile(filepath.Join(mcDir, "uncorrected_count"))
 		m.UncorrectedCount += uncorrected
+		m.Available = true
 	}
+}
 
-	m.Available = found
+// isEDACMCDir reports whether name is a memory-controller entry (mc0, mc1, ...)
+// rather than a sibling such as power or subsystem.
+func isEDACMCDir(name string) bool {
+	idx, ok := strings.CutPrefix(name, "mc")
+	if !ok || idx == "" {
+		return false
+	}
+	_, err := strconv.Atoi(idx)
+	return err == nil
+}
+
+// readCountFile reads a file and parses its content as an int64, reporting
+// read and parse failures so callers can tell "0" from "unreadable".
+func readCountFile(path string) (int64, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 }
 
 // readIntFile reads a file and parses its content as an int64.
