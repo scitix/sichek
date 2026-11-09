@@ -18,15 +18,23 @@ package collector
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/scitix/sichek/components/common"
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
+	"github.com/sirupsen/logrus"
 )
+
+// PCIDevicesPath is the sysfs root used to resolve per-device attributes such as numa_node.
+var PCIDevicesPath = "/sys/bus/pci/devices"
 
 type PCIeInfo struct {
 	BDFID           string `json:"bdf_id,omitempty" yaml:"bdf_id,omitempty"` // e.g 00000001:45:00.0
 	DEVID           uint32 `json:"device_id" yaml:"device_id"`               // e.g 0x233010DE
+	NumaNode        string `json:"numa_node" yaml:"numa_node"`               // e.g 0; -1 when the platform reports no affinity
 	PCILinkGen      int    `json:"pci_gen" yaml:"pci_gen"`
 	PCILinkGenMAX   int    `json:"pci_gen_max,omitempty" yaml:"pci_gen_max,omitempty"`
 	PCILinkWidth    int    `json:"pci_width" yaml:"pci_width"`
@@ -53,6 +61,11 @@ func (p *PCIeInfo) Get(device nvml.Device, uuid string) error {
 	}
 	p.BDFID = fmt.Sprintf("%04x:%02x:%02x.0", pciInfo.Domain, pciInfo.Bus, pciInfo.Device)
 	p.DEVID = pciInfo.PciDeviceId
+	numaNode, err := GetGPUNumaNode(p.BDFID)
+	if err != nil {
+		logrus.WithField("component", "nvidia").Errorf("Failed to read NUMA node for GPU %v: %v", uuid, err)
+	}
+	p.NumaNode = numaNode
 
 	// Get Current and Max PCIe Link Width
 	pciLinkWidth, ret := device.GetCurrPcieLinkWidth()
@@ -97,4 +110,13 @@ func (p *PCIeInfo) Get(device nvml.Device, uuid string) error {
 	p.PCIeRx = pcieRx
 
 	return nil
+}
+
+// GetGPUNumaNode reads the NUMA node of a GPU from sysfs by its PCI BDF.
+func GetGPUNumaNode(bdf string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(PCIDevicesPath, strings.ToLower(bdf), "numa_node"))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
 }
