@@ -77,10 +77,16 @@ func parseCatcherResult(data []byte) (string, *ServerModel, error) {
 		if p.Code != "" {
 			continue
 		}
-		if name == "gpu" && p.Detected == "" && p.Key == "" {
+		// Empty GPU part: GPU-less node, unless sysfs shows an NVIDIA GPU
+		// (catcher also leaves it empty when the GPU query itself failed).
+		if name == "gpu" && p.Detected == "" && p.Key == "" && !nvidiaGPUPresent() {
 			continue
 		}
 		missing = append(missing, name)
+	}
+	// catcher's no-jq fallback joins config lines with '#'.
+	if !strings.Contains(r.Config, "\n") && strings.Contains(r.Config, "#") {
+		r.Config = strings.ReplaceAll(r.Config, "#", "\n")
 	}
 	return r.ModelID, &ServerModel{
 		Complete:   r.ModelID != "" && len(missing) == 0,
@@ -276,6 +282,10 @@ func (r *ServerModelRunner) RunOnce(ctx context.Context) {
 	log := logrus.WithField("service", "server_model")
 	now := time.Now()
 	id, sm, err := r.collect(ctx)
+	if err != nil && ctx.Err() != nil {
+		log.Debugf("catcher run aborted by shutdown: %v", err)
+		return
+	}
 
 	r.mu.Lock()
 	if err != nil {
@@ -309,4 +319,32 @@ func (r *ServerModelRunner) collect(ctx context.Context) (string, *ServerModel, 
 		return "", nil, err
 	}
 	return parseCatcherResult(data)
+}
+
+// nvidiaGPUPresent reports whether the host has an NVIDIA GPU on the PCI bus.
+// A package var so tests can override it.
+var nvidiaGPUPresent = func() bool { return hasNvidiaGPU("/sys") }
+
+// hasNvidiaGPU scans <sysRoot>/bus/pci/devices for an NVIDIA (0x10de) display
+// controller (class 0x03xxxx). Unreadable sysfs yields false.
+func hasNvidiaGPU(sysRoot string) bool {
+	entries, err := os.ReadDir(filepath.Join(sysRoot, "bus", "pci", "devices"))
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		dir := filepath.Join(sysRoot, "bus", "pci", "devices", e.Name())
+		v, err := os.ReadFile(filepath.Join(dir, "vendor"))
+		if err != nil || strings.TrimSpace(string(v)) != "0x10de" {
+			continue
+		}
+		c, err := os.ReadFile(filepath.Join(dir, "class"))
+		if err != nil {
+			continue
+		}
+		if strings.HasPrefix(strings.TrimSpace(string(c)), "0x03") {
+			return true
+		}
+	}
+	return false
 }

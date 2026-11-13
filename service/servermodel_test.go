@@ -63,7 +63,72 @@ const catcherEmptyID = `{"model_id":"","components":{
  "mem":{"code":"","detected":"","key":""},
  "disk":{"code":"","detected":"","key":""}},"config":""}`
 
+func setGPUPresent(t *testing.T, v bool) {
+	t.Helper()
+	old := nvidiaGPUPresent
+	nvidiaGPUPresent = func() bool { return v }
+	t.Cleanup(func() { nvidiaGPUPresent = old })
+}
+
+const catcherNoJQConfig = `{"model_id":"I57G90N13M63S10","components":{
+ "cpu":{"code":"I57","detected":"x","key":"k"},
+ "gpu":{"code":"G90","detected":"x","key":"k"},
+ "nic":{"code":"N13","detected":"x","key":"k"},
+ "mem":{"code":"M63","detected":"x","key":"k"},
+ "disk":{"code":"S10","detected":"x","key":"k"}},"config":"CPU: Intel 6530 *2#GPU: 5090 *8#"}`
+
+func TestHasNvidiaGPU(t *testing.T) {
+	tests := []struct {
+		name          string
+		vendor, class string
+		noDevices     bool
+		want          bool
+	}{
+		{name: "nvidia 3D controller", vendor: "0x10de", class: "0x030200", want: true},
+		{name: "nvidia VGA", vendor: "0x10de", class: "0x030000", want: true},
+		{name: "nvidia audio", vendor: "0x10de", class: "0x040300", want: false},
+		{name: "mellanox", vendor: "0x15b3", class: "0x020000", want: false},
+		{name: "empty dir", noDevices: true, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			devs := filepath.Join(root, "bus", "pci", "devices")
+			require.NoError(t, os.MkdirAll(devs, 0755))
+			if !tt.noDevices {
+				d := filepath.Join(devs, "0000:17:00.0")
+				require.NoError(t, os.MkdirAll(d, 0755))
+				require.NoError(t, os.WriteFile(filepath.Join(d, "vendor"), []byte(tt.vendor+"\n"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(d, "class"), []byte(tt.class+"\n"), 0644))
+			}
+			assert.Equal(t, tt.want, hasNvidiaGPU(root))
+		})
+	}
+	assert.False(t, hasNvidiaGPU(filepath.Join(t.TempDir(), "missing")))
+}
+
+func TestParseCatcherResult_GPUQueryFailure(t *testing.T) {
+	setGPUPresent(t, true)
+	_, sm, err := parseCatcherResult([]byte(catcherNoGPU))
+	require.NoError(t, err)
+	assert.False(t, sm.Complete)
+	assert.Equal(t, []string{"gpu"}, sm.Missing)
+
+	setGPUPresent(t, false)
+	_, sm, err = parseCatcherResult([]byte(catcherNoGPU))
+	require.NoError(t, err)
+	assert.True(t, sm.Complete)
+	assert.Equal(t, []string{}, sm.Missing)
+}
+
+func TestParseCatcherResult_NoJQConfigNormalized(t *testing.T) {
+	_, sm, err := parseCatcherResult([]byte(catcherNoJQConfig))
+	require.NoError(t, err)
+	assert.Equal(t, "CPU: Intel 6530 *2\nGPU: 5090 *8\n", sm.Config)
+}
+
 func TestParseCatcherResult(t *testing.T) {
+	setGPUPresent(t, false)
 	tests := []struct {
 		name         string
 		input        string
@@ -161,7 +226,7 @@ sleep 60`)
 	start := time.Now()
 	_, err := runCatcher(context.Background(), script, 500*time.Millisecond)
 	require.Error(t, err)
-	assert.Less(t, time.Since(start), 10*time.Second)
+	assert.Less(t, time.Since(start), 3*time.Second)
 }
 
 func TestReadCatcherVersion(t *testing.T) {
@@ -271,6 +336,24 @@ func TestServerModelRunner_SuccessThenFailureKeepsLastGood(t *testing.T) {
 	assert.NotEmpty(t, s.ServerModel.Error)
 	assert.True(t, s.ServerModel.CollectedAt.After(firstAt))
 	assert.Equal(t, 1, calls, "metrics callback must not fire on failure")
+}
+
+func TestServerModelRunner_ShutdownMidRunPublishesNothing(t *testing.T) {
+	script := writeFakeCatcher(t, "sleep 30")
+	snap, path := newTestSnapshot(t)
+	cfg := defaultServerModelConfig()
+	cfg.ScriptPath = script
+	cfg.Timeout = 30 * time.Second
+	calls := 0
+	r := NewServerModelRunner(cfg, snap, func(string, bool) { calls++ })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { time.Sleep(200 * time.Millisecond); cancel() }()
+	r.RunOnce(ctx)
+
+	_, err := os.Stat(path)
+	assert.True(t, os.IsNotExist(err), "shutdown must not publish a spurious error")
+	assert.Equal(t, 0, calls)
 }
 
 func TestServerModelRunner_FirstRunFailure(t *testing.T) {
