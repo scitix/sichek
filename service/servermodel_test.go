@@ -17,6 +17,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -168,4 +169,151 @@ func TestReadCatcherVersion(t *testing.T) {
 	assert.Equal(t, "", readCatcherVersion(script))
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(script), "VERSION"), []byte("sha256:abc 2026-11-13\n"), 0644))
 	assert.Equal(t, "sha256:abc 2026-11-13", readCatcherVersion(script))
+}
+
+func TestLoadServerModelConfig(t *testing.T) {
+	def := defaultServerModelConfig()
+	tests := []struct {
+		name string
+		yaml string
+		want ServerModelConfig
+	}{
+		{name: "no block", yaml: "snapshot:\n  enable: true\n", want: def},
+		{name: "partial block", yaml: "server_model:\n  interval: 30m\n", want: func() ServerModelConfig {
+			c := def
+			c.Interval = 30 * time.Minute
+			return c
+		}()},
+		{name: "zero durations fall back", yaml: "server_model:\n  enable: true\n  interval: 0s\n  timeout: 0s\n  initial_delay: 0s\n", want: def},
+		{name: "disabled", yaml: "server_model:\n  enable: false\n", want: func() ServerModelConfig {
+			c := def
+			c.Enable = false
+			return c
+		}()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := filepath.Join(t.TempDir(), "cfg.yaml")
+			require.NoError(t, os.WriteFile(f, []byte(tt.yaml), 0644))
+			got, err := LoadServerModelConfig(f)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestDefaultServerModelConfig(t *testing.T) {
+	c := defaultServerModelConfig()
+	assert.True(t, c.Enable)
+	assert.Equal(t, "/var/sichek/scripts/catcher/catcher.bash", c.ScriptPath)
+	assert.Equal(t, 5*time.Minute, c.InitialDelay)
+	assert.Equal(t, time.Hour, c.Interval)
+	assert.Equal(t, 120*time.Second, c.Timeout)
+}
+
+// newTestSnapshot returns an enabled SnapshotManager writing to a temp file.
+func newTestSnapshot(t *testing.T) (*SnapshotManager, string) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "snapshot.json")
+	cfg := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfg, []byte("snapshot:\n  enable: true\n  path: "+path), 0644))
+	mgr, err := NewSnapshotManager(cfg)
+	require.NoError(t, err)
+	return mgr, path
+}
+
+func readSnapshot(t *testing.T, path string) Snapshot {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var s Snapshot
+	require.NoError(t, json.Unmarshal(data, &s))
+	return s
+}
+
+const fakeCatcherOK = `D="$(cd "$(dirname "$0")" && pwd)"
+mkdir -p "$D/result" && cp "$D/lib/data.json" "$D/result/catcher_result.json"`
+
+func TestServerModelRunner_SuccessThenFailureKeepsLastGood(t *testing.T) {
+	script := writeFakeCatcher(t, fakeCatcherOK)
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(script), "VERSION"), []byte("sha256:abc 2026-11-13\n"), 0644))
+	snap, path := newTestSnapshot(t)
+	cfg := defaultServerModelConfig()
+	cfg.ScriptPath = script
+	cfg.Timeout = 10 * time.Second
+
+	var gotID string
+	var gotComplete bool
+	calls := 0
+	r := NewServerModelRunner(cfg, snap, func(id string, complete bool) { gotID, gotComplete, calls = id, complete, calls+1 })
+
+	r.RunOnce(context.Background())
+	s := readSnapshot(t, path)
+	assert.Equal(t, "I57G90N13M63S10", s.ServerModelID)
+	require.NotNil(t, s.ServerModel)
+	assert.True(t, s.ServerModel.Complete)
+	assert.Equal(t, "sha256:abc 2026-11-13", s.ServerModel.CatcherVersion)
+	assert.Empty(t, s.ServerModel.Error)
+	assert.False(t, s.ServerModel.CollectedAt.IsZero())
+	assert.Equal(t, "I57G90N13M63S10", gotID)
+	assert.True(t, gotComplete)
+	firstAt := s.ServerModel.CollectedAt
+
+	// Break the script: next run must keep the last good ID and only set error.
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/bash\nexit 1\n"), 0755))
+	time.Sleep(10 * time.Millisecond)
+	r.RunOnce(context.Background())
+	s = readSnapshot(t, path)
+	assert.Equal(t, "I57G90N13M63S10", s.ServerModelID)
+	require.NotNil(t, s.ServerModel)
+	assert.True(t, s.ServerModel.Complete)
+	assert.NotEmpty(t, s.ServerModel.Error)
+	assert.True(t, s.ServerModel.CollectedAt.After(firstAt))
+	assert.Equal(t, 1, calls, "metrics callback must not fire on failure")
+}
+
+func TestServerModelRunner_FirstRunFailure(t *testing.T) {
+	snap, path := newTestSnapshot(t)
+	cfg := defaultServerModelConfig()
+	cfg.ScriptPath = filepath.Join(t.TempDir(), "missing", "catcher.bash")
+	calls := 0
+	r := NewServerModelRunner(cfg, snap, func(string, bool) { calls++ })
+
+	r.RunOnce(context.Background())
+	s := readSnapshot(t, path)
+	assert.Empty(t, s.ServerModelID)
+	require.NotNil(t, s.ServerModel)
+	assert.NotEmpty(t, s.ServerModel.Error)
+	assert.False(t, s.ServerModel.Complete)
+	assert.Equal(t, 0, calls)
+}
+
+func TestServerModelRunner_RunHonorsInitialDelayAndStops(t *testing.T) {
+	script := writeFakeCatcher(t, fakeCatcherOK)
+	snap, path := newTestSnapshot(t)
+	cfg := defaultServerModelConfig()
+	cfg.ScriptPath = script
+	cfg.InitialDelay = 200 * time.Millisecond
+	cfg.Interval = time.Hour
+	r := NewServerModelRunner(cfg, snap, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { r.Run(ctx); close(done) }()
+
+	_, err := os.Stat(path)
+	assert.True(t, os.IsNotExist(err), "must not run before initial delay")
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(path)
+		return err == nil
+	}, 5*time.Second, 50*time.Millisecond)
+	assert.Equal(t, "I57G90N13M63S10", readSnapshot(t, path).ServerModelID)
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after ctx cancel")
+	}
 }

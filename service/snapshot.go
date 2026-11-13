@@ -53,6 +53,11 @@ type Snapshot struct {
 	// component then level. It lets the collector consume issues without reading
 	// the K8s annotation, and is populated even on non-K8s nodes.
 	Issues *nodeAnnotation `json:"issues"`
+
+	// ServerModelID is the hardware team's 机型ID (catcher), refreshed hourly
+	// by ServerModelRunner. Omitted until the first catcher run.
+	ServerModelID string       `json:"server_model_id,omitempty"`
+	ServerModel   *ServerModel `json:"server_model,omitempty"`
 }
 
 // SnapshotManager manages the aggregation and persistence of component information.
@@ -134,6 +139,24 @@ func (s *SnapshotManager) SetIssues(issues *nodeAnnotation) {
 
 	s.data.Timestamp = time.Now()
 	s.data.Issues = issues
+
+	if err := s.persist(); err != nil {
+		logrus.WithField("service", "snapshot").Errorf("Failed to persist snapshot: %v", err)
+	}
+}
+
+// SetServerModel records the node's server model ID and detail, then persists.
+func (s *SnapshotManager) SetServerModel(id string, sm *ServerModel) {
+	if !s.enabled {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data.Timestamp = time.Now()
+	s.data.ServerModelID = id
+	s.data.ServerModel = sm
 
 	if err := s.persist(); err != nil {
 		logrus.WithField("service", "snapshot").Errorf("Failed to persist snapshot: %v", err)

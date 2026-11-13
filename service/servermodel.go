@@ -25,8 +25,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 // ServerModelPart is one hardware part of the catcher result.
@@ -168,4 +172,141 @@ func tail(s string, n int) string {
 		return s
 	}
 	return s[len(s)-n:]
+}
+
+// ServerModelConfig controls the periodic catcher run.
+type ServerModelConfig struct {
+	Enable       bool          `json:"enable"        yaml:"enable"`
+	ScriptPath   string        `json:"script_path"   yaml:"script_path"`
+	InitialDelay time.Duration `json:"initial_delay" yaml:"initial_delay"`
+	Interval     time.Duration `json:"interval"      yaml:"interval"`
+	Timeout      time.Duration `json:"timeout"       yaml:"timeout"`
+}
+
+type serverModelFile struct {
+	ServerModel ServerModelConfig `json:"server_model" yaml:"server_model"`
+}
+
+// defaultServerModelConfig: first run 5m after start (clear of the startup
+// NVML burst), then hourly.
+func defaultServerModelConfig() ServerModelConfig {
+	return ServerModelConfig{
+		Enable:       true,
+		ScriptPath:   "/var/sichek/scripts/catcher/catcher.bash",
+		InitialDelay: 5 * time.Minute,
+		Interval:     time.Hour,
+		Timeout:      120 * time.Second,
+	}
+}
+
+// LoadServerModelConfig parses the server_model block from cfgFile, filling
+// zero-valued fields with defaults. Missing file or block yields defaults.
+func LoadServerModelConfig(cfgFile string) (ServerModelConfig, error) {
+	def := defaultServerModelConfig()
+	if cfgFile == "" {
+		return def, nil
+	}
+	data, err := os.ReadFile(cfgFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return def, nil
+		}
+		return def, fmt.Errorf("load server_model config: %w", err)
+	}
+	f := serverModelFile{ServerModel: def}
+	if err := yaml.Unmarshal(data, &f); err != nil {
+		return def, fmt.Errorf("load server_model config: %w", err)
+	}
+	out := f.ServerModel
+	if out.ScriptPath == "" {
+		out.ScriptPath = def.ScriptPath
+	}
+	if out.InitialDelay <= 0 {
+		out.InitialDelay = def.InitialDelay
+	}
+	if out.Interval <= 0 {
+		out.Interval = def.Interval
+	}
+	if out.Timeout <= 0 {
+		out.Timeout = def.Timeout
+	}
+	return out, nil
+}
+
+// ServerModelRunner periodically runs catcher and publishes the result to the
+// snapshot. On failure it keeps the last good ID/detail and only updates Error.
+type ServerModelRunner struct {
+	cfg      ServerModelConfig
+	snap     *SnapshotManager
+	onUpdate func(id string, complete bool)
+
+	mu     sync.Mutex
+	lastID string
+	last   *ServerModel
+}
+
+// NewServerModelRunner builds a runner. onUpdate (may be nil) fires after each
+// successful run, e.g. to refresh the Prometheus info metric.
+func NewServerModelRunner(cfg ServerModelConfig, snap *SnapshotManager, onUpdate func(id string, complete bool)) *ServerModelRunner {
+	return &ServerModelRunner{cfg: cfg, snap: snap, onUpdate: onUpdate}
+}
+
+// Run waits InitialDelay, then runs catcher every Interval until ctx is done.
+func (r *ServerModelRunner) Run(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(r.cfg.InitialDelay):
+	}
+	r.RunOnce(ctx)
+	ticker := time.NewTicker(r.cfg.Interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.RunOnce(ctx)
+		}
+	}
+}
+
+// RunOnce executes catcher a single time and publishes the outcome.
+func (r *ServerModelRunner) RunOnce(ctx context.Context) {
+	log := logrus.WithField("service", "server_model")
+	now := time.Now()
+	id, sm, err := r.collect(ctx)
+
+	r.mu.Lock()
+	if err != nil {
+		log.Warnf("catcher run failed: %v", err)
+		sm = &ServerModel{Missing: []string{}}
+		if r.last != nil {
+			cp := *r.last
+			sm = &cp
+		}
+		id = r.lastID
+		sm.Error = err.Error()
+	} else {
+		sm.CatcherVersion = readCatcherVersion(r.cfg.ScriptPath)
+		r.lastID, r.last = id, sm
+		log.Infof("server_model_id=%q complete=%v missing=%v", id, sm.Complete, sm.Missing)
+	}
+	sm.CollectedAt = now
+	r.mu.Unlock()
+
+	if r.snap != nil {
+		r.snap.SetServerModel(id, sm)
+	}
+	if err == nil && r.onUpdate != nil {
+		r.onUpdate(id, sm.Complete)
+	}
+}
+
+func (r *ServerModelRunner) collect(ctx context.Context) (string, *ServerModel, error) {
+	data, err := runCatcher(ctx, r.cfg.ScriptPath, r.cfg.Timeout)
+	if err != nil {
+		return "", nil, err
+	}
+	return parseCatcherResult(data)
 }
