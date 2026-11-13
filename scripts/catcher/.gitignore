@@ -1,0 +1,10 @@
+# scan output
+result/*.json
+*.log
+
+# tarballs / packaging
+*.tar.gz
+
+# editor / OS noise
+*.swp
+.DS_Store
