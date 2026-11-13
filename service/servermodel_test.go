@@ -16,7 +16,11 @@ limitations under the License.
 package service
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,4 +99,73 @@ func TestParseCatcherResult_KeepsComponentsAndConfig(t *testing.T) {
 	assert.Equal(t, ServerModelPart{Code: "I57", Detected: "INTEL(R) XEON(R) GOLD 6530 (2 socket)", Key: "Intel 6530|2"}, sm.Components["cpu"])
 	assert.Len(t, sm.Components, 5)
 	assert.Equal(t, "CPU: Intel 6530 *2\nGPU: 5090 *8", sm.Config)
+}
+
+// writeFakeCatcher creates a fake catcher dir with the given script body and
+// returns the path to catcher.bash. A lib/ file is included to verify the whole
+// directory (not just the entry script) is copied.
+func writeFakeCatcher(t *testing.T, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "lib"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "data.json"), []byte(catcherFull), 0644))
+	script := filepath.Join(dir, "catcher.bash")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/bash\n"+body), 0755))
+	return script
+}
+
+func TestRunCatcher_Success(t *testing.T) {
+	// Mirrors real catcher: writes into its own dir and only prints a path.
+	script := writeFakeCatcher(t, `D="$(cd "$(dirname "$0")" && pwd)"
+[ "$1" = json ] || exit 9
+mkdir -p "$D/result" && cp "$D/lib/data.json" "$D/result/catcher_result.json"
+echo "JSON written: $D/result/catcher_result.json"`)
+	srcDir := filepath.Dir(script)
+
+	data, err := runCatcher(context.Background(), script, 10*time.Second)
+	require.NoError(t, err)
+	id, _, err := parseCatcherResult(data)
+	require.NoError(t, err)
+	assert.Equal(t, "I57G90N13M63S10", id)
+
+	// The install dir must stay untouched (it may be read-only in production).
+	_, statErr := os.Stat(filepath.Join(srcDir, "result"))
+	assert.True(t, os.IsNotExist(statErr), "catcher must run in a temp copy, not the install dir")
+}
+
+func TestRunCatcher_NoResultFile(t *testing.T) {
+	script := writeFakeCatcher(t, `exit 0`)
+	_, err := runCatcher(context.Background(), script, 10*time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "catcher_result.json")
+}
+
+func TestRunCatcher_NonZeroExit(t *testing.T) {
+	script := writeFakeCatcher(t, `echo boom >&2; exit 3`)
+	_, err := runCatcher(context.Background(), script, 10*time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "boom")
+}
+
+func TestRunCatcher_MissingScript(t *testing.T) {
+	_, err := runCatcher(context.Background(), filepath.Join(t.TempDir(), "nope", "catcher.bash"), 10*time.Second)
+	require.Error(t, err)
+}
+
+func TestRunCatcher_TimeoutKillsProcessGroup(t *testing.T) {
+	// A backgrounded grandchild keeps stdout open; without a process-group
+	// kill, waiting for output would block until it exits (60s).
+	script := writeFakeCatcher(t, `sleep 60 &
+sleep 60`)
+	start := time.Now()
+	_, err := runCatcher(context.Background(), script, 500*time.Millisecond)
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 10*time.Second)
+}
+
+func TestReadCatcherVersion(t *testing.T) {
+	script := writeFakeCatcher(t, "exit 0")
+	assert.Equal(t, "", readCatcherVersion(script))
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(script), "VERSION"), []byte("sha256:abc 2026-11-13\n"), 0644))
+	assert.Equal(t, "sha256:abc 2026-11-13", readCatcherVersion(script))
 }
