@@ -13,6 +13,13 @@ reporter:
   retry_max: 3
   gzip: true     # keep true unless gzip cannot be decoded upstream
 
+server_model:
+  enable: true   # run hardware team's catcher to report server_model_id
+  script_path: "/var/sichek/scripts/catcher/catcher.bash"
+  initial_delay: 5m   # first run after daemon start (avoid startup NVML burst)
+  interval: 1h
+  timeout: 120s
+
 nvidia:
   query_interval: 10s
   cache_size: 5
