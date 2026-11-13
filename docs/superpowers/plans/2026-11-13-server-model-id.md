@@ -20,7 +20,7 @@
 - 配置块 `server_model:` 默认 `enable: true`、`script_path: /var/sichek/scripts/catcher/catcher.bash`、`initial_delay: 5m`、`interval: 1h`、`timeout: 120s`。
 - catcher 版本：tar sha256 `021a25d67602ea35cc8f74cfdf675a843ab8aa2daa746b0299da57c961ecea31`，拉取日期 2026-11-13。
 - 仓库 `.gitignore` 含 `*.md` 与 `*.html`：catcher 的 `README.md`/`CLAUDE.md`/`docs/MATCHING.md` 及本计划提交时需 `git add -f`。
-- commit 消息结尾附 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`。
+- commit 消息**不加**任何 Claude/AI Co-Authored-By 尾注（用户 memory 规定）。
 
 ## Review Focus
 
@@ -90,9 +90,7 @@ Expected: 打印 `CPU: Intel 6530 *2` 等配置行。
 git add scripts/catcher
 git add -f scripts/catcher/README.md scripts/catcher/CLAUDE.md scripts/catcher/docs/MATCHING.md
 git status --short scripts/catcher   # 确认全部文件已暂存
-git commit -m "chore: vendor hardware team's catcher script (sha256 021a25d6)
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "chore: vendor hardware team's catcher script (sha256 021a25d6)"
 ```
 
 ---
@@ -315,9 +313,7 @@ Expected: PASS（7 个子测试 + 1 个测试）。
 
 ```bash
 git add service/servermodel.go service/servermodel_test.go
-git commit -m "feat(servermodel): parse catcher result and derive completeness
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(servermodel): parse catcher result and derive completeness"
 ```
 
 ---
@@ -533,9 +529,7 @@ Expected: 全部 PASS，`TestRunCatcher_TimeoutKillsProcessGroup` 用时 < 2s。
 
 ```bash
 git add service/servermodel.go service/servermodel_test.go
-git commit -m "feat(servermodel): run catcher in temp copy with process-group timeout
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(servermodel): run catcher in temp copy with process-group timeout"
 ```
 
 ---
@@ -953,9 +947,7 @@ Expected: 全部 PASS。
 
 ```bash
 git add service/snapshot.go service/snapshot_test.go service/servermodel.go service/servermodel_test.go
-git commit -m "feat(servermodel): hourly catcher runner publishing server_model_id to snapshot
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(servermodel): hourly catcher runner publishing server_model_id to snapshot"
 ```
 
 ---
@@ -1072,9 +1064,7 @@ Run: `go test ./metrics -v -run TestSetServerModelInfo` → PASS；再 `go test 
 
 ```bash
 git add metrics/servermodel.go metrics/servermodel_test.go
-git commit -m "feat(metrics): add sichek_server_model_info gauge
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(metrics): add sichek_server_model_info gauge"
 ```
 
 ---
@@ -1185,9 +1175,7 @@ Expected: 产出 `build/bin/sichek`，无报错。
 
 ```bash
 git add service/daemon.go config/default_user_config.yaml docker/Dockerfile docker/Dockerfile.cuda128 docker/Dockerfile.cuda130 docker/Dockerfile.centos8
-git commit -m "feat(daemon): wire server_model runner; add catcher deps to images
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(daemon): wire server_model runner; add catcher deps to images"
 ```
 
 ---
