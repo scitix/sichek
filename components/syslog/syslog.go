@@ -212,11 +212,11 @@ func (c *component) LastResult() (*common.Result, error) {
 }
 
 func (c *component) CacheInfos() ([]common.Info, error) {
-	return nil, fmt.Errorf("no info for syslog")
+	return nil, common.ErrNoInfo
 }
 
 func (c *component) LastInfo() (common.Info, error) {
-	return nil, fmt.Errorf("no info for syslog")
+	return nil, common.ErrNoInfo
 }
 
 func (c *component) Start() <-chan *common.Result {

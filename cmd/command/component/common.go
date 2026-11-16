@@ -17,6 +17,7 @@ package component
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -48,7 +49,7 @@ func RunComponentCheck(ctx context.Context, comp common.Component, timeout time.
 	}
 
 	info, err := comp.LastInfo()
-	if err != nil && (comp.Name() != consts.ComponentNameSyslog && comp.Name() != consts.ComponentNamePodlog) {
+	if err != nil && !errors.Is(err, common.ErrNoInfo) {
 		logrus.WithField("component", comp.Name()).Errorf("failed to get the LastInfo: %v", err) // Updated to use comp.Name()
 		return nil, err
 	}
