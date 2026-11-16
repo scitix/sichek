@@ -22,7 +22,6 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/scitix/sichek/components/common"
 	"github.com/scitix/sichek/components/nvidia/collector"
@@ -55,15 +54,6 @@ func (c *NumaNodesChecker) Name() string {
 	return c.name
 }
 
-// expectedNumaNodes is the built-in BIOS SNC/NPS baseline per GPU model:
-// B300 platforms run SNC2 (4 nodes on 2 sockets), everything else 2.
-func expectedNumaNodes(gpuName string) int {
-	if strings.Contains(strings.ToUpper(gpuName), "B300") {
-		return 4
-	}
-	return 2
-}
-
 func countNumaNodes(root string) (int, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -81,9 +71,9 @@ func countNumaNodes(root string) (int, error) {
 	return n, nil
 }
 
-// Check compares the OS-visible NUMA node count against the expected count for this GPU model.
+// Check compares the OS-visible NUMA node count against the expected count from spec.
 func (c *NumaNodesChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
-	info, ok := data.(*collector.NvidiaInfo)
+	_, ok := data.(*collector.NvidiaInfo)
 	if !ok {
 		return nil, fmt.Errorf("invalid data type, expected NvidiaInfo")
 	}
@@ -95,28 +85,18 @@ func (c *NumaNodesChecker) Check(ctx context.Context, data any) (*common.Checker
 		return &result, nil
 	}
 
-	gpuName := ""
-	for _, d := range info.DevicesInfo {
-		if d.Name != "" {
-			gpuName = d.Name
-			break
-		}
+	expected := 0
+	if c.cfg != nil {
+		expected = c.cfg.Dependence.NumaNodes
 	}
-	if gpuName == "" {
-		result.Detail = "skipped: GPU name unavailable"
+	if expected <= 0 {
+		result.Detail = "skipped: numa_nodes not set in spec"
 		return &result, nil
 	}
 
 	actual, err := countNumaNodes(numaSysfsRoot)
 	if err != nil {
 		return nil, fmt.Errorf("count NUMA nodes: %w", err)
-	}
-
-	expected := expectedNumaNodes(gpuName)
-	source := "default for " + gpuName
-	if c.cfg != nil && c.cfg.Dependence.NumaNodes > 0 {
-		expected = c.cfg.Dependence.NumaNodes
-		source = "spec override"
 	}
 
 	result.Spec = strconv.Itoa(expected)
@@ -126,14 +106,13 @@ func (c *NumaNodesChecker) Check(ctx context.Context, data any) (*common.Checker
 			"checker":  c.Name(),
 			"expected": expected,
 			"curr":     actual,
-			"source":   source,
 		}).Errorf("NUMA node count mismatch")
 		result.Status = consts.StatusAbnormal
-		result.Detail = fmt.Sprintf("NUMA nodes: expected %d (%s), got %d", expected, source, actual)
-		result.Suggestion = fmt.Sprintf("Check BIOS Sub-NUMA Clustering (SNC) / AMD NPS setting; this GPU model expects %d NUMA node(s). A reboot is required after the change. If this layout is intended, set nvidia dependence.numa_nodes in the spec or add numa_nodes to ignored_checkers.", expected)
+		result.Detail = fmt.Sprintf("NUMA nodes: expected %d, got %d", expected, actual)
+		result.Suggestion = fmt.Sprintf("Check BIOS Sub-NUMA Clustering (SNC) / AMD NPS setting; this GPU model expects %d NUMA node(s). A reboot is required after the change. If this layout is intended, change nvidia dependence.numa_nodes in the spec or add numa_nodes to ignored_checkers.", expected)
 		return &result, nil
 	}
-	result.Detail = fmt.Sprintf("NUMA nodes: %d (%s)", actual, source)
+	result.Detail = fmt.Sprintf("NUMA nodes: %d", actual)
 	result.Suggestion = ""
 	return &result, nil
 }
