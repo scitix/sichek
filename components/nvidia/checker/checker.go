@@ -30,6 +30,7 @@ func NewCheckers(nvidiaCfg *config.NvidiaUserConfig, nvidiaSpecCfg *config.Nvidi
 	checkerConstructors := map[string]func(*config.NvidiaSpec) (common.Checker, error){
 		config.PCIeACSCheckerName:                   dependence.NewPCIeACSChecker,
 		config.IOMMUCheckerName:                     dependence.NewIOMMUChecker,
+		config.NumaNodesCheckerName:                 dependence.NewNumaNodesChecker,
 		config.NVFabricManagerCheckerName:           dependence.NewNVFabricManagerChecker,
 		config.NvPeerMemCheckerName:                 dependence.NewNvPeerMemChecker,
 		config.IBGDACheckerName:                     NewIBGDAChecker,
