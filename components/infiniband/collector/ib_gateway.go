@@ -75,7 +75,9 @@ func (gw *IBGateway) GetPFGW(IBDev string) string {
 			logrus.WithField("component", "infiniband").Infof("Interface %s has IPv6 address, skipping gateway lookup for IB device: %s", ifaceName, IBDev)
 			return "IPV6"
 		}
-		logrus.WithField("component", "infiniband").Infof("Interface %s has IPv4 address, continuing gateway lookup for IB device: %s", ifaceName, IBDev)
+		if !shouldLookupGateway(ifaceName, IBDev) {
+			return ""
+		}
 
 		iface, err := net.InterfaceByName(ifaceName)
 		if err != nil {
@@ -100,6 +102,36 @@ func (gw *IBGateway) GetPFGW(IBDev string) string {
 		logrus.WithField("component", "infiniband").Errorf("Unsupported link layer type: %s for IB device: %s", linkLayer, IBDev)
 		return ""
 	}
+}
+
+// ifaceHasIPv4 reports whether the interface carries an IPv4 address. Overridable in tests.
+var ifaceHasIPv4 = func(ifaceName string) (bool, error) {
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return false, err
+	}
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return false, err
+	}
+	return len(addrs) > 0, nil
+}
+
+// shouldLookupGateway decides whether an Ethernet IB device's netdev is worth a gateway
+// lookup. Interfaces without IPv4 (e.g. multi-plane CX8 plane ports with only fe80::)
+// have no gateway by design, so they are skipped quietly instead of logging an error.
+func shouldLookupGateway(ifaceName, IBDev string) bool {
+	hasIPv4, err := ifaceHasIPv4(ifaceName)
+	if err != nil {
+		logrus.WithField("component", "infiniband").Errorf("Failed to list IPv4 addresses for interface %s: %v", ifaceName, err)
+		return false
+	}
+	if !hasIPv4 {
+		logrus.WithField("component", "infiniband").Debugf("Interface %s has no IPv4 address, skipping gateway lookup for IB device: %s", ifaceName, IBDev)
+		return false
+	}
+	logrus.WithField("component", "infiniband").Infof("Interface %s has IPv4 address, continuing gateway lookup for IB device: %s", ifaceName, IBDev)
+	return true
 }
 
 func (gw *IBGateway) GetIBDevLinklayer(IBDev string) string {
@@ -389,13 +421,8 @@ func (gw *IBGateway) CheckIPVersionViaSysfs(interfaceName string) (hasIPv4, hasI
 		return false, false, fmt.Errorf("interface %s not found", interfaceName)
 	}
 
-	ipv4Path := "/proc/net/fib_trie"
-	if data, err := os.ReadFile(ipv4Path); err == nil {
-		if strings.Contains(string(data), interfaceName) {
-			hasIPv4 = true
-		}
-	}
-
+	// hasIPv4 is not derived here: /proc/net/fib_trie does not name interfaces,
+	// so it never matched. Callers use ifaceHasIPv4 (netlink) instead.
 	ipv6Path := "/proc/net/if_inet6"
 	if data, err := os.ReadFile(ipv6Path); err == nil {
 		lines := strings.Split(string(data), "\n")
