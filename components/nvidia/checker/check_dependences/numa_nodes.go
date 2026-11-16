@@ -130,7 +130,7 @@ func (c *NumaNodesChecker) Check(ctx context.Context, data any) (*common.Checker
 		}).Errorf("NUMA node count mismatch")
 		result.Status = consts.StatusAbnormal
 		result.Detail = fmt.Sprintf("NUMA nodes: expected %d (%s), got %d", expected, source, actual)
-		result.Suggestion = fmt.Sprintf("Check BIOS Sub-NUMA Clustering (SNC) / AMD NPS setting; this GPU model expects %d NUMA node(s). A reboot is required after the change.", expected)
+		result.Suggestion = fmt.Sprintf("Check BIOS Sub-NUMA Clustering (SNC) / AMD NPS setting; this GPU model expects %d NUMA node(s). A reboot is required after the change. If this layout is intended, set nvidia dependence.numa_nodes in the spec or add numa_nodes to ignored_checkers.", expected)
 		return &result, nil
 	}
 	result.Detail = fmt.Sprintf("NUMA nodes: %d (%s)", actual, source)

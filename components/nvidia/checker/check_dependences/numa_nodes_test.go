@@ -153,6 +153,7 @@ func TestNumaNodesChecker_Check(t *testing.T) {
 			}
 			if tt.wantStatus == consts.StatusAbnormal {
 				assert.Contains(t, res.Suggestion, "expects "+tt.wantSpec+" NUMA node(s)")
+				assert.Contains(t, res.Suggestion, "ignored_checkers")
 			}
 		})
 	}
