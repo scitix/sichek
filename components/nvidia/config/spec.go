@@ -67,6 +67,9 @@ type Dependence struct {
 	NvidiaPeermem  string `json:"nv_peermem" yaml:"nv_peermem"`
 	FabricManager  string `json:"nv_fabricmanager" yaml:"nv_fabricmanager"`
 	CpuPerformance string `json:"cpu_performance" yaml:"cpu_performance"`
+	// NumaNodes overrides the built-in expected NUMA node count (B300 → 4, others → 2).
+	// Zero or negative means "use the built-in default".
+	NumaNodes int `json:"numa_nodes,omitempty" yaml:"numa_nodes,omitempty"`
 }
 
 type MemoryErrorThreshold struct {
