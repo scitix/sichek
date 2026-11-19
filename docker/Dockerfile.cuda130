@@ -55,7 +55,8 @@ RUN mv /etc/apt/sources.list.d/cuda*.list /tmp/disabled-cuda.list 2>/dev/null ||
         vim curl tzdata ca-certificates \
         openssh-server openssh-client \
         iproute2 iputils-ping jq \
-        libnuma1 numactl rdmacm-utils perftest xz-utils && \
+        libnuma1 numactl rdmacm-utils perftest xz-utils \
+        dmidecode ethtool && \
     ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime && \
     dpkg-reconfigure --frontend noninteractive tzdata && \
     apt-get clean && rm -rf /var/lib/apt/lists/*

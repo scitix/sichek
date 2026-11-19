@@ -50,6 +50,7 @@ type DaemonService struct {
 	annoStore            *AnnotationStore
 	snapshotMgr          *SnapshotManager
 	reporter             *Reporter
+	serverModel          *ServerModelRunner
 }
 
 func NewService(components map[string]common.Component, annoKey string, cfgFile string, metricsPort int, metricsSocket string) (s Service, err error) {
@@ -90,6 +91,16 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 		reporter = NewReporter(reporterCfg, snapPath, ResolveNodeName())
 	}
 
+	// Server model: hourly catcher run publishing server_model_id (node metadata).
+	var serverModel *ServerModelRunner
+	smCfg, smErr := LoadServerModelConfig(cfgFile)
+	if smErr != nil {
+		logrus.WithField("daemon", "new").Warnf("load server_model config failed: %v", smErr)
+	}
+	if smCfg.Enable {
+		serverModel = NewServerModelRunner(smCfg, snapshotMgr, metrics.SetServerModelInfo)
+	}
+
 	daemonService := &DaemonService{
 		ctx:              ctx,
 		cancel:           cancel,
@@ -102,6 +113,7 @@ func NewService(components map[string]common.Component, annoKey string, cfgFile 
 		node:             hostname,
 		snapshotMgr:      snapshotMgr,
 		reporter:         reporter,
+		serverModel:      serverModel,
 	}
 
 	return daemonService, nil
@@ -133,6 +145,9 @@ func (d *DaemonService) Run() {
 
 	if d.reporter != nil {
 		go d.reporter.Run(d.ctx)
+	}
+	if d.serverModel != nil {
+		go d.serverModel.Run(d.ctx)
 	}
 
 	for componentName, resultChan := range d.componentResults {

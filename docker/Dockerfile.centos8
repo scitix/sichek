@@ -51,7 +51,8 @@ RUN yum install -y \
         vim curl tzdata ca-certificates \
         openssh-server openssh-clients \
         iproute iputils jq \
-        numactl numactl-libs rdma-core perftest xz && \
+        numactl numactl-libs rdma-core perftest xz \
+        dmidecode ethtool && \
     yum clean all
 
 # Helm (runtime tool)

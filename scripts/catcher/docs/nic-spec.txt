@@ -1,0 +1,32 @@
+N11	10Gbps *2
+N12	25Gbps *2
+N13	100Gbps *2
+N14	200Gbps *2
+N15	400Gbps *2
+N16	400Gbps *4
+N20	25Gbps *2 + 200Gbps *1
+N21	10Gbps *2 + 100Gbps *2
+N22	10Gbps *2 + 200Gbps * 2
+N23	25Gbps *2 + 200Gbps * 2
+N24	25Gbps *2 + 400Gbps * 2
+N25	25Gbps *2 + 400Gbps * 4
+N26	25Gbps *2 + 100Gbps *2
+N27	25Gbps *2 + 400Gbps *8
+N28	25Gbps *2 + 400Gbps *3
+N29	25Gbps *2 + 200Gbps *4
+N2A	25Gbps *2 + 100Gbps *8
+N2B	100Gbps*2 + 200Gbps * 2
+N2C	100Gbps*2 + 400Gbps * 4
+N2D	400Gbps*2 + 800Gbps * 1
+N2E	10Gbps*2 + 200Gbps * 4
+N2F	100Gbps*3 + 200Gbps * 4
+N31	25Gbps *2 + 200G*2 + 400Gbps *8
+N33	100Gx2*1+100Gx4*1+200Gx2*1+200Gx4*8
+N34	25Gbps *2 + 200G*1 + 400Gbps * 8
+N36	25Gbps x2*1 + 100G x2*1 + 200Gbps x2*1
+N37	25Gbps x2*1 + 100G x2*2 + 200Gbps x2*1
+N38	25Gbps x2*1 + 100G x2*4 + 200Gbps x2*1
+N40	25G *4 + 200G *4
+N41	1Gbps*2+10Gbps*2+10Gbps*2+10Gbps*2
+N42	1Gbps*2+10Gbps*2+25Gbps*4
+N43	25Gbps*2 +10Gbps *2

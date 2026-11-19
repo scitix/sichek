@@ -144,3 +144,38 @@ func TestSnapshotManager_SetIssues(t *testing.T) {
 	// The serialized snapshot exposes the top-level "issues" key.
 	assert.Contains(t, string(data), `"issues"`)
 }
+
+func TestSnapshotManager_SetServerModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	snapshotPath := filepath.Join(tmpDir, "snapshot.json")
+	cfgFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("snapshot:\n  enable: true\n  path: "+snapshotPath), 0644))
+
+	mgr, err := NewSnapshotManager(cfgFile)
+	require.NoError(t, err)
+	mgr.SetServerModel("I57G90N13M63S10", &ServerModel{Complete: true, Missing: []string{}})
+
+	data, err := os.ReadFile(snapshotPath)
+	require.NoError(t, err)
+	var snapshot Snapshot
+	require.NoError(t, json.Unmarshal(data, &snapshot))
+	assert.Equal(t, "I57G90N13M63S10", snapshot.ServerModelID)
+	require.NotNil(t, snapshot.ServerModel)
+	assert.True(t, snapshot.ServerModel.Complete)
+	assert.Contains(t, string(data), `"server_model_id"`)
+}
+
+func TestSnapshotManager_ServerModelOmittedBeforeFirstRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	snapshotPath := filepath.Join(tmpDir, "snapshot.json")
+	cfgFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("snapshot:\n  enable: true\n  path: "+snapshotPath), 0644))
+
+	mgr, err := NewSnapshotManager(cfgFile)
+	require.NoError(t, err)
+	mgr.SetIssues(nil)
+
+	data, err := os.ReadFile(snapshotPath)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "server_model")
+}
