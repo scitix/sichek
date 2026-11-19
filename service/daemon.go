@@ -17,6 +17,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 	"time"
@@ -188,21 +189,7 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			}
 
 			if d.snapshotMgr != nil {
-				info, err := d.components[componentName].LastInfo()
-				if err != nil {
-					logrus.WithFields(logrus.Fields{
-						"daemon":    "run",
-						"component": componentName,
-					}).Errorf("LastInfo failed: %v", err)
-				} else {
-					if info == nil {
-						logrus.WithFields(logrus.Fields{
-							"daemon":    "run",
-							"component": componentName,
-						}).Warnf("LastInfo returned nil")
-					}
-					d.snapshotMgr.Update(componentName, info)
-				}
+				updateSnapshotInfo(d.snapshotMgr, componentName, d.components[componentName])
 			}
 
 			if err != nil {
@@ -210,6 +197,28 @@ func (d *DaemonService) monitorComponent(componentName string, resultChan <-chan
 			}
 		}
 	}
+}
+
+// updateSnapshotInfo mirrors a component's latest collector info into the snapshot.
+// Components without collector info (common.ErrNoInfo, or a nil info such as dmesg)
+// are skipped silently; only genuine LastInfo failures are logged.
+func updateSnapshotInfo(mgr *SnapshotManager, componentName string, comp interface {
+	LastInfo() (common.Info, error)
+}) {
+	info, err := comp.LastInfo()
+	if err != nil {
+		if !errors.Is(err, common.ErrNoInfo) {
+			logrus.WithFields(logrus.Fields{
+				"daemon":    "run",
+				"component": componentName,
+			}).Errorf("LastInfo failed: %v", err)
+		}
+		return
+	}
+	if info == nil {
+		return
+	}
+	mgr.Update(componentName, info)
 }
 
 func (d *DaemonService) Status() (interface{}, error) {

@@ -326,7 +326,7 @@ func (c *component) CacheResults() ([]*common.Result, error) {
 }
 
 func (c *component) CacheInfos() ([]common.Info, error) {
-	return nil, fmt.Errorf("no info for podlog")
+	return nil, common.ErrNoInfo
 }
 
 func (c *component) LastResult() (*common.Result, error) {
@@ -342,7 +342,7 @@ func (c *component) LastResult() (*common.Result, error) {
 }
 
 func (c *component) LastInfo() (common.Info, error) {
-	return nil, fmt.Errorf("no info for podlog")
+	return nil, common.ErrNoInfo
 }
 
 func (c *component) Metrics(ctx context.Context, since time.Time) (interface{}, error) {

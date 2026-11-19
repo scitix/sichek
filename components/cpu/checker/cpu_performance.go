@@ -17,6 +17,7 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,6 +31,12 @@ import (
 )
 
 const CPUPerfCheckerName = "cpu-performance"
+
+// governorGlob matches the per-CPU cpufreq governor files. Overridable in tests.
+var governorGlob = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
+
+// errNoCpufreq means the OS exposes no cpufreq governor (VMs, or BIOS-controlled P-states).
+var errNoCpufreq = errors.New("no CPU governor files found")
 
 type CPUPerfChecker struct {
 	name string
@@ -51,12 +58,19 @@ func (c *CPUPerfChecker) GetSpec() common.CheckerSpec {
 
 // Check Checks if all CPUs are in "performance" mode
 func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerResult, error) {
+	result := config.CPUCheckItems[CPUPerfCheckerName]
+
 	cpuPerformanceEnable, err := checkCPUPerformance()
+	if errors.Is(err, errNoCpufreq) {
+		result.Status = consts.StatusNormal
+		result.Curr = "N/A"
+		result.Detail = "cpufreq not available (VM or BIOS-controlled P-states), skipped"
+		result.Suggestion = ""
+		return &result, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("fail to check cpu performance: %v", err)
 	}
-
-	result := config.CPUCheckItems[CPUPerfCheckerName]
 
 	if !cpuPerformanceEnable {
 		err := setCPUMode("performance")
@@ -67,13 +81,16 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			}
 			if cpuPerformanceEnable {
 				result.Status = consts.StatusNormal
+				result.Curr = "Enabled"
 				result.Detail = "Not all CPUs are in \"performance\" mode. Already set all CPUs to \"performance\" mode successfully"
 				result.Suggestion = ""
+			} else {
 				result.Status = consts.StatusAbnormal
+				result.Curr = "NotAllEnabled"
 				result.Detail = "Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode"
 				logrus.WithFields(logrus.Fields{
 					"checker": c.Name(),
-					"target": "performance",
+					"target":  "performance",
 				}).Errorf("CPU performance mode check abnormal: Not all CPUs achieved performance mode after setting")
 			}
 		} else {
@@ -81,9 +98,9 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 			result.Curr = "NotAllEnabled"
 			result.Detail = fmt.Sprintf("Not all CPUs are in \"performance\" mode. And failed to set all CPUs to \"performance\" mode: %v", err)
 			logrus.WithFields(logrus.Fields{
-				"checker": c.Name(),
+				"checker":    c.Name(),
 				"curr_state": "NotAllEnabled",
-				"error": err,
+				"error":      err,
 			}).Errorf("CPU performance mode check abnormal")
 		}
 	} else {
@@ -97,11 +114,7 @@ func (c *CPUPerfChecker) Check(ctx context.Context, data any) (*common.CheckerRe
 
 func checkCPUPerformance() (bool, error) {
 	cpuPerformanceEnable := true
-	// Path pattern to check CPU governor
-	pattern := "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
-
-	// Get all files matching the pattern
-	files, err := filepath.Glob(pattern)
+	files, err := filepath.Glob(governorGlob)
 	if err != nil {
 		cpuPerformanceEnable = false
 		err = fmt.Errorf("failed to list CPU governor files: %w", err)
@@ -110,9 +123,7 @@ func checkCPUPerformance() (bool, error) {
 
 	// If no governor files are found, return an error
 	if len(files) == 0 {
-		cpuPerformanceEnable = false
-		err = fmt.Errorf("no CPU governor files found")
-		return cpuPerformanceEnable, err
+		return false, errNoCpufreq
 	}
 
 	// Check each CPU's governor
@@ -145,11 +156,7 @@ func checkCPUPerformance() (bool, error) {
 }
 
 func setCPUMode(mode string) error {
-	// Path pattern to check CPU governor
-	pattern := "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
-
-	// Get all files matching the pattern
-	files, err := filepath.Glob(pattern)
+	files, err := filepath.Glob(governorGlob)
 	if err != nil {
 		err = fmt.Errorf("failed to list CPU governor files: %w", err)
 		return err
@@ -157,8 +164,7 @@ func setCPUMode(mode string) error {
 
 	// If no governor files are found, return an error
 	if len(files) == 0 {
-		err = fmt.Errorf("no CPU governor files found")
-		return err
+		return errNoCpufreq
 	}
 
 	// Check each CPU's governor
@@ -172,6 +178,7 @@ func setCPUMode(mode string) error {
 
 		// Write mode(e.g. "performance") to the governor file
 		_, err = f.WriteString(mode)
+		f.Close()
 		if err != nil {
 			ret = fmt.Errorf("failed to write %s to %s: %v", mode, file, err)
 			logrus.WithField("component", "cpu").Errorf("%v", ret)

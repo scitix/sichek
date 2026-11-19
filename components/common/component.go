@@ -18,11 +18,17 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
+
+// ErrNoInfo is returned by LastInfo/CacheInfos of components that emit results
+// directly from event rules and have no collector info to expose (e.g. syslog, podlog).
+// Callers should treat it as "nothing to report", not as a failure.
+var ErrNoInfo = errors.New("component provides no collector info")
 
 type Component interface {
 	Name() string

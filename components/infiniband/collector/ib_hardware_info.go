@@ -112,22 +112,25 @@ func (hw *IBHardWareInfo) Collect(ctx context.Context, IBDev string, port int, i
 	}
 
 	// PCIe information
-	if len(GetIBDevBDF(IBDev)) >= 1 {
-		hw.PCIEBDF = GetIBDevBDF(IBDev)[0]
+	// Each getter is called once and its result length-checked: the device
+	// can vanish from sysfs between two calls (VF reclaim, hot-unplug), and
+	// a check-then-index on a second call would panic the whole component.
+	if bdf := GetIBDevBDF(IBDev); len(bdf) >= 1 {
+		hw.PCIEBDF = bdf[0]
 	}
 	hw.PCIESpeed = GetPCIECLinkSpeed(IBDev)
 	hw.PCIEWidth = GetPCIECLinkWidth(IBDev)
-	if len(GetPCIEMRR(ctx, IBDev)) >= 1 {
-		hw.PCIEMRR = GetPCIEMRR(ctx, IBDev)[0]
+	if mrr := GetPCIEMRR(ctx, IBDev); len(mrr) >= 1 {
+		hw.PCIEMRR = mrr[0]
 	}
 	hw.PCIETreeLinks = GetPCIETreeLinks(IBDev)
 	hw.PCIETreeSpeedMin, hw.PCIETreeSpeedMinBDF = minLinkCurSpeed(hw.PCIETreeLinks)
 	hw.PCIETreeWidthMin, hw.PCIETreeWidthMinBDF = minLinkCurWidth(hw.PCIETreeLinks)
-	if len(GetNumaNode(IBDev)) >= 1 {
-		hw.NumaNode = GetNumaNode(IBDev)[0]
+	if numa := GetNumaNode(IBDev); len(numa) >= 1 {
+		hw.NumaNode = numa[0]
 	}
-	if len(GetCPUList(IBDev)) >= 1 {
-		hw.CPULists = GetCPUList(IBDev)[0]
+	if cpus := GetCPUList(IBDev); len(cpus) >= 1 {
+		hw.CPULists = cpus[0]
 	}
 }
 
@@ -394,7 +397,11 @@ func (c *IBHardWareInfo) GetVFSpec(IBDev string) string {
 
 func (i *IBHardWareInfo) GetVFNum(IBDev string) string {
 	var vfNum string
-	bdf := GetIBDevBDF(IBDev)[0]
+	bdfs := GetIBDevBDF(IBDev)
+	if len(bdfs) == 0 {
+		return ""
+	}
+	bdf := bdfs[0]
 
 	// skip secondary port
 	if strings.HasSuffix(bdf, ".1") {

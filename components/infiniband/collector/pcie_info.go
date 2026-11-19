@@ -366,7 +366,7 @@ func GetPCIEMRR(ctx context.Context, IBDev string) []string {
 	if len(parts) > 1 {
 		mrr = strings.Fields(parts[1])
 		// autofix
-		if strings.Compare(mrr[0], "4096") != 0 {
+		if len(mrr) > 0 && strings.Compare(mrr[0], "4096") != 0 {
 			// get BDF
 			bdf := GetIBDevBDF(IBDev)
 			if len(bdf) > 0 {

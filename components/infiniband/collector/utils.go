@@ -105,9 +105,13 @@ func GetIBDevBDF(IBDev string) []string {
 
 	var BDF string
 	for j := 0; j < len(ueventInfo); j++ {
-		if strings.Contains(ueventInfo[j], "PCI_SLOT_NAME") {
-			BDF = strings.Split(ueventInfo[j], "=")[1]
+		if k, v, ok := strings.Cut(ueventInfo[j], "="); ok && k == "PCI_SLOT_NAME" {
+			BDF = v
 		}
+	}
+	if BDF == "" {
+		logrus.WithField("component", "infiniband").Errorf("PCI_SLOT_NAME not found in uevent for %s", IBDev)
+		return nil
 	}
 	return []string{BDF}
 }

@@ -17,6 +17,7 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -29,6 +30,9 @@ func TestCPUPerfChecker_Check(t *testing.T) {
 	// disable perfomance mode for testing
 	// echo performance > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 	err := setCPUMode("powersave")
+	if errors.Is(err, errNoCpufreq) {
+		t.Skip("host exposes no cpufreq governor; covered by cpu_performance_test.go fakes")
+	}
 	if err != nil {
 		t.Fatalf("failed to set CPU governor to powersave: %v", err)
 	}
