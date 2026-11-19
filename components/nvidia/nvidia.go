@@ -736,6 +736,10 @@ func (c *component) PrintInfo(info common.Info, result *common.Result, summaryPr
 				iommuPrint = fmt.Sprintf("IOMMU: %sON%s", errColor, consts.Reset)
 				systemEvent[config.IOMMUCheckerName] = fmt.Sprintf("%sIOMMU is ON%s", errColor, consts.Reset)
 			}
+		case config.NumaNodesCheckerName:
+			if result.Status != consts.StatusNormal {
+				systemEvent[config.NumaNodesCheckerName] = fmt.Sprintf("%s%s%s", errColor, result.Detail, consts.Reset)
+			}
 		case config.NVFabricManagerCheckerName:
 			if result.Status == consts.StatusNormal {
 				fabricmanagerPrint = fmt.Sprintf("FabricManager: %s%s%s", consts.Green, result.Curr, consts.Reset)

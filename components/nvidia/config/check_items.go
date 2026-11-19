@@ -23,6 +23,7 @@ import (
 const (
 	NVFabricManagerCheckerName           = "nvidia-fabricmanager"
 	IOMMUCheckerName                     = "iommu"
+	NumaNodesCheckerName                 = "numa_nodes"
 	NvPeerMemCheckerName                 = "nvidia_peermem"
 	PCIeACSCheckerName                   = "pcie-acs"
 	SRAMAggUncorrectableCheckerName      = "ecc-sram-aggregate-uncorrectable"
@@ -66,6 +67,15 @@ var GPUCheckItems = map[string]common.CheckerResult{
 		Detail:      "IOMMU is closed",
 		ErrorName:   "IOMMUNotClosed",
 		Suggestion:  "To close IOMMU, edit /etc/default/grub and add \"iommu=off\" to the GRUB_CMDLINE_LINUX_DEFAULT line and reboot the system",
+	},
+	NumaNodesCheckerName: {
+		Name:        NumaNodesCheckerName,
+		Description: "Check NUMA node count matches the expected BIOS SNC/NPS setting for this GPU model",
+		Status:      consts.StatusNormal,
+		Level:       consts.LevelWarning,
+		Detail:      "NUMA node count matches expected configuration",
+		ErrorName:   "NUMANodeCountMismatch",
+		Suggestion:  "Check BIOS Sub-NUMA Clustering (SNC) / AMD NPS setting; a reboot is required after the change",
 	},
 	NvPeerMemCheckerName: {
 		Name:        NvPeerMemCheckerName,

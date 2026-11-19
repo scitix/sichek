@@ -67,6 +67,8 @@ type Dependence struct {
 	NvidiaPeermem  string `json:"nv_peermem" yaml:"nv_peermem"`
 	FabricManager  string `json:"nv_fabricmanager" yaml:"nv_fabricmanager"`
 	CpuPerformance string `json:"cpu_performance" yaml:"cpu_performance"`
+	// NumaNodes is the expected OS-visible NUMA node count (BIOS SNC/NPS). Zero or negative disables the check.
+	NumaNodes int `json:"numa_nodes,omitempty" yaml:"numa_nodes,omitempty"`
 }
 
 type MemoryErrorThreshold struct {

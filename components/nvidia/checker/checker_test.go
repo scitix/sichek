@@ -29,6 +29,7 @@ import (
 
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/scitix/sichek/components/common"
+	"github.com/stretchr/testify/assert"
 )
 
 // define the shared NvidiaInfo
@@ -378,5 +379,21 @@ func TestChecker_Check(t *testing.T) {
 		if result.Status != "normal" {
 			t.Errorf("expected status 'normal', got %v", result.Status)
 		}
+	}
+}
+
+func TestNumaNodesCheckerRegistered(t *testing.T) {
+	checkers, err := NewCheckers(&config.NvidiaUserConfig{Nvidia: &config.NvidiaConfig{}}, &config.NvidiaSpec{})
+	assert.NoError(t, err)
+	names := make([]string, 0, len(checkers))
+	for _, c := range checkers {
+		names = append(names, c.Name())
+	}
+	assert.Contains(t, names, config.NumaNodesCheckerName)
+
+	ignored, err := NewCheckers(&config.NvidiaUserConfig{Nvidia: &config.NvidiaConfig{IgnoredCheckers: []string{config.NumaNodesCheckerName}}}, &config.NvidiaSpec{})
+	assert.NoError(t, err)
+	for _, c := range ignored {
+		assert.NotEqual(t, config.NumaNodesCheckerName, c.Name())
 	}
 }
