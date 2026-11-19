@@ -19,6 +19,8 @@ package common
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -33,8 +35,10 @@ func RunHealthCheckWithTimeout(ctx context.Context, timeout time.Duration, compo
 	ctx, cancel := context.WithTimeout(ctx, timeout) // Use the timeout context
 	defer cancel()
 	// Create channels for result and error
-	resultChan := make(chan *Result) // Channel for result
-	errorChan := make(chan error)    // Channel for error
+	// Buffered so a HealthCheck that finishes after the timeout fired can still
+	// send and exit instead of blocking forever on an abandoned receiver.
+	resultChan := make(chan *Result, 1) // Channel for result
+	errorChan := make(chan error, 1)    // Channel for error
 
 	// Run the function in a goroutine; recover from panic so the process does not crash
 	// and a panic result can be returned and exported as an anomaly metric.
@@ -42,8 +46,8 @@ func RunHealthCheckWithTimeout(ctx context.Context, timeout time.Duration, compo
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logrus.WithField("component", componentName).Errorf("HealthCheck panic recovered: %v", r)
-				resultChan <- createPanicResult(componentName, r)
+				logrus.WithField("component", componentName).Errorf("HealthCheck panic recovered: %v\n%s", r, debug.Stack())
+				resultChan <- createPanicResult(componentName, r, panicSite())
 			}
 		}()
 		res, err := fn(ctx)
@@ -89,15 +93,19 @@ func createTimeoutResult(componentName string, timeout time.Duration) (*Result, 
 
 // createPanicResult returns a result for HealthCheck panic/segfault-like failure so that
 // the program does not crash and the anomaly can be exported as a metric (e.g. nvidia_nvidiaHealthCheckPanic).
-func createPanicResult(componentName string, panicValue interface{}) *Result {
+func createPanicResult(componentName string, panicValue interface{}, site string) *Result {
 	panicName := fmt.Sprintf("%sHealthCheckPanic", componentName)
 	desc := fmt.Sprintf("component %s HealthCheck panicked: %v", componentName, panicValue)
+	detail := fmt.Sprint(panicValue)
+	if site != "" {
+		detail = fmt.Sprintf("%v at %s", panicValue, site)
+	}
 	panicCheckerResult := &CheckerResult{
 		Name:        panicName,
 		Description: desc,
 		Status:      consts.StatusAbnormal,
 		Level:       consts.LevelCritical,
-		Detail:      fmt.Sprint(panicValue),
+		Detail:      detail,
 		ErrorName:   panicName,
 		Suggestion:  fmt.Sprintf("Please check the %s status (e.g. GPU/NVML stability)", componentName),
 	}
@@ -107,6 +115,24 @@ func createPanicResult(componentName string, panicValue interface{}) *Result {
 		Level:    panicCheckerResult.Level,
 		Checkers: []*CheckerResult{panicCheckerResult},
 		Time:     time.Now(),
+	}
+}
+
+// panicSite returns "func file:line" of the frame that panicked. It must be
+// called from the deferred recover function: the first non-runtime frame above
+// it is where the panic originated.
+func panicSite() string {
+	pcs := make([]uintptr, 32)
+	n := runtime.Callers(3, pcs) // skip runtime.Callers, panicSite, the deferred func
+	frames := runtime.CallersFrames(pcs[:n])
+	for {
+		f, more := frames.Next()
+		if !strings.HasPrefix(f.Function, "runtime.") {
+			return fmt.Sprintf("%s %s:%d", f.Function, f.File, f.Line)
+		}
+		if !more {
+			return ""
+		}
 	}
 }
 
