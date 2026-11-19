@@ -43,7 +43,7 @@ func TestLoadReporterConfig_Defaults(t *testing.T) {
 	if cfg.Enable {
 		t.Errorf("Enable=true, want false (default off)")
 	}
-	if cfg.Endpoint != "http://sichek-collector.monitoring.svc:38080/api/v1/snapshots" {
+	if cfg.Endpoint != "http://sichek-collector.monitoring.svc.cluster.local:38080/api/v1/snapshots" {
 		t.Errorf("Endpoint=%q", cfg.Endpoint)
 	}
 	if cfg.Interval != 60*time.Second {

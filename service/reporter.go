@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -41,7 +42,7 @@ type reporterFile struct {
 func defaultReporterConfig() ReporterConfig {
 	return ReporterConfig{
 		Enable:   false,
-		Endpoint: "http://sichek-collector.monitoring.svc:38080/api/v1/snapshots",
+		Endpoint: "http://sichek-collector.monitoring.svc.cluster.local:38080/api/v1/snapshots",
 		Interval: 60 * time.Second,
 		Timeout:  30 * time.Second,
 		RetryMax: 3,
@@ -105,14 +106,16 @@ type Reporter struct {
 
 // NewReporter constructs a Reporter. Call Run(ctx) to start the loop.
 func NewReporter(cfg ReporterConfig, snapshotPath, nodeName string) *Reporter {
+	client := &http.Client{Timeout: cfg.Timeout}
+	if u, err := url.Parse(cfg.Endpoint); err == nil {
+		client.Transport = newReporterTransport(u.Hostname(), defaultClusterDNSSources())
+	}
 	return &Reporter{
 		cfg:          cfg,
 		snapshotPath: snapshotPath,
 		nodeName:     nodeName,
-		client: &http.Client{
-			Timeout: cfg.Timeout,
-		},
-		backoff: defaultBackoff,
+		client:       client,
+		backoff:      defaultBackoff,
 	}
 }
 
