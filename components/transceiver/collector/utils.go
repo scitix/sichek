@@ -129,6 +129,12 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 	return entries, nil
 }
 
+// IsMLX5AndBDF reports whether mlxlink can address this interface by PCIe BDF.
+// IB entries are mlx5 by construction; Ethernet entries carry IsMLX5.
+func (e InterfaceEntry) IsMLX5AndBDF() bool {
+	return e.PcieBDF != "" && (e.IsMLX5 || e.IsIB)
+}
+
 type NetworkClassifier struct {
 	patterns         map[string][]string // network_type -> interface patterns
 	managementMaxMbps int                 // speed <= this is management (0 = disabled)

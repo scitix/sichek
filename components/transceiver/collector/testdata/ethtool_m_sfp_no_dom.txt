@@ -1,0 +1,28 @@
+	Identifier                                : 0x03 (SFP)
+	Extended identifier                       : 0x04 (GBIC/SFP defined by 2-wire interface ID)
+	Connector                                 : 0x23 (No separable connector)
+	Transceiver codes                         : 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01
+	Transceiver type                          : Extended: 100G AOC or 25GAUI C2M AOC with worst BER of 5x10^(-5)
+	Encoding                                  : 0x03 (NRZ)
+	BR, Nominal                               : 25750MBd
+	Rate identifier                           : 0x00 (unspecified)
+	Length (SMF,km)                           : 0km
+	Length (SMF)                              : 0m
+	Length (50um)                             : 0m
+	Length (62.5um)                           : 0m
+	Length (Copper)                           : 30m
+	Length (OM3)                              : 0m
+	Laser wavelength                          : 850nm
+	Vendor name                               : ZSINE
+	Vendor OUI                                : 00:00:00
+	Vendor PN                                 : SFP28-25G-AOC30M
+	Vendor rev                                : 01
+	Option values                             : 0x08 0x1a
+	Option                                    : RX_LOS implemented
+	Option                                    : TX_FAULT implemented
+	Option                                    : TX_DISABLE implemented
+	Option                                    : Retimer or CDR implemented
+	BR margin, max                            : 0%
+	BR margin, min                            : 0%
+	Vendor SN                                 : 251012H30164
+	Date code                                 : 251012
