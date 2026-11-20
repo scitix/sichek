@@ -59,6 +59,22 @@ func CollectMLXLink(ctx context.Context, dev string) (ModuleInfo, error) {
 	return module, nil
 }
 
+// CollectMLXLinkRecommendation runs a plain `mlxlink -d <dev>` (no -m/-c) and
+// returns only the Troubleshooting "Recommendation". Skipping the module and
+// counter pages makes it ~5x cheaper than CollectMLXLink.
+func CollectMLXLinkRecommendation(ctx context.Context, dev string) (string, error) {
+	cmdCtx, cancel := context.WithTimeout(ctx, consts.CmdTimeout)
+	defer cancel()
+
+	output, err := utils.ExecCommand(cmdCtx, "mlxlink", "-d", dev)
+	if err != nil {
+		return "", err
+	}
+	var m ModuleInfo
+	m.parseMLXLink(string(output))
+	return m.Recommendation, nil
+}
+
 // parseMLXLink parses mlxlink -m output.
 // Actual format example:
 //

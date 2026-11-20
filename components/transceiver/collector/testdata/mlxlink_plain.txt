@@ -1,0 +1,35 @@
+
+Operational Info
+----------------
+State                              : Active 
+Physical state                     : ETH_AN_FSM_ENABLE 
+Speed                              : 200G 
+Width                              : 2x 
+FEC                                : Standard_RS-FEC - (544,514) 
+Loopback Mode                      : No Loopback 
+Auto Negotiation                   : ON 
+Tx Precoding Status                : Disabled 
+Rx Precoding Status                : Disabled 
+
+Port Info
+---------
+Label Port                         : 1
+Local Port                         : 1
+
+Supported Info
+--------------
+Enabled Link Speed (Ext.)          : 0x00002dc0 (200G_2X,100G_1X,100G_2X,50G_1X,50G_2X,25G) 
+Supported Cable Speed (Ext.)       : 0x00092000 (800G_8X,400G_4X,200G_2X) 
+
+Troubleshooting Info
+--------------------
+Status Opcode                      : 0 
+Group Opcode                       : N/A 
+Recommendation                     : No issue was observed 
+
+Tool Information
+----------------
+Firmware Version                   : 40.50.1002 
+amBER Version                      : 7.5 
+MFT Version                        : 4.37.0-154 
+

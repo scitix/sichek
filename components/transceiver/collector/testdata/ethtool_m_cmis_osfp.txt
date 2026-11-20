@@ -1,0 +1,182 @@
+	Identifier                                : 0x19 (OSFP 8X Pluggable Transceiver)
+	Power class                               : 8
+	Max power                                 : 15.00W
+	Connector                                 : 0x0c (MPO Parallel Optic)
+	Cable assembly length                     : 0.00m
+	Tx CDR bypass control                     : No
+	Rx CDR bypass control                     : No
+	Tx CDR                                    : Yes
+	Rx CDR                                    : Yes
+	Transmitter technology                    : 0x04 (1310 nm DFB)
+	Laser wavelength                          : 1311.000nm
+	Laser wavelength tolerance                : 6.500nm
+	Length (SMF)                              : 0.50km
+	Length (OM5)                              : 0m
+	Length (OM4)                              : 0m
+	Length (OM3 50/125um)                     : 0m
+	Length (OM2 50/125um)                     : 0m
+	Vendor name                               : zsine
+	Vendor OUI                                : 00:00:00
+	Vendor PN                                 : TRJ5J0PPNFDMR000
+	Vendor rev                                : R0
+	Vendor SN                                 : XWKG265Q00005097
+	Date code                                 : 260525
+	Revision compliance                       : Rev. 5.2
+	Rx loss of signal                         : None
+	Tx loss of signal                         : None
+	Rx loss of lock                           : None
+	Tx loss of lock                           : None
+	Tx fault                                  : None
+	Module State                              : 0x03 (ModuleReady)
+	LowPwrAllowRequestHW                      : Off
+	LowPwrRequestSW                           : Off
+	Module temperature                        : 42.72 degrees C / 108.90 degrees F
+	Module voltage                            : 3.3089 V
+	Laser tx bias current (Channel 1)         : 13.040 mA
+	Laser tx bias current (Channel 2)         : 13.040 mA
+	Laser tx bias current (Channel 3)         : 13.040 mA
+	Laser tx bias current (Channel 4)         : 13.040 mA
+	Laser tx bias current (Channel 5)         : 13.580 mA
+	Laser tx bias current (Channel 6)         : 13.580 mA
+	Laser tx bias current (Channel 7)         : 13.580 mA
+	Laser tx bias current (Channel 8)         : 13.580 mA
+	Transmit avg optical power (Channel 1)    : 1.8094 mW / 2.58 dBm
+	Transmit avg optical power (Channel 2)    : 1.9284 mW / 2.85 dBm
+	Transmit avg optical power (Channel 3)    : 1.6210 mW / 2.10 dBm
+	Transmit avg optical power (Channel 4)    : 1.3342 mW / 1.25 dBm
+	Transmit avg optical power (Channel 5)    : 1.8911 mW / 2.77 dBm
+	Transmit avg optical power (Channel 6)    : 1.7988 mW / 2.55 dBm
+	Transmit avg optical power (Channel 7)    : 1.7839 mW / 2.51 dBm
+	Transmit avg optical power (Channel 8)    : 1.6146 mW / 2.08 dBm
+	Rcvr signal avg optical power (Channel 1) : 1.9980 mW / 3.01 dBm
+	Rcvr signal avg optical power (Channel 2) : 1.9460 mW / 2.89 dBm
+	Rcvr signal avg optical power (Channel 3) : 1.6288 mW / 2.12 dBm
+	Rcvr signal avg optical power (Channel 4) : 1.9753 mW / 2.96 dBm
+	Rcvr signal avg optical power (Channel 5) : 1.7526 mW / 2.44 dBm
+	Rcvr signal avg optical power (Channel 6) : 1.8749 mW / 2.73 dBm
+	Rcvr signal avg optical power (Channel 7) : 1.2524 mW / 0.98 dBm
+	Rcvr signal avg optical power (Channel 8) : 1.5705 mW / 1.96 dBm
+	Module temperature high alarm             : Off
+	Module temperature low alarm              : Off
+	Module temperature high warning           : Off
+	Module temperature low warning            : Off
+	Module voltage high alarm                 : Off
+	Module voltage low alarm                  : Off
+	Module voltage high warning               : Off
+	Module voltage low warning                : Off
+	Laser bias current high alarm   (Chan 1)  : Off
+	Laser bias current low alarm    (Chan 1)  : Off
+	Laser bias current high warning (Chan 1)  : Off
+	Laser bias current low warning  (Chan 1)  : Off
+	Laser tx power high alarm   (Channel 1)   : Off
+	Laser tx power low alarm    (Channel 1)   : Off
+	Laser tx power high warning (Channel 1)   : Off
+	Laser tx power low warning  (Channel 1)   : Off
+	Laser rx power high alarm   (Channel 1)   : Off
+	Laser rx power low alarm    (Channel 1)   : Off
+	Laser rx power high warning (Channel 1)   : Off
+	Laser rx power low warning  (Channel 1)   : Off
+	Laser bias current high alarm   (Chan 2)  : Off
+	Laser bias current low alarm    (Chan 2)  : Off
+	Laser bias current high warning (Chan 2)  : Off
+	Laser bias current low warning  (Chan 2)  : Off
+	Laser tx power high alarm   (Channel 2)   : Off
+	Laser tx power low alarm    (Channel 2)   : Off
+	Laser tx power high warning (Channel 2)   : Off
+	Laser tx power low warning  (Channel 2)   : Off
+	Laser rx power high alarm   (Channel 2)   : Off
+	Laser rx power low alarm    (Channel 2)   : Off
+	Laser rx power high warning (Channel 2)   : Off
+	Laser rx power low warning  (Channel 2)   : Off
+	Laser bias current high alarm   (Chan 3)  : Off
+	Laser bias current low alarm    (Chan 3)  : Off
+	Laser bias current high warning (Chan 3)  : Off
+	Laser bias current low warning  (Chan 3)  : Off
+	Laser tx power high alarm   (Channel 3)   : Off
+	Laser tx power low alarm    (Channel 3)   : Off
+	Laser tx power high warning (Channel 3)   : Off
+	Laser tx power low warning  (Channel 3)   : Off
+	Laser rx power high alarm   (Channel 3)   : Off
+	Laser rx power low alarm    (Channel 3)   : Off
+	Laser rx power high warning (Channel 3)   : Off
+	Laser rx power low warning  (Channel 3)   : Off
+	Laser bias current high alarm   (Chan 4)  : Off
+	Laser bias current low alarm    (Chan 4)  : Off
+	Laser bias current high warning (Chan 4)  : Off
+	Laser bias current low warning  (Chan 4)  : Off
+	Laser tx power high alarm   (Channel 4)   : Off
+	Laser tx power low alarm    (Channel 4)   : Off
+	Laser tx power high warning (Channel 4)   : Off
+	Laser tx power low warning  (Channel 4)   : Off
+	Laser rx power high alarm   (Channel 4)   : Off
+	Laser rx power low alarm    (Channel 4)   : Off
+	Laser rx power high warning (Channel 4)   : Off
+	Laser rx power low warning  (Channel 4)   : Off
+	Laser bias current high alarm   (Chan 5)  : Off
+	Laser bias current low alarm    (Chan 5)  : Off
+	Laser bias current high warning (Chan 5)  : Off
+	Laser bias current low warning  (Chan 5)  : Off
+	Laser tx power high alarm   (Channel 5)   : Off
+	Laser tx power low alarm    (Channel 5)   : Off
+	Laser tx power high warning (Channel 5)   : Off
+	Laser tx power low warning  (Channel 5)   : Off
+	Laser rx power high alarm   (Channel 5)   : Off
+	Laser rx power low alarm    (Channel 5)   : Off
+	Laser rx power high warning (Channel 5)   : Off
+	Laser rx power low warning  (Channel 5)   : Off
+	Laser bias current high alarm   (Chan 6)  : Off
+	Laser bias current low alarm    (Chan 6)  : Off
+	Laser bias current high warning (Chan 6)  : Off
+	Laser bias current low warning  (Chan 6)  : Off
+	Laser tx power high alarm   (Channel 6)   : Off
+	Laser tx power low alarm    (Channel 6)   : Off
+	Laser tx power high warning (Channel 6)   : Off
+	Laser tx power low warning  (Channel 6)   : Off
+	Laser rx power high alarm   (Channel 6)   : Off
+	Laser rx power low alarm    (Channel 6)   : Off
+	Laser rx power high warning (Channel 6)   : Off
+	Laser rx power low warning  (Channel 6)   : Off
+	Laser bias current high alarm   (Chan 7)  : Off
+	Laser bias current low alarm    (Chan 7)  : Off
+	Laser bias current high warning (Chan 7)  : Off
+	Laser bias current low warning  (Chan 7)  : Off
+	Laser tx power high alarm   (Channel 7)   : Off
+	Laser tx power low alarm    (Channel 7)   : Off
+	Laser tx power high warning (Channel 7)   : Off
+	Laser tx power low warning  (Channel 7)   : Off
+	Laser rx power high alarm   (Channel 7)   : Off
+	Laser rx power low alarm    (Channel 7)   : Off
+	Laser rx power high warning (Channel 7)   : Off
+	Laser rx power low warning  (Channel 7)   : Off
+	Laser bias current high alarm   (Chan 8)  : Off
+	Laser bias current low alarm    (Chan 8)  : Off
+	Laser bias current high warning (Chan 8)  : Off
+	Laser bias current low warning  (Chan 8)  : Off
+	Laser tx power high alarm   (Channel 8)   : Off
+	Laser tx power low alarm    (Channel 8)   : Off
+	Laser tx power high warning (Channel 8)   : Off
+	Laser tx power low warning  (Channel 8)   : Off
+	Laser rx power high alarm   (Channel 8)   : Off
+	Laser rx power low alarm    (Channel 8)   : Off
+	Laser rx power high warning (Channel 8)   : Off
+	Laser rx power low warning  (Channel 8)   : Off
+	Laser bias current high alarm threshold   : 25.000 mA
+	Laser bias current low alarm threshold    : 1.250 mA
+	Laser bias current high warning threshold : 22.500 mA
+	Laser bias current low warning threshold  : 2.500 mA
+	Laser output power high alarm threshold   : 3.1620 mW / 5.00 dBm
+	Laser output power low alarm threshold    : 0.4074 mW / -3.90 dBm
+	Laser output power high warning threshold : 2.5118 mW / 4.00 dBm
+	Laser output power low warning threshold  : 0.5129 mW / -2.90 dBm
+	Module temperature high alarm threshold   : 75.00 degrees C / 167.00 degrees F
+	Module temperature low alarm threshold    : 10.00 degrees C / 50.00 degrees F
+	Module temperature high warning threshold : 73.00 degrees C / 163.40 degrees F
+	Module temperature low warning threshold  : 12.00 degrees C / 53.60 degrees F
+	Module voltage high alarm threshold       : 3.6300 V
+	Module voltage low alarm threshold        : 2.9700 V
+	Module voltage high warning threshold     : 3.4650 V
+	Module voltage low warning threshold      : 3.1350 V
+	Laser rx power high alarm threshold       : 3.1620 mW / 5.00 dBm
+	Laser rx power low alarm threshold        : 0.2041 mW / -6.90 dBm
+	Laser rx power high warning threshold     : 2.5118 mW / 4.00 dBm
+	Laser rx power low warning threshold      : 0.2570 mW / -5.90 dBm
