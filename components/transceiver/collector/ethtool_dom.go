@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -24,11 +25,11 @@ func CollectEthtool(ctx context.Context, netdev string) (ModuleInfo, error) {
 	}
 
 	module.parseEthtoolModule(string(output))
-	// ethtool can exit 0 yet print only a raw hex dump when it cannot decode the
-	// module's memory map. Treat that as a failure so the caller falls back to
-	// mlxlink instead of reporting a module with no vendor and no lanes.
+	// ethtool can exit 0 yet decode only the identity page (or nothing but a
+	// raw hex dump). Return what was decoded together with errNoDOM: mlx5 ports
+	// fall back to mlxlink for the readings, other NICs keep the identity row.
 	if !module.hasUsableDOM() {
-		return ModuleInfo{Present: false}, fmt.Errorf("ethtool -m %s: no decodable DOM data", netdev)
+		return module, fmt.Errorf("ethtool -m %s: %w", netdev, errNoDOM)
 	}
 
 	linkCtx, linkCancel := context.WithTimeout(ctx, consts.CmdTimeout)
@@ -47,6 +48,9 @@ func CollectEthtool(ctx context.Context, netdev string) (ModuleInfo, error) {
 	}
 	return module, nil
 }
+
+// errNoDOM marks an `ethtool -m` result that decoded no diagnostic readings.
+var errNoDOM = errors.New("no decodable DOM data")
 
 // parseEthtoolLinkLanes returns the "Lanes:" value of `ethtool <if>`, or 0 when
 // the link is down or the kernel does not report it.
@@ -101,6 +105,11 @@ func (m *ModuleInfo) parseEthtoolModule(output string) {
 			continue
 		}
 
+		if f := m.ethtoolLaneFlag(lower); f != nil {
+			*f = parseLaneFlags(val)
+			continue
+		}
+
 		switch {
 		case key == "Identifier" || key == "Transceiver type":
 			if m.ModuleType == "" || key == "Identifier" {
@@ -126,6 +135,41 @@ func (m *ModuleInfo) parseEthtoolModule(output string) {
 		case strings.HasPrefix(lower, "laser tx bias current"),
 			strings.HasPrefix(lower, "laser bias current"):
 			m.BiasCurrent = append(m.BiasCurrent, parseFloat(val))
+		}
+	}
+	m.expandClearLaneFlags()
+}
+
+// ethtoolLaneFlag maps an `ethtool -m` status key to its flag field.
+func (m *ModuleInfo) ethtoolLaneFlag(lowerKey string) *[]int {
+	switch lowerKey {
+	case "rx loss of signal":
+		return &m.RxLOS
+	case "tx loss of signal":
+		return &m.TxLOS
+	case "rx loss of lock":
+		return &m.RxLOL
+	case "tx loss of lock":
+		return &m.TxLOL
+	case "tx fault":
+		return &m.TxFault
+	}
+	return nil
+}
+
+// expandClearLaneFlags turns ethtool's "None" (no lane flagged) into one clear
+// flag per module lane, so a healthy module reports 0 per lane instead of no
+// series at all, which would be indistinguishable from "not collected". The
+// lane count comes from the DOM arrays; without them there is nothing to size
+// against and the flags stay empty.
+func (m *ModuleInfo) expandClearLaneFlags() {
+	n := max(len(m.RxPower), len(m.TxPower), len(m.BiasCurrent))
+	if n == 0 {
+		return
+	}
+	for _, f := range m.laneFlags() {
+		if *f == nil {
+			*f = make([]int, n)
 		}
 	}
 }

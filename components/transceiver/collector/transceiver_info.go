@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"errors"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -42,6 +43,17 @@ type ModuleInfo struct {
 	TxPower     []float64 `json:"tx_power_dbm"`
 	RxPower     []float64 `json:"rx_power_dbm"`
 	BiasCurrent []float64 `json:"bias_current_ma"`
+
+	// Per-lane module status flags, 1 = asserted: Rx/Tx loss of signal, Rx/Tx
+	// CDR loss of lock and Tx fault. Collected and reported only; no checker
+	// consumes them yet. Lanes follow the same split/trim as the power arrays,
+	// so a dark lane of a wider module (which legitimately shows Rx LOS) is
+	// dropped together with its -40 dBm reading.
+	RxLOS   []int `json:"rx_los"`
+	TxLOS   []int `json:"tx_los"`
+	RxLOL   []int `json:"rx_lol"`
+	TxLOL   []int `json:"tx_lol"`
+	TxFault []int `json:"tx_fault"`
 
 	TxPowerHighAlarm float64 `json:"tx_power_high_alarm_dbm"`
 	TxPowerLowAlarm  float64 `json:"tx_power_low_alarm_dbm"`
@@ -121,7 +133,7 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 	}
 
 	// Build the deduplicated task list: IB entries take priority over Ethernet entries
-	// for the same interface name (mlxlink via IBDev gives richer data).
+	// for the same interface name (mlxlink on the IB device gives richer data).
 	// BDF-based deduplication prevents collecting VF-rep interfaces that share
 	// the same physical PCIe function as their parent PF.
 	seenName := make(map[string]bool)
@@ -138,11 +150,7 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		if iface.PcieBDF != "" {
 			seenBDF[iface.PcieBDF] = true
 		}
-		mlxDev := iface.IBDev
-		if iface.PcieBDF != "" {
-			mlxDev = iface.PcieBDF
-		}
-		tasks = append(tasks, collectTask{iface: iface, netdev: iface.Name, mlxDev: mlxDev})
+		tasks = append(tasks, collectTask{iface: iface, netdev: iface.Name, mlxDev: mlxlinkDev(iface)})
 	}
 
 	for _, iface := range interfaces {
@@ -216,19 +224,32 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 }
 
 // collectModule reads one interface: ethtool first, mlxlink only as a fallback.
+// Collector entry points, overridable in tests.
+var (
+	collectEthtool = CollectEthtool
+	collectMLXLink = CollectMLXLink
+)
+
 func collectModule(ctx context.Context, task collectTask) (ModuleInfo, bool) {
 	if task.netdev != "" {
-		module, err := CollectEthtool(ctx, task.netdev)
+		module, err := collectEthtool(ctx, task.netdev)
 		if err == nil {
 			module.CollectTool = "ethtool"
 			return module, true
 		}
 		logrus.WithField("component", "transceiver").Debugf("ethtool -m %s unusable: %v", task.netdev, err)
+		// A module whose identity decoded but has no DOM page (e.g. some SFP28
+		// AOCs on Intel ice NICs) has no mlxlink to fall back to. Report the
+		// identity row as before rather than dropping the port.
+		if task.mlxDev == "" && errors.Is(err, errNoDOM) {
+			module.CollectTool = "ethtool"
+			return module, true
+		}
 	}
 	if task.mlxDev == "" {
 		return ModuleInfo{}, false
 	}
-	module, err := CollectMLXLink(ctx, task.mlxDev)
+	module, err := collectMLXLink(ctx, task.mlxDev)
 	if err != nil {
 		logrus.WithField("component", "transceiver").Debugf("skip %s (mlxlink %s): %v", task.iface.Name, task.mlxDev, err)
 		return ModuleInfo{}, false
@@ -268,6 +289,9 @@ func splitSharedModuleLanes(items []indexedModule) {
 			m.RxPower = laneSlice(m.RxPower, plane*k, k)
 			m.TxPower = laneSlice(m.TxPower, plane*k, k)
 			m.BiasCurrent = laneSlice(m.BiasCurrent, plane*k, k)
+			for _, f := range m.laneFlags() {
+				*f = laneSlice(*f, plane*k, k)
+			}
 		}
 	}
 }
@@ -292,13 +316,18 @@ func trimToLinkLanes(m *ModuleInfo) {
 	if len(m.BiasCurrent) > n {
 		m.BiasCurrent = m.BiasCurrent[:n]
 	}
+	for _, f := range m.laneFlags() {
+		if len(*f) > n {
+			*f = (*f)[:n]
+		}
+	}
 }
 
-func laneSlice(v []float64, start, k int) []float64 {
+func laneSlice[T any](v []T, start, k int) []T {
 	if start+k > len(v) {
 		return v
 	}
-	out := make([]float64, k)
+	out := make([]T, k)
 	copy(out, v[start:start+k])
 	return out
 }

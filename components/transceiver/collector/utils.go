@@ -123,7 +123,11 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 				}
 			}
 		}
-		entries = append(entries, InterfaceEntry{Name: netDevName, IsIB: true, IBDev: ibDev, PcieBDF: netBDF})
+		bdf := ibDevBDF(ibDir, ibDev)
+		if bdf == "" {
+			bdf = netBDF
+		}
+		entries = append(entries, InterfaceEntry{Name: netDevName, IsIB: true, IBDev: ibDev, PcieBDF: bdf})
 	}
 
 	return entries, nil
@@ -133,6 +137,34 @@ func EnumerateTransceiverInterfaces() ([]InterfaceEntry, error) {
 // IB entries are mlx5 by construction; Ethernet entries carry IsMLX5.
 func (e InterfaceEntry) IsMLX5AndBDF() bool {
 	return e.PcieBDF != "" && (e.IsMLX5 || e.IsIB)
+}
+
+// ibDevBDF resolves the PCI function behind an IB device from its sysfs
+// device link. It is read directly rather than via the netdev, because a
+// device without a netdev would otherwise leave mlxlink only the ibdev name.
+func ibDevBDF(ibDir, ibDev string) string {
+	target, err := os.Readlink(filepath.Join(ibDir, ibDev, "device"))
+	if err != nil {
+		return ""
+	}
+	bdf := filepath.Base(target)
+	// PCI functions are named DDDD:BB:DD.F; anything else (soft RoCE, etc.)
+	// is not addressable by mlxlink.
+	if strings.Count(bdf, ":") != 2 || !strings.Contains(bdf, ".") {
+		return ""
+	}
+	return bdf
+}
+
+// mlxlinkDev picks the -d argument for mlxlink. The PCI BDF is preferred:
+// mlxlink_ext (seen on MFT 4.35.0-159) segfaults when resolving the ibdev
+// name of a multi-plane ConnectX-8 (roce_r0 .. roce_r7, 72 ports each), while
+// the same device addressed by BDF works. The ibdev name is only a fallback.
+func mlxlinkDev(iface InterfaceEntry) string {
+	if iface.PcieBDF != "" {
+		return iface.PcieBDF
+	}
+	return iface.IBDev
 }
 
 type NetworkClassifier struct {
