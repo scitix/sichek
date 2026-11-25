@@ -1,9 +1,12 @@
 package collector
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsMezzanine(t *testing.T) {
@@ -83,4 +86,54 @@ func TestNetworkClassifier_NoManagementMaxSpeed(t *testing.T) {
 
 	// Should not classify as management even at low speed
 	assert.Equal(t, "business", c.Classify("eth0", 25000))
+}
+
+func TestIBDevBDF(t *testing.T) {
+	ibDir := t.TempDir()
+	devices := t.TempDir()
+	mkDev := func(ibDev, target string) {
+		require.NoError(t, os.MkdirAll(filepath.Join(ibDir, ibDev), 0o755))
+		require.NoError(t, os.Symlink(target, filepath.Join(ibDir, ibDev, "device")))
+	}
+	bdfDir := filepath.Join(devices, "pci0000:16", "0000:17:00.0")
+	require.NoError(t, os.MkdirAll(bdfDir, 0o755))
+	mkDev("roce_r0", bdfDir)
+	notPCI := filepath.Join(devices, "virtual-thing")
+	require.NoError(t, os.MkdirAll(notPCI, 0o755))
+	mkDev("rxe0", notPCI)
+	require.NoError(t, os.MkdirAll(filepath.Join(ibDir, "nodevice"), 0o755))
+
+	tests := []struct {
+		ibDev string
+		want  string
+	}{
+		{ibDev: "roce_r0", want: "0000:17:00.0"},
+		{ibDev: "rxe0", want: ""},     // not backed by a PCI function
+		{ibDev: "nodevice", want: ""}, // no device link at all
+		{ibDev: "missing", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.ibDev, func(t *testing.T) {
+			assert.Equal(t, tt.want, ibDevBDF(ibDir, tt.ibDev))
+		})
+	}
+}
+
+func TestMLXLinkDev(t *testing.T) {
+	tests := []struct {
+		name  string
+		iface InterfaceEntry
+		want  string
+	}{
+		// mlxlink_ext (MFT 4.35) segfaults resolving multi-plane CX8 ibdev
+		// names such as roce_r0, so the BDF must win whenever it is known.
+		{name: "ib prefers BDF", iface: InterfaceEntry{IsIB: true, IBDev: "roce_r0", PcieBDF: "0000:17:00.0"}, want: "0000:17:00.0"},
+		{name: "ib falls back to ibdev", iface: InterfaceEntry{IsIB: true, IBDev: "mlx5_0"}, want: "mlx5_0"},
+		{name: "mlx5 ethernet uses BDF", iface: InterfaceEntry{Name: "eth0", IsMLX5: true, PcieBDF: "0000:e6:00.0"}, want: "0000:e6:00.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, mlxlinkDev(tt.iface))
+		})
+	}
 }

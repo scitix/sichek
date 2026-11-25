@@ -121,7 +121,7 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 	}
 
 	// Build the deduplicated task list: IB entries take priority over Ethernet entries
-	// for the same interface name (mlxlink via IBDev gives richer data).
+	// for the same interface name (mlxlink on the IB device gives richer data).
 	// BDF-based deduplication prevents collecting VF-rep interfaces that share
 	// the same physical PCIe function as their parent PF.
 	seenName := make(map[string]bool)
@@ -138,11 +138,7 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		if iface.PcieBDF != "" {
 			seenBDF[iface.PcieBDF] = true
 		}
-		mlxDev := iface.IBDev
-		if iface.PcieBDF != "" {
-			mlxDev = iface.PcieBDF
-		}
-		tasks = append(tasks, collectTask{iface: iface, netdev: iface.Name, mlxDev: mlxDev})
+		tasks = append(tasks, collectTask{iface: iface, netdev: iface.Name, mlxDev: mlxlinkDev(iface)})
 	}
 
 	for _, iface := range interfaces {
