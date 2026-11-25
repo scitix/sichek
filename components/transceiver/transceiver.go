@@ -109,7 +109,7 @@ func newComponent(cfgFile string, specFile string, ignoredCheckers []string) (co
 	}
 	classifier := collector.NewNetworkClassifier(patterns, managementMaxMbps)
 
-	collectorInst := collector.NewTransceiverCollector(classifier)
+	collectorInst := collector.NewTransceiverCollector(classifier, cfg.Transceiver.GetSignalIntegrityInterval())
 
 	checkers, err := checker.NewCheckers(cfg, spec)
 	if err != nil {

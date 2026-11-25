@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -63,12 +65,23 @@ type ModuleInfo struct {
 	LinkDownCounter          uint64  `json:"link_down_counter"`
 	LinkErrorRecoveryCounter uint64  `json:"link_error_recovery_counter"`
 	TimeSinceLastClearMin    float64 `json:"time_since_last_clear_min"`
+	// RawPhysicalErrors is the cumulative pre-FEC corrected-bit count
+	// (mlx5 `rx_corrected_bits_phy`), populated on the ethtool path where the
+	// RawPhysicalBER ratio is not available.
+	RawPhysicalErrors uint64 `json:"raw_physical_errors"`
+
+	// LinkLanes is the number of lanes the link is running on (`ethtool <if>`
+	// "Lanes:"), 0 when unknown. Not exported as a metric.
+	LinkLanes int `json:"-"`
 }
 
 type collectTask struct {
-	iface      InterfaceEntry
-	useMLXLink bool
-	dev        string // IBDev name, PCIe BDF, or interface name
+	iface InterfaceEntry
+	// netdev is tried first with `ethtool -m` (~20ms). mlxDev, when set, is the
+	// mlxlink fallback (~1-8s and holds the MFT device lock), used only when
+	// there is no netdev or ethtool cannot decode the module.
+	netdev string
+	mlxDev string
 }
 
 type indexedModule struct {
@@ -79,10 +92,22 @@ type indexedModule struct {
 
 type TransceiverCollector struct {
 	networkClassifier *NetworkClassifier
+
+	// signalIntegrityInterval paces the mlxlink Recommendation sweep; <= 0
+	// disables it. Recommendations are cached between sweeps so the
+	// signal-integrity checker does not flap on rounds that skip mlxlink.
+	signalIntegrityInterval time.Duration
+	siMu                    sync.Mutex
+	lastSISweep             time.Time
+	recommendations         map[string]string // keyed by mlxlink device (BDF)
 }
 
-func NewTransceiverCollector(classifier *NetworkClassifier) *TransceiverCollector {
-	return &TransceiverCollector{networkClassifier: classifier}
+func NewTransceiverCollector(classifier *NetworkClassifier, signalIntegrityInterval time.Duration) *TransceiverCollector {
+	return &TransceiverCollector{
+		networkClassifier:       classifier,
+		signalIntegrityInterval: signalIntegrityInterval,
+		recommendations:         make(map[string]string),
+	}
 }
 
 func (c *TransceiverCollector) Name() string {
@@ -113,7 +138,11 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		if iface.PcieBDF != "" {
 			seenBDF[iface.PcieBDF] = true
 		}
-		tasks = append(tasks, collectTask{iface: iface, useMLXLink: true, dev: iface.IBDev})
+		mlxDev := iface.IBDev
+		if iface.PcieBDF != "" {
+			mlxDev = iface.PcieBDF
+		}
+		tasks = append(tasks, collectTask{iface: iface, netdev: iface.Name, mlxDev: mlxDev})
 	}
 
 	for _, iface := range interfaces {
@@ -124,16 +153,16 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 			logrus.WithField("component", "transceiver").Debugf("skip %s: same BDF %s as IB interface", iface.Name, iface.PcieBDF)
 			continue
 		}
+		task := collectTask{iface: iface, netdev: iface.Name}
 		if iface.IsMLX5 && iface.PcieBDF != "" {
-			tasks = append(tasks, collectTask{iface: iface, useMLXLink: true, dev: iface.PcieBDF})
-		} else {
-			tasks = append(tasks, collectTask{iface: iface, useMLXLink: false, dev: iface.Name})
+			task.mlxDev = iface.PcieBDF
 		}
+		tasks = append(tasks, task)
 	}
 
-	// Collect interfaces concurrently with a bounded worker pool.
-	// Unlimited parallelism causes PCIe device lock contention across 40+ mlxlink
-	// processes, which serializes them anyway and wastes the 30s command timeout.
+	// Collect interfaces concurrently with a bounded worker pool. Only the
+	// mlxlink fallback is expensive; it contends on the per-device MFT lock and
+	// burns CPU, which is what used to starve the infiniband collector.
 	const maxWorkers = 8
 	resultCh := make(chan indexedModule, len(tasks))
 	sem := make(chan struct{}, maxWorkers)
@@ -146,29 +175,10 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			var module ModuleInfo
-			var collectErr error
-
-			if task.useMLXLink {
-				module, collectErr = CollectMLXLink(ctx, task.dev)
-				if collectErr != nil {
-					if task.iface.IsIB {
-						logrus.WithField("component", "transceiver").Debugf("skip IB %s: %v", task.dev, collectErr)
-					} else {
-						logrus.WithField("component", "transceiver").Debugf("skip mlx5 %s (BDF %s): %v", task.iface.Name, task.dev, collectErr)
-					}
-					return
-				}
-				module.CollectTool = "mlxlink"
-			} else {
-				module, collectErr = CollectEthtool(ctx, task.dev)
-				if collectErr != nil {
-					logrus.WithField("component", "transceiver").Debugf("skip %s: no transceiver module detected (%v)", task.iface.Name, collectErr)
-					return
-				}
-				module.CollectTool = "ethtool"
+			module, ok := collectModule(ctx, task)
+			if !ok {
+				return
 			}
-
 			module.Interface = task.iface.Name
 			if task.iface.IsIB {
 				module.IBDev = task.iface.IBDev
@@ -187,6 +197,11 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 		ordered = append(ordered, r)
 	}
 	sortByIndex(ordered)
+	splitSharedModuleLanes(ordered)
+	for i := range ordered {
+		trimToLinkLanes(&ordered[i].module)
+	}
+	c.applySignalIntegrity(ctx, ordered)
 
 	info := &TransceiverInfo{}
 	for _, r := range ordered {
@@ -198,6 +213,135 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 	}
 
 	return info, nil
+}
+
+// collectModule reads one interface: ethtool first, mlxlink only as a fallback.
+func collectModule(ctx context.Context, task collectTask) (ModuleInfo, bool) {
+	if task.netdev != "" {
+		module, err := CollectEthtool(ctx, task.netdev)
+		if err == nil {
+			module.CollectTool = "ethtool"
+			return module, true
+		}
+		logrus.WithField("component", "transceiver").Debugf("ethtool -m %s unusable: %v", task.netdev, err)
+	}
+	if task.mlxDev == "" {
+		return ModuleInfo{}, false
+	}
+	module, err := CollectMLXLink(ctx, task.mlxDev)
+	if err != nil {
+		logrus.WithField("component", "transceiver").Debugf("skip %s (mlxlink %s): %v", task.iface.Name, task.mlxDev, err)
+		return ModuleInfo{}, false
+	}
+	module.CollectTool = "mlxlink"
+	return module, true
+}
+
+// splitSharedModuleLanes handles multi-plane NICs where several PCIe functions
+// share one physical cage. `ethtool -m` on any of them returns every lane of the
+// module, so without splitting each plane would report the whole module and a
+// single bad lane would be attributed to all planes. Plane function N owns lanes
+// [N*k, N*k+k) where k = lanes / planes (verified on CX8 + OSFP 8x: 4 planes x 2
+// lanes, matching mlxlink's per-plane view). Groups are keyed by module serial
+// number; rows whose lane count does not divide evenly are left untouched.
+func splitSharedModuleLanes(items []indexedModule) {
+	groups := make(map[string][]int)
+	for i, it := range items {
+		if it.module.CollectTool != "ethtool" || it.module.SerialNumber == "" || it.iface.PcieBDF == "" {
+			continue
+		}
+		groups[it.module.SerialNumber] = append(groups[it.module.SerialNumber], i)
+	}
+	for _, idxs := range groups {
+		n := len(idxs)
+		if n < 2 {
+			continue
+		}
+		lanes := len(items[idxs[0]].module.RxPower)
+		if lanes == 0 || lanes%n != 0 {
+			continue
+		}
+		sort.Slice(idxs, func(a, b int) bool { return items[idxs[a]].iface.PcieBDF < items[idxs[b]].iface.PcieBDF })
+		k := lanes / n
+		for plane, idx := range idxs {
+			m := &items[idx].module
+			m.RxPower = laneSlice(m.RxPower, plane*k, k)
+			m.TxPower = laneSlice(m.TxPower, plane*k, k)
+			m.BiasCurrent = laneSlice(m.BiasCurrent, plane*k, k)
+		}
+	}
+}
+
+// trimToLinkLanes drops module lanes beyond the link width. `ethtool -m`
+// reports every lane of the module, including ones a narrower link leaves dark
+// (e.g. a 4-lane 400G module carrying a 2-lane 200G link), which would otherwise
+// trip the power and bias checkers. mlxlink only reports active lanes, so this
+// restores parity. Active lanes are the first LinkLanes of the module, matching
+// what mlxlink reports on the same port.
+func trimToLinkLanes(m *ModuleInfo) {
+	n := m.LinkLanes
+	if n <= 0 {
+		return
+	}
+	if len(m.RxPower) > n {
+		m.RxPower = m.RxPower[:n]
+	}
+	if len(m.TxPower) > n {
+		m.TxPower = m.TxPower[:n]
+	}
+	if len(m.BiasCurrent) > n {
+		m.BiasCurrent = m.BiasCurrent[:n]
+	}
+}
+
+func laneSlice(v []float64, start, k int) []float64 {
+	if start+k > len(v) {
+		return v
+	}
+	out := make([]float64, k)
+	copy(out, v[start:start+k])
+	return out
+}
+
+// applySignalIntegrity fills Recommendation for mlx5 modules. The ethtool path
+// has no equivalent, so a plain `mlxlink -d <bdf>` (no -m/-c, ~0.5s) is run at
+// most once per signalIntegrityInterval, one device at a time so it never holds
+// more than one MFT lock or one CPU. Results are cached and reused on rounds in
+// between. The sweep stops early when ctx is done; unswept devices keep their
+// previous value and are retried next sweep.
+func (c *TransceiverCollector) applySignalIntegrity(ctx context.Context, items []indexedModule) {
+	c.siMu.Lock()
+	defer c.siMu.Unlock()
+
+	if c.signalIntegrityInterval > 0 && time.Since(c.lastSISweep) >= c.signalIntegrityInterval {
+		c.lastSISweep = time.Now()
+		swept := 0
+		for _, it := range items {
+			if it.module.CollectTool != "ethtool" || !it.iface.IsMLX5AndBDF() {
+				continue
+			}
+			if ctx.Err() != nil {
+				logrus.WithField("component", "transceiver").Warnf("signal-integrity sweep stopped after %d devices: %v", swept, ctx.Err())
+				break
+			}
+			rec, err := CollectMLXLinkRecommendation(ctx, it.iface.PcieBDF)
+			if err != nil {
+				logrus.WithField("component", "transceiver").Debugf("mlxlink recommendation %s: %v", it.iface.PcieBDF, err)
+				continue
+			}
+			c.recommendations[it.iface.PcieBDF] = rec
+			swept++
+		}
+	}
+
+	for i := range items {
+		if items[i].module.CollectTool != "ethtool" {
+			continue
+		}
+		if rec, ok := c.recommendations[items[i].iface.PcieBDF]; ok {
+			items[i].module.Recommendation = rec
+		}
+	}
 }
 
 func sortByIndex(items []indexedModule) {
