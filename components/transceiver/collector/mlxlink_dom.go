@@ -116,6 +116,19 @@ func (m *ModuleInfo) parseMLXLink(output string) {
 			// strip ANSI codes so downstream text matching is reliable.
 			m.Recommendation = stripANSI(val)
 
+		// Rx LOS [per lane] : 0,0 — matched exactly so "Tx Adaptive EQ
+		// Fault [per lane]" is not taken for Tx Fault.
+		case key == "Rx LOS [per lane]":
+			m.RxLOS = parseLaneFlags(val)
+		case key == "Tx LOS [per lane]":
+			m.TxLOS = parseLaneFlags(val)
+		case key == "Rx CDR LOL [per lane]":
+			m.RxLOL = parseLaneFlags(val)
+		case key == "Tx CDR LOL [per lane]":
+			m.TxLOL = parseLaneFlags(val)
+		case key == "Tx Fault [per lane]":
+			m.TxFault = parseLaneFlags(val)
+
 		// Temperature [C] : 54 [-5..75]
 		case strings.HasPrefix(key, "Temperature"):
 			value, low, high := parseMLXLinkValueWithRange(val)
@@ -279,4 +292,34 @@ func (m *ModuleInfo) parseIBCounters(ibDev string) {
 		val, _ := strconv.ParseUint(valStr, 10, 64)
 		m.LinkErrors[key] = val
 	}
+}
+
+// laneFlags returns the per-lane status flag fields, for code that splits or
+// trims lanes uniformly.
+func (m *ModuleInfo) laneFlags() []*[]int {
+	return []*[]int{&m.RxLOS, &m.TxLOS, &m.RxLOL, &m.TxLOL, &m.TxFault}
+}
+
+// parseLaneFlags parses a per-lane status flag in either tool's format:
+// ethtool prints "[ No, Yes, ... ]" or a single "Yes"/"No", mlxlink prints
+// "0,1". It returns nil for "None", "N/A" or anything unrecognised; callers
+// decide what an absent value means.
+func parseLaneFlags(s string) []int {
+	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(s), "["), "]"))
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]int, 0, len(parts))
+	for _, p := range parts {
+		switch strings.ToLower(strings.TrimSpace(p)) {
+		case "yes", "1":
+			out = append(out, 1)
+		case "no", "0":
+			out = append(out, 0)
+		default:
+			return nil
+		}
+	}
+	return out
 }

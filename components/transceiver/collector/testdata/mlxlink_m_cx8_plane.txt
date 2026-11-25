@@ -1,0 +1,84 @@
+
+Operational Info
+----------------
+State                              : Active 
+Physical state                     : ETH_AN_FSM_ENABLE 
+Speed                              : 200G 
+Width                              : 2x 
+FEC                                : Standard_RS-FEC - (544,514) 
+Loopback Mode                      : No Loopback 
+Auto Negotiation                   : ON 
+
+Supported Info
+--------------
+Enabled Link Speed (Ext.)          : 0x00002d00 (200G_2X,100G_1X,100G_2X,50G_1X) 
+Supported Cable Speed (Ext.)       : 0x00092800 (800G_8X,400G_4X,200G_2X,100G_1X) 
+
+Troubleshooting Info
+--------------------
+Status Opcode                      : 0 
+Group Opcode                       : N/A 
+Recommendation                     : No issue was observed 
+
+Tool Information
+----------------
+Firmware Version                   : 40.48.1000 
+amBER Version                      : 6.4 
+MFT Version                        : 4.35.0-159 
+
+Module Info
+-----------
+Temperature [C]                    : 48 [-10..80]
+Voltage [mV]                       : 3326.6 [2970..3630]
+Bias Current [mA]                  : 149.352,149.352 [20..360]
+Rx Power Current [dBm]             : 2.151,2.543 [-6.904..5]
+Tx Power Current [dBm]             : 3.610,3.336 [-3.904..5]
+Identifier                         : OSFP
+Compliance                         : 
+Cable Technology                   : 1310 nm DFB laser
+Cable Type                         : Optical Module (separated)
+OUI                                : Other
+Vendor Name                        : CLT
+Vendor Part Number                 : T-G8HD-BX0
+Vendor Serial Number               : CWKGA5026050337
+Rev                                : R0
+Wavelength [nm]                    : 1311
+Transfer Distance [m]              : 0.0
+Attenuation (5g,7g,12g,25g)[dB]    : N/A
+FW Version                         : 0.1.0
+Digital Diagnostic Monitoring      : Yes
+Power Class                        : 8 (> 14 W max)
+MAX Power                          : 16.0 W max
+CDR RX                             : ON,ON
+CDR TX                             : ON,ON
+LOS Alarm                          : N/A
+SNR Media Lanes [dB]               : 24.79,24.79
+SNR Host Lanes [dB]                : 25.34,25.64
+IB Cable Width                     : 1x,2x,4x,8x
+Memory Map Revision                : 82
+Linear Direct Drive                : 0
+Cable Breakout                     : Unspecified
+SMF Length                         : 500m
+Cable Rx AMP                       : 1
+Cable Rx Emphasis (Pre)            : 0
+Cable Rx Post Emphasis             : 0
+Cable Tx Equalization              : 0
+Wavelength Tolerance               : 6.5nm
+Module State                       : Ready state
+DataPath state [per lane]          : DPActivated,DPActivated
+Rx Output Valid [per lane]         : 0,0
+Nominal bit rate                   : N/A
+Rx Power Type                      : Average power
+Manufacturing Date                 : 11_02_26
+Active Set Host Compliance Code    : 
+Active Set Media Compliance Code   : 
+Error Code Response                : ConfigUndefined
+Module FW Fault                    : 0
+DataPath FW Fault                  : 0
+Tx Fault [per lane]                : 0,0
+Tx LOS [per lane]                  : 0,0
+Tx CDR LOL [per lane]              : 0,0
+Rx LOS [per lane]                  : 0,0
+Rx CDR LOL [per lane]              : 0,0
+Tx Adaptive EQ Fault [per lane]    : 0,0
+

@@ -105,6 +105,11 @@ func (m *ModuleInfo) parseEthtoolModule(output string) {
 			continue
 		}
 
+		if f := m.ethtoolLaneFlag(lower); f != nil {
+			*f = parseLaneFlags(val)
+			continue
+		}
+
 		switch {
 		case key == "Identifier" || key == "Transceiver type":
 			if m.ModuleType == "" || key == "Identifier" {
@@ -130,6 +135,41 @@ func (m *ModuleInfo) parseEthtoolModule(output string) {
 		case strings.HasPrefix(lower, "laser tx bias current"),
 			strings.HasPrefix(lower, "laser bias current"):
 			m.BiasCurrent = append(m.BiasCurrent, parseFloat(val))
+		}
+	}
+	m.expandClearLaneFlags()
+}
+
+// ethtoolLaneFlag maps an `ethtool -m` status key to its flag field.
+func (m *ModuleInfo) ethtoolLaneFlag(lowerKey string) *[]int {
+	switch lowerKey {
+	case "rx loss of signal":
+		return &m.RxLOS
+	case "tx loss of signal":
+		return &m.TxLOS
+	case "rx loss of lock":
+		return &m.RxLOL
+	case "tx loss of lock":
+		return &m.TxLOL
+	case "tx fault":
+		return &m.TxFault
+	}
+	return nil
+}
+
+// expandClearLaneFlags turns ethtool's "None" (no lane flagged) into one clear
+// flag per module lane, so a healthy module reports 0 per lane instead of no
+// series at all, which would be indistinguishable from "not collected". The
+// lane count comes from the DOM arrays; without them there is nothing to size
+// against and the flags stay empty.
+func (m *ModuleInfo) expandClearLaneFlags() {
+	n := max(len(m.RxPower), len(m.TxPower), len(m.BiasCurrent))
+	if n == 0 {
+		return
+	}
+	for _, f := range m.laneFlags() {
+		if *f == nil {
+			*f = make([]int, n)
 		}
 	}
 }

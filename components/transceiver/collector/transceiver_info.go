@@ -44,6 +44,17 @@ type ModuleInfo struct {
 	RxPower     []float64 `json:"rx_power_dbm"`
 	BiasCurrent []float64 `json:"bias_current_ma"`
 
+	// Per-lane module status flags, 1 = asserted: Rx/Tx loss of signal, Rx/Tx
+	// CDR loss of lock and Tx fault. Collected and reported only; no checker
+	// consumes them yet. Lanes follow the same split/trim as the power arrays,
+	// so a dark lane of a wider module (which legitimately shows Rx LOS) is
+	// dropped together with its -40 dBm reading.
+	RxLOS   []int `json:"rx_los"`
+	TxLOS   []int `json:"tx_los"`
+	RxLOL   []int `json:"rx_lol"`
+	TxLOL   []int `json:"tx_lol"`
+	TxFault []int `json:"tx_fault"`
+
 	TxPowerHighAlarm float64 `json:"tx_power_high_alarm_dbm"`
 	TxPowerLowAlarm  float64 `json:"tx_power_low_alarm_dbm"`
 	RxPowerHighAlarm float64 `json:"rx_power_high_alarm_dbm"`
@@ -278,6 +289,9 @@ func splitSharedModuleLanes(items []indexedModule) {
 			m.RxPower = laneSlice(m.RxPower, plane*k, k)
 			m.TxPower = laneSlice(m.TxPower, plane*k, k)
 			m.BiasCurrent = laneSlice(m.BiasCurrent, plane*k, k)
+			for _, f := range m.laneFlags() {
+				*f = laneSlice(*f, plane*k, k)
+			}
 		}
 	}
 }
@@ -302,13 +316,18 @@ func trimToLinkLanes(m *ModuleInfo) {
 	if len(m.BiasCurrent) > n {
 		m.BiasCurrent = m.BiasCurrent[:n]
 	}
+	for _, f := range m.laneFlags() {
+		if len(*f) > n {
+			*f = (*f)[:n]
+		}
+	}
 }
 
-func laneSlice(v []float64, start, k int) []float64 {
+func laneSlice[T any](v []T, start, k int) []T {
 	if start+k > len(v) {
 		return v
 	}
-	out := make([]float64, k)
+	out := make([]T, k)
 	copy(out, v[start:start+k])
 	return out
 }
