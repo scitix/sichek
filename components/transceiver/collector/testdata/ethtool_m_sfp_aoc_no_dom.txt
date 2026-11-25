@@ -1,0 +1,29 @@
+	Identifier                                : 0x03 (SFP)
+	Extended identifier                       : 0x04 (GBIC/SFP defined by 2-wire interface ID)
+	Connector                                 : 0x0b (Optical pigtail)
+	Transceiver codes                         : 0x00 0x00 0x00 0x00 0x00 0x08 0x00 0x00 0x01
+	Transceiver type                          : Active Cable
+	Transceiver type                          : Extended: 100G AOC or 25GAUI C2M AOC with worst BER of 5x10^(-5)
+	Encoding                                  : 0x03 (NRZ)
+	BR, Nominal                               : 25750MBd
+	Rate identifier                           : 0x00 (unspecified)
+	Length (SMF,km)                           : 0km
+	Length (SMF)                              : 0m
+	Length (50um)                             : 0m
+	Length (62.5um)                           : 0m
+	Length (Copper)                           : 10m
+	Length (OM3)                              : 0m
+	Active Cu cmplnce.                        : 0x03 (unknown) [SFF-8472 rev10.4 only]
+	Vendor name                               : YOFC
+	Vendor OUI                                : 00:00:00
+	Vendor PN                                 : Y-27000C309
+	Vendor rev                                : 1.0
+	Option values                             : 0x08 0x1a
+	Option                                    : RX_LOS implemented
+	Option                                    : TX_FAULT implemented
+	Option                                    : TX_DISABLE implemented
+	Option                                    : Retimer or CDR implemented
+	BR margin, max                            : 0%
+	BR margin, min                            : 0%
+	Vendor SN                                 : A12331M080117-1
+	Date code                                 : 230811

@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -24,11 +25,11 @@ func CollectEthtool(ctx context.Context, netdev string) (ModuleInfo, error) {
 	}
 
 	module.parseEthtoolModule(string(output))
-	// ethtool can exit 0 yet print only a raw hex dump when it cannot decode the
-	// module's memory map. Treat that as a failure so the caller falls back to
-	// mlxlink instead of reporting a module with no vendor and no lanes.
+	// ethtool can exit 0 yet decode only the identity page (or nothing but a
+	// raw hex dump). Return what was decoded together with errNoDOM: mlx5 ports
+	// fall back to mlxlink for the readings, other NICs keep the identity row.
 	if !module.hasUsableDOM() {
-		return ModuleInfo{Present: false}, fmt.Errorf("ethtool -m %s: no decodable DOM data", netdev)
+		return module, fmt.Errorf("ethtool -m %s: %w", netdev, errNoDOM)
 	}
 
 	linkCtx, linkCancel := context.WithTimeout(ctx, consts.CmdTimeout)
@@ -47,6 +48,9 @@ func CollectEthtool(ctx context.Context, netdev string) (ModuleInfo, error) {
 	}
 	return module, nil
 }
+
+// errNoDOM marks an `ethtool -m` result that decoded no diagnostic readings.
+var errNoDOM = errors.New("no decodable DOM data")
 
 // parseEthtoolLinkLanes returns the "Lanes:" value of `ethtool <if>`, or 0 when
 // the link is down or the kernel does not report it.

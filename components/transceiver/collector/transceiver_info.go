@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"errors"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -212,19 +213,32 @@ func (c *TransceiverCollector) Collect(ctx context.Context) (*TransceiverInfo, e
 }
 
 // collectModule reads one interface: ethtool first, mlxlink only as a fallback.
+// Collector entry points, overridable in tests.
+var (
+	collectEthtool = CollectEthtool
+	collectMLXLink = CollectMLXLink
+)
+
 func collectModule(ctx context.Context, task collectTask) (ModuleInfo, bool) {
 	if task.netdev != "" {
-		module, err := CollectEthtool(ctx, task.netdev)
+		module, err := collectEthtool(ctx, task.netdev)
 		if err == nil {
 			module.CollectTool = "ethtool"
 			return module, true
 		}
 		logrus.WithField("component", "transceiver").Debugf("ethtool -m %s unusable: %v", task.netdev, err)
+		// A module whose identity decoded but has no DOM page (e.g. some SFP28
+		// AOCs on Intel ice NICs) has no mlxlink to fall back to. Report the
+		// identity row as before rather than dropping the port.
+		if task.mlxDev == "" && errors.Is(err, errNoDOM) {
+			module.CollectTool = "ethtool"
+			return module, true
+		}
 	}
 	if task.mlxDev == "" {
 		return ModuleInfo{}, false
 	}
-	module, err := CollectMLXLink(ctx, task.mlxDev)
+	module, err := collectMLXLink(ctx, task.mlxDev)
 	if err != nil {
 		logrus.WithField("component", "transceiver").Debugf("skip %s (mlxlink %s): %v", task.iface.Name, task.mlxDev, err)
 		return ModuleInfo{}, false

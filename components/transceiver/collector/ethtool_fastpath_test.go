@@ -16,6 +16,8 @@ limitations under the License.
 package collector
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -212,4 +214,67 @@ func TestTrimToLinkLanes(t *testing.T) {
 	unknown := ModuleInfo{RxPower: []float64{1, 2, 3, 4}}
 	trimToLinkLanes(&unknown)
 	assert.Len(t, unknown.RxPower, 4, "unknown link width keeps every lane")
+}
+
+// Non-mlx5 NICs (Intel ice) with an SFP that has no DOM page: ethtool decodes
+// only the identity page and there is no mlxlink to fall back to. main reported
+// these as an identity-only row; the fast path must not silently drop them.
+// Fixture captured from ens6f0 (ice, 25G AOC) on aries-g30-10-208-32-24.
+func TestCollectModuleNoDOM(t *testing.T) {
+	identity := readFixture(t, "ethtool_m_sfp_aoc_no_dom.txt")
+	stubEthtool := func(ctx context.Context, netdev string) (ModuleInfo, error) {
+		m := ModuleInfo{Present: true}
+		m.parseEthtoolModule(identity)
+		return m, errNoDOM
+	}
+	mlxCalled := false
+	stubMLX := func(ok bool) func(context.Context, string) (ModuleInfo, error) {
+		return func(ctx context.Context, dev string) (ModuleInfo, error) {
+			mlxCalled = true
+			if !ok {
+				return ModuleInfo{}, errors.New("mlxlink failed")
+			}
+			return ModuleInfo{Present: true, Vendor: "FROM-MLXLINK", RxPower: []float64{1}}, nil
+		}
+	}
+	restore := func(e func(context.Context, string) (ModuleInfo, error), m func(context.Context, string) (ModuleInfo, error)) {
+		collectEthtool, collectMLXLink = e, m
+	}
+	defer restore(collectEthtool, collectMLXLink)
+
+	t.Run("no mlxlink fallback keeps the identity row", func(t *testing.T) {
+		collectEthtool, collectMLXLink, mlxCalled = stubEthtool, stubMLX(true), false
+		m, ok := collectModule(context.Background(), collectTask{netdev: "ens6f0"})
+		require.True(t, ok)
+		assert.False(t, mlxCalled)
+		assert.Equal(t, "ethtool", m.CollectTool)
+		assert.Equal(t, "YOFC", m.Vendor)
+		assert.Equal(t, "Y-27000C309", m.PartNumber)
+		assert.True(t, m.Present)
+		assert.Empty(t, m.RxPower)
+	})
+
+	t.Run("mlx5 port prefers mlxlink DOM over the identity row", func(t *testing.T) {
+		collectEthtool, collectMLXLink, mlxCalled = stubEthtool, stubMLX(true), false
+		m, ok := collectModule(context.Background(), collectTask{netdev: "ens14f0", mlxDev: "0000:31:00.0"})
+		require.True(t, ok)
+		assert.True(t, mlxCalled)
+		assert.Equal(t, "mlxlink", m.CollectTool)
+		assert.Equal(t, "FROM-MLXLINK", m.Vendor)
+	})
+
+	t.Run("mlx5 port whose mlxlink fails is dropped, as on main", func(t *testing.T) {
+		collectEthtool, collectMLXLink, mlxCalled = stubEthtool, stubMLX(false), false
+		_, ok := collectModule(context.Background(), collectTask{netdev: "ens14f0", mlxDev: "0000:31:00.0"})
+		assert.True(t, mlxCalled)
+		assert.False(t, ok)
+	})
+
+	t.Run("ethtool -m unsupported and no mlxlink is still dropped", func(t *testing.T) {
+		collectEthtool = func(ctx context.Context, netdev string) (ModuleInfo, error) {
+			return ModuleInfo{Present: false}, errors.New("Operation not supported")
+		}
+		_, ok := collectModule(context.Background(), collectTask{netdev: "ens16f0np0"})
+		assert.False(t, ok)
+	})
 }
